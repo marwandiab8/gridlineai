@@ -1,0 +1,17 @@
+{
+  "adminSettings__documentId__company": {
+    "companyStandards": "Stop work for imminent danger. PPE per site orientation. Report near-misses to the super.",
+    "responseStyle": "Short SMS. Plain English. Direct. A little site slang is OK when it saves words.",
+    "approvedTerminology": "Use 'pour' for concrete placement in texts when it sounds natural.",
+    "reportingPreferences": "Encourage logging issues and deliveries with log issue: / log delivery: when they affect schedule.",
+    "escalationRules": "Life safety: call 911 and site safety. Quality hold: notify PM same day."
+  },
+  "projects__documentId__docksteader": {
+    "name": "Docksteader (sample)",
+    "instructionText": "Sample project — replace with real GC rules, spec references, and job-specific notes before production.",
+    "contactsText": "Super: add name/phone. Safety: site trailer. PM: add contact.",
+    "scheduleNotes": "3-week lookahead: add key milestones (pours, inspections, critical deliveries).",
+    "faqText": "Laydown area: TBD. Gate hours: TBD.",
+    "notes": "Edit anytime in Console or re-run npm run seed."
+  }
+}

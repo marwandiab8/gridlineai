@@ -1,0 +1,322 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function operatorEmail() {
+      return signedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : null;
+    }
+
+    function hasAdminClaim() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.operator == true ||
+        (request.auth.token.role is string && request.auth.token.role.lower() == "admin")
+      );
+    }
+
+    function isApprovedOperator() {
+      return signedIn() && (
+        hasAdminClaim() ||
+        (
+          operatorEmail() != null &&
+          exists(/databases/$(database)/documents/adminOperators/$(operatorEmail())) &&
+          get(/databases/$(database)/documents/adminOperators/$(operatorEmail())).data.active == true
+        )
+      );
+    }
+
+    function hasActiveAppMember() {
+      return signedIn() &&
+        operatorEmail() != null &&
+        exists(/databases/$(database)/documents/appMembers/$(operatorEmail())) &&
+        get(/databases/$(database)/documents/appMembers/$(operatorEmail())).data.active == true;
+    }
+
+    function appMemberData() {
+      return hasActiveAppMember()
+        ? get(/databases/$(database)/documents/appMembers/$(operatorEmail())).data
+        : null;
+    }
+
+    function appRole() {
+      return hasAdminClaim() || isApprovedOperator()
+        ? "admin"
+        : hasActiveAppMember() && appMemberData().role is string
+          ? appMemberData().role.lower()
+          : null;
+    }
+
+    function hasAppAccess() {
+      return signedIn() && (isApprovedOperator() || hasActiveAppMember());
+    }
+
+    function isAdminApp() {
+      return hasAppAccess() && appRole() == "admin";
+    }
+
+    function isManagementApp() {
+      return hasAppAccess() && (appRole() == "management" || isAdminApp());
+    }
+
+    function canApproveNotes() {
+      return isAdminApp() ||
+        (
+          hasActiveAppMember() &&
+          appRole() == "management" &&
+          appMemberData().canApproveNotes == true
+        );
+    }
+
+    function allProjectsAccess() {
+      return isAdminApp() ||
+        (hasActiveAppMember() && appMemberData().allProjects == true);
+    }
+
+    function projectListHas(slug) {
+      return hasActiveAppMember() &&
+        appMemberData().projectSlugs is list &&
+        slug in appMemberData().projectSlugs;
+    }
+
+    function canAccessProjectSlug(slug) {
+      return hasAppAccess() &&
+        (
+          isAdminApp() ||
+          allProjectsAccess() ||
+          (slug is string && projectListHas(slug))
+        );
+    }
+
+    /** Issues may match projects assigned only on the member’s linked smsUsers doc (field phone). */
+    function smsUserProjectListHas(slug) {
+      return slug is string &&
+        hasActiveAppMember() &&
+        appMemberData().approvedPhoneE164 is string &&
+        exists(/databases/$(database)/documents/smsUsers/$(appMemberData().approvedPhoneE164)) &&
+        (
+          (
+            get(/databases/$(database)/documents/smsUsers/$(appMemberData().approvedPhoneE164)).data.activeProjectSlug is string &&
+            get(/databases/$(database)/documents/smsUsers/$(appMemberData().approvedPhoneE164)).data.activeProjectSlug == slug
+          ) ||
+          (
+            get(/databases/$(database)/documents/smsUsers/$(appMemberData().approvedPhoneE164)).data.projectSlugs is list &&
+            slug in get(/databases/$(database)/documents/smsUsers/$(appMemberData().approvedPhoneE164)).data.projectSlugs
+          )
+        );
+    }
+
+    function issueProjectReadable(slug) {
+      return hasAppAccess() && (
+        isManagementApp() ||
+        allProjectsAccess() ||
+        (slug is string && projectListHas(slug)) ||
+        smsUserProjectListHas(slug)
+      );
+    }
+
+    function isAdminFast() {
+      return signedIn() && (
+        hasAdminClaim() ||
+        (
+          operatorEmail() != null &&
+          exists(/databases/$(database)/documents/adminOperators/$(operatorEmail())) &&
+          get(/databases/$(database)/documents/adminOperators/$(operatorEmail())).data.active == true
+        )
+      );
+    }
+
+    function memberDocFast() {
+      return signedIn() &&
+        operatorEmail() != null &&
+        exists(/databases/$(database)/documents/appMembers/$(operatorEmail()))
+        ? get(/databases/$(database)/documents/appMembers/$(operatorEmail())).data
+        : null;
+    }
+
+    function memberActiveFast() {
+      return memberDocFast() != null && memberDocFast().active == true;
+    }
+
+    function memberCanAccessSlugFast(slug) {
+      return memberActiveFast() && (
+        memberDocFast().allProjects == true ||
+        (
+          slug is string &&
+          memberDocFast().projectSlugs is list &&
+          slug in memberDocFast().projectSlugs
+        )
+      );
+    }
+
+    function operatorReadOnly() {
+      return isApprovedOperator();
+    }
+
+    match /adminOperators/{email} {
+      allow read: if isAdminApp() && operatorEmail() == email;
+      allow write: if false;
+    }
+
+    match /messages/{messageId} {
+      allow read: if isAdminApp();
+      allow write: if false;
+    }
+    match /smsUsers/{userId} {
+      allow read: if isAdminFast() ||
+        (
+          hasActiveAppMember() &&
+          (
+            memberDocFast().allProjects == true ||
+            (
+              resource.data.activeProjectSlug is string &&
+              memberCanAccessSlugFast(resource.data.activeProjectSlug)
+            )
+          )
+        );
+      allow write: if false;
+    }
+    match /projects/{projectId} {
+      allow read: if isManagementApp() ||
+        memberCanAccessSlugFast(projectId) ||
+        smsUserProjectListHas(projectId);
+      allow write: if false;
+    }
+    match /appMembers/{email} {
+      allow read: if (hasAppAccess() && operatorEmail() == email) || isAdminApp();
+      allow write: if false;
+    }
+    match /adminSettings/{docId} {
+      allow read: if isAdminApp();
+      allow write: if false;
+    }
+    match /issueLogs/{logId} {
+      allow read: if isAdminApp();
+      allow write: if false;
+    }
+    match /summaries/{summaryId} {
+      allow read: if isAdminApp();
+      allow write: if false;
+    }
+    match /dailyReports/{reportId} {
+      allow read: if isAdminFast() ||
+        (
+          resource.data.projectId is string &&
+          memberCanAccessSlugFast(resource.data.projectId)
+        );
+      allow write: if false;
+    }
+    match /projectNoteEditRequests/{requestId} {
+      allow read: if isAdminFast() ||
+        (
+        (
+          resource.data.projectSlug is string &&
+            memberCanAccessSlugFast(resource.data.projectSlug)
+          )
+        ) ||
+        (
+          signedIn() &&
+          operatorEmail() != null &&
+          resource.data.requestedByEmail == operatorEmail()
+        );
+      allow write: if false;
+    }
+    match /dailyPdfDeliveryQueue/{docId} {
+      allow read, write: if false;
+    }
+    match /dailyReportSequences/{docId} {
+      allow read, write: if false;
+    }
+    match /logEntries/{entryId} {
+      allow read: if isAdminApp();
+      allow write: if false;
+    }
+    match /labourers/{labourerId} {
+      allow read: if isManagementApp();
+      allow write: if false;
+    }
+    match /labourEntries/{entryId} {
+      allow read: if isManagementApp();
+      allow write: if false;
+    }
+    match /labourReports/{reportId} {
+      allow read: if isManagementApp();
+      allow write: if false;
+    }
+    match /media/{mediaId} {
+      allow read: if isAdminFast() ||
+        (
+          hasAppAccess() &&
+          (
+            allProjectsAccess() ||
+            (
+              resource.data.projectId is string &&
+              issueProjectReadable(resource.data.projectId)
+            ) ||
+            (
+              resource.data.projectSlug is string &&
+              issueProjectReadable(resource.data.projectSlug)
+            )
+          )
+        );
+      allow write: if false;
+    }
+
+    match /safetyIssues/{issueId} {
+      allow read: if hasAppAccess() && (
+        (
+          resource.data.projectId is string &&
+          issueProjectReadable(resource.data.projectId)
+        ) ||
+        (
+          resource.data.projectSlug is string &&
+          issueProjectReadable(resource.data.projectSlug)
+        )
+      );
+      allow write: if false;
+    }
+    match /delayIssues/{issueId} {
+      allow read: if hasAppAccess() && (
+        (
+          resource.data.projectId is string &&
+          issueProjectReadable(resource.data.projectId)
+        ) ||
+        (
+          resource.data.projectSlug is string &&
+          issueProjectReadable(resource.data.projectSlug)
+        )
+      );
+      allow write: if false;
+    }
+    match /deficiencyIssues/{issueId} {
+      allow read: if hasAppAccess() && (
+        (
+          resource.data.projectId is string &&
+          issueProjectReadable(resource.data.projectId)
+        ) ||
+        (
+          resource.data.projectSlug is string &&
+          issueProjectReadable(resource.data.projectSlug)
+        )
+      );
+      allow write: if false;
+    }
+    match /generalIssues/{issueId} {
+      allow read: if hasAppAccess() && (
+        (
+          resource.data.projectId is string &&
+          issueProjectReadable(resource.data.projectId)
+        ) ||
+        (
+          resource.data.projectSlug is string &&
+          issueProjectReadable(resource.data.projectSlug)
+        )
+      );
+      allow write: if false;
+    }
+  }
+}

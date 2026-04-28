@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Construction Issues — Field logs</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="wrap issues-wrap">
+      <header class="hero">
+        <p class="muted small"><a href="./index.html">← SMS dashboard</a></p>
+        <div class="brand-lockup">
+          <img
+            src="./apple-touch-icon.png"
+            alt="K2 logo"
+            class="brand-lockup-logo"
+          />
+        </div>
+        <h1>Issue management</h1>
+        <p class="muted">
+          Safety, delays, deficiencies, and general issues. Sign in with Google to manage issues.
+        </p>
+      </header>
+
+      <div id="authPanel" class="card">
+        <div class="brand-lockup">
+          <img
+            src="./apple-touch-icon.png"
+            alt="K2 logo"
+            class="brand-lockup-logo"
+          />
+        </div>
+        <h2>Sign in</h2>
+        <p class="muted small">
+          Use your Google account. Enable the Google provider under Firebase Authentication → Sign-in method.
+        </p>
+        <button type="button" id="authSignInGoogle" class="btn-google">
+          <span class="btn-google-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              <path fill="none" d="M0 0h48v48H0z"/>
+            </svg>
+          </span>
+          Sign in with Google
+        </button>
+        <div id="authError" class="form-error"></div>
+      </div>
+
+      <div id="appPanel" class="hidden">
+        <div class="card status-bar">
+          <div>
+            <strong>Signed in:</strong> <span id="userLabel"></span>
+            <button type="button" id="authSignOut" class="btn-inline">Sign out</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="issues-toolbar">
+            <div class="tab-row" id="tabRow">
+              <button type="button" class="tab-btn active" data-tab="all">All</button>
+              <button type="button" class="tab-btn" data-tab="safety">Safety</button>
+              <button type="button" class="tab-btn" data-tab="delay">Delays</button>
+              <button type="button" class="tab-btn" data-tab="deficiency">Deficiencies</button>
+              <button type="button" class="tab-btn" data-tab="general">General</button>
+            </div>
+            <div class="filter-row">
+              <input type="search" id="filterSearch" placeholder="Search title, description, location…" />
+              <select id="filterProject">
+                <option value="">All projects</option>
+              </select>
+              <select id="filterStatus">
+                <option value="">All statuses</option>
+              </select>
+              <select id="filterAssigned">
+                <option value="">Assigned to (any)</option>
+              </select>
+              <input type="date" id="filterDateFrom" title="From" />
+              <input type="date" id="filterDateTo" title="To" />
+              <select id="filterSort">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="priority">Priority</option>
+                <option value="status">Status (A–Z)</option>
+              </select>
+            </div>
+            <div class="export-row" id="issueExportRow">
+              <button type="button" id="exportXlsx" class="btn-secondary">Download Excel (current tab / filters)</button>
+              <button type="button" id="exportPdf" class="btn-secondary">Download PDF (current tab / filters)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h2 id="createCardTitle">Create issue</h2>
+            <p class="muted small" id="createHelper">
+              Capture a clean field record. Switch to deficiency mode for trade-ready scope, location, and action details.
+            </p>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Project</label>
+                <select id="createProject"></select>
+              </div>
+              <div class="form-row">
+                <label>Type</label>
+                <select id="createType">
+                  <option value="safety">Safety</option>
+                  <option value="delay">Delay</option>
+                  <option value="deficiency">Deficiency</option>
+                  <option value="general">General</option>
+                </select>
+              </div>
+              <div class="form-row full">
+                <label>Title</label>
+                <input type="text" id="createTitle" />
+              </div>
+              <div class="form-row full">
+                <label>Description</label>
+                <textarea id="createDescription" rows="3"></textarea>
+              </div>
+              <div class="form-row">
+                <label>Location</label>
+                <input type="text" id="createLocation" />
+              </div>
+              <div class="form-row">
+                <label>Area / room</label>
+                <input type="text" id="createArea" placeholder="Level, room, unit, corridor, elevation, etc." />
+              </div>
+              <div class="form-row">
+                <label>Responsible trade</label>
+                <input type="text" id="createTrade" placeholder="Drywall, glazing, painting, millwork, etc." />
+              </div>
+              <div class="form-row">
+                <label>Reference / spec</label>
+                <input type="text" id="createReference" placeholder="Drawing, unit number, detail, or spec section" />
+              </div>
+              <div class="form-row full">
+                <label>Required action</label>
+                <input type="text" id="createAction" placeholder="What needs to be corrected, completed, repaired, or reviewed" />
+              </div>
+              <div class="form-row">
+                <label>Status</label>
+                <select id="createStatus"></select>
+              </div>
+              <div class="form-row">
+                <label>Priority</label>
+                <select id="createPriority"></select>
+              </div>
+              <div class="form-row">
+                <label>Assigned to</label>
+                <input type="text" id="createAssigned" placeholder="Name or email" />
+              </div>
+              <div class="form-row">
+                <label>Due date</label>
+                <input type="date" id="createDue" />
+              </div>
+              <div class="form-row full">
+                <label>Tags (comma-separated)</label>
+                <input type="text" id="createTags" />
+              </div>
+              <div class="form-row full">
+                <label>Photos</label>
+                <input type="file" id="createPhotos" accept="image/*" multiple />
+              </div>
+            </div>
+            <button type="button" id="createSubmit" class="btn-primary">Create issue</button>
+            <div id="createMsg" class="form-msg"></div>
+          </div>
+
+          <div class="card">
+            <h2>Issues</h2>
+            <div id="issueOverview" class="issue-overview"></div>
+            <p class="muted small" id="issuesCount">Loading…</p>
+            <div id="issuesList" class="issues-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="detailBackdrop" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <button type="button" class="modal-close" id="detailClose" aria-label="Close">×</button>
+        <div id="detailBody"></div>
+      </div>
+    </div>
+
+    <script src="./runtime-config.js?v=2026-04-23-debug-2"></script>
+    <script type="module" src="./issues-app.js?v=2026-04-23-debug-2"></script>
+  </body>
+</html>

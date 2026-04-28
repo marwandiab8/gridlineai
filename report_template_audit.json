@@ -1,0 +1,61 @@
+{
+  "auditVersion": 3,
+  "scope": "PDF Daily Site Log vs construction template (strict PASS bar)",
+  "filesReviewed": [
+    "functions/dailyReportContent.js",
+    "functions/dailyPdfReportBuilder.js",
+    "functions/dailyReportPdf.js"
+  ],
+  "criteria": [
+    {
+      "id": "weather_table",
+      "score": "PASS",
+      "evidence": "Six-column weekly table, merge path, drawWrappedTable in dailyPdfReportBuilder.js"
+    },
+    {
+      "id": "manpower_table",
+      "score": "PARTIAL",
+      "evidence": "parseManpowerFields extended patterns; manpowerNotesColumn; isPlausibleTradeName; still heuristic text-only parsing"
+    },
+    {
+      "id": "work_completed_grouping",
+      "score": "PARTIAL",
+      "evidence": "inferWorkTradeName plausibility + narrative opener filter; PDF superintendent summary when AI text differs from stitched block; field activities subsections; indented photos under work lines"
+    },
+    {
+      "id": "inspections",
+      "score": "PARTIAL",
+      "evidence": "merged text plus inspectionChunks with indented photos; no separate inspection form schema"
+    },
+    {
+      "id": "concrete_summary",
+      "score": "PARTIAL",
+      "evidence": "extractConcreteVolume/Location helpers; parseConcreteFields; noisy field text remains possible"
+    },
+    {
+      "id": "open_items",
+      "score": "PARTIAL",
+      "evidence": "cleanOpenItemBody; parseOwnerStatus; action-style column headers; not a full punch-list system"
+    },
+    {
+      "id": "photo_placement",
+      "score": "PARTIAL",
+      "evidence": "Photos sorted per log entry; intentional indent under narrative; overflow via ensureSpace"
+    },
+    {
+      "id": "footer_page_numbers",
+      "score": "PASS",
+      "evidence": "Footer loop with brand and page numbers; header on pages after cover"
+    },
+    {
+      "id": "header_cover",
+      "score": "PARTIAL",
+      "evidence": "coverMeta.brandLine from dailyReportPdf.js; strengthened logo placeholder; two-column cover retained"
+    },
+    {
+      "id": "table_wrapping",
+      "score": "PASS",
+      "evidence": "drawWrappedTable wrapToLines and MAX_CELL_LINES"
+    }
+  ]
+}

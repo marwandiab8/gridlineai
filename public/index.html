@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Construction SMS Assistant Admin</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <section id="authPanel" class="auth-gate">
+        <div class="auth-card">
+          <div class="brand-lockup">
+            <img
+              src="./apple-touch-icon.png"
+              alt="K2 logo"
+              class="brand-lockup-logo"
+            />
+          </div>
+          <p class="eyebrow">Gridline Admin</p>
+          <h1>Messages, reports, and projects in one secure workspace</h1>
+          <p class="muted">
+            Sign in with Google before loading any admin data. The public link alone should not expose message history,
+            reports, or project activity.
+          </p>
+          <button type="button" id="authSignInGoogle" class="btn-google">
+            <span class="btn-google-icon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                <path fill="none" d="M0 0h48v48H0z"/>
+              </svg>
+            </span>
+            Sign in with Google
+          </button>
+          <div id="authError" class="form-error" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <div id="appPanel" class="app-shell hidden">
+        <header class="shell-header">
+          <div class="shell-header-copy">
+            <div class="shell-brand">
+              <img
+                src="./apple-touch-icon.png"
+                alt="K2 logo"
+                class="shell-brand-logo"
+              />
+              <div class="shell-brand-text">
+                <p class="eyebrow">Gridline Admin</p>
+                <h1>Construction SMS Assistant</h1>
+              </div>
+            </div>
+            <p class="muted">
+              A cleaner admin workspace for reviewing messages, generating reports, and managing projects.
+            </p>
+          </div>
+          <div class="shell-header-meta">
+            <div class="status-chip">
+              <span class="status-chip-label">Firestore</span>
+              <strong id="status">Waiting for auth...</strong>
+              <span id="statusDetail" class="muted small"></span>
+            </div>
+            <div class="user-chip">
+              <span class="muted small">Signed in as</span>
+              <strong id="adminUserLabel">-</strong>
+              <button type="button" id="authSignOut" class="btn-inline">Sign out</button>
+            </div>
+          </div>
+        </header>
+
+        <nav class="page-nav" aria-label="Admin sections">
+          <a href="#dashboard" class="page-nav-link" data-view-link="dashboard" data-min-role="admin">Dashboard</a>
+          <a href="#assistant" class="page-nav-link" data-view-link="assistant" data-min-role="management">Assistant</a>
+          <a href="#lookahead" class="page-nav-link" data-view-link="lookahead" data-min-role="management">Lookahead</a>
+          <a href="#messages" class="page-nav-link" data-view-link="messages" data-min-role="admin">Messages</a>
+          <a href="#reports" class="page-nav-link" data-view-link="reports">Reports</a>
+          <a href="#approvals" class="page-nav-link" data-view-link="approvals">Approvals</a>
+          <a href="#labour" class="page-nav-link" data-view-link="labour" data-min-role="management">Labour</a>
+          <a href="#projects" class="page-nav-link" data-view-link="projects" data-min-role="admin">Projects</a>
+          <a href="#team" class="page-nav-link" data-view-link="team" data-min-role="admin">Team</a>
+          <a href="#tools" class="page-nav-link" data-view-link="tools" data-min-role="management">Tools</a>
+          <a href="./issues.html" class="page-nav-link page-nav-link-secondary" data-min-role="management">Issue board</a>
+        </nav>
+
+        <main class="view-stack">
+          <section class="view-panel" data-view-panel="dashboard" data-min-role="admin">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Overview</p>
+                <h2>Dashboard</h2>
+              </div>
+              <p class="muted">
+                High level health, quick counts, and fast links into the main workflows.
+              </p>
+            </div>
+
+            <div class="metric-grid">
+              <article class="metric-card">
+                <span class="metric-label">SMS users</span>
+                <strong id="dashboardUsersCount" class="metric-value">-</strong>
+                <span class="muted small">Recent phone records loaded</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Projects</span>
+                <strong id="dashboardProjectsCount" class="metric-value">-</strong>
+                <span class="muted small">Active and assigned project records</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Reports</span>
+                <strong id="dashboardReportsCount" class="metric-value">-</strong>
+                <span class="muted small">Latest generated PDFs in view</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Recent messages</span>
+                <strong id="dashboardMessagesCount" class="metric-value">-</strong>
+                <span class="muted small">Latest inbound and outbound traffic</span>
+              </article>
+            </div>
+
+            <div class="section-grid section-grid-main">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Quick actions</h3>
+                    <p class="muted small">Jump straight into the workflows you use most.</p>
+                  </div>
+                </div>
+                <div class="quick-actions">
+                  <button type="button" class="btn-primary" data-view-target="assistant">Open assistant</button>
+                  <button type="button" class="btn-secondary" data-view-target="lookahead">3-week lookahead</button>
+                  <button type="button" class="btn-primary" data-view-target="reports">Generate report</button>
+                  <button type="button" class="btn-secondary" data-view-target="projects">Create project</button>
+                  <button type="button" class="btn-secondary" data-view-target="labour">Labour page</button>
+                  <button type="button" class="btn-secondary" data-view-target="messages">Review messages</button>
+                  <a href="./issues.html" class="btn-secondary quick-link">Open issue board</a>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Project focus</h3>
+                    <p class="muted small">A quick look at the latest active-project state by phone.</p>
+                  </div>
+                </div>
+                <div id="dashboardProjectFocus" class="mini-list"></div>
+              </article>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Recent message activity</h3>
+                    <p class="muted small">A short preview before you open the full Messages view.</p>
+                  </div>
+                </div>
+                <div id="dashboardRecentMessages" class="mini-list"></div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Recent report generation</h3>
+                    <p class="muted small">Latest report output and quick access to the report history.</p>
+                  </div>
+                </div>
+                <div id="dashboardRecentReports" class="mini-list"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="assistant" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Direct assistant workflow</p>
+                <h2>Assistant Composer</h2>
+              </div>
+              <p class="muted">
+                Send notes, commands, and progress photos to the Construction SMS Assistant without mixing this workflow
+                into message review.
+              </p>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Compose assistant message</h3>
+                  <p class="muted small">
+                    Use the selected phone's active project context, attach daily progress photos, and send directly to
+                    the assistant.
+                  </p>
+                </div>
+              </div>
+              <div class="assistant-composer-form" id="assistantComposerForm">
+                <div class="project-manager-row">
+                  <label class="project-manager-label" for="assistantComposerPhone">Phone (smsUsers)</label>
+                  <select id="assistantComposerPhone" class="project-manager-select">
+                    <option value="">Select phone...</option>
+                  </select>
+                </div>
+                <div id="assistantComposerProject" class="project-owned-list muted small">
+                  Select a phone to use its active project context.
+                </div>
+                <div class="form-row full">
+                  <label for="assistantComposerBody">Message</label>
+                  <textarea
+                    id="assistantComposerBody"
+                    rows="5"
+                    placeholder="Example: log note (2026-04-16) Matheson bought additional pumps to keep working areas open"
+                  ></textarea>
+                </div>
+                <div class="form-row full">
+                  <label for="assistantComposerPhotos">Daily progress photos</label>
+                  <input type="file" id="assistantComposerPhotos" accept="image/*" multiple />
+                  <div class="muted small">
+                    Upload photos with the message above. They will be attached to the same report day and log entry.
+                  </div>
+                </div>
+                <div class="form-row full">
+                  <label for="assistantComposerToken">Dashboard token</label>
+                  <input
+                    type="password"
+                    id="assistantComposerToken"
+                    placeholder="Only needed if DAILY_PDF_DASHBOARD_TOKEN is set"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="project-manager-actions">
+                  <button type="button" class="btn-primary" id="assistantComposerSendBtn" disabled>
+                    Send to assistant
+                  </button>
+                  <button type="button" class="btn-secondary" data-view-target="lookahead">
+                    Open 3-week lookahead page
+                  </button>
+                </div>
+                <div id="assistantComposerResult" class="project-manager-result muted small" aria-live="polite"></div>
+              </div>
+            </article>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="lookahead" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Dedicated schedule workflow</p>
+                <h2>3-Week Lookahead</h2>
+              </div>
+              <p class="muted">
+                Upload and parse a lookahead workbook, then generate activities and closeout PDFs without crowding the
+                assistant composer.
+              </p>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Lookahead Schedule Parser</h3>
+                  <p class="muted small">
+                    Upload a 3-week Excel lookahead and generate the Crewscope-style weekly summary and report outputs.
+                  </p>
+                </div>
+              </div>
+              <div class="assistant-composer-form">
+                <div class="project-manager-row">
+                  <label class="project-manager-label" for="assistantSchedulePhone">Phone context</label>
+                  <select id="assistantSchedulePhone" class="project-manager-select">
+                    <option value="">Select phone...</option>
+                  </select>
+                </div>
+                <div id="assistantScheduleProjectDetails" class="project-owned-list muted small">
+                  Select a phone to use its active project context for lookahead parsing and report generation.
+                </div>
+                <div class="form-row full">
+                  <label for="assistantScheduleFile">Excel workbook</label>
+                  <input
+                    type="file"
+                    id="assistantScheduleFile"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  />
+                </div>
+                <div class="form-grid">
+                  <div class="form-row">
+                    <label for="assistantScheduleStart">Start date</label>
+                    <input type="date" id="assistantScheduleStart" />
+                  </div>
+                  <div class="form-row">
+                    <label for="assistantScheduleEnd">End date</label>
+                    <input type="date" id="assistantScheduleEnd" />
+                  </div>
+                  <div class="form-row">
+                    <label for="assistantScheduleCompany">Company</label>
+                    <input type="text" id="assistantScheduleCompany" value="Matheson" />
+                  </div>
+                  <div class="form-row">
+                    <label for="assistantScheduleProject">Project</label>
+                    <input type="text" id="assistantScheduleProject" placeholder="Auto-filled from active project when available" />
+                  </div>
+                </div>
+                <div class="form-row full">
+                  <label for="assistantScheduleToken">Dashboard token</label>
+                  <input
+                    type="password"
+                    id="assistantScheduleToken"
+                    placeholder="Only needed if DAILY_PDF_DASHBOARD_TOKEN is set"
+                    autocomplete="off"
+                  />
+                </div>
+                <div class="project-manager-actions">
+                  <button type="button" class="btn-secondary" id="assistantScheduleParseBtn" disabled>
+                    Upload and parse schedule
+                  </button>
+                  <button type="button" class="btn-primary" id="assistantScheduleCreateReportBtn" disabled>
+                    Create Activities report PDF
+                  </button>
+                  <button type="button" class="btn-secondary" id="assistantScheduleCreateCloseoutBtn" disabled>
+                    Create Closeout report PDF
+                  </button>
+                </div>
+                <div id="assistantScheduleResult" class="project-manager-result muted small" aria-live="polite"></div>
+                <pre id="assistantScheduleSummary" class="assistant-schedule-output hidden"></pre>
+              </div>
+            </article>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="messages" data-min-role="admin">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Traffic and entries</p>
+                <h2>Messages</h2>
+              </div>
+              <p class="muted">
+                Review SMS traffic and the resulting daily log entries without composer or schedule controls mixed in.
+              </p>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Recent SMS</h3>
+                    <p class="muted small">Inbound and outbound messages with project, MMS, and command context.</p>
+                  </div>
+                </div>
+                <div id="messages" class="scroll-list scroll-list-tall"></div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Daily log entries</h3>
+                    <p class="muted small">
+                      The structured field log that feeds your daily records, with linked media when available.
+                    </p>
+                  </div>
+                </div>
+                <div id="logEntries" class="scroll-list scroll-list-tall"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="reports">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Report workflow</p>
+                <h2>Reports</h2>
+              </div>
+              <p class="muted">
+                Generate site-log or journal PDFs by user, project, date, and report style, then review the latest output.
+              </p>
+            </div>
+
+            <div class="section-grid">
+              <article class="card" data-min-role="management">
+                <div class="card-head">
+                  <div>
+                    <h3>Generate daily PDF</h3>
+                    <p class="muted small">
+                      Select the phone, project scope, report style, and date. SMS commands still work in parallel.
+                    </p>
+                  </div>
+                </div>
+                <div class="daily-pdf-form" id="dailyPdfForm">
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="dailyPdfPhone">Phone (smsUsers)</label>
+                    <select id="dailyPdfPhone" class="daily-pdf-select">
+                      <option value="">Select phone...</option>
+                    </select>
+                  </div>
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="dailyPdfProject">Project slug (required for site log)</label>
+                    <input
+                      type="text"
+                      id="dailyPdfProject"
+                      class="daily-pdf-input"
+                      placeholder="e.g. docksteader — or leave blank to use field phone’s active project"
+                      list="dailyPdfProjectOptions"
+                      autocomplete="off"
+                    />
+                    <datalist id="dailyPdfProjectOptions"></datalist>
+                  </div>
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="dailyPdfReportType">Report style</label>
+                    <select id="dailyPdfReportType" class="daily-pdf-select">
+                      <option value="dailySiteLog">Daily Site Log</option>
+                      <option value="journal">Journal</option>
+                    </select>
+                  </div>
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="dailyPdfDate">Report date</label>
+                    <input type="date" id="dailyPdfDate" class="daily-pdf-input" />
+                  </div>
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="dailyPdfToken">Dashboard token</label>
+                    <input
+                      type="password"
+                      id="dailyPdfToken"
+                      class="daily-pdf-input"
+                      placeholder="Only needed if DAILY_PDF_DASHBOARD_TOKEN is set"
+                      autocomplete="off"
+                    />
+                  </div>
+                  <div class="daily-pdf-actions">
+                    <button type="button" class="btn-primary" id="dailyPdfBtn" disabled>
+                      Generate daily PDF
+                    </button>
+                  </div>
+                  <div id="dailyPdfResult" class="daily-pdf-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>All reports</h3>
+                    <p class="muted small">Full generated PDF history with quick open links and scope details.</p>
+                  </div>
+                </div>
+                <div id="dailyReports" class="scroll-list scroll-list-tall"></div>
+              </article>
+
+              <article class="card" data-min-role="management">
+                <div class="card-head">
+                  <div>
+                    <h3>Edit report title</h3>
+                    <p class="muted small">
+                      Change the display title on a generated report for a project you are assigned to.
+                    </p>
+                  </div>
+                </div>
+                <div class="daily-pdf-form">
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="reportTitleEditSelect">Report</label>
+                    <select id="reportTitleEditSelect" class="daily-pdf-select"></select>
+                  </div>
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="reportTitleEditInput">New title</label>
+                    <input
+                      type="text"
+                      id="reportTitleEditInput"
+                      class="daily-pdf-input"
+                      maxlength="500"
+                      placeholder="e.g. Docksteader — Week of Apr 14"
+                    />
+                  </div>
+                  <div class="daily-pdf-actions">
+                    <button type="button" class="btn-primary" id="reportTitleSaveBtn">Save title</button>
+                  </div>
+                  <div id="reportTitleEditResult" class="daily-pdf-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Project Notes</h3>
+                    <p class="muted small">View current project notes and submit an update request for admin approval.</p>
+                  </div>
+                </div>
+                <div class="project-manager-form" id="projectNotesRequestForm">
+                  <div class="project-manager-row">
+                    <label class="project-manager-label" for="projectNotesReportSelect">Report</label>
+                    <select id="projectNotesReportSelect" class="project-manager-select">
+                      <option value="">Select a report...</option>
+                    </select>
+                  </div>
+                  <div id="projectNotesReportMeta" class="project-owned-list muted small">
+                    Select a report to load its project notes.
+                  </div>
+                  <div class="form-row full">
+                    <label for="projectNotesCurrent">Current project notes</label>
+                    <textarea id="projectNotesCurrent" rows="6" readonly placeholder="Current approved notes will appear here."></textarea>
+                  </div>
+                  <div class="form-row full">
+                    <label for="projectNotesProposed">Proposed project notes update</label>
+                    <textarea id="projectNotesProposed" rows="7" placeholder="Write the updated project notes you want approved."></textarea>
+                  </div>
+                  <div class="form-row full">
+                    <label for="projectNotesComment">Comment for reviewer (optional)</label>
+                    <input id="projectNotesComment" type="text" placeholder="Why this note update matters or what changed." />
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-primary" id="projectNotesSubmitBtn">Submit note update request</button>
+                  </div>
+                  <div id="projectNotesRequestResult" class="project-manager-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="approvals">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Approval workflow</p>
+                <h2>Approvals</h2>
+              </div>
+              <p class="muted">
+                Track note change requests. Admins and approved managers can review pending requests. Users can see the status of their submissions.
+              </p>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Project note requests</h3>
+                  <p class="muted small">Pending, approved, and rejected note changes with reviewer actions where allowed.</p>
+                </div>
+              </div>
+              <div id="projectNoteEditRequests" class="scroll-list scroll-list-tall"></div>
+            </article>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="labour" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Labour tracking</p>
+                <h2>Labour</h2>
+              </div>
+              <p class="muted">
+                Register labourers, capture hours by text, review daily and weekly totals, and generate detailed work reports.
+                Today / this week / this month use paid hours (Saturday 1.5×, Sunday 2×), same as PDF labour reports; raw on-site time appears under each card when it differs.
+              </p>
+            </div>
+
+            <div class="metric-grid labour-metric-grid">
+              <article class="metric-card">
+                <span class="metric-label">Labourers</span>
+                <strong id="labourersCount" class="metric-value">-</strong>
+                <span class="muted small">Active and inactive labourer records</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Today</span>
+                <strong id="labourTodayHours" class="metric-value">-</strong>
+                <span id="labourTodayEntries" class="muted small">-</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">This week</span>
+                <strong id="labourWeekHours" class="metric-value">-</strong>
+                <span id="labourWeekEntries" class="muted small">-</span>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">This month</span>
+                <strong id="labourMonthHours" class="metric-value">-</strong>
+                <span id="labourMonthEntries" class="muted small">-</span>
+              </article>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Labourer manager</h3>
+                    <p class="muted small">Register the name and phone that labourers use when they text hours.</p>
+                  </div>
+                </div>
+                <div class="project-manager-form" id="labourerManagerForm">
+                  <div class="form-grid project-create-grid">
+                    <div class="form-row">
+                      <label for="labourerPhone">Phone</label>
+                      <input id="labourerPhone" type="text" placeholder="+14375551234" autocomplete="off" />
+                    </div>
+                    <div class="form-row">
+                      <label for="labourerName">Name</label>
+                      <input id="labourerName" type="text" placeholder="Marwan Diab" autocomplete="off" />
+                    </div>
+                    <div class="form-row full">
+                      <label for="labourerProjects">Assigned project slugs</label>
+                      <input id="labourerProjects" type="text" placeholder="Comma-separated slugs, e.g. home, docksteader" autocomplete="off" />
+                    </div>
+                  </div>
+                  <div class="project-manager-actions">
+                    <label class="checkbox-row"><input id="labourerActive" type="checkbox" checked /> Active</label>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-primary" id="labourerSaveBtn">Save labourer</button>
+                    <button type="button" class="btn-secondary btn-danger" id="labourerDeleteBtn">Delete labourer</button>
+                  </div>
+                  <div id="labourerManagerResult" class="project-manager-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Labour report builder</h3>
+                    <p class="muted small">Generate a detailed PDF for a day, week, month, or custom range.</p>
+                  </div>
+                </div>
+                <div class="daily-pdf-form" id="labourReportForm">
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="labourReportLabourerPhone">Labourer</label>
+                    <select id="labourReportLabourerPhone" class="daily-pdf-select">
+                      <option value="">All labourers</option>
+                    </select>
+                  </div>
+                  <div class="daily-pdf-row">
+                    <label class="daily-pdf-label" for="labourReportProject">Project slug</label>
+                    <input
+                      type="text"
+                      id="labourReportProject"
+                      class="daily-pdf-input"
+                      placeholder="Optional project filter"
+                      list="labourReportProjectOptions"
+                      autocomplete="off"
+                    />
+                    <datalist id="labourReportProjectOptions"></datalist>
+                  </div>
+                  <div class="form-grid">
+                    <div class="form-row">
+                      <label for="labourReportStart">Start date</label>
+                      <input type="date" id="labourReportStart" />
+                    </div>
+                    <div class="form-row">
+                      <label for="labourReportEnd">End date</label>
+                      <input type="date" id="labourReportEnd" />
+                    </div>
+                    <div class="form-row full">
+                      <label for="labourReportTitle">Report title</label>
+                      <input type="text" id="labourReportTitle" placeholder="Labour Hours Report" />
+                    </div>
+                    <div class="form-row full">
+                      <label for="labourReportToken">Dashboard token</label>
+                      <input
+                        type="password"
+                        id="labourReportToken"
+                        placeholder="Only needed if DAILY_PDF_DASHBOARD_TOKEN is set"
+                        autocomplete="off"
+                      />
+                    </div>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-secondary" id="labourReportTodayBtn">Today</button>
+                    <button type="button" class="btn-secondary" id="labourReportWeekBtn">This week</button>
+                    <button type="button" class="btn-secondary" id="labourReportMonthBtn">This month</button>
+                    <button type="button" class="btn-primary" id="labourReportGenerateBtn">Generate labour report</button>
+                  </div>
+                  <div id="labourReportResult" class="daily-pdf-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Labourers</h3>
+                    <p class="muted small">Current labourer records with their assigned projects and status.</p>
+                  </div>
+                </div>
+                <div id="labourers" class="scroll-list scroll-list-tall"></div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Recent labour reports</h3>
+                    <p class="muted small">Latest generated PDFs and their scope.</p>
+                  </div>
+                </div>
+                <div id="labourReports" class="scroll-list scroll-list-tall"></div>
+              </article>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Recent labour entries</h3>
+                  <p class="muted small">Latest time entries with the work performed.</p>
+                </div>
+              </div>
+              <div id="labourEntries" class="scroll-list scroll-list-tall"></div>
+            </article>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="projects" data-min-role="admin">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Ownership and routing</p>
+                <h2>Projects</h2>
+              </div>
+              <p class="muted">
+                Create projects, set the active project by phone, and keep report generation scoped cleanly.
+              </p>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Project manager</h3>
+                    <p class="muted small">Create new projects and change the active project for a selected SMS user.</p>
+                  </div>
+                </div>
+                <div class="project-manager-form" id="projectManagerForm">
+                  <div class="project-manager-row">
+                    <label class="project-manager-label" for="projectPhone">Phone (smsUsers)</label>
+                    <select id="projectPhone" class="project-manager-select">
+                      <option value="">Select phone...</option>
+                    </select>
+                  </div>
+                  <div class="project-manager-row">
+                    <label class="project-manager-label" for="projectActiveSelect">Active project</label>
+                    <select id="projectActiveSelect" class="project-manager-select" disabled>
+                      <option value="">Select a phone first...</option>
+                    </select>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-secondary" id="projectSetActiveBtn" disabled>
+                      Set active project
+                    </button>
+                  </div>
+                  <div class="form-grid project-create-grid">
+                    <div class="form-row full">
+                      <label for="projectLogoStoragePath">Report logo Storage path</label>
+                      <input
+                        type="text"
+                        id="projectLogoStoragePath"
+                        placeholder="example: branding/company-logo.png"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div class="form-row full">
+                      <label for="projectLogoUpload">Upload report logo</label>
+                      <input type="file" id="projectLogoUpload" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,image/gif" />
+                    </div>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-secondary" id="projectUploadLogoBtn" disabled>
+                      Upload logo
+                    </button>
+                    <button type="button" class="btn-secondary" id="projectSaveLogoBtn" disabled>
+                      Save report logo
+                    </button>
+                  </div>
+                  <div class="project-owned-list muted small" id="projectOwnedList">
+                    Select a phone to view its projects.
+                  </div>
+                  <div class="form-grid project-create-grid">
+                    <div class="form-row">
+                      <label for="projectCreateSlug">New project slug</label>
+                      <input
+                        type="text"
+                        id="projectCreateSlug"
+                        placeholder="example: tower-a-east"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div class="form-row">
+                      <label for="projectCreateName">Project name</label>
+                      <input
+                        type="text"
+                        id="projectCreateName"
+                        placeholder="Project display name"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div class="form-row full">
+                      <label for="projectCreateLocation">Location / address (optional)</label>
+                      <input
+                        type="text"
+                        id="projectCreateLocation"
+                        placeholder="Used for weather and report metadata when available"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <div class="form-row full">
+                      <label for="projectActionToken">Dashboard token</label>
+                      <input
+                        type="password"
+                        id="projectActionToken"
+                        placeholder="Only needed if DAILY_PDF_DASHBOARD_TOKEN is set"
+                        autocomplete="off"
+                      />
+                    </div>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-primary" id="projectCreateBtn" disabled>
+                      Create project
+                    </button>
+                  </div>
+                  <div id="projectManagerResult" class="project-manager-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Users by phone</h3>
+                    <p class="muted small">See the active project and project count per SMS user.</p>
+                  </div>
+                </div>
+                <div id="users" class="scroll-list scroll-list-tall"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="team" data-min-role="admin">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Access control</p>
+                <h2>Team</h2>
+              </div>
+              <p class="muted">
+                Manage app members, roles, project access, and note approval privileges.
+              </p>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Member manager</h3>
+                    <p class="muted small">Invite or update app users by email, role, and assigned projects.</p>
+                  </div>
+                </div>
+                <div class="project-manager-form" id="memberManagerForm">
+                  <div class="form-grid project-create-grid">
+                    <div class="form-row">
+                      <label for="memberEmail">Email</label>
+                      <input id="memberEmail" type="email" placeholder="name@company.com" autocomplete="off" />
+                    </div>
+                    <div class="form-row">
+                      <label for="memberDisplayName">Display name</label>
+                      <input id="memberDisplayName" type="text" placeholder="Full name" autocomplete="off" />
+                    </div>
+                    <div class="form-row">
+                      <label for="memberCompany">Company</label>
+                      <input id="memberCompany" type="text" placeholder="General contractor or subcontractor" autocomplete="off" />
+                    </div>
+                    <div class="form-row">
+                      <label for="memberApprovedPhone">Approved phone</label>
+                      <input id="memberApprovedPhone" type="text" placeholder="+14375551234" autocomplete="off" />
+                    </div>
+                    <div class="form-row">
+                      <label for="memberRole">Role</label>
+                      <select id="memberRole">
+                        <option value="user">User</option>
+                        <option value="management">Management</option>
+                        <option value="admin">Admin</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                    </div>
+                    <div class="form-row full">
+                      <label for="memberProjects">Assigned project slugs</label>
+                      <input id="memberProjects" type="text" placeholder="Comma-separated slugs, e.g. tower-a-east, podium-west" autocomplete="off" />
+                    </div>
+                  </div>
+                  <div class="project-manager-actions">
+                    <label class="checkbox-row"><input id="memberActive" type="checkbox" checked /> Active</label>
+                    <label class="checkbox-row"><input id="memberAllProjects" type="checkbox" /> All projects</label>
+                    <label class="checkbox-row"><input id="memberCanApproveNotes" type="checkbox" /> Can approve notes</label>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-primary" id="memberSaveBtn">Save member</button>
+                  </div>
+                  <div id="memberManagerResult" class="project-manager-result muted small" aria-live="polite"></div>
+                </div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>App members</h3>
+                    <p class="muted small">Current access list for the web app.</p>
+                  </div>
+                </div>
+                <div id="appMembers" class="scroll-list scroll-list-tall"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="tools" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Secondary tools</p>
+                <h2>Tools</h2>
+              </div>
+              <p class="muted">
+                Lower-traffic admin panels and reference material live here instead of crowding the main workflows.
+              </p>
+            </div>
+
+            <div class="section-grid">
+              <article class="card" data-min-role="admin">
+                <div class="card-head">
+                  <div>
+                    <h3>Issue and field logs</h3>
+                    <p class="muted small">Recent issue log records captured through SMS and structured entry flows.</p>
+                  </div>
+                </div>
+                <div id="issues" class="scroll-list"></div>
+              </article>
+
+              <article class="card" data-min-role="admin">
+                <div class="card-head">
+                  <div>
+                    <h3>Saved rollups</h3>
+                    <p class="muted small">
+                      Formerly shown as daily summaries. These are saved SMS rollups, not the report-generation page.
+                    </p>
+                  </div>
+                </div>
+                <div id="summaries" class="scroll-list"></div>
+              </article>
+            </div>
+
+            <article class="card" data-min-role="management">
+              <div class="card-head">
+                <div>
+                  <h3>Media library</h3>
+                  <p class="muted small">Browse all uploaded images in one place, then review grouped MMS uploads by source message and linked record.</p>
+                </div>
+              </div>
+              <div id="media" class="scroll-list scroll-list-tall"></div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Admin reference</h3>
+                  <p class="muted small">Collection hints kept out of the main workflow but still available when needed.</p>
+                </div>
+              </div>
+              <ul class="setup-list muted small">
+                <li><code>adminSettings/company</code> - company standards, response style, terminology, reporting preferences</li>
+                <li><code>projects/{slug}</code> - name, location, ownerPhoneE164, notes, instructions, and contacts</li>
+                <li><code>smsUsers/{+E164}</code> - role, displayName, activeProjectSlug, and projectSlugs</li>
+              </ul>
+            </article>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div id="mediaViewerBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+      <div class="modal-card media-viewer-card">
+        <button type="button" class="modal-close" id="mediaViewerClose" aria-label="Close media viewer">&times;</button>
+        <div class="media-viewer-shell">
+          <button type="button" class="media-viewer-nav" id="mediaViewerPrev" aria-label="Previous image">‹</button>
+          <div class="media-viewer-stage">
+            <div class="media-viewer-meta">
+              <div id="mediaViewerIndex" class="mono muted small"></div>
+              <div id="mediaViewerCaption" class="media-viewer-caption"></div>
+            </div>
+            <div class="media-viewer-image-wrap">
+              <img id="mediaViewerImage" class="media-viewer-image hidden" alt="" />
+              <div id="mediaViewerStatus" class="muted small">Select an image.</div>
+            </div>
+            <div id="mediaViewerDetails" class="media-viewer-details muted small"></div>
+          </div>
+          <button type="button" class="media-viewer-nav" id="mediaViewerNext" aria-label="Next image">›</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./runtime-config.js"></script>
+    <script type="module" src="./app.js?v=2026-04-24-labour-1"></script>
+  </body>
+</html>

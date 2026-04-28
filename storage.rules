@@ -1,0 +1,144 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function operatorEmail() {
+      return signedIn() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : null;
+    }
+
+    function hasAdminClaim() {
+      return signedIn() && (
+        request.auth.token.admin == true ||
+        request.auth.token.operator == true ||
+        (request.auth.token.role is string && request.auth.token.role.lower() == "admin")
+      );
+    }
+
+    function isApprovedOperator() {
+      return signedIn() && (
+        hasAdminClaim() ||
+        (
+          operatorEmail() != null &&
+          firestore.exists(
+            /databases/(default)/documents/adminOperators/$(operatorEmail())
+          ) &&
+          firestore.get(
+            /databases/(default)/documents/adminOperators/$(operatorEmail())
+          ).data.active == true
+        )
+      );
+    }
+
+    function hasActiveAppMember() {
+      return signedIn() &&
+        operatorEmail() != null &&
+        firestore.exists(
+          /databases/(default)/documents/appMembers/$(operatorEmail())
+        ) &&
+        firestore.get(
+          /databases/(default)/documents/appMembers/$(operatorEmail())
+        ).data.active == true;
+    }
+
+    function appMemberData() {
+      return hasActiveAppMember()
+        ? firestore.get(
+            /databases/(default)/documents/appMembers/$(operatorEmail())
+          ).data
+        : null;
+    }
+
+    function appRole() {
+      return hasAdminClaim() || isApprovedOperator()
+        ? "admin"
+        : hasActiveAppMember() && appMemberData().role is string
+          ? appMemberData().role.lower()
+          : null;
+    }
+
+    function isManagementApp() {
+      return signedIn() && (appRole() == "management" || appRole() == "admin");
+    }
+
+    function allProjectsAccess() {
+      return appRole() == "admin" ||
+        (hasActiveAppMember() && appMemberData().allProjects == true);
+    }
+
+    function projectListHas(slug) {
+      return slug is string &&
+        hasActiveAppMember() &&
+        appMemberData().projectSlugs is list &&
+        slug in appMemberData().projectSlugs;
+    }
+
+    function smsUserProjectListHas(slug) {
+      return slug is string &&
+        hasActiveAppMember() &&
+        appMemberData().approvedPhoneE164 is string &&
+        firestore.exists(
+          /databases/(default)/documents/smsUsers/$(appMemberData().approvedPhoneE164)
+        ) &&
+        (
+          (
+            firestore.get(
+              /databases/(default)/documents/smsUsers/$(appMemberData().approvedPhoneE164)
+            ).data.activeProjectSlug is string &&
+            firestore.get(
+              /databases/(default)/documents/smsUsers/$(appMemberData().approvedPhoneE164)
+            ).data.activeProjectSlug == slug
+          ) ||
+          (
+            firestore.get(
+              /databases/(default)/documents/smsUsers/$(appMemberData().approvedPhoneE164)
+            ).data.projectSlugs is list &&
+            slug in firestore.get(
+              /databases/(default)/documents/smsUsers/$(appMemberData().approvedPhoneE164)
+            ).data.projectSlugs
+          )
+        );
+    }
+
+    function canReadProjectMedia(projectId) {
+      return isApprovedOperator() ||
+        (
+          isManagementApp() &&
+          (
+            allProjectsAccess() ||
+            projectListHas(projectId) ||
+            smsUserProjectListHas(projectId)
+          )
+        );
+    }
+
+    match /issues/{issueId}/{allPaths=**} {
+      allow read: if isApprovedOperator();
+      allow write: if false;
+    }
+
+    match /projects/{projectId}/media/{allPaths=**} {
+      allow read: if canReadProjectMedia(projectId);
+      allow write: if isApprovedOperator();
+    }
+
+    match /branding/{allPaths=**} {
+      allow read: if isApprovedOperator();
+      allow write: if isApprovedOperator();
+    }
+
+    match /dailyReports/{allPaths=**} {
+      allow read: if isApprovedOperator();
+      allow write: if false;
+    }
+
+    match /labourReports/{allPaths=**} {
+      allow read: if isManagementApp();
+      allow write: if isApprovedOperator();
+    }
+  }
+}

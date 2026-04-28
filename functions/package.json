@@ -1,0 +1,21 @@
+{
+  "name": "functions",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "seed": "node seedFirestore.js",
+    "lookahead": "node extractLookaheadSchedule.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.0.1",
+    "openai": "^4.77.0",
+    "pdf-lib": "^1.17.1",
+    "twilio": "^5.5.4"
+  }
+}

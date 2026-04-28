@@ -1,0 +1,5 @@
+# Avoid Firebase dotenv pairing errors (env.<id> vs .env.<alias>)
+functions/.env*
+functions/env.*
+.env*
+env.gridlineai
