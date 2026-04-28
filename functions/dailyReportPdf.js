@@ -272,6 +272,29 @@ function mediaMatchesExactDateKey(m, dateKey) {
   return mediaDateKey === dateKey;
 }
 
+function mediaCreatedAtMs(media) {
+  const value = media && media.createdAt;
+  if (!value) return NaN;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+  return NaN;
+}
+
+function mediaFallsOnEasternReportDay(media, dayStart, nextDayStart, dateKey) {
+  const createdMs = mediaCreatedAtMs(media);
+  const dayStartMs = dayStart instanceof Date ? dayStart.getTime() : NaN;
+  const nextDayStartMs = nextDayStart instanceof Date ? nextDayStart.getTime() : NaN;
+  if (Number.isFinite(createdMs) && Number.isFinite(dayStartMs) && Number.isFinite(nextDayStartMs)) {
+    return createdMs >= dayStartMs && createdMs < nextDayStartMs;
+  }
+  return mediaMatchesExactDateKey(media, dateKey);
+}
+
 function filterJournalMediaForReport(mediaDocs, entryIdSetOrEntries, projectKey, options = {}) {
   const entryIdSet =
     entryIdSetOrEntries instanceof Set
@@ -719,7 +742,10 @@ async function generateDailyReportPdf(opts) {
         .filter((id) => id != null && String(id).trim() !== "")
         .map((id) => String(id).trim())
     );
-    mediaForReport = filterMediaForProjectDailyReport(mediaDocs, projectKey, entryIdSet, {
+    const mediaFromReportDay = (mediaDocs || []).filter((m) =>
+      mediaFallsOnEasternReportDay(m, dayStart, nextDayStart, dk)
+    );
+    mediaForReport = filterMediaForProjectDailyReport(mediaFromReportDay, projectKey, entryIdSet, {
       allowedSourceMessageIds,
     });
 
@@ -945,4 +971,5 @@ module.exports = {
   formatDailyReportPdfFileName,
   buildDailyReportSequenceDocId,
   filterJournalMediaForReport,
+  mediaFallsOnEasternReportDay,
 };

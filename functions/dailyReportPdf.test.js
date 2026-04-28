@@ -4,6 +4,7 @@ const {
   formatDailyReportPdfFileName,
   buildDailyReportSequenceDocId,
   filterJournalMediaForReport,
+  mediaFallsOnEasternReportDay,
 } = require("./dailyReportPdf");
 
 test("formatDailyReportPdfFileName prefixes construction reports", () => {
@@ -112,5 +113,28 @@ test("filterJournalMediaForReport keeps journal media on the exact Eastern repor
   assert.deepEqual(
     filtered.map((row) => row.id),
     ["same-day-linked", "same-day-unlinked"]
+  );
+});
+
+test("mediaFallsOnEasternReportDay keeps only createdAt inside report-day window", () => {
+  const dayStart = new Date("2026-04-28T04:00:00.000Z"); // 00:00 ET
+  const nextDayStart = new Date("2026-04-29T04:00:00.000Z");
+  assert.equal(
+    mediaFallsOnEasternReportDay(
+      { createdAt: new Date("2026-04-28T16:30:00.000Z"), dateKey: "2026-04-28" },
+      dayStart,
+      nextDayStart,
+      "2026-04-28"
+    ),
+    true
+  );
+  assert.equal(
+    mediaFallsOnEasternReportDay(
+      { createdAt: new Date("2026-04-27T23:30:00.000Z"), dateKey: "2026-04-28" },
+      dayStart,
+      nextDayStart,
+      "2026-04-28"
+    ),
+    false
   );
 });
