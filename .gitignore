@@ -3,3 +3,4 @@ functions/.env*
 functions/env.*
 .env*
 env.gridlineai
+.agents/
