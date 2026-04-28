@@ -530,7 +530,6 @@ async function generateDailyReportPdf(opts) {
       : dateKeyEastern(new Date());
   const dayStart = startOfEasternDayForDateKey(dk);
   const nextDayStart = startOfEasternDayForDateKey(addCalendarDaysToDateKey(dk, 1));
-  const prevDk = addCalendarDaysToDateKey(dk, -1);
 
   let messages = [];
   let logEntriesRaw = [];
@@ -556,7 +555,7 @@ async function generateDailyReportPdf(opts) {
     logEntriesRaw = logEntriesAll;
     mediaDocs = dedupeMediaDocs([mediaToday]);
   } else {
-    const [msgs, logEntriesScoped, mediaToday, mediaPrev] = await Promise.all([
+    const [msgs, logEntriesScoped, mediaToday] = await Promise.all([
       useProjectAggregate
         ? loadMessagesForProjectDay(db, dayStart, nextDayStart, projectSlugForQueries)
         : loadMessagesForDailyReport(db, phoneE164, dayStart, nextDayStart, projectKey),
@@ -566,15 +565,10 @@ async function generateDailyReportPdf(opts) {
       useProjectAggregate
         ? loadMediaForProjectDailyReport(db, dk, projectKey)
         : loadMediaForDailyReport(db, phoneE164, dk, projectKey),
-      projectKey
-        ? useProjectAggregate
-          ? loadMediaForProjectDailyReport(db, prevDk, projectKey)
-          : loadMediaForDailyReport(db, phoneE164, prevDk, projectKey)
-        : Promise.resolve([]),
     ]);
     messages = msgs;
     logEntriesRaw = logEntriesScoped;
-    mediaDocs = dedupeMediaDocs([mediaToday, mediaPrev]);
+    mediaDocs = dedupeMediaDocs([mediaToday]);
   }
 
   let managementPhoneDigits = new Set();
