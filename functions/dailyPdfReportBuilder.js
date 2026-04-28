@@ -25,13 +25,6 @@ const CELL_PAD = 4;
 const TABLE_FONT = 8;
 const TABLE_HEADER_FONT = 9;
 const MAX_CELL_LINES = 8;
-const MAX_PHOTOS_WEATHER = 4;
-const MAX_PHOTOS_MANPOWER = 4;
-const MAX_PHOTOS_WORK = 4;
-const MAX_PHOTOS_ISSUES = 4;
-const MAX_PHOTOS_CONCRETE = 4;
-const MAX_PHOTOS_INSPECTION = 4;
-const MAX_PHOTOS_SITE = 8;
 /** Slightly tighter photos for grid-friendly layout */
 const PHOTO_MAX_H = 320;
 const PHOTO_MAX_W = 440;
@@ -683,19 +676,24 @@ async function renderDailySiteLogPdf(opts) {
       globalSeen,
       issueMediaIds: issueIds,
       forWorkSection,
-      maxPhotos = 8,
+      maxPhotos = null,
       captionContext,
       maxBoxH,
       maxBoxW,
-      captionKeyMax = 2,
+      captionKeyMax = 0,
     } = opts;
     let photos = dedupePhotosByMediaId(list || []);
     photos = photos.filter((p) => p && (globalSeen ? !globalSeen.has(String(p.mediaId)) : true));
     if (forWorkSection && issueIds && issueIds.size) {
       photos = filterPhotosNotForIssues(photos, issueIds);
     }
-    photos = capPhotosBySimilarCaption(sortPhotosForRender(photos), captionKeyMax);
-    photos = photos.slice(0, maxPhotos);
+    photos = sortPhotosForRender(photos);
+    if (Number.isFinite(captionKeyMax) && captionKeyMax > 0) {
+      photos = capPhotosBySimilarCaption(photos, captionKeyMax);
+    }
+    if (Number.isFinite(maxPhotos) && maxPhotos > 0) {
+      photos = photos.slice(0, maxPhotos);
+    }
     if (photos.length) {
       const est = Math.min(500, photos.length * 158);
       if (y - margin - footerReserve < est) {
@@ -819,7 +817,6 @@ async function renderDailySiteLogPdf(opts) {
     await drawPhotoList(mpPhotos, {
       model,
       globalSeen: renderedMediaIds,
-      maxPhotos: MAX_PHOTOS_MANPOWER,
       captionContext: manNarRaw || (manpowerChunksPdf[0] && manpowerChunksPdf[0].text) || "",
     });
   }
@@ -881,7 +878,6 @@ async function renderDailySiteLogPdf(opts) {
         globalSeen: renderedMediaIds,
         issueMediaIds,
         forWorkSection: true,
-        maxPhotos: MAX_PHOTOS_WORK,
         captionContext: (sec.items && sec.items[0]) || "",
       });
     }
@@ -912,7 +908,6 @@ async function renderDailySiteLogPdf(opts) {
           globalSeen: renderedMediaIds,
           issueMediaIds,
           forWorkSection: true,
-          maxPhotos: MAX_PHOTOS_WORK,
           captionContext: (block.rows[0] && block.rows[0].text) || "",
         });
       }
@@ -938,9 +933,7 @@ async function renderDailySiteLogPdf(opts) {
         indent: 14,
         model,
         globalSeen: renderedMediaIds,
-        maxPhotos: MAX_PHOTOS_ISSUES,
         captionContext: String(merged.issuesText || "").slice(0, 280),
-        captionKeyMax: 1,
       });
     }
   }
@@ -971,7 +964,6 @@ async function renderDailySiteLogPdf(opts) {
           indent: 14,
           model,
           globalSeen: renderedMediaIds,
-          maxPhotos: MAX_PHOTOS_INSPECTION,
           captionContext: merged.inspectionText || "",
         });
       }
@@ -1004,9 +996,7 @@ async function renderDailySiteLogPdf(opts) {
       indent: 14,
       model,
       globalSeen: renderedMediaIds,
-      maxPhotos: MAX_PHOTOS_CONCRETE,
       captionContext: concNar || (st.concreteChunks && st.concreteChunks[0] && st.concreteChunks[0].text) || "",
-      captionKeyMax: 1,
     });
   }
 
@@ -1046,7 +1036,6 @@ async function renderDailySiteLogPdf(opts) {
     await drawPhotoList(remainingPhotos, {
       model,
       globalSeen: renderedMediaIds,
-      maxPhotos: MAX_PHOTOS_SITE,
     });
   }
 
