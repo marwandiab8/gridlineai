@@ -1325,7 +1325,6 @@ function isJournalMetaOrControlText(text) {
   if (/^(continue|ok|okay|k|yes|no|thanks?|thank you|ty|help|status|reset|contacts?)$/i.test(low)) {
     return true;
   }
-  if (/^photo attachment$/i.test(low)) return true;
   if (/^project\s+\S+$/i.test(low)) return true;
   if (/^(daily\s+report|daily\s+summary|daily\s+log)\s*[.!]*$/i.test(low)) return true;
   if (/\b(requested\s+item\s+to\s+be\s+included\s+in\s+the\s+daily\s+summary)\b/i.test(low)) return true;
@@ -1336,6 +1335,23 @@ function isJournalMetaOrControlText(text) {
     return true;
   }
   if (/show\s+me\s+(the\s+)?(pictures?|photos?|pics|images?)/i.test(low)) return true;
+  if (/\b(show|read|give)\s+me\s+.*\b(journal|input|note|notes)\b/i.test(low)) return true;
+  if (/\bwhat\s+(did\s+i\s+(say|send)|was\s+my\s+(journal|note|input))\b/i.test(low)) return true;
+  if (
+    /^(can|could|would|will)\s+you\b/i.test(low) &&
+    /\b(summarize|rewrite|reword|show|find|search|tell|explain|generate|create|make|send|text|email|read|review)\b/i.test(
+      low
+    )
+  ) {
+    return true;
+  }
+  if (
+    /^(please\s+)?(summarize|rewrite|reword|show|find|search|tell|explain|generate|create|make|send|text|email|read|review)\b/i.test(
+      low
+    )
+  ) {
+    return true;
+  }
   if (/tap\s+(here|below)|reply\s+with\s+\d/i.test(low)) return true;
   return false;
 }

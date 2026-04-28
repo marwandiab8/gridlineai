@@ -79,3 +79,38 @@ test("filterJournalMediaForReport accepts a Set of entry ids so linked photos su
     ["media-linked"]
   );
 });
+
+test("filterJournalMediaForReport keeps journal media on the exact Eastern report date only", () => {
+  const mediaDocs = [
+    {
+      id: "same-day-linked",
+      dateKey: "2026-04-18",
+      projectId: "home",
+      linkedLogEntryId: "log-1",
+      storagePath: "projects/home/media/2026-04-18/sid/same.jpg",
+    },
+    {
+      id: "previous-day-linked",
+      dateKey: "2026-04-17",
+      projectId: "home",
+      linkedLogEntryId: "log-1",
+      storagePath: "projects/home/media/2026-04-17/sid/previous.jpg",
+    },
+    {
+      id: "same-day-unlinked",
+      dateKey: "2026-04-18",
+      projectId: "home",
+      linkedLogEntryId: null,
+      storagePath: "projects/home/media/2026-04-18/sid/unlinked.jpg",
+    },
+  ];
+
+  const filtered = filterJournalMediaForReport(mediaDocs, new Set(["log-1"]), "home", {
+    dateKey: "2026-04-18",
+  });
+
+  assert.deepEqual(
+    filtered.map((row) => row.id),
+    ["same-day-linked", "same-day-unlinked"]
+  );
+});

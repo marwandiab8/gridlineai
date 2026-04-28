@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   wrapToLines,
   selectRemainingSitePhotos,
+  selectRemainingJournalPhotos,
   buildManpowerRowsWithTotal,
   shouldRenderWorkSummary,
   shouldRenderProjectNotes,
@@ -30,6 +31,18 @@ test("selectRemainingSitePhotos only removes photos that were actually rendered"
     remaining.map((p) => p.mediaId),
     ["m2", "m3"]
   );
+});
+
+test("selectRemainingJournalPhotos returns every unrendered journal photo without a cap", () => {
+  const photos = Array.from({ length: 30 }, (_, index) => ({
+    mediaId: `m${index + 1}`,
+    captionText: `Journal photo ${index + 1}`,
+  }));
+  const remaining = selectRemainingJournalPhotos(photos, new Set(["m1", "m2"]));
+
+  assert.equal(remaining.length, 28);
+  assert.equal(remaining[0].mediaId, "m3");
+  assert.equal(remaining[27].mediaId, "m30");
 });
 
 test("buildManpowerRowsWithTotal appends a neutral total workers row", () => {

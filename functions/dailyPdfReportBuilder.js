@@ -32,7 +32,6 @@ const MAX_PHOTOS_ISSUES = 4;
 const MAX_PHOTOS_CONCRETE = 4;
 const MAX_PHOTOS_INSPECTION = 4;
 const MAX_PHOTOS_SITE = 8;
-const MAX_JOURNAL_EMBEDDED_PHOTOS = 24;
 /** Slightly tighter photos for grid-friendly layout */
 const PHOTO_MAX_H = 320;
 const PHOTO_MAX_W = 440;
@@ -121,6 +120,14 @@ function wrapToLines(text, font, size, maxWidth) {
 }
 
 function selectRemainingSitePhotos(photos, renderedMediaIds) {
+  const seen = renderedMediaIds instanceof Set ? renderedMediaIds : new Set(renderedMediaIds || []);
+  return (photos || []).filter((p) => {
+    if (!p || p.mediaId == null) return false;
+    return !seen.has(String(p.mediaId));
+  });
+}
+
+function selectRemainingJournalPhotos(photos, renderedMediaIds) {
   const seen = renderedMediaIds instanceof Set ? renderedMediaIds : new Set(renderedMediaIds || []);
   return (photos || []).filter((p) => {
     if (!p || p.mediaId == null) return false;
@@ -1357,28 +1364,16 @@ async function renderJournalPdf(opts) {
   }
 
   const photos = Array.isArray(model.photos) ? model.photos : [];
-  const remainingPhotos = photos.filter(
-    (photo) => photo && !renderedPhotoIds.has(String(photo.mediaId))
-  );
+  const remainingPhotos = selectRemainingJournalPhotos(photos, renderedPhotoIds);
   if (remainingPhotos.length) {
     drawSectionTitle("Additional Photos");
-    const toRender = remainingPhotos.slice(0, MAX_JOURNAL_EMBEDDED_PHOTOS);
-    for (const photo of toRender) {
+    for (const photo of remainingPhotos) {
       if (!photo || renderedPhotoIds.has(String(photo.mediaId))) continue;
       renderedPhotoIds.add(String(photo.mediaId));
       const linkedMoment = (model.timeline || []).find(
         (row) => String(row.entryId || "") === String(photo.linkedLogEntryId || "")
       );
       await drawJournalPhoto(photo, linkedMoment ? linkedMoment.text : "");
-    }
-    const omitted = remainingPhotos.length - toRender.length;
-    if (omitted > 0) {
-      drawParagraph(
-        `${omitted} additional photo artifact(s) were captured and linked in journal records, but not embedded in this PDF to keep file size smaller.`,
-        8.5,
-        false,
-        C.muted
-      );
     }
   }
 
@@ -1419,6 +1414,7 @@ module.exports = {
   renderDailySiteLogPdf,
   renderJournalPdf,
   selectRemainingSitePhotos,
+  selectRemainingJournalPhotos,
   wrapToLines,
   buildManpowerRowsWithTotal,
   shouldRenderWorkSummary,

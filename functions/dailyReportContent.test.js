@@ -139,6 +139,46 @@ test("filterEntriesForJournalReport keeps a note when raw text is diary but anot
   assert.equal(kept[0].id, "e1");
 });
 
+test("filterEntriesForJournalReport keeps normal entries and photo placeholders but drops AI chat", () => {
+  const reportDateKey = "2026-04-20";
+  const entries = [
+    {
+      id: "photo",
+      createdAt: ts("2026-04-20T12:00:00Z"),
+      category: "journal",
+      rawText: "Photo attachment",
+      normalizedText: "Photo attachment",
+      dailySummarySections: ["journal"],
+      includeInDailySummary: true,
+    },
+    {
+      id: "entry",
+      createdAt: ts("2026-04-20T13:00:00Z"),
+      category: "journal",
+      rawText: "What a day at the park with the kids.",
+      normalizedText: "What a day at the park with the kids.",
+      dailySummarySections: ["journal"],
+      includeInDailySummary: true,
+    },
+    {
+      id: "chat",
+      createdAt: ts("2026-04-20T14:00:00Z"),
+      category: "journal",
+      rawText: "Can you summarize my journal for today?",
+      normalizedText: "Can you summarize my journal for today?",
+      dailySummarySections: ["journal"],
+      includeInDailySummary: true,
+    },
+  ];
+
+  const kept = filterEntriesForJournalReport(entries, reportDateKey);
+
+  assert.deepEqual(
+    kept.map((entry) => entry.id),
+    ["photo", "entry"]
+  );
+});
+
 test("journal AI bundle carries contributor labels for co-authored journals", () => {
   const reportDateKey = "2026-04-24";
   const entries = [

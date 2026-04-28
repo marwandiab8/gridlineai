@@ -266,7 +266,13 @@ function dedupeMediaDocs(groups) {
   return out;
 }
 
-function filterJournalMediaForReport(mediaDocs, entryIdSetOrEntries, projectKey) {
+function mediaMatchesExactDateKey(m, dateKey) {
+  if (!dateKey) return true;
+  const mediaDateKey = m && typeof m.dateKey === "string" ? m.dateKey.trim() : "";
+  return mediaDateKey === dateKey;
+}
+
+function filterJournalMediaForReport(mediaDocs, entryIdSetOrEntries, projectKey, options = {}) {
   const entryIdSet =
     entryIdSetOrEntries instanceof Set
       ? entryIdSetOrEntries
@@ -281,8 +287,13 @@ function filterJournalMediaForReport(mediaDocs, entryIdSetOrEntries, projectKey)
     projectKey != null && String(projectKey).trim() !== ""
       ? String(projectKey).trim()
       : null;
+  const exactDateKey =
+    options && typeof options.dateKey === "string" && /^\d{4}-\d{2}-\d{2}$/.test(options.dateKey.trim())
+      ? options.dateKey.trim()
+      : null;
 
   return (mediaDocs || []).filter((m) => {
+    if (!mediaMatchesExactDateKey(m, exactDateKey)) return false;
     const linkId = m && m.linkedLogEntryId != null ? String(m.linkedLogEntryId).trim() : "";
     if (linkId) return entryIdSet.has(linkId);
     if (!wantProject) return true;
@@ -528,7 +539,7 @@ async function generateDailyReportPdf(opts) {
   const useProjectAggregate = !!projectKey;
   if (reportType === "journal") {
     const isProjectScopedJournal = useProjectAggregate;
-    const [msgs, logEntriesAll, mediaToday, mediaPrev] = await Promise.all([
+    const [msgs, logEntriesAll, mediaToday] = await Promise.all([
       isProjectScopedJournal
         ? loadMessagesForProjectDay(db, dayStart, nextDayStart, projectSlugForQueries)
         : loadMessagesForDailyReport(db, phoneE164, dayStart, nextDayStart, projectKey, {
@@ -540,13 +551,10 @@ async function generateDailyReportPdf(opts) {
       isProjectScopedJournal
         ? loadMediaForProjectDailyReport(db, dk, projectKey)
         : loadAllMediaForDailyReport(db, phoneE164, dk),
-      isProjectScopedJournal
-        ? loadMediaForProjectDailyReport(db, prevDk, projectKey)
-        : loadAllMediaForDailyReport(db, phoneE164, prevDk),
     ]);
     messages = msgs;
     logEntriesRaw = logEntriesAll;
-    mediaDocs = dedupeMediaDocs([mediaToday, mediaPrev]);
+    mediaDocs = dedupeMediaDocs([mediaToday]);
   } else {
     const [msgs, logEntriesScoped, mediaToday, mediaPrev] = await Promise.all([
       useProjectAggregate
@@ -612,7 +620,9 @@ async function generateDailyReportPdf(opts) {
         .map((e) => (e && e.id != null ? String(e.id) : ""))
         .filter(Boolean)
     );
-    mediaForReport = filterJournalMediaForReport(mediaDocs, journalMediaEntryIds, projectKey);
+    mediaForReport = filterJournalMediaForReport(mediaDocs, journalMediaEntryIds, projectKey, {
+      dateKey: dk,
+    });
     const authorLabelSource = [...(logEntriesRaw || []), ...curatedEntries];
     const authorLabelsByIdentity = await resolveJournalAuthorLabels(db, authorLabelSource);
 
