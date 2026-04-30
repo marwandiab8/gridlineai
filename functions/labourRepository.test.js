@@ -6,6 +6,7 @@ const {
   dayMultiplierFromDateKey,
   formatLabourBalanceReply,
   getDateKeyRangeForBalanceQuery,
+  isPublicHolidayDateKey,
   monthKeyFromDateKey,
   parseLabourHoursBalanceQuery,
   parseLabourHoursCommand,
@@ -76,10 +77,12 @@ test("parseLabourHoursCommand parses segmented breakdown without declared total 
   assert.equal(parsed.hours, 9);
 });
 
-test("dayMultiplierFromDateKey applies Sunday 2x and Saturday 1.5x to the report date", () => {
+test("dayMultiplierFromDateKey applies holiday/weekend multipliers to the report date", () => {
   assert.equal(dayMultiplierFromDateKey("2026-04-24"), 1);
   assert.equal(dayMultiplierFromDateKey("2026-04-25"), 1.5);
   assert.equal(dayMultiplierFromDateKey("2026-04-26"), 2);
+  assert.equal(dayMultiplierFromDateKey("2026-07-01"), 1.5);
+  assert.equal(isPublicHolidayDateKey("2026-07-01"), true);
 });
 
 test("parseLabourHoursBalanceQuery distinguishes questions from hour submissions", () => {
@@ -116,6 +119,7 @@ test("formatLabourBalanceReply shows paid when weekend weighting applies", () =>
   });
   assert.match(text, /9h on site/);
   assert.match(text, /18h paid/);
+  assert.match(text, /44h\/week/);
 });
 
 test("weekly and monthly rollups group labour entries by calendar ranges", () => {
@@ -153,7 +157,7 @@ test("weekly and monthly rollups group labour entries by calendar ranges", () =>
   assert.equal(rollup.labourerTotals.length, 2);
 });
 
-test("paid period tally applies Saturday 1.5x and Sunday 2x on biweekly periods", () => {
+test("paid period tally applies daily, weekly, weekend, and holiday rules without pyramiding", () => {
   assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-04-25"), "2026-04-25");
   assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-05-08"), "2026-04-25");
   assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-05-09"), "2026-05-09");
@@ -163,38 +167,135 @@ test("paid period tally applies Saturday 1.5x and Sunday 2x on biweekly periods"
   const rollup = buildLabourRollup([
     {
       id: "e1",
-      createdAt: ts("2026-05-02T12:00:00Z"),
-      reportDateKey: "2026-05-02",
+      createdAt: ts("2026-09-07T12:00:00Z"),
+      reportDateKey: "2026-09-07",
       labourerName: "Sam",
-      hours: 4,
-      workOn: "cleanup",
+      hours: 8,
+      workOn: "holiday work",
     },
     {
       id: "e2",
-      createdAt: ts("2026-05-03T12:00:00Z"),
-      reportDateKey: "2026-05-03",
+      createdAt: ts("2026-09-08T12:00:00Z"),
+      reportDateKey: "2026-09-08",
       labourerName: "Sam",
-      hours: 4,
-      workOn: "setup",
+      hours: 12,
+      workOn: "forming",
     },
     {
       id: "e3",
-      createdAt: ts("2026-05-04T12:00:00Z"),
-      reportDateKey: "2026-05-04",
+      createdAt: ts("2026-09-09T12:00:00Z"),
+      reportDateKey: "2026-09-09",
+      labourerName: "Sam",
+      hours: 12,
+      workOn: "forming",
+    },
+    {
+      id: "e4",
+      createdAt: ts("2026-09-10T12:00:00Z"),
+      reportDateKey: "2026-09-10",
+      labourerName: "Sam",
+      hours: 14,
+      workOn: "weekday overtime",
+    },
+    {
+      id: "e5",
+      createdAt: ts("2026-09-12T12:00:00Z"),
+      reportDateKey: "2026-09-12",
       labourerName: "Sam",
       hours: 8,
-      workOn: "forming",
+      workOn: "saturday work",
+    },
+    {
+      id: "e6",
+      createdAt: ts("2026-09-13T12:00:00Z"),
+      reportDateKey: "2026-09-13",
+      labourerName: "Sam",
+      hours: 8,
+      workOn: "sunday work",
     },
   ]);
 
-  assert.equal(rollup.totalHours, 16);
-  assert.equal(rollup.totalPaidHours, 16);
-  assert.equal(rollup.paidPeriodTotals.length, 1);
-  assert.equal(rollup.paidPeriodTotals[0].periodStartKey, "2026-04-25");
-  assert.equal(rollup.paidPeriodTotals[0].periodEndKey, "2026-05-08");
+  assert.equal(rollup.totalHours, 62);
+  assert.equal(rollup.totalPaidHours, 62);
+  assert.equal(rollup.paidPeriodTotals.length, 2);
+  assert.equal(rollup.paidPeriodTotals[0].periodStartKey, "2026-08-29");
+  assert.equal(rollup.paidPeriodTotals[1].periodStartKey, "2026-09-12");
+  const regularHours = rollup.paidPeriodTotals.reduce((total, period) => total + Number(period.regularHours || 0), 0);
+  const overtimeHours = rollup.paidPeriodTotals.reduce((total, period) => total + Number(period.overtimeHours || 0), 0);
+  const doubleTimeHours = rollup.paidPeriodTotals.reduce((total, period) => total + Number(period.doubleTimeHours || 0), 0);
+  const totalPaidHours = rollup.paidPeriodTotals.reduce((total, period) => total + Number(period.totalPaidHours || 0), 0);
+  const totalPayUnits = rollup.paidPeriodTotals.reduce((total, period) => total + Number(period.totalPayUnits || 0), 0);
+  assert.equal(Math.round(regularHours * 10) / 10, 35.2);
+  assert.equal(Math.round(overtimeHours * 10) / 10, 18.8);
+  assert.equal(doubleTimeHours, 8);
+  assert.equal(totalPaidHours, 62);
+  assert.equal(Math.round(totalPayUnits * 10) / 10, 79.4);
+});
+
+test("weekday hours over 12 in a day are paid at time-and-a-half", () => {
+  const rollup = buildLabourRollup([
+    {
+      id: "e1",
+      createdAt: ts("2026-05-04T12:00:00Z"),
+      reportDateKey: "2026-05-04",
+      labourerName: "Sam",
+      hours: 14,
+      workOn: "weekday overtime",
+    },
+  ]);
+
   assert.equal(rollup.paidPeriodTotals[0].regularHours, 12);
-  assert.equal(rollup.paidPeriodTotals[0].overtimeHours, 0);
-  assert.equal(rollup.paidPeriodTotals[0].doubleTimeHours, 4);
-  assert.equal(rollup.paidPeriodTotals[0].totalPaidHours, 16);
-  assert.equal(rollup.paidPeriodTotals[0].totalPayUnits, 20);
+  assert.equal(rollup.paidPeriodTotals[0].overtimeHours, 2);
+  assert.equal(rollup.paidPeriodTotals[0].doubleTimeHours, 0);
+  assert.equal(rollup.paidPeriodTotals[0].totalPayUnits, 15);
+});
+
+test("weekly hours above 44 become time-and-a-half on straight-time weekdays", () => {
+  const rollup = buildLabourRollup([
+    {
+      id: "e1",
+      createdAt: ts("2026-05-04T12:00:00Z"),
+      reportDateKey: "2026-05-04",
+      labourerName: "Sam",
+      hours: 11,
+      workOn: "weekday",
+    },
+    {
+      id: "e2",
+      createdAt: ts("2026-05-05T12:00:00Z"),
+      reportDateKey: "2026-05-05",
+      labourerName: "Sam",
+      hours: 11,
+      workOn: "weekday",
+    },
+    {
+      id: "e3",
+      createdAt: ts("2026-05-06T12:00:00Z"),
+      reportDateKey: "2026-05-06",
+      labourerName: "Sam",
+      hours: 11,
+      workOn: "weekday",
+    },
+    {
+      id: "e4",
+      createdAt: ts("2026-05-07T12:00:00Z"),
+      reportDateKey: "2026-05-07",
+      labourerName: "Sam",
+      hours: 11,
+      workOn: "weekday",
+    },
+    {
+      id: "e5",
+      createdAt: ts("2026-05-08T12:00:00Z"),
+      reportDateKey: "2026-05-08",
+      labourerName: "Sam",
+      hours: 4,
+      workOn: "weekday",
+    },
+  ]);
+
+  assert.equal(rollup.paidPeriodTotals[0].regularHours, 44);
+  assert.equal(rollup.paidPeriodTotals[0].overtimeHours, 4);
+  assert.equal(rollup.paidPeriodTotals[0].doubleTimeHours, 0);
+  assert.equal(rollup.paidPeriodTotals[0].totalPayUnits, 50);
 });

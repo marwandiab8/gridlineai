@@ -2135,7 +2135,7 @@ async function buildReply({
     const payHours = Math.round(labourEntryCommand.hours * payMult * 100) / 100;
     const payNote =
       payMult !== 1
-        ? ` → ${payHours}h paid (${payMult === 1.5 ? "Sat 1.5x" : "Sun 2x"})`
+        ? ` → ${payHours}h paid (${payMult === 2 ? "Sun 2x" : "Sat/holiday 1.5x"})`
         : "";
     return {
       replyText: truncateSms(

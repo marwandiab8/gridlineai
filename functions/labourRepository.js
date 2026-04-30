@@ -4,6 +4,9 @@ const { normalizeProjectSlug } = require("./projectAccess");
 const COL_LABOURERS = "labourers";
 const COL_LABOUR_ENTRIES = "labourEntries";
 const LABOUR_PAY_PERIOD_ANCHOR = "2026-04-25"; // Anchor date (start of a biweekly pay period).
+const LABOUR_REGULAR_WEEKLY_HOURS = 44;
+const LABOUR_REGULAR_DAILY_HOURS = 12;
+const LABOUR_REGULAR_HOURS_PER_DAY = LABOUR_REGULAR_WEEKLY_HOURS / 5;
 
 function normalizeLabourerName(value) {
   return String(value || "")
@@ -68,18 +71,73 @@ function weeklyKeyFromDateKey(dateKey) {
   return startOfWeekFromDateKey(dateKey);
 }
 
+function nthWeekdayOfMonthUtc(year, monthIndex, weekday, nth) {
+  if (!Number.isInteger(year) || !Number.isInteger(monthIndex) || !Number.isInteger(weekday) || !Number.isInteger(nth)) {
+    return null;
+  }
+  const first = new Date(Date.UTC(year, monthIndex, 1));
+  if (Number.isNaN(first.getTime())) return null;
+  const offset = (weekday - first.getUTCDay() + 7) % 7;
+  first.setUTCDate(1 + offset + (nth - 1) * 7);
+  return first;
+}
+
+function easterSundayUtc(year) {
+  if (!Number.isInteger(year)) return null;
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 function dayMultiplierFromDateKey(dateKey) {
   const date = parseDateKey(dateKey);
   if (!date) return 1;
+  if (isPublicHolidayDateKey(dateKey)) return date.getUTCDay() === 0 ? 2 : 1.5;
   const day = date.getUTCDay();
   if (day === 6) return 1.5; // Saturday
   if (day === 0) return 2; // Sunday
   return 1;
 }
 
-const LABOUR_HOLIDAY_DATE_KEYS = [
-  // Add YYYY-MM-DD keys here if you want double time on specific holidays.
-];
+function labourHolidayDateKeysForYear(year) {
+  if (!Number.isInteger(year)) return [];
+  const easterSunday = easterSundayUtc(year);
+  const goodFriday = easterSunday ? new Date(easterSunday.getTime()) : null;
+  if (goodFriday) goodFriday.setUTCDate(goodFriday.getUTCDate() - 2);
+  const victoriaDay = new Date(Date.UTC(year, 4, 24));
+  victoriaDay.setUTCDate(victoriaDay.getUTCDate() - ((victoriaDay.getUTCDay() + 6) % 7));
+
+  return [
+    formatDateKey(new Date(Date.UTC(year, 0, 1))), // New Year's Day
+    formatDateKey(nthWeekdayOfMonthUtc(year, 1, 1, 3)), // Family Day
+    formatDateKey(goodFriday), // Good Friday
+    formatDateKey(victoriaDay), // Victoria Day
+    formatDateKey(new Date(Date.UTC(year, 6, 1))), // Canada Day
+    formatDateKey(nthWeekdayOfMonthUtc(year, 7, 1, 1)), // Civic Holiday
+    formatDateKey(nthWeekdayOfMonthUtc(year, 8, 1, 1)), // Labour Day
+    formatDateKey(nthWeekdayOfMonthUtc(year, 9, 1, 2)), // Thanksgiving Day
+    formatDateKey(new Date(Date.UTC(year, 11, 25))), // Christmas Day
+    formatDateKey(new Date(Date.UTC(year, 11, 26))), // Boxing Day
+  ].filter(Boolean);
+}
+
+function isPublicHolidayDateKey(dateKey) {
+  const date = parseDateKey(dateKey);
+  if (!date) return false;
+  return labourHolidayDateKeysForYear(date.getUTCFullYear()).includes(formatDateKey(date));
+}
 
 function isDoubleTimeDateKey(dateKey) {
   const key = String(dateKey || "").trim();
@@ -87,10 +145,25 @@ function isDoubleTimeDateKey(dateKey) {
   const date = parseDateKey(key);
   if (!date) return false;
   if (date.getUTCDay() === 0) return true; // Sunday
-  return LABOUR_HOLIDAY_DATE_KEYS.includes(key);
+  return false;
 }
 
-function computePaidHoursForBiweekly(entries, overtimeThresholdHours = 88) {
+function regularHolidayCreditHoursForWeek(weekStartKey) {
+  const start = String(weekStartKey || "").trim();
+  if (!start) return 0;
+  let credit = 0;
+  for (let i = 0; i < 7; i += 1) {
+    const dateKey = shiftDateKey(start, i);
+    const date = parseDateKey(dateKey);
+    if (!date) continue;
+    const day = date.getUTCDay();
+    if (day === 0 || day === 6) continue;
+    if (isPublicHolidayDateKey(dateKey)) credit += LABOUR_REGULAR_HOURS_PER_DAY;
+  }
+  return Math.round(credit * 100) / 100;
+}
+
+function computePaidHoursForBiweekly(entries) {
   const byLabourer = groupEntriesByKey(entries, (e) => String(e.labourerName || e.labourerPhone || "Unknown"));
   let regularHours = 0;
   let overtimeHours = 0;
@@ -98,19 +171,49 @@ function computePaidHoursForBiweekly(entries, overtimeThresholdHours = 88) {
   let totalPayUnits = 0;
 
   for (const [, labourerEntries] of byLabourer.entries()) {
-    const doubleHours = (labourerEntries || []).reduce((t, e) => {
-      const k = String(e?.reportDateKey || "");
-      if (!isDoubleTimeDateKey(k)) return t;
-      return t + (Number(e?.hours) || 0);
-    }, 0);
-    const nonDoubleHours = Math.max(0, sumHours(labourerEntries) - doubleHours);
-    const threshold = Number(overtimeThresholdHours) || 0;
-    const ot = Math.max(0, nonDoubleHours - threshold);
-    const reg = Math.max(0, nonDoubleHours - ot);
-    regularHours += reg;
-    overtimeHours += ot;
-    doubleTimeHours += doubleHours;
-    totalPayUnits += reg + ot * 1.5 + doubleHours * 2;
+    const byWeek = groupEntriesByKey(labourerEntries, (e) => {
+      const key = String(e?.reportDateKey || "");
+      return startOfWeekFromDateKey(key) || key;
+    });
+
+    for (const [weekStartKey, weekEntries] of byWeek.entries()) {
+      const byDay = groupEntriesByKey(weekEntries, (e) => String(e?.reportDateKey || ""));
+      let weeklyRegularCandidateHours = 0;
+      let weeklyPremiumHours = 0;
+      let weeklyDoubleHours = 0;
+
+      for (const [dateKey, dayEntries] of byDay.entries()) {
+        const hours = sumHours(dayEntries);
+        if (!hours) continue;
+        const date = parseDateKey(dateKey);
+        if (!date) {
+          weeklyRegularCandidateHours += hours;
+          continue;
+        }
+        const day = date.getUTCDay();
+        if (day === 0) {
+          weeklyDoubleHours += hours;
+          continue;
+        }
+        if (day === 6 || isPublicHolidayDateKey(dateKey)) {
+          weeklyPremiumHours += hours;
+          continue;
+        }
+        const dailyOtHours = Math.max(0, hours - LABOUR_REGULAR_DAILY_HOURS);
+        weeklyPremiumHours += dailyOtHours;
+        weeklyRegularCandidateHours += Math.max(0, hours - dailyOtHours);
+      }
+
+      const holidayCreditHours = regularHolidayCreditHoursForWeek(weekStartKey);
+      const weeklyStraightTimeThreshold = Math.max(0, LABOUR_REGULAR_WEEKLY_HOURS - holidayCreditHours);
+      const weeklyOtHours = Math.max(0, weeklyRegularCandidateHours - weeklyStraightTimeThreshold);
+      const weeklyRegHours = Math.max(0, weeklyRegularCandidateHours - weeklyOtHours);
+
+      regularHours += weeklyRegHours;
+      overtimeHours += weeklyPremiumHours + weeklyOtHours;
+      doubleTimeHours += weeklyDoubleHours;
+      totalPayUnits += weeklyRegHours + (weeklyPremiumHours + weeklyOtHours) * 1.5 + weeklyDoubleHours * 2;
+    }
   }
 
   return {
@@ -312,7 +415,7 @@ function formatLabourBalanceReply({
     return `${who}: no hours logged for ${rangeLabel} (${rangeBits}) yet. Text: labour 8.0 your task.`;
   }
   const same = Math.abs(w - p) < 0.01;
-  const body = same ? `${w}h` : `${w}h on site, ${p}h paid (OT after 88h/2wk @ 1.5x; Sun/holidays @ 2x)`;
+  const body = same ? `${w}h` : `${w}h on site, ${p}h paid (44h/week, after 12h/day, Sat/public holiday @ 1.5x, Sun @ 2x)`;
   const entryWord = totalEntries === 1 ? "entry" : "entries";
   return `${who} — ${rangeLabel} (${rangeBits}): ${body} · ${totalEntries} ${entryWord}.`;
 }
@@ -408,7 +511,7 @@ function buildLabourRollup(entries) {
   const dailyTotals = [...byDay.entries()].map(([reportDateKey, dayEntries]) => ({
     reportDateKey,
     totalHours: sumHours(dayEntries),
-    // Overtime is computed at the pay-period level (88h/2wk), not per-day.
+    // Paid summaries are computed in weekly buckets to avoid pyramiding daily and weekly overtime.
     totalPaidHours: sumHours(dayEntries),
     entries: dayEntries,
   }));
@@ -441,7 +544,7 @@ function buildLabourRollup(entries) {
   const labourerTotals = [...byLabourer.entries()].map(([labourer, labourerEntries]) => ({
     labourer,
     totalHours: sumHours(labourerEntries),
-    // "Paid" depends on the pay period overtime threshold; show straight time here.
+    // "Paid" depends on weekly overtime and premium rules; show straight time here.
     totalPaidHours: sumHours(labourerEntries),
     entries: labourerEntries,
   }));
@@ -452,7 +555,7 @@ function buildLabourRollup(entries) {
   });
   const paidPeriodTotals = [...byPayPeriod.entries()]
     .map(([periodStartKey, periodEntries]) => {
-      const paid = computePaidHoursForBiweekly(periodEntries, 88);
+      const paid = computePaidHoursForBiweekly(periodEntries);
       return {
         periodStartKey,
         periodEndKey: shiftDateKey(periodStartKey, 13) || periodStartKey,
@@ -505,6 +608,7 @@ module.exports = {
   weeklyKeyFromDateKey,
   biweeklyPayPeriodStartKeyFromDateKey,
   dayMultiplierFromDateKey,
+  isPublicHolidayDateKey,
   startOfWeekFromDateKey,
   endOfMonthFromDateKey,
 };

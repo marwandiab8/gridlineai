@@ -179,7 +179,46 @@ function formatHoursClient(value) {
 function dayMultiplierFromDateKeyClient(dateKey) {
   const date = parseDateKeyClient(String(dateKey || "").trim());
   if (!date) return 1;
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth();
+  const dayOfMonth = date.getUTCDate();
   const day = date.getUTCDay();
+  const thirdMonday = 1 + ((1 - new Date(Date.UTC(year, 1, 1)).getUTCDay() + 7) % 7) + 14;
+  const firstMondayAugust = 1 + ((1 - new Date(Date.UTC(year, 7, 1)).getUTCDay() + 7) % 7);
+  const firstMondaySeptember = 1 + ((1 - new Date(Date.UTC(year, 8, 1)).getUTCDay() + 7) % 7);
+  const secondMondayOctober = 1 + ((1 - new Date(Date.UTC(year, 9, 1)).getUTCDay() + 7) % 7) + 7;
+  const easter = (() => {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const easterMonth = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+    const easterDay = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(Date.UTC(year, easterMonth, easterDay));
+  })();
+  const goodFriday = new Date(easter.getTime());
+  goodFriday.setUTCDate(goodFriday.getUTCDate() - 2);
+  const victoriaBase = new Date(Date.UTC(year, 4, 24));
+  victoriaBase.setUTCDate(victoriaBase.getUTCDate() - ((victoriaBase.getUTCDay() + 6) % 7));
+  const isPublicHoliday =
+    (month === 0 && dayOfMonth === 1) ||
+    (month === 1 && day === 1 && dayOfMonth === thirdMonday) ||
+    formatDateKeyClient(goodFriday) === formatDateKeyClient(date) ||
+    formatDateKeyClient(victoriaBase) === formatDateKeyClient(date) ||
+    (month === 6 && dayOfMonth === 1) ||
+    (month === 7 && day === 1 && dayOfMonth === firstMondayAugust) ||
+    (month === 8 && day === 1 && dayOfMonth === firstMondaySeptember) ||
+    (month === 9 && day === 1 && dayOfMonth === secondMondayOctober) ||
+    (month === 11 && (dayOfMonth === 25 || dayOfMonth === 26));
+  if (isPublicHoliday) return day === 0 ? 2 : 1.5;
   if (day === 6) return 1.5; // Saturday
   if (day === 0) return 2; // Sunday
   return 1;
@@ -3213,7 +3252,7 @@ function initLabourPage() {
           const reg = formatHoursClient(Number(period?.regularHours) || 0);
           const ot = formatHoursClient(Number(period?.overtimeHours) || 0);
           const dbl = formatHoursClient(Number(period?.doubleTimeHours) || 0);
-          lines.push(`${start} to ${end}: ${total}h (Hourly ${reg}h · OT ${ot}h · Double ${dbl}h)`);
+          lines.push(`${start} to ${end}: ${total}h (Straight ${reg}h · 1.5x ${ot}h · 2x ${dbl}h)`);
         }
       }
       if (data.downloadURL) lines.push(`Download: ${data.downloadURL}`);

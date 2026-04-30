@@ -107,7 +107,7 @@ function weeklyKeyFromDateKey(dateKey) {
 }
 
 function dayMultiplierForReportDateKey() {
-  // Overtime is computed at the pay-period level (88h/2wk), not per-day.
+  // Premium rules are summarized in the weekly/pay-period breakdown, not per-day here.
   return 1;
 }
 
@@ -411,7 +411,12 @@ async function generateLabourReportPdf({
   }
 
   section("Paid Period Totals (Biweekly)");
-  draw("Pay cycle anchor: Saturday 2026-04-25 · OT after 88h/2wk @ 1.5x · Sun/holidays @ 2x", 9, false, colors.muted);
+  draw(
+    "Pay cycle anchor: Saturday 2026-04-25 · 44h/week · after 12h/day @ 1.5x · Saturday/public holiday @ 1.5x · Sunday @ 2x · no pyramiding",
+    9,
+    false,
+    colors.muted
+  );
   for (const period of summary.paidPeriodTotals || []) {
     ensure(24);
     page.drawText(
@@ -422,8 +427,8 @@ async function generateLabourReportPdf({
 
     // Pay-stub style 3-row breakdown (hours only; rates/amounts are not known here).
     const rows = [
-      ["Hourly-Unionized", `${formatHours(period.regularHours)}h`],
-      ["Overtime-Hours", `${formatHours(period.overtimeHours)}h`],
+      ["Straight Time", `${formatHours(period.regularHours)}h`],
+      ["Time-and-a-Half", `${formatHours(period.overtimeHours)}h`],
       ["Double Time", `${formatHours(period.doubleTimeHours)}h`],
     ];
     const xDesc = margin + 10;
