@@ -3429,7 +3429,16 @@ exports.generateLabourReportCallable = onCall(
     ].filter(Boolean);
     const scopeLabel = scopeBits.join(" · ");
     const runId = `labour-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const fileName = `Labour_${normalizedStart}_${normalizedEnd}_${String(summary.totalEntries || 0).padStart(3, "0")}.pdf`;
+    const sameRangeReportsSnap = await db
+      .collection("labourReports")
+      .where("type", "==", "labourHours")
+      .where("startKey", "==", normalizedStart)
+      .where("endKey", "==", normalizedEnd)
+      .get();
+    const sequence = String((sameRangeReportsSnap.size || 0) + 1).padStart(3, "0");
+    const startStamp = normalizedStart.replace(/-/g, "_");
+    const endStamp = normalizedEnd.replace(/-/g, "_");
+    const fileName = `labour_report_${startStamp}_to_${endStamp}_${sequence}.pdf`;
     const storagePath = `labourReports/${encodeURIComponent(scopeBits.join("__") || "all")}/${fileName}`;
     const downloadToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
     const bucket = admin.storage().bucket();

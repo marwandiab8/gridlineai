@@ -1,4 +1,4 @@
-const { PDFDocument, StandardFonts, degrees, rgb } = require("pdf-lib");
+const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
 
 function wrapText(text, font, size, maxWidth) {
   const raw = String(text || "").trim();
@@ -166,28 +166,28 @@ async function generateLabourReportPdf({
   function draw(text, size = 10, bold = false, color = colors.ink, x = margin, width = contentW) {
     const lines = wrapText(text, bold ? fontBold : font, size, width);
     for (const line of lines) {
-      ensure(size + 6);
+      ensure(size + 10);
       page.drawText(line, { x, y, size, font: bold ? fontBold : font, color });
-      y -= size + 4;
+      y -= size + 6;
     }
   }
 
   function rule() {
-    ensure(10);
+    ensure(16);
     page.drawLine({
-      start: { x: margin, y: y - 2 },
-      end: { x: pageW - margin, y: y - 2 },
+      start: { x: margin, y: y - 6 },
+      end: { x: pageW - margin, y: y - 6 },
       thickness: 0.6,
       color: colors.rule,
     });
-    y -= 10;
+    y -= 16;
   }
 
   function section(title) {
-    y -= 4;
+    y -= 8;
     rule();
     draw(title, 13, true, colors.ink);
-    y -= 2;
+    y -= 6;
   }
 
   function compactDateParts(dateKey) {
@@ -237,8 +237,8 @@ async function generateLabourReportPdf({
     draw(formatRangeLabel(startKey, endKey), 9.2, false, colors.muted);
     y -= 8;
 
-    const headerH = 34;
-    const rowH = 24;
+    const headerH = 40;
+    const rowH = 28;
     const colNameW = 168;
     const totalColW = 52;
     const dayColW = Math.floor((contentW - colNameW - totalColW) / dayKeys.length);
@@ -285,14 +285,14 @@ async function generateLabourReportPdf({
 
       page.drawText("Labourer", {
         x: x0 + 6,
-        y: tableTopY - 21,
+        y: tableTopY - 24,
         size: 8.8,
         font: fontBold,
         color: colors.ink,
       });
       page.drawText("Total", {
         x: totalX + 10,
-        y: tableTopY - 21,
+        y: tableTopY - 24,
         size: 8.8,
         font: fontBold,
         color: colors.ink,
@@ -305,14 +305,14 @@ async function generateLabourReportPdf({
         const mdW = font.widthOfTextAtSize(md, 6.9);
         page.drawText(dow, {
           x: colX + Math.max(2, (dayColW - dowW) / 2),
-          y: tableTopY - 14,
+          y: tableTopY - 16,
           size: 7.1,
           font: fontBold,
           color: colors.ink,
         });
         page.drawText(md, {
           x: colX + Math.max(2, (dayColW - mdW) / 2),
-          y: tableTopY - 24,
+          y: tableTopY - 28,
           size: 6.9,
           font,
           color: colors.muted,
@@ -369,7 +369,7 @@ async function generateLabourReportPdf({
 
       const nameLines = wrapText(labourer, isTotal ? fontBold : font, 8.7, colNameW - 10).slice(0, 2);
       const nameBlockH = nameLines.length * 9;
-      const nameY = rowBottom + (rowH + nameBlockH) / 2 - 9;
+      const nameY = rowBottom + (rowH + nameBlockH) / 2 - 10;
       for (let i = 0; i < nameLines.length; i += 1) {
         page.drawText(nameLines[i], {
           x: x0 + 6,
@@ -392,7 +392,7 @@ async function generateLabourReportPdf({
         const colX = x0 + colNameW + i * dayColW;
         page.drawText(value, {
           x: colX + Math.max(2, (dayColW - textW) / 2),
-          y: rowBottom + 8,
+          y: rowBottom + 10,
           size: 7.8,
           font: fontBold,
           color: isTotal ? colors.ink : colors.accent,
@@ -403,7 +403,7 @@ async function generateLabourReportPdf({
         const textW = fontBold.widthOfTextAtSize(value, 8.2);
         page.drawText(value, {
           x: totalX + Math.max(4, (totalColW - textW) / 2),
-          y: rowBottom + 8,
+          y: rowBottom + 10,
           size: 8.2,
           font: fontBold,
           color: colors.ink,
