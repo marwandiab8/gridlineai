@@ -428,19 +428,25 @@ async function generateLabourReportPdf({
       color: colors.accent,
     });
     y -= 14;
-    draw(
-      [
-        `Actual: ${formatHours(period.totalHours)}h`,
-        `Regular: ${formatHours(period.regularHours)}h`,
-        `OT: ${formatHours(period.overtimeHours)}h`,
-        `Double: ${formatHours(period.doubleTimeHours)}h`,
-      ].join(" · "),
-      9.2,
-      false,
-      colors.muted,
-      margin + 10,
-      contentW - 12
-    );
+
+    // Pay-stub style 3-row breakdown (hours only; rates/amounts are not known here).
+    const rows = [
+      ["Hourly-Unionized", `${formatHours(period.regularHours)}h`],
+      ["Overtime-Hours", `${formatHours(period.overtimeHours)}h`],
+      ["Double Time", `${formatHours(period.doubleTimeHours)}h`],
+    ];
+    const xDesc = margin + 10;
+    const xHrs = pageW - margin - 130;
+    ensure(14);
+    page.drawText("Description", { x: xDesc, y, size: 8.6, font: fontBold, color: colors.accent });
+    page.drawText("Hrs/Units", { x: xHrs, y, size: 8.6, font: fontBold, color: colors.accent });
+    y -= 12;
+    for (const [desc, hrs] of rows) {
+      ensure(12);
+      page.drawText(String(desc), { x: xDesc, y, size: 9.2, font, color: colors.muted });
+      page.drawText(String(hrs), { x: xHrs, y, size: 9.2, font: fontBold, color: colors.ink });
+      y -= 12;
+    }
     y -= 4;
 
     // Pay-period table by labourer/day.
