@@ -3243,6 +3243,11 @@ function initLabourPage() {
       if (token) payload.token = token;
       const data = await callDashboardFunction("generateLabourReportCallable", payload);
       const lines = [`Labour report created for ${payload.startKey} to ${payload.endKey}.`];
+      lines.push(`Entries: ${Number(data.totalEntries) || 0}`);
+      lines.push(`Hours: ${formatHoursClient(Number(data.totalHours) || 0)}h`);
+      if ((Number(data.totalEntries) || 0) < 1) {
+        lines.push("No labour entries matched this filter. Check the date range, labourer, and project.");
+      }
       if (Array.isArray(data.paidPeriodTotals) && data.paidPeriodTotals.length) {
         lines.push("Paid periods:");
         for (const period of data.paidPeriodTotals) {
