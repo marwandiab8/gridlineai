@@ -478,7 +478,6 @@ async function generateLabourReportPdf({
   drawKeyValue("Range", formatRangeLabel(summary.startKey, summary.endKey));
   drawKeyValue("Total entries", String(summary.totalEntries || 0));
   drawKeyValue("Total hours", `${formatHours(summary.totalHours)}h`);
-  drawKeyValue("Paid units", `${formatHours(summary.totalPayUnits)}h`);
   y -= 6;
 
   if (!Array.isArray(entries) || entries.length < 1) {
@@ -538,7 +537,7 @@ async function generateLabourReportPdf({
       );
       y -= 14;
 
-      // Pay-stub style 3-row breakdown (hours only; rates/amounts are not known here).
+      // Hour buckets only. Do not show weighted/converted paid totals here.
       const rows = [
         ["Straight Time", `${formatHours(period.regularHours)}h`],
         ["Time-and-a-Half", `${formatHours(period.overtimeHours)}h`],
@@ -548,7 +547,7 @@ async function generateLabourReportPdf({
       const xHrs = pageW - margin - 130;
       ensure(14);
       page.drawText("Description", { x: xDesc, y, size: 8.6, font: fontBold, color: colors.accent });
-      page.drawText("Hrs/Units", { x: xHrs, y, size: 8.6, font: fontBold, color: colors.accent });
+      page.drawText("Hours", { x: xHrs, y, size: 8.6, font: fontBold, color: colors.accent });
       y -= 12;
       for (const [desc, hrs] of rows) {
         ensure(12);
