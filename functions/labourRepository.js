@@ -77,6 +77,50 @@ function dayMultiplierFromDateKey(dateKey) {
   return 1;
 }
 
+const LABOUR_HOLIDAY_DATE_KEYS = [
+  // Add YYYY-MM-DD keys here if you want double time on specific holidays.
+];
+
+function isDoubleTimeDateKey(dateKey) {
+  const key = String(dateKey || "").trim();
+  if (!key) return false;
+  const date = parseDateKey(key);
+  if (!date) return false;
+  if (date.getUTCDay() === 0) return true; // Sunday
+  return LABOUR_HOLIDAY_DATE_KEYS.includes(key);
+}
+
+function computePaidHoursForBiweekly(entries, overtimeThresholdHours = 88) {
+  const byLabourer = groupEntriesByKey(entries, (e) => String(e.labourerName || e.labourerPhone || "Unknown"));
+  let regularHours = 0;
+  let overtimeHours = 0;
+  let doubleTimeHours = 0;
+  let totalPaidHours = 0;
+
+  for (const [, labourerEntries] of byLabourer.entries()) {
+    const doubleHours = (labourerEntries || []).reduce((t, e) => {
+      const k = String(e?.reportDateKey || "");
+      if (!isDoubleTimeDateKey(k)) return t;
+      return t + (Number(e?.hours) || 0);
+    }, 0);
+    const nonDoubleHours = Math.max(0, sumHours(labourerEntries) - doubleHours);
+    const threshold = Number(overtimeThresholdHours) || 0;
+    const ot = Math.max(0, nonDoubleHours - threshold);
+    const reg = Math.max(0, nonDoubleHours - ot);
+    regularHours += reg;
+    overtimeHours += ot;
+    doubleTimeHours += doubleHours;
+    totalPaidHours += reg + ot * 1.5 + doubleHours * 2;
+  }
+
+  return {
+    regularHours,
+    overtimeHours,
+    doubleTimeHours,
+    totalPaidHours,
+  };
+}
+
 function biweeklyPayPeriodStartKeyFromDateKey(dateKey) {
   const date = parseDateKey(dateKey);
   const anchor = parseDateKey(LABOUR_PAY_PERIOD_ANCHOR);
@@ -268,7 +312,7 @@ function formatLabourBalanceReply({
     return `${who}: no hours logged for ${rangeLabel} (${rangeBits}) yet. Text: labour 8.0 your task.`;
   }
   const same = Math.abs(w - p) < 0.01;
-  const body = same ? `${w}h` : `${w}h on site, ${p}h paid (Sat 1.5x / Sun 2x)`;
+  const body = same ? `${w}h` : `${w}h on site, ${p}h paid (OT after 88h/2wk @ 1.5x; Sun/holidays @ 2x)`;
   const entryWord = totalEntries === 1 ? "entry" : "entries";
   return `${who} — ${rangeLabel} (${rangeBits}): ${body} · ${totalEntries} ${entryWord}.`;
 }
@@ -364,10 +408,8 @@ function buildLabourRollup(entries) {
   const dailyTotals = [...byDay.entries()].map(([reportDateKey, dayEntries]) => ({
     reportDateKey,
     totalHours: sumHours(dayEntries),
-    totalPaidHours: dayEntries.reduce((total, item) => {
-      const hours = Number(item && item.hours) || 0;
-      return total + hours * dayMultiplierFromDateKey(reportDateKey);
-    }, 0),
+    // Overtime is computed at the pay-period level (88h/2wk), not per-day.
+    totalPaidHours: sumHours(dayEntries),
     entries: dayEntries,
   }));
 
@@ -399,11 +441,8 @@ function buildLabourRollup(entries) {
   const labourerTotals = [...byLabourer.entries()].map(([labourer, labourerEntries]) => ({
     labourer,
     totalHours: sumHours(labourerEntries),
-    totalPaidHours: labourerEntries.reduce((total, item) => {
-      const hours = Number(item && item.hours) || 0;
-      const reportDateKey = String(item?.reportDateKey || "");
-      return total + hours * dayMultiplierFromDateKey(reportDateKey);
-    }, 0),
+    // "Paid" depends on the pay period overtime threshold; show straight time here.
+    totalPaidHours: sumHours(labourerEntries),
     entries: labourerEntries,
   }));
 
@@ -413,38 +452,21 @@ function buildLabourRollup(entries) {
   });
   const paidPeriodTotals = [...byPayPeriod.entries()]
     .map(([periodStartKey, periodEntries]) => {
-      let saturdayHours = 0;
-      let sundayHours = 0;
-      let weekdayHours = 0;
-      let totalPaidHours = 0;
-      for (const entry of periodEntries) {
-        const reportDateKey = String(entry?.reportDateKey || "");
-        const hours = Number(entry?.hours) || 0;
-        const date = parseDateKey(reportDateKey);
-        const day = date ? date.getUTCDay() : -1;
-        if (day === 6) saturdayHours += hours;
-        else if (day === 0) sundayHours += hours;
-        else weekdayHours += hours;
-        totalPaidHours += hours * dayMultiplierFromDateKey(reportDateKey);
-      }
+      const paid = computePaidHoursForBiweekly(periodEntries, 88);
       return {
         periodStartKey,
         periodEndKey: shiftDateKey(periodStartKey, 13) || periodStartKey,
         totalHours: sumHours(periodEntries),
-        totalPaidHours,
-        saturdayHours,
-        sundayHours,
-        weekdayHours,
+        totalPaidHours: paid.totalPaidHours,
+        regularHours: paid.regularHours,
+        overtimeHours: paid.overtimeHours,
+        doubleTimeHours: paid.doubleTimeHours,
         entries: periodEntries,
       };
     })
     .sort((a, b) => (a.periodStartKey < b.periodStartKey ? -1 : a.periodStartKey > b.periodStartKey ? 1 : 0));
 
-  const totalPaidHours = sorted.reduce((total, entry) => {
-    const reportDateKey = String(entry?.reportDateKey || "");
-    const hours = Number(entry?.hours) || 0;
-    return total + hours * dayMultiplierFromDateKey(reportDateKey);
-  }, 0);
+  const totalPaidHours = paidPeriodTotals.reduce((t, p) => t + (Number(p?.totalPaidHours) || 0), 0);
 
   return {
     totalHours: sumHours(sorted),

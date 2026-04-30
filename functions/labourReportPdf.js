@@ -106,16 +106,14 @@ function weeklyKeyFromDateKey(dateKey) {
   return date.toISOString().slice(0, 10);
 }
 
-function dayMultiplierForReportDateKey(dateKey) {
-  const raw = String(dateKey || "").trim();
-  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return 1;
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  if (Number.isNaN(date.getTime())) return 1;
-  const day = date.getUTCDay();
-  if (day === 6) return 1.5;
-  if (day === 0) return 2;
+function dayMultiplierForReportDateKey() {
+  // Overtime is computed at the pay-period level (88h/2wk), not per-day.
   return 1;
+}
+
+function isSundayDateKey(dateKey) {
+  const d = parseDateKey(dateKey);
+  return !!(d && d.getUTCDay && d.getUTCDay() === 0);
 }
 
 async function generateLabourReportPdf({
@@ -415,7 +413,7 @@ async function generateLabourReportPdf({
   }
 
   section("Paid Period Totals (Biweekly)");
-  draw("Pay cycle anchor: Saturday 2026-04-25 · Saturday=1.5x · Sunday=2x", 9, false, colors.muted);
+  draw("Pay cycle anchor: Saturday 2026-04-25 · OT after 88h/2wk @ 1.5x · Sun/holidays @ 2x", 9, false, colors.muted);
   for (const period of summary.paidPeriodTotals || []) {
     ensure(24);
     page.drawText(
@@ -432,10 +430,10 @@ async function generateLabourReportPdf({
     y -= 14;
     draw(
       [
-        `Base: ${formatHours(period.totalHours)}h`,
-        `Weekday: ${formatHours(period.weekdayHours)}h`,
-        `Saturday: ${formatMultiplierBreakdown(period.saturdayHours, 1.5)}`,
-        `Sunday: ${formatMultiplierBreakdown(period.sundayHours, 2)}`,
+        `Actual: ${formatHours(period.totalHours)}h`,
+        `Regular: ${formatHours(period.regularHours)}h`,
+        `OT: ${formatHours(period.overtimeHours)}h`,
+        `Double: ${formatHours(period.doubleTimeHours)}h`,
       ].join(" · "),
       9.2,
       false,
@@ -491,7 +489,7 @@ async function generateLabourReportPdf({
   for (const labourer of summary.labourerTotals || []) {
     ensure(20);
     page.drawText(labourer.labourer, { x: margin, y, size: 10, font: fontBold, color: colors.ink });
-    page.drawText(`${formatHours(labourer.totalPaidHours || labourer.totalHours)} paid`, {
+    page.drawText(`${formatHours(labourer.totalHours)} hours`, {
       x: pageW - margin - 100,
       y,
       size: 10,
@@ -500,8 +498,9 @@ async function generateLabourReportPdf({
     });
     y -= 14;
     for (const item of labourer.entries || []) {
-      const multiplier = dayMultiplierForReportDateKey(item.reportDateKey || "");
-      const line = `${item.reportDateKey || "-"} · ${formatHours(item.hours)}h (${formatMultiplierBreakdown(item.hours, multiplier)}) · ${item.projectSlug || "-"} · ${item.workOn || ""}`;
+      const dateKey = item.reportDateKey || "-";
+      const tag = isSundayDateKey(dateKey) ? " · DOUBLE" : "";
+      const line = `${dateKey} · ${formatHours(item.hours)}h${tag} · ${item.projectSlug || "-"} · ${item.workOn || ""}`;
       draw(line, 9.2, false, colors.muted, margin + 10, contentW - 12);
     }
     y -= 4;
@@ -510,8 +509,10 @@ async function generateLabourReportPdf({
   section("Detailed Entries");
   for (const item of entries || []) {
     ensure(26);
+    const dateKey = item.reportDateKey || "-";
+    const tag = isSundayDateKey(dateKey) ? " · DOUBLE" : "";
     draw(
-      `${item.reportDateKey || "-"} · ${item.labourerName || item.labourerPhone || "Unknown"} · ${formatHours(item.hours)}h`,
+      `${dateKey} · ${item.labourerName || item.labourerPhone || "Unknown"} · ${formatHours(item.hours)}h${tag}`,
       9.5,
       true,
       colors.ink
