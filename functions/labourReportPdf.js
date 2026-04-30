@@ -1,4 +1,4 @@
-const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+const { PDFDocument, StandardFonts, degrees, rgb } = require("pdf-lib");
 
 function wrapText(text, font, size, maxWidth) {
   const raw = String(text || "").trim();
@@ -47,6 +47,51 @@ function formatMultiplierBreakdown(hours, multiplier) {
 function monthKeyFromDateKey(dateKey) {
   const raw = String(dateKey || "").trim();
   return raw ? raw.slice(0, 7) : "";
+}
+
+function parseDateKey(dateKey) {
+  const raw = String(dateKey || "").trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatLongDateFromKey(dateKey) {
+  const date = parseDateKey(dateKey);
+  if (!date) return String(dateKey || "").trim() || "-";
+  const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const dow = weekdays[date.getUTCDay()] || "";
+  const mon = months[date.getUTCMonth()] || "";
+  const day = date.getUTCDate();
+  const year = date.getUTCFullYear();
+  return `${dow} ${mon} ${day} ${year}`.trim();
+}
+
+function shiftDateKey(dateKey, deltaDays) {
+  const date = parseDateKey(dateKey);
+  if (!date || !Number.isFinite(deltaDays)) return "";
+  date.setUTCDate(date.getUTCDate() + Number(deltaDays));
+  return date.toISOString().slice(0, 10);
 }
 
 function weeklyKeyFromDateKey(dateKey) {
@@ -136,6 +181,201 @@ async function generateLabourReportPdf({
     y -= 2;
   }
 
+  function drawPayPeriodHoursTable(periodStartKey, periodEndKey, periodEntries) {
+    const startKey = String(periodStartKey || "").trim();
+    const endKey = String(periodEndKey || "").trim();
+    if (!startKey || !endKey) return;
+
+    const dayKeys = [];
+    for (let i = 0; i < 14; i += 1) {
+      const k = shiftDateKey(startKey, i);
+      if (k) dayKeys.push(k);
+    }
+    if (dayKeys.length < 1) return;
+
+    const labourerRows = new Map();
+    const totalByDay = new Map();
+    for (const entry of periodEntries || []) {
+      const who = String(entry?.labourerName || entry?.labourerPhone || "Unknown").trim() || "Unknown";
+      const dateKey = String(entry?.reportDateKey || "").trim();
+      const hours = Number(entry?.hours) || 0;
+      if (!dateKey || !Number.isFinite(hours) || hours <= 0) continue;
+      if (!labourerRows.has(who)) labourerRows.set(who, new Map());
+      const byDay = labourerRows.get(who);
+      byDay.set(dateKey, (Number(byDay.get(dateKey)) || 0) + hours);
+      totalByDay.set(dateKey, (Number(totalByDay.get(dateKey)) || 0) + hours);
+    }
+
+    const labourers = [...labourerRows.keys()].sort((a, b) => a.localeCompare(b));
+    if (!labourers.length) {
+      draw("No labour entries in this pay period.", 9.2, false, colors.muted);
+      y -= 2;
+      return;
+    }
+
+    const headerH = 78;
+    const rowH = 18;
+    const colNameW = 120;
+    const dayColW = Math.max(22, Math.floor((contentW - colNameW) / dayKeys.length));
+    const tableW = colNameW + dayColW * dayKeys.length;
+    const x0 = margin;
+    const gridColor = colors.rule;
+    const headerBg = rgb(0.965, 0.97, 0.98);
+
+    function drawHeader(tableTopY) {
+      // Header background.
+      page.drawRectangle({
+        x: x0,
+        y: tableTopY - headerH,
+        width: tableW,
+        height: headerH,
+        color: headerBg,
+        borderColor: gridColor,
+        borderWidth: 0.6,
+      });
+
+      // Vertical grid lines in header.
+      for (let i = 0; i <= dayKeys.length; i += 1) {
+        const x = x0 + colNameW + i * dayColW;
+        page.drawLine({
+          start: { x, y: tableTopY },
+          end: { x, y: tableTopY - headerH },
+          thickness: 0.6,
+          color: gridColor,
+        });
+      }
+
+      // "Labourer" header.
+      page.drawText("Labourer", {
+        x: x0 + 6,
+        y: tableTopY - 16,
+        size: 9,
+        font: fontBold,
+        color: colors.ink,
+      });
+
+      // Rotated date headers.
+      const dateSize = 7.2;
+      for (let i = 0; i < dayKeys.length; i += 1) {
+        const k = dayKeys[i];
+        const label = formatLongDateFromKey(k);
+        const colX = x0 + colNameW + i * dayColW;
+        // Place baseline near the bottom of the header cell, rotate so the text goes "up".
+        page.drawText(label, {
+          x: colX + 6,
+          y: tableTopY - headerH + 6,
+          size: dateSize,
+          font,
+          color: colors.muted,
+          rotate: degrees(90),
+        });
+      }
+    }
+
+    function drawRow(tableTopY, rowIndex, labourer) {
+      const rowTop = tableTopY - headerH - rowIndex * rowH;
+      const rowBottom = rowTop - rowH;
+
+      page.drawRectangle({
+        x: x0,
+        y: rowBottom,
+        width: tableW,
+        height: rowH,
+        borderColor: gridColor,
+        borderWidth: 0.6,
+      });
+
+      // Vertical grid lines.
+      for (let i = 0; i <= dayKeys.length; i += 1) {
+        const x = x0 + colNameW + i * dayColW;
+        page.drawLine({
+          start: { x, y: rowTop },
+          end: { x, y: rowBottom },
+          thickness: 0.6,
+          color: gridColor,
+        });
+      }
+
+      const isTotal = labourer === "Total";
+
+      // Labourer name (wrapped).
+      const nameLines = wrapText(labourer, isTotal ? fontBold : font, 8.7, colNameW - 10).slice(0, 2);
+      const nameY = rowBottom + (rowH - nameLines.length * 10) / 2 + (nameLines.length - 1) * 10;
+      for (let i = 0; i < nameLines.length; i += 1) {
+        page.drawText(nameLines[i], {
+          x: x0 + 6,
+          y: nameY - i * 10,
+          size: 8.7,
+          font: isTotal ? fontBold : font,
+          color: isTotal ? colors.accent : colors.ink,
+        });
+      }
+
+      const byDay = getRowDayMap(labourer);
+      for (let i = 0; i < dayKeys.length; i += 1) {
+        const k = dayKeys[i];
+        const hours = Number(byDay.get(k)) || 0;
+        if (!hours) continue;
+        const value = `${formatHours(hours)}`;
+        const textW = font.widthOfTextAtSize(value, 8.2);
+        const colX = x0 + colNameW + i * dayColW;
+        page.drawText(value, {
+          x: colX + Math.max(4, (dayColW - textW) / 2),
+          y: rowBottom + 5,
+          size: 8.2,
+          font: fontBold,
+          color: isTotal ? colors.ink : colors.accent,
+        });
+      }
+    }
+
+    // Title above the table.
+    draw(`Pay Period Starting ${formatLongDateFromKey(startKey)}`, 11, true, colors.ink);
+    draw(formatRangeLabel(startKey, endKey), 9.2, false, colors.muted);
+    y -= 4;
+
+    const rows = ["Total", ...labourers];
+
+    function getRowDayMap(labourer) {
+      if (labourer === "Total") return totalByDay;
+      return labourerRows.get(labourer) || new Map();
+    }
+
+    let rowCursor = 0;
+    while (rowCursor < rows.length) {
+      const remaining = rows.length - rowCursor;
+
+      // Ensure at least header + one row fits.
+      const minTableH = headerH + rowH + 10;
+      ensure(minTableH);
+
+      const availableH = y - margin;
+      const maxRowsThisPage = Math.max(1, Math.floor((availableH - headerH - 10) / rowH));
+      const rowsThisPage = Math.min(remaining, maxRowsThisPage);
+
+      const tableTopY = y;
+      drawHeader(tableTopY);
+
+      for (let i = 0; i < rowsThisPage; i += 1) {
+        const labourer = rows[rowCursor + i];
+        drawRow(tableTopY, i, labourer);
+      }
+
+      // Bottom border line.
+      const tableBottomY = tableTopY - headerH - rowsThisPage * rowH;
+      page.drawLine({
+        start: { x: x0, y: tableBottomY },
+        end: { x: x0 + tableW, y: tableBottomY },
+        thickness: 0.6,
+        color: gridColor,
+      });
+
+      y = tableBottomY - 14;
+      rowCursor += rowsThisPage;
+      if (rowCursor < rows.length) newPage();
+    }
+  }
+
   function drawKeyValue(label, value) {
     ensure(18);
     page.drawText(label, { x: margin, y, size: 8.5, font: fontBold, color: colors.accent });
@@ -175,7 +415,7 @@ async function generateLabourReportPdf({
   }
 
   section("Paid Period Totals (Biweekly)");
-  draw("Pay cycle anchor: Sunday 2026-04-26 · Saturday=1.5x · Sunday=2x", 9, false, colors.muted);
+  draw("Pay cycle anchor: Saturday 2026-04-25 · Saturday=1.5x · Sunday=2x", 9, false, colors.muted);
   for (const period of summary.paidPeriodTotals || []) {
     ensure(24);
     page.drawText(
@@ -204,6 +444,9 @@ async function generateLabourReportPdf({
       contentW - 12
     );
     y -= 4;
+
+    // Pay-period table by labourer/day.
+    drawPayPeriodHoursTable(period.periodStartKey, period.periodEndKey, period.entries);
   }
 
   section("Weekly Totals");

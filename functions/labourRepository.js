@@ -3,7 +3,7 @@ const { normalizeProjectSlug } = require("./projectAccess");
 
 const COL_LABOURERS = "labourers";
 const COL_LABOUR_ENTRIES = "labourEntries";
-const LABOUR_PAY_PERIOD_ANCHOR = "2026-04-26"; // Sunday anchor date.
+const LABOUR_PAY_PERIOD_ANCHOR = "2026-04-25"; // Anchor date (start of a biweekly pay period).
 
 function normalizeLabourerName(value) {
   return String(value || "")

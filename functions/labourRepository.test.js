@@ -100,16 +100,16 @@ test("getDateKeyRangeForBalanceQuery matches Eastern calendar for a fixed now", 
   assert.equal(day && day.startKey, "2026-04-26");
   assert.equal(day && day.endKey, "2026-04-26");
   const pay = getDateKeyRangeForBalanceQuery("pay", fixed);
-  assert.equal(pay && pay.startKey, "2026-04-26");
-  assert.equal(pay && pay.endKey, "2026-05-09");
+  assert.equal(pay && pay.startKey, "2026-04-25");
+  assert.equal(pay && pay.endKey, "2026-05-08");
 });
 
 test("formatLabourBalanceReply shows paid when weekend weighting applies", () => {
   const text = formatLabourBalanceReply({
     labourerName: "Wael",
     rangeLabel: "this pay period",
-    startKey: "2026-04-26",
-    endKey: "2026-05-09",
+    startKey: "2026-04-25",
+    endKey: "2026-05-08",
     totalHours: 9,
     totalPaidHours: 18,
     totalEntries: 1,
@@ -154,9 +154,9 @@ test("weekly and monthly rollups group labour entries by calendar ranges", () =>
 });
 
 test("paid period tally applies Saturday 1.5x and Sunday 2x on biweekly periods", () => {
-  assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-04-26"), "2026-04-26");
-  assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-05-09"), "2026-04-26");
-  assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-05-10"), "2026-05-10");
+  assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-04-25"), "2026-04-25");
+  assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-05-08"), "2026-04-25");
+  assert.equal(biweeklyPayPeriodStartKeyFromDateKey("2026-05-09"), "2026-05-09");
   assert.equal(dayMultiplierFromDateKey("2026-05-02"), 1.5); // Saturday
   assert.equal(dayMultiplierFromDateKey("2026-05-03"), 2); // Sunday
 
@@ -190,8 +190,8 @@ test("paid period tally applies Saturday 1.5x and Sunday 2x on biweekly periods"
   assert.equal(rollup.totalHours, 16);
   assert.equal(rollup.totalPaidHours, 22);
   assert.equal(rollup.paidPeriodTotals.length, 1);
-  assert.equal(rollup.paidPeriodTotals[0].periodStartKey, "2026-04-26");
-  assert.equal(rollup.paidPeriodTotals[0].periodEndKey, "2026-05-09");
+  assert.equal(rollup.paidPeriodTotals[0].periodStartKey, "2026-04-25");
+  assert.equal(rollup.paidPeriodTotals[0].periodEndKey, "2026-05-08");
   assert.equal(rollup.paidPeriodTotals[0].saturdayHours, 4);
   assert.equal(rollup.paidPeriodTotals[0].sundayHours, 4);
   assert.equal(rollup.paidPeriodTotals[0].weekdayHours, 8);
