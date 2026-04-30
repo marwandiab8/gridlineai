@@ -482,6 +482,7 @@ async function assertAccessibleSmsUserForAccess(access, phoneE164) {
 }
 
 const MAX_DAILY_PDF_SMS_ATTEMPTS = 3;
+const MAX_LABOUR_PDF_SMS_ATTEMPTS = 3;
 
 function buildDailyPdfSmsReplyBody({ pdfResult, projectName, projectSlug }) {
   const label = pdfResult.reportType === "journal" ? "Journal PDF" : "Daily PDF report";
@@ -1281,6 +1282,193 @@ exports.deliverDailyPdfSms = onDocumentCreated(
   }
 );
 
+exports.deliverLabourPdfSms = onDocumentCreated(
+  {
+    document: "labourPdfDeliveryQueue/{docId}",
+    region: "northamerica-northeast1",
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    retry: true,
+    secrets: [
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER,
+    ],
+  },
+  async (event) => {
+    const docId = event.params && event.params.docId;
+    logger.info("deliverLabourPdfSms: invoked", { docId: docId || null, hasEventData: Boolean(event.data) });
+
+    let snap = null;
+    if (docId) {
+      try {
+        snap = await db.collection("labourPdfDeliveryQueue").doc(docId).get();
+      } catch (e) {
+        logger.error("deliverLabourPdfSms: queue read failed", { docId, message: e.message });
+      }
+    }
+    if ((!snap || !snap.exists) && event.data && event.data.exists) {
+      snap = event.data;
+    }
+    if (!snap || !snap.exists) {
+      logger.error("deliverLabourPdfSms: missing or empty document snapshot", { docId: docId || null });
+      return;
+    }
+
+    const d = snap.data() || {};
+    const queueRef = snap.ref;
+    const markQueue = async (patch) => {
+      await queueRef.set(
+        {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    };
+
+    if (d.status === "sent" && d.twilioMessageSid) {
+      logger.info("deliverLabourPdfSms: queue already sent, skipping", {
+        docId: snap.id,
+        phoneE164: d.phoneE164 || null,
+        twilioMessageSid: d.twilioMessageSid || null,
+      });
+      return;
+    }
+
+    const phoneE164 = String(d.phoneE164 || "").trim();
+    const runId = d.runId || `labourpdfq-${snap.id}`;
+    const priorAttemptCount = Number(d.attemptCount || 0);
+    const attemptNumber = priorAttemptCount + 1;
+    const startKey = String(d.startKey || "").trim();
+    const endKey = String(d.endKey || "").trim();
+    const replyToNumber = String(d.replyToNumber || "").trim();
+    const replyMessagingServiceSid = normalizeTwilioSecret(d.replyMessagingServiceSid || "") || null;
+    const inboundDocId = d.replyToInboundDocId || null;
+
+    if (!phoneE164) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing phoneE164",
+      }).catch(() => {});
+      return;
+    }
+    const { startKey: normalizedStart, endKey: normalizedEnd } = normalizeLabourRangeKeys(startKey, endKey);
+    if (!normalizedStart || !normalizedEnd) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing or invalid startKey/endKey",
+      }).catch(() => {});
+      return;
+    }
+
+    const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+    const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+    const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+    const runtimeAccountSid = accountSid;
+    if (!runtimeAccountSid || !authToken) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing Twilio secrets",
+        attemptCount: attemptNumber,
+      }).catch(() => {});
+      return;
+    }
+
+    await markQueue({
+      status: "processing",
+      processingAt: FieldValue.serverTimestamp(),
+      attemptCount: attemptNumber,
+      lastError: null,
+    }).catch(() => {});
+
+    try {
+      const entries = await loadLabourEntries(db, {
+        startKey: normalizedStart,
+        endKey: normalizedEnd,
+        labourerPhone: phoneE164,
+      });
+      const summary = buildLabourRollup(entries);
+      const labourer = await findActiveLabourerByPhone(db, phoneE164).catch(() => null);
+
+      const reportTitle = "Labour Hours Report";
+      const scopeBits = [
+        labourer ? labourer.displayName || labourer.phoneE164 : phoneE164,
+        normalizedStart === normalizedEnd ? normalizedStart : `${normalizedStart} to ${normalizedEnd}`,
+      ].filter(Boolean);
+      const scopeLabel = scopeBits.join(" · ");
+      const fileName = `Labour_${normalizedStart}_${normalizedEnd}_${String(summary.totalEntries || 0).padStart(3, "0")}.pdf`;
+      const storagePath = `labourReports/${encodeURIComponent(phoneE164)}/${fileName}`;
+      const downloadToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const bucket = admin.storage().bucket();
+
+      const pdfResult = await generateLabourReportPdf({
+        pdfTitle: reportTitle,
+        subtitle: scopeLabel,
+        summary: { ...summary, startKey: normalizedStart, endKey: normalizedEnd },
+        entries,
+        storageBucket: bucket,
+        storagePath,
+        downloadToken,
+      });
+
+      const smsBody = pdfResult.downloadURL
+        ? `Labour report (${normalizedStart} to ${normalizedEnd}): ${pdfResult.downloadURL}`
+        : `Labour report (${normalizedStart} to ${normalizedEnd}) generated. Stored at: ${pdfResult.storagePath}`;
+
+      const smsClient = twilio(runtimeAccountSid, authToken);
+      const payload = { to: phoneE164, body: smsBody };
+      if (replyMessagingServiceSid) payload.messagingServiceSid = replyMessagingServiceSid;
+      else payload.from = replyToNumber || configuredFrom;
+
+      const sent = await smsClient.messages.create(payload);
+      const messageSid = sent && sent.sid ? sent.sid : null;
+
+      await markQueue({
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        twilioMessageSid: messageSid,
+        downloadURL: pdfResult.downloadURL || null,
+        storagePath: pdfResult.storagePath || null,
+        lastError: null,
+      }).catch(() => {});
+
+      await db.collection("messages").add({
+        direction: "outbound",
+        from: replyToNumber || configuredFrom || null,
+        to: phoneE164,
+        body: smsBody,
+        messageSid: messageSid || null,
+        delivery: "twilio_api",
+        replyToInboundDocId: inboundDocId,
+        threadKey: phoneE164,
+        phoneE164,
+        channel: "sms",
+        schemaVersion: MESSAGE_SCHEMA_VERSION,
+        command: "labour_report_link",
+        twilioMessagingServiceSid: replyMessagingServiceSid || null,
+        createdAt: FieldValue.serverTimestamp(),
+      }).catch(() => {});
+    } catch (err) {
+      logger.error("deliverLabourPdfSms: labour PDF failed", {
+        runId,
+        message: err.message,
+        stack: err.stack,
+      });
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: String(err.message || err).slice(0, 1000),
+        attemptCount: attemptNumber,
+      }).catch(() => {});
+      if (attemptNumber < MAX_LABOUR_PDF_SMS_ATTEMPTS) throw err;
+    }
+  }
+);
+
 exports.inboundSms = onRequest(
   {
     region: "northamerica-northeast1",
@@ -1644,6 +1832,7 @@ exports.inboundSms = onRequest(
 
       let safeReply = String(replyText || "").trim() || "OK.";
       let dailyPdfQueueRef = null;
+      let labourPdfQueueRef = null;
 
       if (outboundMeta.dailyPdfRequested) {
         try {
@@ -1682,6 +1871,42 @@ exports.inboundSms = onRequest(
         }
       }
 
+      if (outboundMeta.labourPdfRequested) {
+        try {
+          labourPdfQueueRef = await db.collection("labourPdfDeliveryQueue").add({
+            phoneE164: from,
+            startKey: outboundMeta.labourReportStartKey || null,
+            endKey: outboundMeta.labourReportEndKey || null,
+            replyToNumber: to || null,
+            replyMessagingServiceSid: messagingServiceSid || null,
+            replyAccountSid: inboundAccountSid || null,
+            runId,
+            replyToInboundDocId: inboundRef.id,
+            status: "queued",
+            attemptCount: 0,
+            lastError: null,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          logger.info("inboundSms: labour PDF queued for SMS delivery", {
+            runId,
+            queueDocId: labourPdfQueueRef.id,
+          });
+        } catch (queueErr) {
+          logger.error("inboundSms: labour PDF queue failed", {
+            runId,
+            message: queueErr.message,
+            stack: queueErr.stack,
+          });
+          safeReply = "Could not queue your labour report. Try again in a minute.";
+          outboundMeta = {
+            ...outboundMeta,
+            labourPdfRequested: false,
+            aiError: String(queueErr.message || queueErr),
+            command: "labour_pdf_queue_failed",
+          };
+        }
+      }
+
       // Twilio waits ~15s for this HTTP response — reply must be sent before that.
       sendTwiml(res, safeReply);
 
@@ -1697,6 +1922,8 @@ exports.inboundSms = onRequest(
           classification: outboundMeta.classification || null,
           dailyPdfRequested: Boolean(outboundMeta.dailyPdfRequested),
           dailyPdfQueueDocId: dailyPdfQueueRef ? dailyPdfQueueRef.id : null,
+          labourPdfRequested: Boolean(outboundMeta.labourPdfRequested),
+          labourPdfQueueDocId: labourPdfQueueRef ? labourPdfQueueRef.id : null,
           reportDateKey: outboundMeta.reportDateKey || null,
           reportType: outboundMeta.reportType || null,
           pendingDeficiencyIntake: Boolean(outboundMeta.pendingDeficiencyIntake),

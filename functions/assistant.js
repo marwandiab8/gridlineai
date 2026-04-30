@@ -1540,6 +1540,23 @@ async function buildReply({
     enhanceLogEntry: false,
     pendingDeficiencyIntake: false,
     notifyRequest: null,
+    labourPdfRequested: false,
+    labourReportStartKey: null,
+    labourReportEndKey: null,
+  };
+
+  const isLabourReportRequest = (text) => {
+    const raw = String(text || "").trim().toLowerCase();
+    if (!raw) return false;
+    if (raw === "report") return true;
+    if (raw === "pay period report") return true;
+    if (raw === "payperiod report") return true;
+    if (raw === "pay report") return true;
+    if (raw === "labour report") return true;
+    if (raw === "labor report") return true;
+    if (raw === "labour pay period report") return true;
+    if (raw === "labor pay period report") return true;
+    return false;
   };
 
   // ---- Commands (deterministic) ----
@@ -1593,6 +1610,32 @@ async function buildReply({
         },
       };
     }
+  }
+
+  // Labour pay period PDF report request (labourers).
+  if (isLabourReportRequest(trimmedBody)) {
+    const labourer = await findActiveLabourerByPhone(db, phoneE164).catch(() => null);
+    if (labourer) {
+      const now = new Date();
+      const range = getDateKeyRangeForBalanceQuery("pay", now);
+      if (!range || !range.startKey || !range.endKey) {
+        return {
+          replyText: "Could not determine your current pay period. Try again in a minute.",
+          outboundMeta: { ...outboundMeta, command: "labour_report_range_failed" },
+        };
+      }
+      return {
+        replyText: "OK. Generating your pay period labour report now. You will get a download link shortly.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_report_pdf",
+          labourPdfRequested: true,
+          labourReportStartKey: range.startKey,
+          labourReportEndKey: range.endKey,
+        },
+      };
+    }
+    // Fall through for non-labourers (e.g. daily report "report" command).
   }
 
   const pendingDeficiencyDraft = normalizePendingDeficiencyDraft(user.pendingDeficiencyIntake);
