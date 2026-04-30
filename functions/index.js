@@ -1400,17 +1400,24 @@ exports.deliverLabourPdfSms = onDocumentCreated(
         normalizedStart === normalizedEnd ? normalizedStart : `${normalizedStart} to ${normalizedEnd}`,
       ].filter(Boolean);
       const scopeLabel = scopeBits.join(" · ");
-      const sameRangeReportsSnap = await db
+      const scopeSequenceKey = [
+        "labourHours",
+        normalizePhoneE164(phoneE164) || "",
+        "",
+        "",
+      ].join("|");
+      const sameScopeReportsSnap = await db
         .collection("labourReports")
         .where("type", "==", "labourHours")
         .where("startKey", "==", normalizedStart)
         .where("endKey", "==", normalizedEnd)
+        .where("scopeSequenceKey", "==", scopeSequenceKey)
         .get();
-      const sequence = String((sameRangeReportsSnap.size || 0) + 1).padStart(3, "0");
+      const sequence = String((sameScopeReportsSnap.size || 0) + 1).padStart(3, "0");
       const startStamp = normalizedStart.replace(/-/g, "_");
       const endStamp = normalizedEnd.replace(/-/g, "_");
-      const fileName = `labour_report_${startStamp}_to_${endStamp}_${sequence}.pdf`;
-      const storagePath = `labourReports/${encodeURIComponent(phoneE164)}/${fileName}`;
+      const fileName = `Labourers_Report_${startStamp}_to_${endStamp}_${sequence}.pdf`;
+      const storagePath = fileName;
       const downloadToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
       const bucket = admin.storage().bucket();
 
@@ -1423,6 +1430,28 @@ exports.deliverLabourPdfSms = onDocumentCreated(
         storagePath,
         downloadToken,
       });
+
+      await db.collection("labourReports").add({
+        type: "labourHours",
+        reportTitle,
+        labourerPhone: phoneE164 || null,
+        labourerName: labourer ? labourer.displayName || null : null,
+        projectSlug: null,
+        startKey: normalizedStart,
+        endKey: normalizedEnd,
+        totalHours: summary.totalHours,
+        totalPaidHours: summary.totalPaidHours,
+        totalPayUnits: summary.totalPayUnits || null,
+        totalEntries: summary.totalEntries,
+        fileName,
+        fileSequence: Number(sequence),
+        scopeSequenceKey,
+        storagePath: pdfResult.storagePath,
+        downloadURL: pdfResult.downloadURL,
+        createdAt: FieldValue.serverTimestamp(),
+        createdByPhone: phoneE164,
+        runId,
+      }).catch(() => {});
 
       const smsBody = pdfResult.downloadURL
         ? `Labour report (${normalizedStart} to ${normalizedEnd}): ${pdfResult.downloadURL}`
@@ -3438,17 +3467,24 @@ exports.generateLabourReportCallable = onCall(
     ].filter(Boolean);
     const scopeLabel = scopeBits.join(" · ");
     const runId = `labour-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const sameRangeReportsSnap = await db
+    const scopeSequenceKey = [
+      "labourHours",
+      phoneE164 || "",
+      labourer ? labourer.displayName || "" : labourerName || "",
+      projectSlug || "",
+    ].join("|");
+    const sameScopeReportsSnap = await db
       .collection("labourReports")
       .where("type", "==", "labourHours")
       .where("startKey", "==", normalizedStart)
       .where("endKey", "==", normalizedEnd)
+      .where("scopeSequenceKey", "==", scopeSequenceKey)
       .get();
-    const sequence = String((sameRangeReportsSnap.size || 0) + 1).padStart(3, "0");
+    const sequence = String((sameScopeReportsSnap.size || 0) + 1).padStart(3, "0");
     const startStamp = normalizedStart.replace(/-/g, "_");
     const endStamp = normalizedEnd.replace(/-/g, "_");
-    const fileName = `labour_report_${startStamp}_to_${endStamp}_${sequence}.pdf`;
-    const storagePath = `labourReports/${encodeURIComponent(scopeBits.join("__") || "all")}/${fileName}`;
+    const fileName = `Labourers_Report_${startStamp}_to_${endStamp}_${sequence}.pdf`;
+    const storagePath = fileName;
     const downloadToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
     const bucket = admin.storage().bucket();
     const pdfResult = await generateLabourReportPdf({
@@ -3478,6 +3514,9 @@ exports.generateLabourReportCallable = onCall(
 	      totalPaidHours: summary.totalPaidHours,
 	      totalPayUnits: summary.totalPayUnits || null,
 	      totalEntries: summary.totalEntries,
+          fileName,
+          fileSequence: Number(sequence),
+          scopeSequenceKey,
 	      storagePath: pdfResult.storagePath,
 	      downloadURL: pdfResult.downloadURL,
 	      createdAt: FieldValue.serverTimestamp(),
