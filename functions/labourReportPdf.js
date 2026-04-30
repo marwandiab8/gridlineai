@@ -384,8 +384,6 @@ async function generateLabourReportPdf({
   if (subtitle) draw(subtitle, 10.5, false, colors.muted);
   y -= 4;
   drawKeyValue("Range", formatRangeLabel(summary.startKey, summary.endKey));
-  drawKeyValue("Total hours", formatHours(summary.totalHours));
-  drawKeyValue("Total paid hours", formatHours(summary.totalPaidHours));
   drawKeyValue("Total entries", String(summary.totalEntries || 0));
   y -= 6;
 
@@ -420,13 +418,6 @@ async function generateLabourReportPdf({
       formatPeriodLabel(period.periodStartKey, period.periodEndKey),
       { x: margin, y, size: 10, font: fontBold, color: colors.ink }
     );
-    page.drawText(`${formatHours(period.totalPaidHours)} paid`, {
-      x: pageW - margin - 100,
-      y,
-      size: 10,
-      font: fontBold,
-      color: colors.accent,
-    });
     y -= 14;
 
     // Pay-stub style 3-row breakdown (hours only; rates/amounts are not known here).
