@@ -1,4 +1,8 @@
+const fs = require("fs");
+const path = require("path");
 const { PDFDocument, StandardFonts, rgb } = require("pdf-lib");
+
+const MATHESON_LOGO_PATH = path.resolve(__dirname, "../public/k2_logo.png");
 
 function wrapText(text, font, size, maxWidth) {
   const raw = String(text || "").trim();
@@ -34,6 +38,12 @@ function formatRangeLabel(startKey, endKey) {
 
 function formatPeriodLabel(startKey, endKey) {
   return formatRangeLabel(startKey, endKey);
+}
+
+async function embedImageIfPossible(pdf, buf) {
+  if (!buf || !buf.length) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8) return pdf.embedJpg(buf);
+  return pdf.embedPng(buf);
 }
 
 function formatMultiplierBreakdown(hours, multiplier) {
@@ -202,6 +212,55 @@ async function generateLabourReportPdf({
       });
     }
     y -= size + 10;
+  }
+
+  async function drawBrandHeader() {
+    const topY = y;
+    const logoBoxW = 132;
+    const logoMaxH = 52;
+    const logoLeftX = margin;
+    let logoBottomY = topY;
+    let logoLeftW = 0;
+
+    try {
+      if (fs.existsSync(MATHESON_LOGO_PATH)) {
+        const buf = fs.readFileSync(MATHESON_LOGO_PATH);
+        const img = await embedImageIfPossible(pdf, buf);
+        if (img) {
+          const scale = logoBoxW / img.width;
+          const h = Math.min(img.height * scale, logoMaxH);
+          const w = img.width * (h / img.height);
+          page.drawImage(img, { x: logoLeftX, y: topY - h, width: w, height: h });
+          logoBottomY = topY - h;
+          logoLeftW = logoBoxW;
+        }
+      }
+    } catch (_) {}
+
+    const gap = logoLeftW ? 18 : 0;
+    const textLeft = margin + logoLeftW + gap;
+    const textWidth = pageW - margin - textLeft;
+    const titleLines = wrapText(pdfTitle, fontBold, 18, textWidth);
+    for (const line of titleLines) {
+      page.drawText(line, { x: textLeft, y, size: 18, font: fontBold, color: colors.ink });
+      y -= 24;
+    }
+    if (subtitle) {
+      const subLines = wrapText(subtitle, font, 10.5, textWidth);
+      for (const line of subLines) {
+        page.drawText(line, { x: textLeft, y, size: 10.5, font, color: colors.muted });
+        y -= 15;
+      }
+    }
+
+    y = Math.min(y, logoBottomY) - 4;
+    page.drawLine({
+      start: { x: margin, y: y },
+      end: { x: pageW - margin, y: y },
+      thickness: 1,
+      color: colors.rule,
+    });
+    y -= 12;
   }
 
   function compactDateParts(dateKey) {
@@ -472,9 +531,7 @@ async function generateLabourReportPdf({
     draw(value || "—", 9.5, false, colors.ink, margin + 110, contentW - 110);
   }
 
-  draw(pdfTitle, 18, true, colors.ink);
-  if (subtitle) draw(subtitle, 10.5, false, colors.muted);
-  y -= 4;
+  await drawBrandHeader();
   drawKeyValue("Range", formatRangeLabel(summary.startKey, summary.endKey));
   drawKeyValue("Total entries", String(summary.totalEntries || 0));
   drawKeyValue("Total hours", `${formatHours(summary.totalHours)}h`);
