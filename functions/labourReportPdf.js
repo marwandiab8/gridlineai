@@ -184,10 +184,24 @@ async function generateLabourReportPdf({
   }
 
   function section(title) {
-    y -= 8;
-    rule();
-    draw(title, 13, true, colors.ink);
+    const text = String(title || "").trim() || "Section";
+    const size = 13;
+    const gap = 12;
+    ensure(size + 18);
     y -= 6;
+    page.drawText(text, { x: margin, y, size, font: fontBold, color: colors.ink });
+    const titleW = fontBold.widthOfTextAtSize(text, size);
+    const lineStartX = Math.min(pageW - margin, margin + titleW + gap);
+    const lineY = y + 5;
+    if (lineStartX < pageW - margin) {
+      page.drawLine({
+        start: { x: lineStartX, y: lineY },
+        end: { x: pageW - margin, y: lineY },
+        thickness: 0.6,
+        color: colors.rule,
+      });
+    }
+    y -= size + 10;
   }
 
   function compactDateParts(dateKey) {
