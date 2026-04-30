@@ -188,12 +188,13 @@ test("paid period tally applies Saturday 1.5x and Sunday 2x on biweekly periods"
   ]);
 
   assert.equal(rollup.totalHours, 16);
-  assert.equal(rollup.totalPaidHours, 20);
+  assert.equal(rollup.totalPaidHours, 16);
   assert.equal(rollup.paidPeriodTotals.length, 1);
   assert.equal(rollup.paidPeriodTotals[0].periodStartKey, "2026-04-25");
   assert.equal(rollup.paidPeriodTotals[0].periodEndKey, "2026-05-08");
   assert.equal(rollup.paidPeriodTotals[0].regularHours, 12);
   assert.equal(rollup.paidPeriodTotals[0].overtimeHours, 0);
   assert.equal(rollup.paidPeriodTotals[0].doubleTimeHours, 4);
-  assert.equal(rollup.paidPeriodTotals[0].totalPaidHours, 20);
+  assert.equal(rollup.paidPeriodTotals[0].totalPaidHours, 16);
+  assert.equal(rollup.paidPeriodTotals[0].totalPayUnits, 20);
 });

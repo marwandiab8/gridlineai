@@ -3447,23 +3447,25 @@ exports.generateLabourReportCallable = onCall(
       downloadToken,
     });
 
-    const reportRef = await db.collection("labourReports").add({
-      type: "labourHours",
-      reportTitle,
-      labourerPhone: phoneE164 || null,
-      labourerName: labourer ? labourer.displayName || null : labourerName || null,
-      projectSlug: projectSlug || null,
-      startKey: normalizedStart,
-      endKey: normalizedEnd,
-      totalHours: summary.totalHours,
-      totalPaidHours: summary.totalPaidHours,
-      totalEntries: summary.totalEntries,
-      storagePath: pdfResult.storagePath,
-      downloadURL: pdfResult.downloadURL,
-      createdAt: FieldValue.serverTimestamp(),
-      createdByEmail: access.email,
-      runId,
-    });
+	    const reportRef = await db.collection("labourReports").add({
+	      type: "labourHours",
+	      reportTitle,
+	      labourerPhone: phoneE164 || null,
+	      labourerName: labourer ? labourer.displayName || null : labourerName || null,
+	      projectSlug: projectSlug || null,
+	      startKey: normalizedStart,
+	      endKey: normalizedEnd,
+	      totalHours: summary.totalHours,
+	      // Keep this equal to actual hours to avoid showing inflated "paid hours" (no 2x/1.5x).
+	      totalPaidHours: summary.totalPaidHours,
+	      totalPayUnits: summary.totalPayUnits || null,
+	      totalEntries: summary.totalEntries,
+	      storagePath: pdfResult.storagePath,
+	      downloadURL: pdfResult.downloadURL,
+	      createdAt: FieldValue.serverTimestamp(),
+	      createdByEmail: access.email,
+	      runId,
+	    });
 
     return {
       ok: true,
@@ -3471,13 +3473,14 @@ exports.generateLabourReportCallable = onCall(
       reportTitle,
       startKey: normalizedStart,
       endKey: normalizedEnd,
-      totalHours: summary.totalHours,
-      totalPaidHours: summary.totalPaidHours,
-      totalEntries: summary.totalEntries,
-      paidPeriodTotals: summary.paidPeriodTotals,
-      downloadURL: pdfResult.downloadURL,
-      storagePath: pdfResult.storagePath,
-    };
+	      totalHours: summary.totalHours,
+	      totalPaidHours: summary.totalPaidHours,
+	      totalPayUnits: summary.totalPayUnits || null,
+	      totalEntries: summary.totalEntries,
+	      paidPeriodTotals: summary.paidPeriodTotals,
+	      downloadURL: pdfResult.downloadURL,
+	      storagePath: pdfResult.storagePath,
+	    };
   }
 );
 

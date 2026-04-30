@@ -95,7 +95,7 @@ function computePaidHoursForBiweekly(entries, overtimeThresholdHours = 88) {
   let regularHours = 0;
   let overtimeHours = 0;
   let doubleTimeHours = 0;
-  let totalPaidHours = 0;
+  let totalPayUnits = 0;
 
   for (const [, labourerEntries] of byLabourer.entries()) {
     const doubleHours = (labourerEntries || []).reduce((t, e) => {
@@ -110,14 +110,14 @@ function computePaidHoursForBiweekly(entries, overtimeThresholdHours = 88) {
     regularHours += reg;
     overtimeHours += ot;
     doubleTimeHours += doubleHours;
-    totalPaidHours += reg + ot * 1.5 + doubleHours * 2;
+    totalPayUnits += reg + ot * 1.5 + doubleHours * 2;
   }
 
   return {
     regularHours,
     overtimeHours,
     doubleTimeHours,
-    totalPaidHours,
+    totalPayUnits,
   };
 }
 
@@ -457,7 +457,9 @@ function buildLabourRollup(entries) {
         periodStartKey,
         periodEndKey: shiftDateKey(periodStartKey, 13) || periodStartKey,
         totalHours: sumHours(periodEntries),
-        totalPaidHours: paid.totalPaidHours,
+        // Keep "paid hours" equal to actual hours to avoid misleading totals (no 2x/1.5x inflation).
+        totalPaidHours: sumHours(periodEntries),
+        totalPayUnits: paid.totalPayUnits,
         regularHours: paid.regularHours,
         overtimeHours: paid.overtimeHours,
         doubleTimeHours: paid.doubleTimeHours,
@@ -466,11 +468,13 @@ function buildLabourRollup(entries) {
     })
     .sort((a, b) => (a.periodStartKey < b.periodStartKey ? -1 : a.periodStartKey > b.periodStartKey ? 1 : 0));
 
-  const totalPaidHours = paidPeriodTotals.reduce((t, p) => t + (Number(p?.totalPaidHours) || 0), 0);
+  const totalPaidHours = sumHours(sorted);
+  const totalPayUnits = paidPeriodTotals.reduce((t, p) => t + (Number(p?.totalPayUnits) || 0), 0);
 
   return {
     totalHours: sumHours(sorted),
     totalPaidHours,
+    totalPayUnits,
     totalEntries: sorted.length,
     dailyTotals,
     weeklyTotals,

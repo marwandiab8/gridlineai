@@ -1224,11 +1224,7 @@ function renderLabourReportsList() {
           <div class="mono">${fmtTime(report.createdAt)}</div>
           <div><strong>${esc(report.reportTitle || "Labour Hours Report")}</strong></div>
           <div class="muted small">${esc(scopeBits.slice(1).join(" · "))}</div>
-          <div class="muted small">${
-            Number.isFinite(Number(report.totalPaidHours)) && Math.abs(Number(report.totalPaidHours) - Number(report.totalHours || 0)) > 0.01
-              ? `${esc(formatHoursClient(report.totalHours))}h on site · ${esc(formatHoursClient(report.totalPaidHours))} paid`
-              : `${esc(formatHoursClient(report.totalHours))} hours`
-          } · ${esc(String(report.totalEntries || 0))} entries</div>
+          <div class="muted small">${esc(formatHoursClient(report.totalHours))} hours · ${esc(String(report.totalEntries || 0))} entries</div>
           <div>${link}</div>
         </div>`;
     })
@@ -3209,19 +3205,16 @@ function initLabourPage() {
       if (token) payload.token = token;
       const data = await callDashboardFunction("generateLabourReportCallable", payload);
       const lines = [`Labour report created for ${payload.startKey} to ${payload.endKey}.`];
-      if (Number.isFinite(Number(data.totalPaidHours))) {
-        lines.push(`Paid tally (weighted): ${formatHoursClient(data.totalPaidHours)} hours`);
-      }
       if (Array.isArray(data.paidPeriodTotals) && data.paidPeriodTotals.length) {
         lines.push("Paid periods:");
         for (const period of data.paidPeriodTotals) {
           const start = String(period?.periodStartKey || "-");
           const end = String(period?.periodEndKey || "-");
           const total = formatHoursClient(Number(period?.totalHours) || 0);
-          const weighted = formatHoursClient(Number(period?.totalPaidHours) || 0);
-          const sat = formatHoursClient(Number(period?.saturdayHours) || 0);
-          const sun = formatHoursClient(Number(period?.sundayHours) || 0);
-          lines.push(`${start} to ${end}: ${weighted} paid (base ${total}; Sat ${sat} x1.5; Sun ${sun} x2)`);
+          const reg = formatHoursClient(Number(period?.regularHours) || 0);
+          const ot = formatHoursClient(Number(period?.overtimeHours) || 0);
+          const dbl = formatHoursClient(Number(period?.doubleTimeHours) || 0);
+          lines.push(`${start} to ${end}: ${total}h (Hourly ${reg}h · OT ${ot}h · Double ${dbl}h)`);
         }
       }
       if (data.downloadURL) lines.push(`Download: ${data.downloadURL}`);
