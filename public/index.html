@@ -542,7 +542,7 @@
               </div>
               <p class="muted">
                 Register labourers, capture hours by text, review daily and weekly totals, and generate detailed work reports.
-                Today / this week / this month use paid hours (Saturday 1.5×, Sunday 2×), same as PDF labour reports; raw on-site time appears under each card when it differs.
+                Totals below are actual hours. Pay buckets (hourly / OT / double) are shown in labour reports.
               </p>
             </div>
 
@@ -563,9 +563,9 @@
                 <span id="labourWeekEntries" class="muted small">-</span>
               </article>
               <article class="metric-card">
-                <span class="metric-label">This month</span>
-                <strong id="labourMonthHours" class="metric-value">-</strong>
-                <span id="labourMonthEntries" class="muted small">-</span>
+                <span class="metric-label">This pay period</span>
+                <strong id="labourPayHours" class="metric-value">-</strong>
+                <span id="labourPayEntries" class="muted small">-</span>
               </article>
             </div>
 
@@ -655,7 +655,7 @@
                   <div class="project-manager-actions">
                     <button type="button" class="btn-secondary" id="labourReportTodayBtn">Today</button>
                     <button type="button" class="btn-secondary" id="labourReportWeekBtn">This week</button>
-                    <button type="button" class="btn-secondary" id="labourReportMonthBtn">This month</button>
+                    <button type="button" class="btn-secondary" id="labourReportPayBtn">This pay period</button>
                     <button type="button" class="btn-primary" id="labourReportGenerateBtn">Generate labour report</button>
                   </div>
                   <div id="labourReportResult" class="daily-pdf-result muted small" aria-live="polite"></div>

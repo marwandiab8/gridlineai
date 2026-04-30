@@ -156,6 +156,19 @@ function endOfMonthDateKeyClient(dateKey) {
   return formatDateKeyClient(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)));
 }
 
+const LABOUR_PAY_PERIOD_ANCHOR_CLIENT = "2026-04-25";
+
+function biweeklyPayPeriodStartKeyClient(dateKey) {
+  const date = parseDateKeyClient(dateKey);
+  const anchor = parseDateKeyClient(LABOUR_PAY_PERIOD_ANCHOR_CLIENT);
+  if (!date || !anchor) return "";
+  const deltaDays = Math.floor((date.getTime() - anchor.getTime()) / 86400000);
+  const periodIndex = Math.floor(deltaDays / 14);
+  const start = new Date(anchor.getTime());
+  start.setUTCDate(start.getUTCDate() + periodIndex * 14);
+  return formatDateKeyClient(start);
+}
+
 function formatHoursClient(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "0.00";
@@ -406,8 +419,8 @@ const labourTodayHoursEl = document.getElementById("labourTodayHours");
 const labourTodayEntriesEl = document.getElementById("labourTodayEntries");
 const labourWeekHoursEl = document.getElementById("labourWeekHours");
 const labourWeekEntriesEl = document.getElementById("labourWeekEntries");
-const labourMonthHoursEl = document.getElementById("labourMonthHours");
-const labourMonthEntriesEl = document.getElementById("labourMonthEntries");
+const labourPayHoursEl = document.getElementById("labourPayHours");
+const labourPayEntriesEl = document.getElementById("labourPayEntries");
 const labourersEl = document.getElementById("labourers");
 const labourEntriesEl = document.getElementById("labourEntries");
 const labourReportsEl = document.getElementById("labourReports");
@@ -431,7 +444,7 @@ let labourEntriesCache = [];
 let labourReportsCache = [];
 let labourTodayCache = [];
 let labourWeekCache = [];
-let labourMonthCache = [];
+let labourPayCache = [];
 let mediaViewerItems = [];
 let mediaViewerIndex = -1;
 let currentAppAccess = null;
@@ -1098,35 +1111,23 @@ function syncLabourReportProjectOptions() {
 
 function renderLabourSummary() {
   if (labourersCountEl) labourersCountEl.textContent = String(labourersCache.length || 0);
-  const paidT = sumWeightedPaidHoursClient(labourTodayCache);
   const workedT = sumHoursClient(labourTodayCache);
-  if (labourTodayHoursEl) labourTodayHoursEl.textContent = `${formatHoursClient(paidT)} paid`;
+  if (labourTodayHoursEl) labourTodayHoursEl.textContent = `${formatHoursClient(workedT)} hours`;
   if (labourTodayEntriesEl) {
     const nT = labourTodayCache.length || 0;
-    labourTodayEntriesEl.textContent =
-      Math.abs(paidT - workedT) < 0.01
-        ? `${nT} entries`
-        : `${nT} entries · ${formatHoursClient(workedT)}h on site`;
+    labourTodayEntriesEl.textContent = `${nT} entries`;
   }
-  const paidW = sumWeightedPaidHoursClient(labourWeekCache);
   const workedW = sumHoursClient(labourWeekCache);
-  if (labourWeekHoursEl) labourWeekHoursEl.textContent = `${formatHoursClient(paidW)} paid`;
+  if (labourWeekHoursEl) labourWeekHoursEl.textContent = `${formatHoursClient(workedW)} hours`;
   if (labourWeekEntriesEl) {
     const nW = labourWeekCache.length || 0;
-    labourWeekEntriesEl.textContent =
-      Math.abs(paidW - workedW) < 0.01
-        ? `${nW} entries`
-        : `${nW} entries · ${formatHoursClient(workedW)}h on site`;
+    labourWeekEntriesEl.textContent = `${nW} entries`;
   }
-  const paidM = sumWeightedPaidHoursClient(labourMonthCache);
-  const workedM = sumHoursClient(labourMonthCache);
-  if (labourMonthHoursEl) labourMonthHoursEl.textContent = `${formatHoursClient(paidM)} paid`;
-  if (labourMonthEntriesEl) {
-    const nM = labourMonthCache.length || 0;
-    labourMonthEntriesEl.textContent =
-      Math.abs(paidM - workedM) < 0.01
-        ? `${nM} entries`
-        : `${nM} entries · ${formatHoursClient(workedM)}h on site`;
+  const workedP = sumHoursClient(labourPayCache);
+  if (labourPayHoursEl) labourPayHoursEl.textContent = `${formatHoursClient(workedP)} hours`;
+  if (labourPayEntriesEl) {
+    const nP = labourPayCache.length || 0;
+    labourPayEntriesEl.textContent = `${nP} entries`;
   }
 }
 
@@ -1175,12 +1176,7 @@ function renderLabourEntriesList() {
       const project = entry.projectSlug ? `Project: ${entry.projectSlug}` : "Project: -";
       const notes = entry.notes ? `<div class="muted small">Notes: ${esc(String(entry.notes).slice(0, 220))}</div>` : "";
       const h = Number(entry.hours) || 0;
-      const mult = dayMultiplierFromDateKeyClient(String(entry.reportDateKey || "").trim());
-      const paidH = Math.round(h * mult * 100) / 100;
-      const hourPill =
-        mult !== 1
-          ? `${esc(formatHoursClient(h))}h → ${esc(formatHoursClient(paidH))} paid`
-          : `${esc(formatHoursClient(h))}h`;
+      const hourPill = `${esc(formatHoursClient(h))}h`;
       return `
         <div class="row-item" data-labour-entry-id="${esc(entry.id)}">
           <div><span class="pill pill-issue">${hourPill}</span><span class="pill pill-ai">${esc(entry.reportDateKey || "-")}</span></div>
@@ -1263,6 +1259,9 @@ function setLabourReportRange(mode) {
     endInput.value = today;
   } else if (mode === "month") {
     startInput.value = startOfMonthDateKeyClient(today);
+    endInput.value = today;
+  } else if (mode === "pay") {
+    startInput.value = biweeklyPayPeriodStartKeyClient(today) || today;
     endInput.value = today;
   }
 }
@@ -1391,7 +1390,7 @@ function resetAdminCaches() {
   labourReportsCache = [];
   labourTodayCache = [];
   labourWeekCache = [];
-  labourMonthCache = [];
+  labourPayCache = [];
   currentAppAccess = null;
   renderDashboard();
   renderLabourPanel();
@@ -2114,7 +2113,7 @@ function startAdminListeners() {
   if (isManagement) {
     const todayKey = todayDateKeyEastern();
     const weekStartKey = startOfWeekDateKeyClient(todayKey);
-    const monthStartKey = startOfMonthDateKeyClient(todayKey);
+    const payStartKey = biweeklyPayPeriodStartKeyClient(todayKey) || todayKey;
 
     appUnsubscribers.push(
       onSnapshot(
@@ -2220,7 +2219,7 @@ function startAdminListeners() {
       onSnapshot(
         query(
           collection(db, "labourEntries"),
-          where("reportDateKey", ">=", monthStartKey),
+          where("reportDateKey", ">=", payStartKey),
           where("reportDateKey", "<=", todayKey),
           orderBy("reportDateKey", "asc"),
           orderBy("createdAt", "asc"),
@@ -2228,13 +2227,13 @@ function startAdminListeners() {
         ),
         (snap) => {
           setStatusOk();
-          labourMonthCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          labourPayCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
           renderLabourSummary();
         },
         (err) => {
-          const message = `labourEntries(month): ${err.message}`;
+          const message = `labourEntries(pay): ${err.message}`;
           setStatusError(message);
-          labourMonthCache = [];
+          labourPayCache = [];
           renderLabourSummary();
         }
       )
@@ -2245,7 +2244,7 @@ function startAdminListeners() {
     labourReportsCache = [];
     labourTodayCache = [];
     labourWeekCache = [];
-    labourMonthCache = [];
+    labourPayCache = [];
     renderLabourPanel();
   }
 
@@ -3018,7 +3017,7 @@ function initLabourPage() {
   const labourReportTokenInput = document.getElementById("labourReportToken");
   const labourReportTodayBtn = document.getElementById("labourReportTodayBtn");
   const labourReportWeekBtn = document.getElementById("labourReportWeekBtn");
-  const labourReportMonthBtn = document.getElementById("labourReportMonthBtn");
+  const labourReportPayBtn = document.getElementById("labourReportPayBtn");
   const labourReportGenerateBtn = document.getElementById("labourReportGenerateBtn");
   const labourReportResult = document.getElementById("labourReportResult");
   const labourerResult = document.getElementById("labourerManagerResult");
@@ -3169,9 +3168,9 @@ function initLabourPage() {
       setLabourReportRange("week");
     });
   }
-  if (labourReportMonthBtn) {
-    labourReportMonthBtn.addEventListener("click", () => {
-      setLabourReportRange("month");
+  if (labourReportPayBtn) {
+    labourReportPayBtn.addEventListener("click", () => {
+      setLabourReportRange("pay");
     });
   }
 
