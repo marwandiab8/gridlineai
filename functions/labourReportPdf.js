@@ -640,8 +640,10 @@ async function generateLabourReportPdf({
 
   const bytes = await pdf.save();
   const file = storageBucket.file(storagePath);
+  const downloadFileName = String(storagePath || "").split("/").pop() || "labour_report.pdf";
   await file.save(Buffer.from(bytes), {
     contentType: "application/pdf",
+    contentDisposition: `attachment; filename="${downloadFileName}"`,
     metadata: {
       metadata: { firebaseStorageDownloadTokens: downloadToken },
     },
