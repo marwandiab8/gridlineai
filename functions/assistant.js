@@ -2574,9 +2574,27 @@ async function buildReply({
   }
 }
 
+/**
+ * Project slug for voice/MMS audio when buildReply did not run (e.g. transcription failed)
+ * or returned no project: active project, else `home` if the user may access it.
+ */
+async function resolveVoiceMediaProjectSlug(db, phoneE164) {
+  const e164 = String(phoneE164 || "").trim();
+  if (!e164) return null;
+  const user = await getOrCreateUser(db, e164);
+  const active = normalizeProjectSlug(user.activeProjectSlug);
+  if (active) return active;
+  const homeAccess = await getAssistantProjectAccess(db, e164, "home", user);
+  if (homeAccess.exists && homeAccess.allowed && homeAccess.projectSlug) {
+    return normalizeProjectSlug(homeAccess.projectSlug) || "home";
+  }
+  return null;
+}
+
 module.exports = {
   buildReply,
   checkRateLimit,
+  resolveVoiceMediaProjectSlug,
   elevateProjectAccessWithApprovedMember,
   fallbackInboundIntent,
   inferInboundLogType,

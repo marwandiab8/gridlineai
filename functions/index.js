@@ -6,7 +6,7 @@ const admin = require("firebase-admin");
 const { FieldValue } = require("firebase-admin/firestore");
 const twilio = require("twilio");
 const OpenAI = require("openai");
-const { buildReply, checkRateLimit } = require("./assistant");
+const { buildReply, checkRateLimit, resolveVoiceMediaProjectSlug } = require("./assistant");
 const {
   addDashboardIssueNote,
   attachDashboardIssuePhoto,
@@ -961,7 +961,32 @@ async function transcribeAudioBufferWithFallback({
   runId,
   contextLabel,
 }) {
-  if (!openaiKey || !buffer || !buffer.length) return null;
+  if (!buffer || !buffer.length) return null;
+  const ctLow = String(contentType || "").toLowerCase();
+  const fnLow = String(fileName || "").toLowerCase();
+  const looksAmr = ctLow.includes("amr") || fnLow.endsWith(".amr");
+  if (looksAmr) {
+    try {
+      const { transcribeAmrBuffer } = require("./googleSpeechTranscribe");
+      const gText = await transcribeAmrBuffer(buffer, { logger, runId });
+      const trimmedG = String(gText || "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (trimmedG) {
+        logger.info(`${contextLabel}: google speech amr ok`, {
+          runId,
+          chars: trimmedG.length,
+        });
+        return { transcript: trimmedG, model: "google-speech-amr" };
+      }
+    } catch (gErr) {
+      logger.warn(`${contextLabel}: google speech amr failed`, {
+        runId,
+        message: gErr.message,
+      });
+    }
+  }
+  if (!openaiKey) return null;
   const FileCtor = globalThis.File || require("node:buffer").File;
   const client = new OpenAI({ apiKey: openaiKey });
   const models = ["whisper-1", "gpt-4o-mini-transcribe"];
@@ -1375,6 +1400,9 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
     }
   }
 
+  const mediaProjectSlug =
+    outboundMeta.projectSlug || (await resolveVoiceMediaProjectSlug(db, from));
+
   let attachResult = null;
   try {
     attachResult = await saveOneInboundMedia({
@@ -1389,7 +1417,7 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
       messageSidTwilio: callSid || "",
       sourceMessageId: inboundMessageId,
       senderPhone: from,
-      projectSlug: outboundMeta.projectSlug || null,
+      projectSlug: mediaProjectSlug || null,
       reportDateKey: outboundMeta.reportDateKey || null,
       captionText: voiceBody,
       linkedLogEntryId: outboundMeta.logEntryId || null,
@@ -1411,7 +1439,7 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
   }
 
   await inboundRef.set({
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     command: outboundMeta.command || "voice_message",
     aiUsed: Boolean(outboundMeta.aiUsed),
     aiError: outboundMeta.aiError || null,
@@ -1429,7 +1457,7 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
     phoneE164: from,
     body: safeReply,
     replyToInboundDocId: inboundMessageId,
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     command: outboundMeta.command || "voice_message_sms_followup",
     accountSid,
     authToken,
@@ -1451,7 +1479,7 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
     phoneE164: from,
     channel: "voice",
     schemaVersion: MESSAGE_SCHEMA_VERSION,
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     aiUsed: Boolean(outboundMeta.aiUsed),
     aiError: outboundMeta.aiError || null,
     command: outboundMeta.command || "voice_message_ai",
@@ -1471,7 +1499,7 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
     processedAt: FieldValue.serverTimestamp(),
     transcriptionStatus: transcriptionOk ? "ok" : "failed",
     logEntryId: outboundMeta.logEntryId || null,
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     smsFollowupSent: Boolean(smsFollowup.sent),
     smsFollowupSid: smsFollowup.sid || null,
     lastError: outboundMeta.aiError || null,
@@ -1609,6 +1637,9 @@ async function processAudioMessageQueueDoc(snap) {
     }
   }
 
+  const mediaProjectSlug =
+    outboundMeta.projectSlug || (await resolveVoiceMediaProjectSlug(db, from));
+
   let attachResult = null;
   try {
     attachResult = await saveOneInboundMedia({
@@ -1623,7 +1654,7 @@ async function processAudioMessageQueueDoc(snap) {
       messageSidTwilio: messageSid || "",
       sourceMessageId: inboundMessageId,
       senderPhone: from,
-      projectSlug: outboundMeta.projectSlug || null,
+      projectSlug: mediaProjectSlug || null,
       reportDateKey: outboundMeta.reportDateKey || null,
       captionText: bodyText,
       linkedLogEntryId: outboundMeta.logEntryId || null,
@@ -1645,7 +1676,7 @@ async function processAudioMessageQueueDoc(snap) {
   }
 
   await inboundRef.set({
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     command: outboundMeta.command || "audio_message",
     aiUsed: Boolean(outboundMeta.aiUsed),
     aiError: outboundMeta.aiError || null,
@@ -1663,7 +1694,7 @@ async function processAudioMessageQueueDoc(snap) {
     phoneE164: from,
     body: safeReply,
     replyToInboundDocId: inboundMessageId,
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     command: outboundMeta.command || "audio_message_sms_followup",
     accountSid,
     authToken,
@@ -1678,7 +1709,7 @@ async function processAudioMessageQueueDoc(snap) {
     processedAt: FieldValue.serverTimestamp(),
     transcriptionStatus: transcriptionOk ? "ok" : "failed",
     logEntryId: outboundMeta.logEntryId || null,
-    projectSlug: outboundMeta.projectSlug || null,
+    projectSlug: mediaProjectSlug || null,
     smsFollowupSent: Boolean(smsFollowup.sent),
     smsFollowupSid: smsFollowup.sid || null,
     lastError: outboundMeta.aiError || null,
