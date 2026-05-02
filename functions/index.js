@@ -83,6 +83,16 @@ const COL_APP_MEMBERS = "appMembers";
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
 const COL_PROJECT_TODOS = "projectTodos";
 const TODO_STATUSES = new Set(["open", "inprogress", "completed"]);
+const TODO_PRIORITIES = new Set(["p1", "p2", "p3", "p4"]);
+const TODO_RECURRENCE_MODES = new Set([
+  "none",
+  "every_day",
+  "every_week",
+  "every_month",
+  "every_year",
+  "weekdays",
+  "custom",
+]);
 
 const OPENAI_MODEL_PRIMARY = defineString("OPENAI_MODEL_PRIMARY", {
   default: "gpt-5.2-chat-latest",
@@ -114,6 +124,79 @@ function normalizeTodoDateTime(value) {
   if (!raw) return null;
   const date = new Date(raw);
   return Number.isFinite(date.getTime()) ? date.toISOString() : "";
+}
+
+function normalizeTodoPriority(value) {
+  if (value == null || value === "") return null;
+  const raw = String(value || "").trim().toLowerCase();
+  return TODO_PRIORITIES.has(raw) ? raw : "";
+}
+
+function normalizeTodoLabels(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",");
+  const out = [];
+  for (const item of source) {
+    const clean = String(item || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    if (clean && !out.includes(clean)) out.push(clean);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function normalizeTodoDependencies(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(/[,\n]/);
+  const out = [];
+  for (const item of source) {
+    const clean = String(item || "").trim().slice(0, 120);
+    if (clean && !out.includes(clean)) out.push(clean);
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+
+function normalizeTodoReminders(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(/[,\n]/);
+  const out = [];
+  for (const item of source) {
+    const normalized = normalizeTodoDateTime(item);
+    if (normalized === "") return "";
+    if (normalized && !out.includes(normalized)) out.push(normalized);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function normalizeTodoRecurrence(value) {
+  if (value == null || value === "") return { mode: "none", customText: "" };
+  const raw =
+    typeof value === "object" && !Array.isArray(value)
+      ? value
+      : { mode: value };
+  const mode = String(raw.mode || "none").trim().toLowerCase();
+  if (!TODO_RECURRENCE_MODES.has(mode)) return "";
+  const customText = normalizeTodoText(raw.customText || "", 200);
+  return {
+    mode,
+    customText: mode === "custom" ? customText : "",
+  };
+}
+
+function normalizeTodoCommentText(value) {
+  return normalizeTodoText(value || "", 1000);
 }
 
 /** Prefer runtime FIREBASE_CONFIG; fallback matches `public/app.js` storageBucket. */
@@ -4516,11 +4599,26 @@ exports.updateProjectTodoCallable = onCall(
     const dueByInput = request.data?.dueBy;
     const startedAtInput = request.data?.startedAt;
     const finishedAtInput = request.data?.finishedAt;
+    const priorityInput = request.data?.priority;
+    const recurrenceInput = request.data?.recurrence;
+    const labelsInput = request.data?.labels;
+    const remindersInput = request.data?.reminders;
+    const dependenciesInput = request.data?.dependencies;
     if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
-    if (!status && dueByInput == null && startedAtInput == null && finishedAtInput == null) {
+    if (
+      !status &&
+      dueByInput == null &&
+      startedAtInput == null &&
+      finishedAtInput == null &&
+      priorityInput == null &&
+      recurrenceInput == null &&
+      labelsInput == null &&
+      remindersInput == null &&
+      dependenciesInput == null
+    ) {
       throw new HttpsError(
         "invalid-argument",
-        "Provide at least one update: status, dueBy, startedAt, or finishedAt."
+        "Provide at least one todo update."
       );
     }
     if (request.data?.status != null && !status) {
@@ -4529,7 +4627,19 @@ exports.updateProjectTodoCallable = onCall(
     const dueBy = normalizeTodoDateTime(dueByInput);
     const startedAt = normalizeTodoDateTime(startedAtInput);
     const finishedAt = normalizeTodoDateTime(finishedAtInput);
-    if (dueBy === "" || startedAt === "" || finishedAt === "") {
+    const priority = normalizeTodoPriority(priorityInput);
+    const recurrence = normalizeTodoRecurrence(recurrenceInput);
+    const labels = labelsInput == null ? null : normalizeTodoLabels(labelsInput);
+    const reminders = remindersInput == null ? null : normalizeTodoReminders(remindersInput);
+    const dependencies = dependenciesInput == null ? null : normalizeTodoDependencies(dependenciesInput);
+    if (
+      dueBy === "" ||
+      startedAt === "" ||
+      finishedAt === "" ||
+      priority === "" ||
+      recurrence === "" ||
+      reminders === ""
+    ) {
       throw new HttpsError("invalid-argument", "Todo date fields must be valid date/time values.");
     }
 
@@ -4571,8 +4681,20 @@ exports.updateProjectTodoCallable = onCall(
           dueBy: dueByInput !== undefined ? dueBy : item?.dueBy || null,
           startedAt: nextStartedAt,
           finishedAt: nextFinishedAt,
+          priority: priorityInput !== undefined ? priority : item?.priority || null,
+          recurrence: recurrenceInput !== undefined ? recurrence : item?.recurrence || { mode: "none", customText: "" },
+          labels: labelsInput !== undefined ? labels : Array.isArray(item?.labels) ? item.labels : [],
+          reminders: remindersInput !== undefined ? reminders : Array.isArray(item?.reminders) ? item.reminders : [],
+          dependencies:
+            dependenciesInput !== undefined
+              ? dependencies
+              : Array.isArray(item?.dependencies)
+                ? item.dependencies
+                : [],
           updatedAt: new Date().toISOString(),
           updatedByEmail: operator.email || null,
+          sortKey: String(item?.sortKey || "").trim() || null,
+          comments: Array.isArray(item?.comments) ? item.comments : [],
         };
       });
       if (!nextSubTodos.some((item) => String(item?.id || "").trim() === subTodoId)) {
@@ -4595,6 +4717,11 @@ exports.updateProjectTodoCallable = onCall(
       } else if (nextStatus === "open" || nextStatus === "inprogress") {
         updates.finishedAt = null;
       }
+      if (priorityInput !== undefined) updates.priority = priority;
+      if (recurrenceInput !== undefined) updates.recurrence = recurrence;
+      if (labelsInput !== undefined) updates.labels = labels;
+      if (remindersInput !== undefined) updates.reminders = reminders;
+      if (dependenciesInput !== undefined) updates.dependencies = dependencies;
       if (nextStatus === "completed") {
         updates.completedAt = FieldValue.serverTimestamp();
         updates.completedByEmail = operator.email || null;
@@ -4641,6 +4768,12 @@ exports.addProjectSubTodoCallable = onCall(
       dueBy: dueBy || null,
       startedAt: null,
       finishedAt: null,
+      priority: null,
+      recurrence: { mode: "none", customText: "" },
+      labels: [],
+      reminders: [],
+      dependencies: [],
+      comments: [],
       createdAt: new Date().toISOString(),
       createdByEmail: operator.email || null,
       createdByName: String(operator.memberData?.displayName || operator.email || "").trim() || null,
@@ -4656,6 +4789,75 @@ exports.addProjectSubTodoCallable = onCall(
     );
 
     return { ok: true, todoId, subTodo };
+  }
+);
+
+exports.addProjectTodoCommentCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const todoId = String(request.data?.todoId || "").trim();
+    const subTodoId = String(request.data?.subTodoId || "").trim();
+    const text = normalizeTodoCommentText(request.data?.text || "");
+    if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
+    if (!text) throw new HttpsError("invalid-argument", "Comment text is required.");
+
+    const todoRef = db.collection(COL_PROJECT_TODOS).doc(todoId);
+    const todoSnap = await todoRef.get();
+    if (!todoSnap.exists) throw new HttpsError("not-found", "Todo item not found.");
+    const todoData = todoSnap.data() || {};
+    const projectSlug = normalizeProjectSlug(String(todoData.projectSlug || "").trim());
+    if (!projectSlug || !canAccessProject(operator, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot update this todo item.");
+    }
+
+    const comment = {
+      id: db.collection("_").doc().id,
+      text,
+      createdAt: new Date().toISOString(),
+      createdByEmail: operator.email || null,
+      createdByName: String(operator.memberData?.displayName || operator.email || "").trim() || null,
+    };
+
+    if (subTodoId) {
+      const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
+      const nextSubTodos = currentSubTodos.map((item) => {
+        if (String(item?.id || "").trim() !== subTodoId) return item;
+        return {
+          ...item,
+          comments: [...(Array.isArray(item?.comments) ? item.comments : []), comment],
+          updatedAt: new Date().toISOString(),
+          updatedByEmail: operator.email || null,
+        };
+      });
+      if (!nextSubTodos.some((item) => String(item?.id || "").trim() === subTodoId)) {
+        throw new HttpsError("not-found", "Sub-todo item not found.");
+      }
+      await todoRef.set(
+        {
+          subTodos: nextSubTodos,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedByEmail: operator.email || null,
+        },
+        { merge: true }
+      );
+    } else {
+      await todoRef.set(
+        {
+          comments: [...(Array.isArray(todoData.comments) ? todoData.comments : []), comment],
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedByEmail: operator.email || null,
+        },
+        { merge: true }
+      );
+    }
+
+    return { ok: true, todoId, subTodoId: subTodoId || null, comment };
   }
 );
 

@@ -2247,6 +2247,13 @@ async function buildReply({
       dueBy: homeTodoCommand.dueByIso || null,
       startedAt: null,
       finishedAt: null,
+      priority: null,
+      recurrence: { mode: "none", customText: "" },
+      labels: [],
+      reminders: [],
+      dependencies: [],
+      comments: [],
+      subTodos: [],
       createdByPhone: phoneE164,
       createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
       createdByName:

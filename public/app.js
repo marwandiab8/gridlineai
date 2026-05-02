@@ -700,6 +700,77 @@ function renderTodoStatusOptions(currentStatus) {
     .join("");
 }
 
+function formatTodoPriorityLabel(priority) {
+  const raw = String(priority || "").trim().toLowerCase();
+  if (raw === "p1") return "Priority 1";
+  if (raw === "p2") return "Priority 2";
+  if (raw === "p3") return "Priority 3";
+  if (raw === "p4") return "Priority 4";
+  return "No priority";
+}
+
+function renderTodoPriorityOptions(currentPriority) {
+  const selected = String(currentPriority || "").trim().toLowerCase();
+  return [
+    { value: "", label: "No priority" },
+    { value: "p1", label: "Priority 1" },
+    { value: "p2", label: "Priority 2" },
+    { value: "p3", label: "Priority 3" },
+    { value: "p4", label: "Priority 4" },
+  ]
+    .map((item) => `<option value="${item.value}"${selected === item.value ? " selected" : ""}>${esc(item.label)}</option>`)
+    .join("");
+}
+
+function formatTodoRecurrenceLabel(recurrence) {
+  const mode = String(recurrence?.mode || "none").trim().toLowerCase();
+  if (mode === "every_day") return "Every day";
+  if (mode === "every_week") return "Every week";
+  if (mode === "every_month") return "Every month";
+  if (mode === "every_year") return "Every year";
+  if (mode === "weekdays") return "Weekdays";
+  if (mode === "custom") return recurrence?.customText ? `Custom: ${recurrence.customText}` : "Custom";
+  return "None";
+}
+
+function renderTodoRecurrenceOptions(currentMode) {
+  const selected = String(currentMode || "none").trim().toLowerCase();
+  return [
+    ["none", "None"],
+    ["every_day", "Every day"],
+    ["weekdays", "Weekdays"],
+    ["every_week", "Every week"],
+    ["every_month", "Every month"],
+    ["every_year", "Every year"],
+    ["custom", "Custom"],
+  ]
+    .map(([value, label]) => `<option value="${value}"${selected === value ? " selected" : ""}>${esc(label)}</option>`)
+    .join("");
+}
+
+function formatTodoListText(list) {
+  return Array.isArray(list) ? list.join(", ") : "";
+}
+
+function formatReminderList(list) {
+  if (!Array.isArray(list) || !list.length) return "-";
+  return list.map((item) => formatTodoMoment(item)).join(" | ");
+}
+
+function renderTodoCommentList(comments) {
+  const rows = Array.isArray(comments) ? comments : [];
+  if (!rows.length) return '<div class="mini-item empty">No comments yet.</div>';
+  return rows
+    .slice()
+    .reverse()
+    .map((comment) => `
+      <div class="mini-item">
+        <div>${esc(comment?.text || "")}</div>
+        <div class="muted small">${esc(comment?.createdByName || comment?.createdByEmail || "-")} · ${esc(formatTodoMoment(comment?.createdAt))}</div>
+      </div>`)
+    .join("");
+}
+
 function toDateTimeLocalValue(value) {
   if (!value) return "";
   try {
@@ -743,6 +814,10 @@ function renderHomeTodos() {
       const due = String(todo.dueLabel || "").trim();
       const createdBy = String(todo.createdByName || todo.createdByPhone || "-").trim();
       const subTodos = Array.isArray(todo.subTodos) ? todo.subTodos : [];
+      const recurrence = todo.recurrence && typeof todo.recurrence === "object"
+        ? todo.recurrence
+        : { mode: "none", customText: "" };
+      const comments = Array.isArray(todo.comments) ? todo.comments : [];
       return `
         <div class="row-item">
           <div class="project-manager-actions" style="align-items:center; justify-content:space-between; gap:12px;">
@@ -753,6 +828,12 @@ function renderHomeTodos() {
               Stage
               <select data-home-todo-status="${esc(todo.id)}" class="project-manager-select" style="min-width:140px;">
                 ${renderTodoStatusOptions(status)}
+              </select>
+            </label>
+            <label class="muted small">
+              Priority
+              <select data-home-todo-priority="${esc(todo.id)}" class="project-manager-select" style="min-width:140px;">
+                ${renderTodoPriorityOptions(todo.priority)}
               </select>
             </label>
           </div>
@@ -773,23 +854,63 @@ function renderHomeTodos() {
               <input type="datetime-local" class="project-manager-input" data-home-todo-finishedat="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.finishedAt))}" />
             </label>
           </div>
+          <div class="project-manager-actions" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
+            <label class="muted small">
+              Recurrence
+              <select data-home-todo-recurrence="${esc(todo.id)}" class="project-manager-select" style="min-width:160px;">
+                ${renderTodoRecurrenceOptions(recurrence.mode)}
+              </select>
+            </label>
+            <label class="muted small" style="min-width:220px;">
+              Custom recurrence
+              <input type="text" class="project-manager-input" data-home-todo-recurrence-custom="${esc(todo.id)}" value="${esc(recurrence.customText || "")}" placeholder="Every 2nd Tuesday" maxlength="200" />
+            </label>
+          </div>
+          <div class="project-manager-actions" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
+            <label class="muted small" style="min-width:220px;">
+              Labels
+              <input type="text" class="project-manager-input" data-home-todo-labels="${esc(todo.id)}" value="${esc(formatTodoListText(todo.labels))}" placeholder="urgent, home, garage" />
+            </label>
+            <label class="muted small" style="min-width:220px;">
+              Reminders
+              <textarea class="project-manager-input" data-home-todo-reminders="${esc(todo.id)}" rows="2" placeholder="One datetime per line">${esc(Array.isArray(todo.reminders) ? todo.reminders.map((item) => toDateTimeLocalValue(item)).filter(Boolean).join("\n") : "")}</textarea>
+            </label>
+            <label class="muted small" style="min-width:220px;">
+              Dependencies
+              <input type="text" class="project-manager-input" data-home-todo-dependencies="${esc(todo.id)}" value="${esc(formatTodoListText(todo.dependencies))}" placeholder="todo id, subtodo id" />
+            </label>
+          </div>
           <div class="muted small">Started: ${esc(formatTodoMoment(todo.startedAt))} · Finished: ${esc(formatTodoMoment(todo.finishedAt))} · Due: ${esc(formatTodoMoment(todo.dueBy))}</div>
+          <div class="muted small">Priority: ${esc(formatTodoPriorityLabel(todo.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(recurrence))}</div>
+          <div class="muted small">Labels: ${esc(formatTodoListText(todo.labels) || "-")} · Dependencies: ${esc(formatTodoListText(todo.dependencies) || "-")}</div>
+          <div class="muted small">Reminders: ${esc(formatReminderList(todo.reminders))}</div>
           <div class="mini-list" style="margin-top:10px;">
             ${
               subTodos.length
                 ? subTodos
                     .map((subTodo) => {
                       const subStatus = String(subTodo?.status || "open").trim().toLowerCase();
+                      const subRecurrence = subTodo?.recurrence && typeof subTodo.recurrence === "object"
+                        ? subTodo.recurrence
+                        : { mode: "none", customText: "" };
                       return `
                         <div class="mini-item">
                           <div class="project-manager-actions" style="align-items:center; justify-content:space-between; gap:12px;">
                             <div>${esc(subTodo?.text || "")}</div>
-                            <label class="muted small">
-                              Stage
-                              <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:140px;">
-                                ${renderTodoStatusOptions(subStatus)}
-                              </select>
-                            </label>
+                            <div class="project-manager-actions" style="gap:12px;">
+                              <label class="muted small">
+                                Stage
+                                <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:140px;">
+                                  ${renderTodoStatusOptions(subStatus)}
+                                </select>
+                              </label>
+                              <label class="muted small">
+                                Priority
+                                <select data-home-subtodo-priority="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:140px;">
+                                  ${renderTodoPriorityOptions(subTodo?.priority)}
+                                </select>
+                              </label>
+                            </div>
                           </div>
                           <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
                             <label class="muted small">
@@ -805,12 +926,51 @@ function renderHomeTodos() {
                               <input type="datetime-local" class="project-manager-input" data-home-subtodo-finishedat="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.finishedAt))}" />
                             </label>
                           </div>
+                          <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
+                            <label class="muted small">
+                              Recurrence
+                              <select data-home-subtodo-recurrence="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:160px;">
+                                ${renderTodoRecurrenceOptions(subRecurrence.mode)}
+                              </select>
+                            </label>
+                            <label class="muted small" style="min-width:220px;">
+                              Custom recurrence
+                              <input type="text" class="project-manager-input" data-home-subtodo-recurrence-custom="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(subRecurrence.customText || "")}" placeholder="Every 2nd Tuesday" maxlength="200" />
+                            </label>
+                          </div>
+                          <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
+                            <label class="muted small" style="min-width:220px;">
+                              Labels
+                              <input type="text" class="project-manager-input" data-home-subtodo-labels="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoListText(subTodo?.labels))}" placeholder="urgent, garage" />
+                            </label>
+                            <label class="muted small" style="min-width:220px;">
+                              Reminders
+                              <textarea class="project-manager-input" data-home-subtodo-reminders="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" rows="2" placeholder="One datetime per line">${esc(Array.isArray(subTodo?.reminders) ? subTodo.reminders.map((item) => toDateTimeLocalValue(item)).filter(Boolean).join("\n") : "")}</textarea>
+                            </label>
+                            <label class="muted small" style="min-width:220px;">
+                              Dependencies
+                              <input type="text" class="project-manager-input" data-home-subtodo-dependencies="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoListText(subTodo?.dependencies))}" placeholder="todo id, subtodo id" />
+                            </label>
+                          </div>
                           <div class="muted small">Started: ${esc(formatTodoMoment(subTodo?.startedAt))} · Finished: ${esc(formatTodoMoment(subTodo?.finishedAt))} · Due: ${esc(formatTodoMoment(subTodo?.dueBy))}</div>
+                          <div class="muted small">Priority: ${esc(formatTodoPriorityLabel(subTodo?.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(subRecurrence))}</div>
+                          <div class="muted small">Labels: ${esc(formatTodoListText(subTodo?.labels) || "-")} · Dependencies: ${esc(formatTodoListText(subTodo?.dependencies) || "-")}</div>
+                          <div class="muted small">Reminders: ${esc(formatReminderList(subTodo?.reminders))}</div>
+                          <div class="mini-list" style="margin-top:8px;">${renderTodoCommentList(subTodo?.comments)}</div>
+                          <div class="project-manager-actions" style="margin-top:8px;">
+                            <input type="text" class="project-manager-input" data-home-subtodo-comment-input="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" placeholder="Add comment" maxlength="1000" />
+                            <button type="button" class="btn-secondary" data-home-subtodo-comment-add="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}">Add comment</button>
+                          </div>
                         </div>`;
                     })
                     .join("")
                 : '<div class="mini-item empty">No sub-todos yet.</div>'
             }
+          </div>
+          <div class="mini-list" style="margin-top:10px;">${renderTodoCommentList(comments)}</div>
+          <div class="project-manager-actions" style="margin-top:8px;">
+            <input type="text" class="project-manager-input" data-home-todo-comment-input="${esc(todo.id)}" placeholder="Add comment" maxlength="1000" />
+            <button type="button" class="btn-secondary" data-home-todo-comment-add="${esc(todo.id)}">Add comment</button>
           </div>
           <div class="project-manager-actions" style="margin-top:10px;">
             <input
@@ -3765,56 +3925,141 @@ function initHomeTodos() {
   if (!homeTodosEl) return;
   homeTodosEl.addEventListener("change", async (event) => {
     const todoStatusSelect = event.target.closest("[data-home-todo-status]");
+    const todoPrioritySelect = event.target.closest("[data-home-todo-priority]");
+    const todoRecurrenceSelect = event.target.closest("[data-home-todo-recurrence]");
+    const todoRecurrenceCustomInput = event.target.closest("[data-home-todo-recurrence-custom]");
     const subTodoStatusSelect = event.target.closest("[data-home-subtodo-status]");
+    const subTodoPrioritySelect = event.target.closest("[data-home-subtodo-priority]");
+    const subTodoRecurrenceSelect = event.target.closest("[data-home-subtodo-recurrence]");
+    const subTodoRecurrenceCustomInput = event.target.closest("[data-home-subtodo-recurrence-custom]");
     const todoDueInput = event.target.closest("[data-home-todo-dueby]");
     const todoStartedInput = event.target.closest("[data-home-todo-startedat]");
     const todoFinishedInput = event.target.closest("[data-home-todo-finishedat]");
+    const todoLabelsInput = event.target.closest("[data-home-todo-labels]");
+    const todoRemindersInput = event.target.closest("[data-home-todo-reminders]");
+    const todoDependenciesInput = event.target.closest("[data-home-todo-dependencies]");
     const subTodoDueInput = event.target.closest("[data-home-subtodo-dueby]");
     const subTodoStartedInput = event.target.closest("[data-home-subtodo-startedat]");
     const subTodoFinishedInput = event.target.closest("[data-home-subtodo-finishedat]");
+    const subTodoLabelsInput = event.target.closest("[data-home-subtodo-labels]");
+    const subTodoRemindersInput = event.target.closest("[data-home-subtodo-reminders]");
+    const subTodoDependenciesInput = event.target.closest("[data-home-subtodo-dependencies]");
     if (
       !todoStatusSelect &&
+      !todoPrioritySelect &&
+      !todoRecurrenceSelect &&
+      !todoRecurrenceCustomInput &&
       !subTodoStatusSelect &&
+      !subTodoPrioritySelect &&
+      !subTodoRecurrenceSelect &&
+      !subTodoRecurrenceCustomInput &&
       !todoDueInput &&
       !todoStartedInput &&
       !todoFinishedInput &&
+      !todoLabelsInput &&
+      !todoRemindersInput &&
+      !todoDependenciesInput &&
       !subTodoDueInput &&
       !subTodoStartedInput &&
-      !subTodoFinishedInput
+      !subTodoFinishedInput &&
+      !subTodoLabelsInput &&
+      !subTodoRemindersInput &&
+      !subTodoDependenciesInput
     ) return;
 
     const todoId = todoStatusSelect
       ? String(todoStatusSelect.getAttribute("data-home-todo-status") || "").trim()
+      : todoPrioritySelect
+        ? String(todoPrioritySelect.getAttribute("data-home-todo-priority") || "").trim()
+        : todoRecurrenceSelect
+          ? String(todoRecurrenceSelect.getAttribute("data-home-todo-recurrence") || "").trim()
+          : todoRecurrenceCustomInput
+            ? String(todoRecurrenceCustomInput.getAttribute("data-home-todo-recurrence-custom") || "").trim()
       : subTodoStatusSelect
         ? String(subTodoStatusSelect.getAttribute("data-home-subtodo-status") || "").trim()
+        : subTodoPrioritySelect
+          ? String(subTodoPrioritySelect.getAttribute("data-home-subtodo-priority") || "").trim()
+          : subTodoRecurrenceSelect
+            ? String(subTodoRecurrenceSelect.getAttribute("data-home-subtodo-recurrence") || "").trim()
+            : subTodoRecurrenceCustomInput
+              ? String(subTodoRecurrenceCustomInput.getAttribute("data-home-subtodo-recurrence-custom") || "").trim()
         : todoDueInput
           ? String(todoDueInput.getAttribute("data-home-todo-dueby") || "").trim()
           : todoStartedInput
             ? String(todoStartedInput.getAttribute("data-home-todo-startedat") || "").trim()
             : todoFinishedInput
               ? String(todoFinishedInput.getAttribute("data-home-todo-finishedat") || "").trim()
+              : todoLabelsInput
+                ? String(todoLabelsInput.getAttribute("data-home-todo-labels") || "").trim()
+                : todoRemindersInput
+                  ? String(todoRemindersInput.getAttribute("data-home-todo-reminders") || "").trim()
+                  : todoDependenciesInput
+                    ? String(todoDependenciesInput.getAttribute("data-home-todo-dependencies") || "").trim()
               : subTodoDueInput
                 ? String(subTodoDueInput.getAttribute("data-home-subtodo-dueby") || "").trim()
                 : subTodoStartedInput
                   ? String(subTodoStartedInput.getAttribute("data-home-subtodo-startedat") || "").trim()
-                  : String(subTodoFinishedInput.getAttribute("data-home-subtodo-finishedat") || "").trim();
+                  : subTodoFinishedInput
+                    ? String(subTodoFinishedInput.getAttribute("data-home-subtodo-finishedat") || "").trim()
+                    : subTodoLabelsInput
+                      ? String(subTodoLabelsInput.getAttribute("data-home-subtodo-labels") || "").trim()
+                      : subTodoRemindersInput
+                        ? String(subTodoRemindersInput.getAttribute("data-home-subtodo-reminders") || "").trim()
+                        : String(subTodoDependenciesInput.getAttribute("data-home-subtodo-dependencies") || "").trim();
     const subTodoId = subTodoStatusSelect
       ? String(subTodoStatusSelect.getAttribute("data-subtodo-id") || "").trim()
+      : subTodoPrioritySelect
+        ? String(subTodoPrioritySelect.getAttribute("data-subtodo-id") || "").trim()
+        : subTodoRecurrenceSelect
+          ? String(subTodoRecurrenceSelect.getAttribute("data-subtodo-id") || "").trim()
+          : subTodoRecurrenceCustomInput
+            ? String(subTodoRecurrenceCustomInput.getAttribute("data-subtodo-id") || "").trim()
       : subTodoDueInput
         ? String(subTodoDueInput.getAttribute("data-subtodo-id") || "").trim()
         : subTodoStartedInput
           ? String(subTodoStartedInput.getAttribute("data-subtodo-id") || "").trim()
           : subTodoFinishedInput
             ? String(subTodoFinishedInput.getAttribute("data-subtodo-id") || "").trim()
+            : subTodoLabelsInput
+              ? String(subTodoLabelsInput.getAttribute("data-subtodo-id") || "").trim()
+              : subTodoRemindersInput
+                ? String(subTodoRemindersInput.getAttribute("data-subtodo-id") || "").trim()
+                : subTodoDependenciesInput
+                  ? String(subTodoDependenciesInput.getAttribute("data-subtodo-id") || "").trim()
             : "";
     if (!todoId) return;
 
     const payload = { todoId };
     if (subTodoId) payload.subTodoId = subTodoId;
     if (todoStatusSelect || subTodoStatusSelect) payload.status = String(event.target.value || "").trim().toLowerCase();
+    if (todoPrioritySelect || subTodoPrioritySelect) payload.priority = String(event.target.value || "").trim().toLowerCase() || null;
+    if (todoRecurrenceSelect || subTodoRecurrenceSelect || todoRecurrenceCustomInput || subTodoRecurrenceCustomInput) {
+      const selector = todoRecurrenceSelect || subTodoRecurrenceSelect;
+      const isSubTodo = Boolean(subTodoRecurrenceSelect || subTodoRecurrenceCustomInput);
+      const customInput = isSubTodo
+        ? homeTodosEl.querySelector(
+            `[data-home-subtodo-recurrence-custom="${CSS.escape(todoId)}"][data-subtodo-id="${CSS.escape(subTodoId)}"]`
+          )
+        : homeTodosEl.querySelector(`[data-home-todo-recurrence-custom="${CSS.escape(todoId)}"]`);
+      payload.recurrence = {
+        mode: String(
+          (selector
+            ? selector.value
+            : isSubTodo
+              ? homeTodosEl.querySelector(
+                  `[data-home-subtodo-recurrence="${CSS.escape(todoId)}"][data-subtodo-id="${CSS.escape(subTodoId)}"]`
+                )?.value
+              : homeTodosEl.querySelector(`[data-home-todo-recurrence="${CSS.escape(todoId)}"]`)?.value) || ""
+        ).trim().toLowerCase() || "none",
+        customText: String(customInput?.value || "").trim(),
+      };
+    }
     if (todoDueInput || subTodoDueInput) payload.dueBy = String(event.target.value || "").trim() || null;
     if (todoStartedInput || subTodoStartedInput) payload.startedAt = String(event.target.value || "").trim() || null;
     if (todoFinishedInput || subTodoFinishedInput) payload.finishedAt = String(event.target.value || "").trim() || null;
+    if (todoLabelsInput || subTodoLabelsInput) payload.labels = String(event.target.value || "");
+    if (todoRemindersInput || subTodoRemindersInput) payload.reminders = String(event.target.value || "").split("\n").map((item) => item.trim()).filter(Boolean);
+    if (todoDependenciesInput || subTodoDependenciesInput) payload.dependencies = String(event.target.value || "");
 
     event.target.disabled = true;
     try {
@@ -3828,32 +4073,69 @@ function initHomeTodos() {
 
   homeTodosEl.addEventListener("click", async (event) => {
     const addButton = event.target.closest("[data-home-subtodo-add]");
-    if (!addButton) return;
-    const todoId = String(addButton.getAttribute("data-home-subtodo-add") || "").trim();
-    if (!todoId) return;
-    const input = homeTodosEl.querySelector(`[data-home-subtodo-input="${CSS.escape(todoId)}"]`);
-    const dueByInput = homeTodosEl.querySelector(`[data-home-subtodo-dueby-input="${CSS.escape(todoId)}"]`);
-    const text = String(input?.value || "").trim();
-    if (!text) {
-      window.alert("Enter a sub-todo first.");
+    const addTodoCommentButton = event.target.closest("[data-home-todo-comment-add]");
+    const addSubTodoCommentButton = event.target.closest("[data-home-subtodo-comment-add]");
+    if (addButton) {
+      const todoId = String(addButton.getAttribute("data-home-subtodo-add") || "").trim();
+      if (!todoId) return;
+      const input = homeTodosEl.querySelector(`[data-home-subtodo-input="${CSS.escape(todoId)}"]`);
+      const dueByInput = homeTodosEl.querySelector(`[data-home-subtodo-dueby-input="${CSS.escape(todoId)}"]`);
+      const text = String(input?.value || "").trim();
+      if (!text) {
+        window.alert("Enter a sub-todo first.");
+        return;
+      }
+      const dueBy = String(dueByInput?.value || "").trim();
+      addButton.disabled = true;
+      if (input) input.disabled = true;
+      if (dueByInput) dueByInput.disabled = true;
+      try {
+        const payload = { todoId, text };
+        if (dueBy) payload.dueBy = dueBy;
+        await callDashboardFunction("addProjectSubTodoCallable", payload);
+        if (input) input.value = "";
+        if (dueByInput) dueByInput.value = "";
+      } catch (err) {
+        window.alert(`Failed: ${formatUiError(err)}`);
+      } finally {
+        addButton.disabled = false;
+        if (input) input.disabled = false;
+        if (dueByInput) dueByInput.disabled = false;
+      }
       return;
     }
-    const dueBy = String(dueByInput?.value || "").trim();
-    addButton.disabled = true;
-    if (input) input.disabled = true;
-    if (dueByInput) dueByInput.disabled = true;
-    try {
-      const payload = { todoId, text };
-      if (dueBy) payload.dueBy = dueBy;
-      await callDashboardFunction("addProjectSubTodoCallable", payload);
-      if (input) input.value = "";
-      if (dueByInput) dueByInput.value = "";
-    } catch (err) {
-      window.alert(`Failed: ${formatUiError(err)}`);
-    } finally {
-      addButton.disabled = false;
-      if (input) input.disabled = false;
-      if (dueByInput) dueByInput.disabled = false;
+    if (addTodoCommentButton || addSubTodoCommentButton) {
+      const todoId = addTodoCommentButton
+        ? String(addTodoCommentButton.getAttribute("data-home-todo-comment-add") || "").trim()
+        : String(addSubTodoCommentButton.getAttribute("data-home-subtodo-comment-add") || "").trim();
+      const subTodoId = addSubTodoCommentButton
+        ? String(addSubTodoCommentButton.getAttribute("data-subtodo-id") || "").trim()
+        : "";
+      if (!todoId) return;
+      const input = addTodoCommentButton
+        ? homeTodosEl.querySelector(`[data-home-todo-comment-input="${CSS.escape(todoId)}"]`)
+        : homeTodosEl.querySelector(
+            `[data-home-subtodo-comment-input="${CSS.escape(todoId)}"][data-subtodo-id="${CSS.escape(subTodoId)}"]`
+          );
+      const text = String(input?.value || "").trim();
+      if (!text) {
+        window.alert("Enter a comment first.");
+        return;
+      }
+      const button = addTodoCommentButton || addSubTodoCommentButton;
+      button.disabled = true;
+      if (input) input.disabled = true;
+      try {
+        const payload = { todoId, text };
+        if (subTodoId) payload.subTodoId = subTodoId;
+        await callDashboardFunction("addProjectTodoCommentCallable", payload);
+        if (input) input.value = "";
+      } catch (err) {
+        window.alert(`Failed: ${formatUiError(err)}`);
+      } finally {
+        button.disabled = false;
+        if (input) input.disabled = false;
+      }
     }
   });
 }
