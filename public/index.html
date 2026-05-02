@@ -74,6 +74,7 @@
         <nav class="page-nav" aria-label="Admin sections">
           <a href="#dashboard" class="page-nav-link" data-view-link="dashboard" data-min-role="admin">Dashboard</a>
           <a href="#assistant" class="page-nav-link" data-view-link="assistant" data-min-role="management">Assistant</a>
+          <a href="#todo" class="page-nav-link" data-view-link="todo" data-min-role="management">Todo</a>
           <a href="#lookahead" class="page-nav-link" data-view-link="lookahead" data-min-role="management">Lookahead</a>
           <a href="#voice" class="page-nav-link" data-view-link="voice" data-min-role="management">Voice</a>
           <a href="#messages" class="page-nav-link" data-view-link="messages" data-min-role="admin">Messages</a>
@@ -243,7 +244,20 @@
               </div>
             </article>
 
-            <article class="card" data-min-role="management">
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="todo" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Task workflow</p>
+                <h2>Todo</h2>
+              </div>
+              <p class="muted">
+                Manage the home project todo system with stages, scheduling, recurrence, reminders, dependencies, and comments.
+              </p>
+            </div>
+
+            <article class="card">
               <div class="card-head">
                 <div>
                   <h3>Home todo list</h3>

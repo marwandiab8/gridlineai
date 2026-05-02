@@ -3029,6 +3029,7 @@ function currentViewFromHash() {
   const allowed = new Set([
     "dashboard",
     "assistant",
+    "todo",
     "lookahead",
     "voice",
     "messages",
@@ -3065,7 +3066,7 @@ function syncAccessControlledUi() {
 }
 
 function applyView(viewName) {
-  const fallbacks = ["dashboard", "assistant", "lookahead", "voice", "reports", "labour", "tools", "approvals"];
+  const fallbacks = ["dashboard", "assistant", "todo", "lookahead", "voice", "reports", "labour", "tools", "approvals"];
   const fallbackView = fallbacks.find((candidate) => viewAllowedForCurrentRole(candidate)) || "reports";
   const resolvedView = viewAllowedForCurrentRole(viewName) ? viewName : fallbackView;
   for (const panel of pagePanels) {
