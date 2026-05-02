@@ -809,21 +809,21 @@ async function transcribeInboundTwilioAudio({
     if (!buffer || !buffer.length) return null;
     const ext = guessExtension(audioMedia.contentType || "audio/mpeg");
     const fileName = `voice-note-${audioMedia.mediaIndex}.${ext || "audio"}`;
-    const FileCtor = globalThis.File || require("node:buffer").File;
-    const audioFile = new FileCtor([buffer], fileName, {
-      type: audioMedia.contentType || "audio/mpeg",
+    const tx = await transcribeAudioBufferWithFallback({
+      buffer,
+      fileName,
+      contentType: audioMedia.contentType || "audio/mpeg",
+      openaiKey,
+      logger,
+      runId,
+      contextLabel: "inboundSms",
     });
-    const client = new OpenAI({ apiKey: openaiKey });
-    const tx = await client.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-    });
-    const transcript = String((tx && tx.text) || "").replace(/\s+/g, " ").trim();
-    if (!transcript) return null;
+    if (!tx || !tx.transcript) return null;
     return {
-      transcript,
+      transcript: tx.transcript,
       mediaIndex: audioMedia.mediaIndex,
       contentType: audioMedia.contentType || null,
+      model: tx.model || null,
     };
   } catch (err) {
     logger.warn("inboundSms: audio transcription failed", {
@@ -852,20 +852,20 @@ async function transcribeTwilioRecording({
     if (!buffer || !buffer.length) return null;
     const ext = guessExtension(contentType || "audio/mpeg");
     const fileName = `voice-message.${ext || "audio"}`;
-    const FileCtor = globalThis.File || require("node:buffer").File;
-    const audioFile = new FileCtor([buffer], fileName, {
-      type: contentType || "audio/mpeg",
-    });
-    const client = new OpenAI({ apiKey: openaiKey });
-    const tx = await client.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-    });
-    const transcript = String((tx && tx.text) || "").replace(/\s+/g, " ").trim();
-    if (!transcript) return null;
-    return {
-      transcript,
+    const tx = await transcribeAudioBufferWithFallback({
+      buffer,
+      fileName,
       contentType: contentType || "audio/mpeg",
+      openaiKey,
+      logger,
+      runId,
+      contextLabel: "inboundVoice",
+    });
+    if (!tx || !tx.transcript) return null;
+    return {
+      transcript: tx.transcript,
+      contentType: contentType || "audio/mpeg",
+      model: tx.model || null,
     };
   } catch (err) {
     logger.warn("inboundVoice: recording transcription failed", {
@@ -874,6 +874,64 @@ async function transcribeTwilioRecording({
     });
     return null;
   }
+}
+
+async function transcribeAudioBufferWithFallback({
+  buffer,
+  fileName,
+  contentType,
+  openaiKey,
+  logger,
+  runId,
+  contextLabel,
+}) {
+  if (!openaiKey || !buffer || !buffer.length) return null;
+  const FileCtor = globalThis.File || require("node:buffer").File;
+  const client = new OpenAI({ apiKey: openaiKey });
+  const models = ["gpt-4o-mini-transcribe", "whisper-1"];
+  let lastError = null;
+  for (const model of models) {
+    try {
+      const audioFile = new FileCtor([buffer], fileName, {
+        type: contentType || "audio/mpeg",
+      });
+      const tx = await client.audio.transcriptions.create({
+        file: audioFile,
+        model,
+        language: "en",
+        prompt:
+          "Transcribe exactly. This is often a construction site voice update. Preserve names, project slugs, trades, floor numbers, grid lines, unit numbers, dates, quantities, and material names. Do not summarize.",
+      });
+      const transcript = String((tx && tx.text) || "").replace(/\s+/g, " ").trim();
+      if (transcript) {
+        logger.info(`${contextLabel}: transcription ok`, {
+          runId,
+          model,
+          chars: transcript.length,
+        });
+        return { transcript, model };
+      }
+      lastError = new Error(`empty transcript from ${model}`);
+      logger.warn(`${contextLabel}: empty transcription`, {
+        runId,
+        model,
+      });
+    } catch (err) {
+      lastError = err;
+      logger.warn(`${contextLabel}: transcription model failed`, {
+        runId,
+        model,
+        message: err.message,
+      });
+    }
+  }
+  if (lastError) {
+    logger.warn(`${contextLabel}: all transcription attempts failed`, {
+      runId,
+      message: lastError.message,
+    });
+  }
+  return null;
 }
 
 /** Twilio HTTP webhook must respond with TwiML in ~15s; keep AI path under this. */
@@ -2427,9 +2485,11 @@ exports.inboundVoice = onRequest(
           logger,
           runId,
         });
-        const voiceBody =
-          (voiceTranscript && voiceTranscript.transcript) ||
-          "Voice message attachment";
+        const voiceTranscriptText = String(voiceTranscript && voiceTranscript.transcript || "").trim();
+        const transcriptionOk = Boolean(voiceTranscriptText);
+        const voiceBody = transcriptionOk
+          ? voiceTranscriptText
+          : "Voice recording received but transcription failed";
 
         const inboundRef = await db.collection("messages").add({
           direction: "inbound",
@@ -2443,57 +2503,67 @@ exports.inboundVoice = onRequest(
           phoneE164: from,
           channel: "voice",
           schemaVersion: MESSAGE_SCHEMA_VERSION,
-          audioTranscription: voiceTranscript
-            ? {
-                transcript: voiceTranscript.transcript,
-                mediaIndex: 0,
-                contentType: voiceTranscript.contentType,
-              }
-            : null,
+          audioTranscription: {
+            transcript: voiceTranscriptText || null,
+            mediaIndex: 0,
+            contentType: (voiceTranscript && voiceTranscript.contentType) || recordingContentType || null,
+            model: (voiceTranscript && voiceTranscript.model) || null,
+            status: transcriptionOk ? "ok" : "failed",
+          },
           createdAt: FieldValue.serverTimestamp(),
         });
 
         let replyText;
         let outboundMeta = {};
-        try {
-          const out = await Promise.race([
-            buildReply({
-              db,
-              openaiApiKey: openaiKey,
-              logger,
-              runId,
-              from,
-              body: voiceBody,
-              relatedMessageId: inboundRef.id,
-              numMedia: 1,
-              models: { primary: OPENAI_MODEL_PRIMARY.value() },
-            }),
-            new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error("__BUILD_REPLY_TIMEOUT__")),
-                BUILD_REPLY_TIMEOUT_MS
-              )
-            ),
-          ]);
-          replyText = out.replyText;
-          outboundMeta = out.outboundMeta || {};
-        } catch (handlerErr) {
-          if (handlerErr && handlerErr.message === "__BUILD_REPLY_TIMEOUT__") {
-            logger.warn("inboundVoice: buildReply timed out for recorded message", { runId });
-            replyText = "I saved your voice message, but processing took too long. Please check by text.";
-            outboundMeta = { aiUsed: false, aiError: "timeout", command: "voice_record_timeout" };
-          } else {
-            logger.error("inboundVoice: buildReply threw for recorded message", {
-              runId,
-              message: handlerErr.message,
-              stack: handlerErr.stack,
-            });
-            replyText = "I saved your voice message, but hit an error processing it.";
-            outboundMeta = {
-              aiUsed: false,
-              aiError: String(handlerErr.message || handlerErr),
-              command: "voice_record_exception",
-            };
+        if (!transcriptionOk) {
+          replyText =
+            "I saved your voice message, but I could not transcribe it clearly. Please call again and speak a bit slower after the tone, or text me the update.";
+          outboundMeta = {
+            aiUsed: false,
+            aiError: "voice_transcription_failed",
+            command: "voice_record_transcription_failed",
+          };
+        } else {
+          try {
+            const out = await Promise.race([
+              buildReply({
+                db,
+                openaiApiKey: openaiKey,
+                logger,
+                runId,
+                from,
+                body: voiceBody,
+                relatedMessageId: inboundRef.id,
+                numMedia: 1,
+                models: { primary: OPENAI_MODEL_PRIMARY.value() },
+              }),
+              new Promise((_, reject) =>
+                setTimeout(
+                  () => reject(new Error("__BUILD_REPLY_TIMEOUT__")),
+                  BUILD_REPLY_TIMEOUT_MS
+                )
+              ),
+            ]);
+            replyText = out.replyText;
+            outboundMeta = out.outboundMeta || {};
+          } catch (handlerErr) {
+            if (handlerErr && handlerErr.message === "__BUILD_REPLY_TIMEOUT__") {
+              logger.warn("inboundVoice: buildReply timed out for recorded message", { runId });
+              replyText = "I saved your voice message, but processing took too long. Please check by text.";
+              outboundMeta = { aiUsed: false, aiError: "timeout", command: "voice_record_timeout" };
+            } else {
+              logger.error("inboundVoice: buildReply threw for recorded message", {
+                runId,
+                message: handlerErr.message,
+                stack: handlerErr.stack,
+              });
+              replyText = "I saved your voice message, but hit an error processing it.";
+              outboundMeta = {
+                aiUsed: false,
+                aiError: String(handlerErr.message || handlerErr),
+                command: "voice_record_exception",
+              };
+            }
           }
         }
 
