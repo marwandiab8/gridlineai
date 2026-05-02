@@ -762,6 +762,7 @@ function getTwilioParams(req) {
 function inferInboundAttachmentLabel(params, mediaCountEffective) {
   const count = Math.max(0, Number(mediaCountEffective) || 0);
   if (!count) return "";
+  if (allInboundMediaAreAudio(params, mediaCountEffective)) return "Voice attachment";
   const types = [];
   for (let i = 0; i < count; i += 1) {
     const contentType = String(params[`MediaContentType${i}`] || "")
@@ -779,30 +780,41 @@ function inferInboundAttachmentLabel(params, mediaCountEffective) {
   return "Media attachment";
 }
 
+/**
+ * Twilio often omits MediaContentType or sends application/octet-stream for MMS voice notes.
+ * Treat those as audio when we have a media URL so queue/sync transcription can run.
+ */
+function inboundMediaSlotLooksLikeAudio(contentTypeRaw) {
+  const ct = String(contentTypeRaw || "").trim().toLowerCase();
+  if (!ct) return true;
+  if (ct.startsWith("audio/")) return true;
+  if (ct === "application/octet-stream") return true;
+  return false;
+}
+
 function allInboundMediaAreAudio(params, mediaCountEffective) {
   const count = Math.max(0, Number(mediaCountEffective) || 0);
   if (!count) return false;
-  let seen = 0;
   for (let i = 0; i < count; i += 1) {
-    const contentType = String(params[`MediaContentType${i}`] || "")
-      .trim()
-      .toLowerCase();
-    if (!contentType) continue;
-    seen += 1;
-    if (!contentType.startsWith("audio/")) return false;
+    const mediaUrl = String(params[`MediaUrl${i}`] || "").trim();
+    if (!mediaUrl) return false;
+    const contentType = params[`MediaContentType${i}`];
+    if (!inboundMediaSlotLooksLikeAudio(contentType)) return false;
   }
-  return seen > 0;
+  return true;
 }
 
 function firstAudioMediaFromParams(params, mediaCountEffective) {
   const count = Math.max(0, Number(mediaCountEffective) || 0);
   for (let i = 0; i < count; i += 1) {
     const mediaUrl = String(params[`MediaUrl${i}`] || "").trim();
-    const contentType = String(params[`MediaContentType${i}`] || "").trim().toLowerCase();
+    const contentTypeRaw = String(params[`MediaContentType${i}`] || "").trim();
     if (!mediaUrl) continue;
-    if (contentType.startsWith("audio/")) {
-      return { mediaIndex: i, mediaUrl, contentType };
-    }
+    if (!inboundMediaSlotLooksLikeAudio(contentTypeRaw)) continue;
+    const contentType = contentTypeRaw.toLowerCase().startsWith("audio/")
+      ? contentTypeRaw
+      : "audio/mpeg";
+    return { mediaIndex: i, mediaUrl, contentType };
   }
   return null;
 }
@@ -1153,22 +1165,27 @@ async function sendVoiceFollowupSms({
   accountSid,
   authToken,
   configuredFrom,
+  replyMessagingServiceSid = null,
   logger,
   runId,
 }) {
   const toPhone = normalizePhoneE164(String(phoneE164 || "").trim());
   const fromPhone = normalizePhoneE164(String(configuredFrom || "").trim());
+  const messagingSid = normalizeTwilioSecret(replyMessagingServiceSid || "") || null;
   const smsBody = String(body || "").trim().slice(0, 640);
-  if (!toPhone || !fromPhone || !smsBody) return { sent: false, reason: "missing_fields" };
+  if (!toPhone || !smsBody) return { sent: false, reason: "missing_fields" };
+  if (!messagingSid && !fromPhone) return { sent: false, reason: "missing_sender" };
   try {
-    const sent = await twilio(accountSid, authToken).messages.create({
-      to: toPhone,
-      from: fromPhone,
-      body: smsBody,
-    });
+    const messagePayload = { to: toPhone, body: smsBody };
+    if (messagingSid) {
+      messagePayload.messagingServiceSid = messagingSid;
+    } else {
+      messagePayload.from = fromPhone;
+    }
+    const sent = await twilio(accountSid, authToken).messages.create(messagePayload);
     await db.collection("messages").add({
       direction: "outbound",
-      from: fromPhone,
+      from: fromPhone || null,
       to: toPhone,
       body: smsBody,
       messageSid: sent.sid || null,
@@ -1182,7 +1199,8 @@ async function sendVoiceFollowupSms({
       projectSlug: projectSlug || null,
       twilioMessageStatus: sent.status || null,
       twilioAccountSid: accountSid || null,
-      twilioSenderPhoneE164: fromPhone,
+      twilioMessagingServiceSid: messagingSid || null,
+      twilioSenderPhoneE164: fromPhone || null,
       twilioDestinationPhoneE164: toPhone,
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -1370,6 +1388,7 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
     accountSid,
     authToken,
     configuredFrom,
+    replyMessagingServiceSid: d.replyMessagingServiceSid || null,
     logger,
     runId,
   });
@@ -1601,6 +1620,7 @@ async function processAudioMessageQueueDoc(snap) {
     accountSid,
     authToken,
     configuredFrom,
+    replyMessagingServiceSid: d.replyMessagingServiceSid || null,
     logger,
     runId,
   });
@@ -2511,6 +2531,7 @@ exports.inboundSms = onRequest(
           mediaIndex: firstAudio && Number.isFinite(firstAudio.mediaIndex) ? firstAudio.mediaIndex : 0,
           inboundMessageId: inboundRef.id,
           rawCaption: String(params.Body || "").trim() || "",
+          replyMessagingServiceSid: messagingServiceSid || null,
           runId,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
@@ -3159,6 +3180,8 @@ exports.inboundVoice = onRequest(
           recordingDuration: recordingDuration || null,
           recordingContentType: recordingContentType || "audio/mpeg",
           inboundMessageId: inboundRef.id,
+          replyMessagingServiceSid:
+            normalizeTwilioSecret(params.MessagingServiceSid || "") || null,
           runId,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
