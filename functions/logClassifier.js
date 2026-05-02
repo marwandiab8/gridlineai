@@ -621,10 +621,13 @@ function parseDayRollupRequest(text) {
 
   const matchedView = viewPatterns.some((re) => re.test(raw));
   const matchedSummary = summaryPatterns.some((re) => re.test(raw));
-  const mentionsLogged = /\b(log(?:ged)?|summary|activit(?:y|ies))\b/i.test(raw);
+  const mentionsLogged = /\b(log(?:ged)?|summary)\b/i.test(raw);
+  const mentionsActivityLookup =
+    /\bactivit(?:y|ies)\b/i.test(raw) &&
+    /^(?:please\s+)?(?:show|what|read|give|tell|list)\b/i.test(raw);
 
   if (!matchedView && !matchedSummary) {
-    if (!mentionsLogged || (!reportDateKey && !wantsYesterday && !wantsToday)) {
+    if ((!mentionsLogged && !mentionsActivityLookup) || (!reportDateKey && !wantsYesterday && !wantsToday)) {
       return null;
     }
   }

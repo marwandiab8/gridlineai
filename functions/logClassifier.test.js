@@ -6,6 +6,7 @@ const {
   parseDailyReportRequest,
   isMetaInbound,
   extractProjectScopeHint,
+  dateKeyEastern,
 } = require("./logClassifier");
 
 test("parseStructuredLog extracts an explicit backdated report date", () => {
@@ -104,6 +105,24 @@ test("parseDayRollupRequest recognizes dated activity lookups", () => {
     reportDateKey: "2026-04-18",
     preferAiNarrative: false,
     normalizedText: "show me the activities for 2026-04-18",
+  });
+});
+
+test("parseDayRollupRequest does not treat plain activity notes as lookups", () => {
+  const parsed = parseDayRollupRequest(
+    "We did lots of activities today. Ashley and I went to the Restore place after breakfast and bought a desk for Myles"
+  );
+
+  assert.equal(parsed, null);
+});
+
+test("parseDayRollupRequest still recognizes direct activity lookup wording", () => {
+  const parsed = parseDayRollupRequest("tell me the activities today");
+
+  assert.deepEqual(parsed, {
+    reportDateKey: dateKeyEastern(new Date()),
+    preferAiNarrative: false,
+    normalizedText: "tell me the activities today",
   });
 });
 
