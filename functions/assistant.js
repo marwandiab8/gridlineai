@@ -309,6 +309,79 @@ function looksLikeExplicitAiChatRequest(text) {
   return false;
 }
 
+function isExplicitLabourEntryText(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return false;
+  if (/^(?:labour|labor|hours?|time)\s*[:\-–—]?\s*\d+(?:\.\d+)?\b/i.test(raw)) return true;
+  if (/^\d+(?:\.\d+)?\s*(?:hours?|hrs?|h)\b/i.test(raw)) return true;
+  return false;
+}
+
+function isExplicitLabourBalanceText(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return false;
+  if (/\b(?:labour|labor)\b/i.test(raw)) return true;
+  if (/\bpay\s*period\b|\bpayroll\b|\bpay\s*report\b|\bmy\s+hours?\b|\bhours?\s+for\b/i.test(raw)) return true;
+  if (/\bhow\s+many\s+hours?\b|\bwhat(?:'s|s| is)\s+my\s+(?:total\s+)?hours?\b/i.test(raw)) return true;
+  return false;
+}
+
+function normalizePendingAssistantFollowUp(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const prompt = String(raw.prompt || "").replace(/\s+/g, " ").trim().slice(0, 500);
+  if (!prompt) return null;
+  return {
+    prompt,
+    projectSlug: normalizeProjectSlug(raw.projectSlug) || null,
+    createdAtMs: Number(raw.createdAtMs || 0) || 0,
+  };
+}
+
+function shouldTrackAssistantFollowUp(replyText) {
+  const raw = String(replyText || "").trim();
+  if (!raw) return false;
+  if (/\?\s*$/.test(raw)) return true;
+  if (/\breply\b/i.test(raw) && /\b(which|what|when|where|who|how|yes|no)\b/i.test(raw)) return true;
+  return false;
+}
+
+function looksLikeAssistantFollowUpAnswer(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return false;
+  if (raw.length > 120) return false;
+  if (/^(?:yes|y|yeah|yep|no|nope|ok|okay|sure|do that|go ahead|continue|more|skip|none|n\/a|na|that one|this one)$/i.test(raw)) {
+    return true;
+  }
+  if (/^(?:it'?s|its|the|for|on|in|at|use|make it|set it to)\b/i.test(raw)) return true;
+  return false;
+}
+
+async function savePendingAssistantFollowUp(db, phoneE164, prompt, projectSlug) {
+  const text = String(prompt || "").trim();
+  if (!text) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      pendingAssistantFollowUp: {
+        prompt: text.slice(0, 500),
+        projectSlug: normalizeProjectSlug(projectSlug) || null,
+        createdAtMs: Date.now(),
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function clearPendingAssistantFollowUp(db, phoneE164) {
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      pendingAssistantFollowUp: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 function inferJournalTags(text) {
   const raw = String(text || "").toLowerCase();
   const tags = ["journal", "personal_diary"];
@@ -449,6 +522,7 @@ async function getOrCreateUser(db, phoneE164) {
       projectSlugs: [],
       contextResetAt: null,
       pendingDeficiencyIntake: null,
+      pendingAssistantFollowUp: null,
       pendingTimer: null,
     };
   }
@@ -467,6 +541,7 @@ async function getOrCreateUser(db, phoneE164) {
     projectSlugs: getUserProjectSlugs(d),
     contextResetAt: d.contextResetAt || null,
     pendingDeficiencyIntake: d.pendingDeficiencyIntake || null,
+    pendingAssistantFollowUp: normalizePendingAssistantFollowUp(d.pendingAssistantFollowUp),
     pendingTimer: d.pendingTimer || null,
   };
 }
@@ -1792,6 +1867,14 @@ async function buildReply({
   outboundMeta.projectSlug = effectiveProjectSlug;
   userMessageForAI = scopedBody || trimmedBody;
   lower = userMessageForAI.toLowerCase();
+  const pendingAssistantFollowUp = normalizePendingAssistantFollowUp(user.pendingAssistantFollowUp);
+  const shortAssistantFollowUp =
+    Boolean(pendingAssistantFollowUp) &&
+    looksLikeAssistantFollowUpAnswer(userMessageForAI) &&
+    (
+      !pendingAssistantFollowUp.projectSlug ||
+      pendingAssistantFollowUp.projectSlug === normalizeProjectSlug(effectiveProjectSlug)
+    );
   const dailyReportRequest = parseDailyReportRequest(userMessageForAI);
   if (dailyReportRequest && dailyReportRequest.invalidReason) {
     return {
@@ -1870,6 +1953,7 @@ async function buildReply({
     await db.collection(COL_USERS).doc(phoneE164).update({
       contextResetAt: FieldValue.serverTimestamp(),
       pendingDeficiencyIntake: FieldValue.delete(),
+      pendingAssistantFollowUp: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
     return {
@@ -2037,134 +2121,140 @@ async function buildReply({
     };
   }
 
-  const hoursBalanceQuery = parseLabourHoursBalanceQuery(userMessageForAI);
+  const hoursBalanceQuery = shortAssistantFollowUp ? null : parseLabourHoursBalanceQuery(userMessageForAI);
   if (hoursBalanceQuery) {
     const labourer = await findActiveLabourerByPhone(db, phoneE164);
     if (!labourer) {
-      return {
-        replyText:
-          "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
-        outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
-      };
-    }
-    const range = getDateKeyRangeForBalanceQuery(hoursBalanceQuery.range);
-    if (!range || !range.startKey || !range.endKey) {
-      return {
-        replyText: "Could not look up that hours range. Try: how many hours today, this week, or this pay period.",
-        outboundMeta: { ...outboundMeta, command: "labour_hours_balance_error" },
-      };
-    }
-    const entries = await loadLabourEntries(db, {
-      startKey: range.startKey,
-      endKey: range.endKey,
-      labourerPhone: phoneE164,
-    });
-    const summary = buildLabourRollup(entries);
-    const labourerName =
-      labourer.displayName ||
-      String((labourer.labourerData && labourer.labourerData.name) || "").trim() ||
-      phoneE164;
-    return {
-      replyText: truncateSms(
-        formatLabourBalanceReply({
-          labourerName,
-          rangeLabel: range.label,
-          startKey: range.startKey,
-          endKey: range.endKey,
-          totalHours: summary.totalHours,
-          totalPaidHours: summary.totalPaidHours,
-          totalEntries: summary.totalEntries,
-        })
-      ),
-      outboundMeta: {
-        ...outboundMeta,
-        command: "labour_hours_balance",
-        reportStartKey: range.startKey,
-        reportEndKey: range.endKey,
-        range: hoursBalanceQuery.range,
-        totalEntries: summary.totalEntries,
-        totalHours: summary.totalHours,
-        totalPaidHours: summary.totalPaidHours,
-      },
-    };
-  }
-
-  const labourEntryCommand = parseLabourEntryCommand(userMessageForAI);
-  if (labourEntryCommand) {
-    const labourer = await findActiveLabourerByPhone(db, phoneE164);
-    if (!labourer) {
-      return {
-        replyText:
-          "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
-        outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
-      };
-    }
-    const labourProject =
-      effectiveProjectSlug ||
-      normalizeProjectSlug(
-        labourer.labourerData && labourer.labourerData.activeProjectSlug
-          ? labourer.labourerData.activeProjectSlug
-          : (Array.isArray(labourer.projectSlugs) && labourer.projectSlugs[0]) || ""
-      ) ||
-      null;
-    const labourerName =
-      labourer.displayName ||
-      String(labourer.labourerData && labourer.labourerData.name ? labourer.labourerData.name : "").trim() ||
-      phoneE164;
-    const reportDateKey = labourEntryCommand.reportDateKey || dateKeyEastern(new Date());
-    const existingForDate = await loadLabourEntries(db, {
-      startKey: reportDateKey,
-      endKey: reportDateKey,
-      labourerPhone: phoneE164,
-    });
-    if (existingForDate.length > 0) {
+      if (isExplicitLabourBalanceText(userMessageForAI)) {
+        return {
+          replyText:
+            "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
+          outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
+        };
+      }
+    } else {
+      const range = getDateKeyRangeForBalanceQuery(hoursBalanceQuery.range);
+      if (!range || !range.startKey || !range.endKey) {
+        return {
+          replyText: "Could not look up that hours range. Try: how many hours today, this week, or this pay period.",
+          outboundMeta: { ...outboundMeta, command: "labour_hours_balance_error" },
+        };
+      }
+      const entries = await loadLabourEntries(db, {
+        startKey: range.startKey,
+        endKey: range.endKey,
+        labourerPhone: phoneE164,
+      });
+      const summary = buildLabourRollup(entries);
+      const labourerName =
+        labourer.displayName ||
+        String((labourer.labourerData && labourer.labourerData.name) || "").trim() ||
+        phoneE164;
       return {
         replyText: truncateSms(
-          `${labourerName}, you already entered your hours for ${reportDateKey}. One labour entry is allowed per day.`
+          formatLabourBalanceReply({
+            labourerName,
+            rangeLabel: range.label,
+            startKey: range.startKey,
+            endKey: range.endKey,
+            totalHours: summary.totalHours,
+            totalPaidHours: summary.totalPaidHours,
+            totalEntries: summary.totalEntries,
+          })
         ),
         outboundMeta: {
           ...outboundMeta,
-          command: "labour_entry_duplicate",
-          labourerName,
-          labourerPhone: phoneE164,
-          reportDateKey,
-          existingLabourEntryId: existingForDate[0]?.id || null,
+          command: "labour_hours_balance",
+          reportStartKey: range.startKey,
+          reportEndKey: range.endKey,
+          range: hoursBalanceQuery.range,
+          totalEntries: summary.totalEntries,
+          totalHours: summary.totalHours,
+          totalPaidHours: summary.totalPaidHours,
         },
       };
     }
-    const entry = await writeLabourEntry(db, FieldValue, {
-      labourerName,
-      labourerPhone: phoneE164,
-      projectSlug: labourProject,
-      reportDateKey,
-      hours: labourEntryCommand.hours,
-      workOn: labourEntryCommand.workOn,
-      notes: labourEntryCommand.rawText,
-      source: "sms",
-      enteredByPhone: phoneE164,
-    });
-    const payMult = dayMultiplierFromDateKey(String(entry.reportDateKey || "").trim());
-    const payHours = Math.round(labourEntryCommand.hours * payMult * 100) / 100;
-    const payNote =
-      payMult !== 1
-        ? ` → ${payHours}h paid (${payMult === 2 ? "Sun 2x" : "Sat/holiday 1.5x"})`
-        : "";
-    return {
-      replyText: truncateSms(
-        `Saved ${labourEntryCommand.hours}h${payNote} for ${labourerName}${
-          labourProject ? ` on ${labourProject}` : ""
-        }: ${labourEntryCommand.workOn}`
-      ),
-      outboundMeta: {
-        ...outboundMeta,
-        command: "labour_entry_saved",
-        labourEntryId: entry.labourEntryId,
+  }
+
+  const labourEntryCommand = shortAssistantFollowUp ? null : parseLabourEntryCommand(userMessageForAI);
+  if (labourEntryCommand) {
+    const labourer = await findActiveLabourerByPhone(db, phoneE164);
+    if (!labourer) {
+      if (isExplicitLabourEntryText(userMessageForAI)) {
+        return {
+          replyText:
+            "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
+          outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
+        };
+      }
+    } else {
+      const labourProject =
+        effectiveProjectSlug ||
+        normalizeProjectSlug(
+          labourer.labourerData && labourer.labourerData.activeProjectSlug
+            ? labourer.labourerData.activeProjectSlug
+            : (Array.isArray(labourer.projectSlugs) && labourer.projectSlugs[0]) || ""
+        ) ||
+        null;
+      const labourerName =
+        labourer.displayName ||
+        String(labourer.labourerData && labourer.labourerData.name ? labourer.labourerData.name : "").trim() ||
+        phoneE164;
+      const reportDateKey = labourEntryCommand.reportDateKey || dateKeyEastern(new Date());
+      const existingForDate = await loadLabourEntries(db, {
+        startKey: reportDateKey,
+        endKey: reportDateKey,
+        labourerPhone: phoneE164,
+      });
+      if (existingForDate.length > 0) {
+        return {
+          replyText: truncateSms(
+            `${labourerName}, you already entered your hours for ${reportDateKey}. One labour entry is allowed per day.`
+          ),
+          outboundMeta: {
+            ...outboundMeta,
+            command: "labour_entry_duplicate",
+            labourerName,
+            labourerPhone: phoneE164,
+            reportDateKey,
+            existingLabourEntryId: existingForDate[0]?.id || null,
+          },
+        };
+      }
+      const entry = await writeLabourEntry(db, FieldValue, {
         labourerName,
         labourerPhone: phoneE164,
         projectSlug: labourProject,
-        reportDateKey: entry.reportDateKey || null,
-      },
-    };
+        reportDateKey,
+        hours: labourEntryCommand.hours,
+        workOn: labourEntryCommand.workOn,
+        notes: labourEntryCommand.rawText,
+        source: "sms",
+        enteredByPhone: phoneE164,
+      });
+      const payMult = dayMultiplierFromDateKey(String(entry.reportDateKey || "").trim());
+      const payHours = Math.round(labourEntryCommand.hours * payMult * 100) / 100;
+      const payNote =
+        payMult !== 1
+          ? ` → ${payHours}h paid (${payMult === 2 ? "Sun 2x" : "Sat/holiday 1.5x"})`
+          : "";
+      return {
+        replyText: truncateSms(
+          `Saved ${labourEntryCommand.hours}h${payNote} for ${labourerName}${
+            labourProject ? ` on ${labourProject}` : ""
+          }: ${labourEntryCommand.workOn}`
+        ),
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_entry_saved",
+          labourEntryId: entry.labourEntryId,
+          labourerName,
+          labourerPhone: phoneE164,
+          projectSlug: labourProject,
+          reportDateKey: entry.reportDateKey || null,
+        },
+      };
+    }
   }
 
   const startTimerCommand = parseStartTimerCommand(userMessageForAI);
@@ -2427,7 +2517,7 @@ async function buildReply({
     }
   }
   const historyMessages = rowsToOpenAIMessages(historyRows);
-  const explicitAiRequest = looksLikeExplicitAiChatRequest(userMessageForAI);
+  const explicitAiRequest = shortAssistantFollowUp || looksLikeExplicitAiChatRequest(userMessageForAI);
   if (!explicitAiRequest) {
     const channelNorm = String(channel || "").trim().toLowerCase();
     if (channelNorm.startsWith("voice") || channelNorm === "sms_audio_note") {
@@ -2509,6 +2599,12 @@ async function buildReply({
   const system = buildLayeredSystemPrompt(admin, project, user);
 
   let aiUserText = userMessageForAI;
+  if (shortAssistantFollowUp && pendingAssistantFollowUp) {
+    aiUserText =
+      `Previous assistant question: ${pendingAssistantFollowUp.prompt}\n` +
+      `User reply: ${userMessageForAI}`;
+    await clearPendingAssistantFollowUp(db, phoneE164);
+  }
   if (numMedia > 0) {
     const n = Math.min(10, Math.max(1, parseInt(String(numMedia), 10) || 1));
     const bodyLower = String(trimmedBody || "").trim().toLowerCase();
@@ -2543,6 +2639,11 @@ async function buildReply({
       modelsOverride
     );
     const replyText = truncateSms(rawReply);
+    if (shouldTrackAssistantFollowUp(replyText)) {
+      await savePendingAssistantFollowUp(db, phoneE164, replyText, effectiveProjectSlug);
+    } else if (pendingAssistantFollowUp) {
+      await clearPendingAssistantFollowUp(db, phoneE164);
+    }
     logger.info("assistant: openai chat ok", {
       runId,
       logEntryId: outboundMeta.logEntryId,
@@ -2605,6 +2706,10 @@ module.exports = {
   formatDurationFromMs,
   parseNotificationRequest,
   looksLikeExplicitAiChatRequest,
+  isExplicitLabourEntryText,
+  isExplicitLabourBalanceText,
+  looksLikeAssistantFollowUpAnswer,
+  shouldTrackAssistantFollowUp,
   inferJournalTags,
   RATE_MAX,
   RATE_WINDOW_MS,

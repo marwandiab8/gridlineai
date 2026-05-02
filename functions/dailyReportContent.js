@@ -30,6 +30,10 @@ function lineText(e) {
   return (e.summaryText || e.normalizedText || e.rawText || "").trim();
 }
 
+function mediaContentTypeLooksImage(value) {
+  return String(value || "").trim().toLowerCase().startsWith("image/");
+}
+
 function isPhoneLikeAuthorLabel(value) {
   const raw = String(value || "").trim();
   const digits = raw.replace(/\D/g, "");
@@ -1033,7 +1037,7 @@ function buildDailyReportModel(logEntriesRaw, mediaDocs, options = {}) {
     bySec.concrete.map((e) => reportLineText(e, reportDateKey)).join("\n\n") || "â€”";
 
   const photos = (mediaDocs || [])
-    .filter((m) => m.storagePath)
+    .filter((m) => m.storagePath && mediaContentTypeLooksImage(m.contentType))
     .map((m) => ({
       mediaId: m.id,
       storagePath: m.storagePath,
@@ -1477,7 +1481,7 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
   const entryMap = new Map(entries.map((e) => [String(e.id), e]));
 
   const photos = (mediaDocs || [])
-    .filter((m) => m && m.storagePath)
+    .filter((m) => m && m.storagePath && mediaContentTypeLooksImage(m.contentType))
     .map((m) => ({
       mediaId: m.id,
       storagePath: m.storagePath,

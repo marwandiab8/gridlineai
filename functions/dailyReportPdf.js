@@ -272,6 +272,10 @@ function mediaMatchesExactDateKey(m, dateKey) {
   return mediaDateKey === dateKey;
 }
 
+function mediaContentTypeLooksImage(value) {
+  return String(value || "").trim().toLowerCase().startsWith("image/");
+}
+
 function mediaCreatedAtMs(media) {
   const value = media && media.createdAt;
   if (!value) return NaN;
@@ -316,6 +320,7 @@ function filterJournalMediaForReport(mediaDocs, entryIdSetOrEntries, projectKey,
       : null;
 
   return (mediaDocs || []).filter((m) => {
+    if (!mediaContentTypeLooksImage(m && m.contentType)) return false;
     if (!mediaMatchesExactDateKey(m, exactDateKey)) return false;
     const linkId = m && m.linkedLogEntryId != null ? String(m.linkedLogEntryId).trim() : "";
     if (linkId) return entryIdSet.has(linkId);

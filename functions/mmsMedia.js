@@ -7,6 +7,29 @@ const { Timestamp, FieldValue } = require("firebase-admin/firestore");
 const { saveOneInboundMedia } = require("./mediaRepository");
 const { countTwilioMediaParams } = require("./twilioMediaFetch");
 
+function classifyInboundMediaLabel(contentType) {
+  const type = String(contentType || "").trim().toLowerCase();
+  if (type.startsWith("audio/")) {
+    return {
+      fileStem: "voice-note",
+      sourceLabel: "voice",
+      historyLabel: "voice note",
+    };
+  }
+  if (type.startsWith("video/")) {
+    return {
+      fileStem: "video",
+      sourceLabel: "sms",
+      historyLabel: "video",
+    };
+  }
+  return {
+    fileStem: "image",
+    sourceLabel: "sms",
+    historyLabel: "image",
+  };
+}
+
 /**
  * @param {import('firebase-admin').firestore.Firestore} db
  * @param {import('firebase-admin').storage.Storage} storage
@@ -70,6 +93,7 @@ async function attachTwilioMediaToIssue({
     const mediaUrl = params[`MediaUrl${i}`];
     const contentType =
       params[`MediaContentType${i}`] || "application/octet-stream";
+    const mediaKind = classifyInboundMediaLabel(contentType);
     if (!mediaUrl || !String(mediaUrl).trim()) {
       skippedUrls += 1;
       logger.warn("mmsMedia: missing MediaUrl for index (expected by count)", {
@@ -96,6 +120,8 @@ async function attachTwilioMediaToIssue({
       reportDateKey: reportDateKey || null,
       captionText: captionText || null,
       linkedLogEntryId: linkedLogEntryId || null,
+      fileStem: mediaKind.fileStem,
+      sourceLabel: mediaKind.sourceLabel,
       issueCollection: canLinkIssue ? issueCollection : null,
       issueId: canLinkIssue ? issueId : null,
       uploadedByPhone,
@@ -127,7 +153,7 @@ async function attachTwilioMediaToIssue({
         field: "photos",
         oldValue: null,
         newValue: saved.storagePath,
-        note: `MMS image-${i} (${saved.fileName})`,
+        note: `MMS ${mediaKind.historyLabel}-${i} (${saved.fileName})`,
       });
     }
   }

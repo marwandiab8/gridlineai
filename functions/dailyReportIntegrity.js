@@ -20,6 +20,10 @@ function normSlug(s) {
   return String(s).trim();
 }
 
+function mediaContentTypeLooksImage(value) {
+  return String(value || "").trim().toLowerCase().startsWith("image/");
+}
+
 /** Reduces false positives when broad “show photos” / UI patterns overlap real field notes. */
 function looksLikeFieldLogContext(t) {
   return /\b(grid|pour|slab|rebar|concrete|log\s*:|daily\s+log\s*:|deficiency|inspection|crew|footing|GL\/|elevation|waterproof|trench|scaffold|crane|formwork|backfill|submittal)\b/i.test(
@@ -451,6 +455,7 @@ function filterMediaForProjectDailyReport(mediaDocs, reportProjectSlug, allowedE
 
   return (mediaDocs || []).filter((m) => {
     if (!m.storagePath) return false;
+    if (!mediaContentTypeLooksImage(m.contentType)) return false;
     if (!mediaProjectMatches(m, reportProjectSlug)) return false;
 
     const linkId = m.linkedLogEntryId != null ? String(m.linkedLogEntryId).trim() : "";

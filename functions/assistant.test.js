@@ -6,12 +6,16 @@ const {
   formatDurationFromMs,
   inferInboundLogType,
   inferJournalTags,
+  isExplicitLabourBalanceText,
+  isExplicitLabourEntryText,
   isStopTimerCommand,
+  looksLikeAssistantFollowUpAnswer,
   looksLikeExplicitAiChatRequest,
   parseNotificationRequest,
   parseStartTimerCommand,
   sanitizeIntentPayload,
   sanitizeRoutePayload,
+  shouldTrackAssistantFollowUp,
 } = require("./assistant");
 
 test("inferInboundLogType defaults plain updates to construction", () => {
@@ -93,6 +97,26 @@ test("single-word field prompts stay on the AI request path", () => {
   assert.equal(looksLikeExplicitAiChatRequest("safety"), true);
   assert.equal(looksLikeExplicitAiChatRequest("report"), true);
   assert.equal(looksLikeExplicitAiChatRequest("today"), true);
+});
+
+test("explicit labour helpers stay narrow", () => {
+  assert.equal(isExplicitLabourEntryText("labour 8.0 framing cleanup"), true);
+  assert.equal(isExplicitLabourEntryText("8 hours framing cleanup"), true);
+  assert.equal(isExplicitLabourEntryText("Worked on home activities and errands today"), false);
+  assert.equal(isExplicitLabourBalanceText("how many hours this week"), true);
+  assert.equal(isExplicitLabourBalanceText("today's activities were groceries and cleanup"), false);
+});
+
+test("assistant follow-up helpers recognize short context replies", () => {
+  assert.equal(looksLikeAssistantFollowUpAnswer("yes"), true);
+  assert.equal(looksLikeAssistantFollowUpAnswer("do that"), true);
+  assert.equal(looksLikeAssistantFollowUpAnswer("for the kitchen sink"), true);
+  assert.equal(
+    looksLikeAssistantFollowUpAnswer("Here is a full separate site update with lots of detail and several unrelated facts."),
+    false
+  );
+  assert.equal(shouldTrackAssistantFollowUp("Should I log this under deficiency?"), true);
+  assert.equal(shouldTrackAssistantFollowUp("Saved to the home journal."), false);
 });
 
 test("inferJournalTags captures feeling and plan cues", () => {
