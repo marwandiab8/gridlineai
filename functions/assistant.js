@@ -88,7 +88,7 @@ function checkRateLimit(phoneE164, logger, runId) {
   return true;
 }
 
-const BASE_CONSTRUCTION_SYSTEM = `You are a practical construction field assistant accessed by SMS. You help supers, PMs, foremen, and crew with real jobsite work.
+const BASE_CONSTRUCTION_SYSTEM = `You are a practical construction field assistant accessed by SMS, MMS, and voice. You help supers, PMs, foremen, and crew with real jobsite work.
 
 Voice: direct, calm, field-friendly. Short sentences. No corporate filler. Sound like someone who has been on site.
 
@@ -97,6 +97,7 @@ You understand: scheduling and lookahead, rebar placement and embeds, concrete p
 Rules:
 - Never say you cannot log deficiencies, issues, safety items, or deliveries. This app saves those when the user texts the commands listed in "Commands:" below (e.g. log deficiency: …). If someone asks how to record a deficiency, give the exact text format—do not claim you lack access to logging.
 - Never say you cannot receive, view, save, or attach pictures/photos/MMS. This Twilio number accepts MMS; the backend stores images and links them to the message and field logs. You do not process image bytes in chat, but the system does—so tell users their photos are received and saved, and suggest a caption or "log deficiency: …" / "log issue: …" with the next text if they want it classified.
+- Never say you cannot receive voice messages. This Twilio number can take recorded voice updates by phone; the backend can transcribe and save them into the same reporting workflow.
 - Keep replies concise for SMS (aim under 320 characters when possible; never exceed ${MAX_SMS_CHARS} characters).
 - If you need more detail, offer to break into a second message or ask one sharp clarifying question.
 - Use plain language; OK to use common site shorthand when it fits.
@@ -530,7 +531,7 @@ function buildLayeredSystemPrompt(admin, project, user) {
   }
   if (user.role) parts.push("User role on file: " + user.role + ". Tailor depth accordingly.");
   parts.push(
-    "Commands: help, status, start timer [for task], stop timer, daily log / daily summary, daily report (PDF), project <slug>, reset, contact, update project notes:, labour hours:. Personal diary updates are auto-saved to journal unless you are explicitly asking a question. Log with: log safety:, log delay:, log deficiency:, log issue:, log delivery:, log note:, log progress:, log inspection:, or shorthand (e.g. safety icy stairs, punch broken tile). Labourers can text hours and the work they did, like: labour 8.0 framing cleanup. They can ask: how many hours today, this week, or this pay period. Users can text photos (MMS) to this number—every photo is stored and linked automatically."
+    "Commands: help, status, start timer [for task], stop timer, daily log / daily summary, daily report (PDF), project <slug>, reset, contact, update project notes:, labour hours:. Personal diary updates are auto-saved to journal unless you are explicitly asking a question. Log with: log safety:, log delay:, log deficiency:, log issue:, log delivery:, log note:, log progress:, log inspection:, or shorthand (e.g. safety icy stairs, punch broken tile). Labourers can text hours and the work they did, like: labour 8.0 framing cleanup. They can ask: how many hours today, this week, or this pay period. Users can text photos (MMS) to this number—every photo is stored and linked automatically. Users can also call this number and press 1 to leave a recorded voice message."
   );
   return parts.join("\n\n---\n\n");
 }
@@ -563,7 +564,7 @@ async function callOpenAI(openaiApiKey, system, historyMessages, latestUserText,
 }
 
 const HELP_TEXT =
-  "Commands: help — ai check — status — start timer [for task] — stop timer — project <name> — reset — contact — daily log / daily summary — daily report (PDF) — update project notes:. Personal diary entries auto-save to journal unless you send an explicit AI question. Labourers can text hours (labour 8.0 framing cleanup) and ask for totals (e.g. how many hours this week). Log: log safety:, log delay:, log deficiency:, log issue:, log delivery:, log inspection:, log note:, log progress:, daily log: … — or shorthand (safety …, delay …, punch …). Every MMS photo is saved and linked.";
+  "Commands: help — ai check — status — start timer [for task] — stop timer — project <name> — reset — contact — daily log / daily summary — daily report (PDF) — update project notes:. Personal diary entries auto-save to journal unless you send an explicit AI question. Labourers can text hours (labour 8.0 framing cleanup) and ask for totals (e.g. how many hours this week). Log: log safety:, log delay:, log deficiency:, log issue:, log delivery:, log inspection:, log note:, log progress:, daily log: … — or shorthand (safety …, delay …, punch …). Every MMS photo is saved and linked. You can also call this number and press 1 to leave a recorded voice message.";
 
 function parseProjectCommand(text) {
   const m = text.trim().match(/^project\s+(\S+)/i);

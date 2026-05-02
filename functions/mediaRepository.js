@@ -94,6 +94,9 @@ async function saveOneInboundMedia({
   reportDateKey = null,
   captionText,
   linkedLogEntryId,
+  fileStem = "image",
+  sourceLabel = "sms",
+  storageSource = "twilio_mms",
   issueCollection,
   issueId,
   uploadedByPhone,
@@ -108,7 +111,7 @@ async function saveOneInboundMedia({
   const sid = safePathSegment(messageSidTwilio || "no-sid");
   const requestedType = contentType || "application/octet-stream";
   const ext = guessExtension(requestedType);
-  let fileName = `image-${mediaIndex}.${ext}`;
+  let fileName = `${safePathSegment(fileStem || "image")}-${mediaIndex}.${ext}`;
   let storagePath = path.posix.join(
     "projects",
     safePathSegment(projectId),
@@ -198,7 +201,7 @@ async function saveOneInboundMedia({
   const finalContentType = optimized.contentType || requestedType;
   const finalExt = guessExtension(finalContentType);
   if (finalExt !== ext) {
-    fileName = `image-${mediaIndex}.${finalExt}`;
+    fileName = `${safePathSegment(fileStem || "image")}-${mediaIndex}.${finalExt}`;
     storagePath = path.posix.join(
       "projects",
       safePathSegment(projectId),
@@ -213,8 +216,8 @@ async function saveOneInboundMedia({
     await file.save(optimized.buffer, {
       metadata: {
         contentType: finalContentType,
-        metadata: {
-          source: "twilio_mms",
+          metadata: {
+          source: storageSource,
           messageSid: messageSidTwilio || "",
           sourceMessageId: sourceMessageId || "",
           projectId,
@@ -280,9 +283,10 @@ async function saveOneInboundMedia({
     issueCollection: issueCollection || null,
     issueId: issueId || null,
     mediaIndex,
-    uploadedBy: uploadedByPhone || senderPhone,
-    includeInDailyReport: true,
-    createdAt: FieldValue.serverTimestamp(),
+      uploadedBy: uploadedByPhone || senderPhone,
+      source: sourceLabel,
+      includeInDailyReport: true,
+      createdAt: FieldValue.serverTimestamp(),
     aiAnalyzed: false,
     aiError: null,
     aiTags: [],

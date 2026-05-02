@@ -834,6 +834,48 @@ async function transcribeInboundTwilioAudio({
   }
 }
 
+async function transcribeTwilioRecording({
+  recordingUrl,
+  contentType,
+  accountSid,
+  authToken,
+  openaiKey,
+  logger,
+  runId,
+}) {
+  if (!openaiKey || !recordingUrl) return null;
+  try {
+    const buffer = await fetchTwilioMediaBuffer(recordingUrl, accountSid, authToken, {
+      logger,
+      runId,
+    });
+    if (!buffer || !buffer.length) return null;
+    const ext = guessExtension(contentType || "audio/mpeg");
+    const fileName = `voice-message.${ext || "audio"}`;
+    const FileCtor = globalThis.File || require("node:buffer").File;
+    const audioFile = new FileCtor([buffer], fileName, {
+      type: contentType || "audio/mpeg",
+    });
+    const client = new OpenAI({ apiKey: openaiKey });
+    const tx = await client.audio.transcriptions.create({
+      file: audioFile,
+      model: "whisper-1",
+    });
+    const transcript = String((tx && tx.text) || "").replace(/\s+/g, " ").trim();
+    if (!transcript) return null;
+    return {
+      transcript,
+      contentType: contentType || "audio/mpeg",
+    };
+  } catch (err) {
+    logger.warn("inboundVoice: recording transcription failed", {
+      runId,
+      message: err.message,
+    });
+    return null;
+  }
+}
+
 /** Twilio HTTP webhook must respond with TwiML in ~15s; keep AI path under this. */
 const BUILD_REPLY_TIMEOUT_MS = 12_000;
 
@@ -896,6 +938,10 @@ function sanitizeVoiceText(text) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 900);
+}
+
+function stripQueryFromUrl(url) {
+  return String(url || "").split("?")[0];
 }
 
 /**
@@ -2346,7 +2392,15 @@ exports.inboundVoice = onRequest(
       const from = String(params.From || "").trim();
       const to = String(params.To || "").trim();
       const speechResult = sanitizeVoiceText(params.SpeechResult || "");
-      const actionUrl = buildWebhookUrls(req)[0];
+      const recordingUrl = String(params.RecordingUrl || "").trim();
+      const recordingDuration = String(params.RecordingDuration || "").trim();
+      const recordingContentType = String(params.RecordingContentType || "audio/mpeg").trim();
+      const callSid = String(params.CallSid || "").trim();
+      const digits = String(params.Digits || "").trim();
+      const baseActionUrl = stripQueryFromUrl(buildWebhookUrls(req)[0]);
+      const actionUrl = baseActionUrl;
+      const recordActionUrl = `${baseActionUrl}?mode=recorded`;
+      const mode = String((req.query && req.query.mode) || "").trim().toLowerCase();
       if (!from) {
         sendVoiceTwiml(res, (vr) => {
           vr.say("I could not read the caller number.");
@@ -2363,15 +2417,200 @@ exports.inboundVoice = onRequest(
         return;
       }
 
+      if (mode === "recorded" && recordingUrl) {
+        const voiceTranscript = await transcribeTwilioRecording({
+          recordingUrl,
+          contentType: recordingContentType,
+          accountSid,
+          authToken,
+          openaiKey,
+          logger,
+          runId,
+        });
+        const voiceBody =
+          (voiceTranscript && voiceTranscript.transcript) ||
+          "Voice message attachment";
+
+        const inboundRef = await db.collection("messages").add({
+          direction: "inbound",
+          from,
+          to,
+          body: voiceBody,
+          messageSid: callSid || null,
+          numMedia: 1,
+          mediaCountEffective: 1,
+          threadKey: from,
+          phoneE164: from,
+          channel: "voice",
+          schemaVersion: MESSAGE_SCHEMA_VERSION,
+          audioTranscription: voiceTranscript
+            ? {
+                transcript: voiceTranscript.transcript,
+                mediaIndex: 0,
+                contentType: voiceTranscript.contentType,
+              }
+            : null,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        let replyText;
+        let outboundMeta = {};
+        try {
+          const out = await Promise.race([
+            buildReply({
+              db,
+              openaiApiKey: openaiKey,
+              logger,
+              runId,
+              from,
+              body: voiceBody,
+              relatedMessageId: inboundRef.id,
+              numMedia: 1,
+              models: { primary: OPENAI_MODEL_PRIMARY.value() },
+            }),
+            new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("__BUILD_REPLY_TIMEOUT__")),
+                BUILD_REPLY_TIMEOUT_MS
+              )
+            ),
+          ]);
+          replyText = out.replyText;
+          outboundMeta = out.outboundMeta || {};
+        } catch (handlerErr) {
+          if (handlerErr && handlerErr.message === "__BUILD_REPLY_TIMEOUT__") {
+            logger.warn("inboundVoice: buildReply timed out for recorded message", { runId });
+            replyText = "I saved your voice message, but processing took too long. Please check by text.";
+            outboundMeta = { aiUsed: false, aiError: "timeout", command: "voice_record_timeout" };
+          } else {
+            logger.error("inboundVoice: buildReply threw for recorded message", {
+              runId,
+              message: handlerErr.message,
+              stack: handlerErr.stack,
+            });
+            replyText = "I saved your voice message, but hit an error processing it.";
+            outboundMeta = {
+              aiUsed: false,
+              aiError: String(handlerErr.message || handlerErr),
+              command: "voice_record_exception",
+            };
+          }
+        }
+
+        let attachResult = null;
+        try {
+          attachResult = await saveOneInboundMedia({
+            db,
+            bucket: admin.storage().bucket(),
+            FieldValue,
+            accountSid,
+            authToken,
+            mediaUrl: recordingUrl,
+            contentType: recordingContentType || (voiceTranscript && voiceTranscript.contentType) || "audio/mpeg",
+            mediaIndex: 0,
+            messageSidTwilio: callSid || "",
+            sourceMessageId: inboundRef.id,
+            senderPhone: from,
+            projectSlug: outboundMeta.projectSlug || null,
+            reportDateKey: outboundMeta.reportDateKey || null,
+            captionText: voiceBody,
+            linkedLogEntryId: outboundMeta.logEntryId || null,
+            fileStem: "voice-message",
+            sourceLabel: "voice",
+            storageSource: "twilio_voice",
+            issueCollection: null,
+            issueId: null,
+            uploadedByPhone: from,
+            logger,
+            runId,
+          });
+        } catch (mediaErr) {
+          logger.error("inboundVoice: voice media save failed", {
+            runId,
+            message: mediaErr.message,
+            stack: mediaErr.stack,
+          });
+        }
+
+        const safeReply = sanitizeVoiceText(replyText || "I saved your voice message.");
+        await inboundRef.update({
+          projectSlug: outboundMeta.projectSlug || null,
+          command: outboundMeta.command || "voice_message",
+          aiUsed: Boolean(outboundMeta.aiUsed),
+          aiError: outboundMeta.aiError || null,
+          logEntryId: outboundMeta.logEntryId || null,
+          logCategory: outboundMeta.logCategory || null,
+          classification: outboundMeta.classification || null,
+          reportDateKey: outboundMeta.reportDateKey || null,
+          reportType: outboundMeta.reportType || null,
+          mediaIds: attachResult && attachResult.mediaId ? [attachResult.mediaId] : [],
+          mediaAttachedCount: attachResult ? 1 : 0,
+          mediaProcessingAt: FieldValue.serverTimestamp(),
+          recordingDuration: recordingDuration || null,
+        });
+
+        await db.collection("messages").add({
+          direction: "outbound",
+          from: configuredFrom,
+          to: from,
+          body: safeReply,
+          messageSid: null,
+          delivery: "twiml_voice",
+          replyToInboundDocId: inboundRef.id,
+          threadKey: from,
+          phoneE164: from,
+          channel: "voice",
+          schemaVersion: MESSAGE_SCHEMA_VERSION,
+          projectSlug: outboundMeta.projectSlug || null,
+          aiUsed: Boolean(outboundMeta.aiUsed),
+          aiError: outboundMeta.aiError || null,
+          command: outboundMeta.command || "voice_message_ai",
+          issueLogId: outboundMeta.issueLogId || null,
+          issueCollection: outboundMeta.issueCollection || null,
+          logEntryId: outboundMeta.logEntryId || null,
+          logCategory: outboundMeta.logCategory || null,
+          classification: outboundMeta.classification || null,
+          reportDateKey: outboundMeta.reportDateKey || null,
+          reportType: outboundMeta.reportType || null,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        sendVoiceTwiml(res, (vr) => {
+          vr.say(safeReply);
+          vr.hangup();
+        });
+        return;
+      }
+
+      if (digits === "1") {
+        sendVoiceTwiml(res, (vr) => {
+          vr.say("Please leave your voice message after the tone. Press pound when you are done.");
+          vr.record({
+            action: recordActionUrl,
+            method: "POST",
+            maxLength: 120,
+            playBeep: true,
+            finishOnKey: "#",
+            trim: "do-not-trim",
+          });
+          vr.say("No recording was received. Goodbye.");
+          vr.hangup();
+        });
+        return;
+      }
+
       if (!speechResult) {
         sendVoiceTwiml(res, (vr) => {
           const gather = vr.gather({
-            input: "speech",
+            input: "speech dtmf",
             speechTimeout: "auto",
+            numDigits: 1,
             method: "POST",
             action: actionUrl,
           });
-          gather.say("Hi. This is your AI assistant. Tell me what you need.");
+          gather.say(
+            "Hi. This is your AI assistant. Tell me what you need, or press 1 to leave a recorded voice message."
+          );
           vr.say("I did not catch that. Please call again if needed.");
           vr.hangup();
         });

@@ -22,6 +22,13 @@ function guessExtension(contentType) {
   if (c.includes("gif")) return "gif";
   if (c.includes("webp")) return "webp";
   if (c.includes("heic")) return "heic";
+  if (c.includes("mpeg") || c.includes("mp3")) return "mp3";
+  if (c.includes("wav")) return "wav";
+  if (c.includes("ogg")) return "ogg";
+  if (c.includes("webm")) return "webm";
+  if (c.includes("mp4") || c.includes("m4a")) return "m4a";
+  if (c.includes("amr")) return "amr";
+  if (c.includes("3gpp")) return "3gp";
   return "bin";
 }
 
