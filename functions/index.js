@@ -34,7 +34,7 @@ const {
 } = require("./labourRepository");
 const { generateLabourReportPdf } = require("./labourReportPdf");
 const { maybeCaptionFirstMmsPhoto } = require("./mmsVisionCaption");
-const { registerUploadedMedia } = require("./mediaRepository");
+const { registerUploadedMedia, saveOneInboundMedia } = require("./mediaRepository");
 const {
   maybeEnhanceLogEntry,
   appendLinkedMediaIds,
@@ -112,6 +112,7 @@ const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
 const TWILIO_PHONE_NUMBER = defineSecret("TWILIO_PHONE_NUMBER");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const COL_VOICE_MESSAGE_QUEUE = "voiceMessageProcessingQueue";
+const COL_AUDIO_MESSAGE_QUEUE = "audioMessageProcessingQueue";
 
 /** "auto" enforces signature validation outside emulator/dev. */
 const ENFORCE_TWILIO_VALIDATE = defineString("ENFORCE_TWILIO_VALIDATE", {
@@ -778,6 +779,21 @@ function inferInboundAttachmentLabel(params, mediaCountEffective) {
   return "Media attachment";
 }
 
+function allInboundMediaAreAudio(params, mediaCountEffective) {
+  const count = Math.max(0, Number(mediaCountEffective) || 0);
+  if (!count) return false;
+  let seen = 0;
+  for (let i = 0; i < count; i += 1) {
+    const contentType = String(params[`MediaContentType${i}`] || "")
+      .trim()
+      .toLowerCase();
+    if (!contentType) continue;
+    seen += 1;
+    if (!contentType.startsWith("audio/")) return false;
+  }
+  return seen > 0;
+}
+
 function firstAudioMediaFromParams(params, mediaCountEffective) {
   const count = Math.max(0, Number(mediaCountEffective) || 0);
   for (let i = 0; i < count; i += 1) {
@@ -1397,6 +1413,210 @@ async function processVoiceMessageQueueDoc(snap, eventData = null) {
   }).catch(() => {});
 }
 
+async function processAudioMessageQueueDoc(snap) {
+  const d = snap.data() || {};
+  const queueRef = snap.ref;
+  const markQueue = async (patch) => {
+    await queueRef.set(
+      {
+        ...patch,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  };
+  if (d.status === "processed") return;
+
+  const from = normalizePhoneE164(String(d.from || "").trim()) || String(d.from || "").trim();
+  const to = normalizePhoneE164(String(d.to || "").trim()) || String(d.to || "").trim();
+  const inboundMessageId = String(d.inboundMessageId || "").trim();
+  const mediaUrl = String(d.mediaUrl || "").trim();
+  const mediaContentType = String(d.mediaContentType || "audio/mpeg").trim();
+  const mediaIndex = Math.max(0, Number(d.mediaIndex || 0) || 0);
+  const messageSid = String(d.messageSid || "").trim();
+  const rawCaption = String(d.rawCaption || "").trim();
+  const runId = d.runId || `audioq-${snap.id}`;
+
+  if (!from || !mediaUrl || !inboundMessageId) {
+    await markQueue({
+      status: "failed",
+      failedAt: FieldValue.serverTimestamp(),
+      lastError: "missing required audio queue fields",
+    }).catch(() => {});
+    return;
+  }
+
+  const inboundRef = db.collection("messages").doc(inboundMessageId);
+  const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+  const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+  const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+  const openaiKey = OPENAI_API_KEY.value();
+
+  await markQueue({
+    status: "processing",
+    processingStartedAt: FieldValue.serverTimestamp(),
+    attemptCount: Number(d.attemptCount || 0) + 1,
+  }).catch(() => {});
+
+  let audioTranscript = null;
+  try {
+    const buffer = await fetchTwilioMediaBuffer(mediaUrl, accountSid, authToken, {
+      logger,
+      runId,
+    });
+    if (buffer && buffer.length) {
+      const ext = guessExtension(mediaContentType || "audio/mpeg");
+      audioTranscript = await transcribeAudioBufferWithFallback({
+        buffer,
+        fileName: `voice-note-${mediaIndex}.${ext || "audio"}`,
+        contentType: mediaContentType || "audio/mpeg",
+        openaiKey,
+        logger,
+        runId,
+        contextLabel: "audioQueue",
+      });
+    }
+  } catch (err) {
+    logger.warn("audio queue: transcription fetch/transcribe failed", {
+      runId,
+      message: err.message,
+    });
+  }
+
+  const transcriptText = String(audioTranscript && audioTranscript.transcript || "").trim();
+  const transcriptionOk = Boolean(transcriptText);
+  const bodyText = transcriptionOk
+    ? transcriptText
+    : (rawCaption || "Audio message received but transcription failed");
+
+  await inboundRef.set({
+    body: bodyText,
+    audioTranscription: {
+      transcript: transcriptText || null,
+      mediaIndex,
+      contentType: mediaContentType || null,
+      model: (audioTranscript && audioTranscript.model) || null,
+      status: transcriptionOk ? "ok" : "failed",
+    },
+    mediaProcessingAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  let replyText = "";
+  let outboundMeta = {};
+  if (!transcriptionOk) {
+    replyText =
+      "I saved your audio note, but I could not transcribe it clearly. Please send a short text summary or try the voice note again with clearer audio.";
+    outboundMeta = {
+      aiUsed: false,
+      aiError: "audio_transcription_failed",
+      command: "audio_note_transcription_failed",
+    };
+  } else {
+    try {
+      const out = await buildReply({
+        db,
+        openaiApiKey: openaiKey,
+        logger,
+        runId,
+        from,
+        body: bodyText,
+        relatedMessageId: inboundMessageId,
+        numMedia: 1,
+        channel: "sms_audio_note",
+        models: { primary: OPENAI_MODEL_PRIMARY.value() },
+      });
+      replyText = out.replyText;
+      outboundMeta = out.outboundMeta || {};
+    } catch (handlerErr) {
+      logger.error("audio queue: buildReply failed", {
+        runId,
+        message: handlerErr.message,
+        stack: handlerErr.stack,
+      });
+      replyText = "I saved your audio note, but hit an error processing it.";
+      outboundMeta = {
+        aiUsed: false,
+        aiError: String(handlerErr.message || handlerErr),
+        command: "audio_note_exception",
+      };
+    }
+  }
+
+  let attachResult = null;
+  try {
+    attachResult = await saveOneInboundMedia({
+      db,
+      bucket: admin.storage().bucket(),
+      FieldValue,
+      accountSid,
+      authToken,
+      mediaUrl,
+      contentType: mediaContentType || (audioTranscript && audioTranscript.contentType) || "audio/mpeg",
+      mediaIndex,
+      messageSidTwilio: messageSid || "",
+      sourceMessageId: inboundMessageId,
+      senderPhone: from,
+      projectSlug: outboundMeta.projectSlug || null,
+      reportDateKey: outboundMeta.reportDateKey || null,
+      captionText: bodyText,
+      linkedLogEntryId: outboundMeta.logEntryId || null,
+      fileStem: "voice-note",
+      sourceLabel: "voice",
+      storageSource: "twilio_mms",
+      issueCollection: null,
+      issueId: null,
+      uploadedByPhone: from,
+      logger,
+      runId,
+    });
+  } catch (mediaErr) {
+    logger.error("audio queue: media save failed", {
+      runId,
+      message: mediaErr.message,
+      stack: mediaErr.stack,
+    });
+  }
+
+  await inboundRef.set({
+    projectSlug: outboundMeta.projectSlug || null,
+    command: outboundMeta.command || "audio_message",
+    aiUsed: Boolean(outboundMeta.aiUsed),
+    aiError: outboundMeta.aiError || null,
+    logEntryId: outboundMeta.logEntryId || null,
+    logCategory: outboundMeta.logCategory || null,
+    classification: outboundMeta.classification || null,
+    reportDateKey: outboundMeta.reportDateKey || null,
+    reportType: outboundMeta.reportType || null,
+    mediaIds: attachResult && attachResult.mediaId ? [attachResult.mediaId] : [],
+    mediaAttachedCount: attachResult ? 1 : 0,
+  }, { merge: true });
+
+  const safeReply = sanitizeVoiceText(replyText || "I saved your audio note.");
+  const smsFollowup = await sendVoiceFollowupSms({
+    phoneE164: from,
+    body: safeReply,
+    replyToInboundDocId: inboundMessageId,
+    projectSlug: outboundMeta.projectSlug || null,
+    command: outboundMeta.command || "audio_message_sms_followup",
+    accountSid,
+    authToken,
+    configuredFrom,
+    logger,
+    runId,
+  });
+
+  await markQueue({
+    status: "processed",
+    processedAt: FieldValue.serverTimestamp(),
+    transcriptionStatus: transcriptionOk ? "ok" : "failed",
+    logEntryId: outboundMeta.logEntryId || null,
+    projectSlug: outboundMeta.projectSlug || null,
+    smsFollowupSent: Boolean(smsFollowup.sent),
+    smsFollowupSid: smsFollowup.sid || null,
+    lastError: outboundMeta.aiError || null,
+  }).catch(() => {});
+}
+
 exports.deliverDailyPdfSms = onDocumentCreated(
   {
     document: "dailyPdfDeliveryQueue/{docId}",
@@ -1927,6 +2147,51 @@ exports.processVoiceMessageQueue = onDocumentCreated(
   }
 );
 
+exports.processAudioMessageQueue = onDocumentCreated(
+  {
+    document: `${COL_AUDIO_MESSAGE_QUEUE}/{docId}`,
+    region: "northamerica-northeast1",
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    retry: true,
+    secrets: [
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER,
+      OPENAI_API_KEY,
+    ],
+  },
+  async (event) => {
+    const docId = event.params && event.params.docId;
+    logger.info("processAudioMessageQueue: invoked", {
+      docId: docId || null,
+      hasEventData: Boolean(event.data),
+    });
+
+    let snap = null;
+    if (docId) {
+      try {
+        snap = await db.collection(COL_AUDIO_MESSAGE_QUEUE).doc(docId).get();
+      } catch (e) {
+        logger.error("processAudioMessageQueue: queue read failed", {
+          docId,
+          message: e.message,
+        });
+      }
+    }
+    if ((!snap || !snap.exists) && event.data && event.data.exists) {
+      snap = event.data;
+    }
+    if (!snap || !snap.exists) {
+      logger.error("processAudioMessageQueue: missing or empty document snapshot", {
+        docId: docId || null,
+      });
+      return;
+    }
+    await processAudioMessageQueueDoc(snap);
+  }
+);
+
 exports.inboundSms = onRequest(
   {
     region: "northamerica-northeast1",
@@ -2039,8 +2304,9 @@ exports.inboundSms = onRequest(
       if (!body.trim() && mediaCountEffective > 0) {
         body = inferInboundAttachmentLabel(params, mediaCountEffective);
       }
+      const allAudioMedia = allInboundMediaAreAudio(params, mediaCountEffective);
       let audioTranscript = null;
-      if (mediaCountEffective > 0) {
+      if (mediaCountEffective > 0 && !allAudioMedia) {
         audioTranscript = await transcribeInboundTwilioAudio({
           params,
           mediaCountEffective,
@@ -2201,6 +2467,76 @@ exports.inboundSms = onRequest(
           "inboundSms: OPENAI_API_KEY missing — still handling daily PDF request (deterministic)",
           { runId }
         );
+      }
+
+      if (openaiKey && mediaCountEffective > 0 && allAudioMedia) {
+        logger.info("inboundSms: audio MMS queued for background processing", {
+          runId,
+          from,
+          to,
+          messageSid,
+          mediaCountEffective,
+        });
+
+        const inboundRef = await db.collection("messages").add({
+          direction: "inbound",
+          from,
+          to,
+          body: String(params.Body || "").trim() || "Audio note received. Processing now.",
+          messageSid,
+          numMedia,
+          mediaCountEffective,
+          threadKey: from,
+          phoneE164: from,
+          channel: "sms",
+          schemaVersion: MESSAGE_SCHEMA_VERSION,
+          audioTranscription: {
+            transcript: null,
+            mediaIndex: 0,
+            contentType: String(params.MediaContentType0 || "").trim() || null,
+            model: null,
+            status: "queued",
+          },
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        const firstAudio = firstAudioMediaFromParams(params, mediaCountEffective);
+        await db.collection(COL_AUDIO_MESSAGE_QUEUE).add({
+          status: "queued",
+          from,
+          to,
+          messageSid: messageSid || null,
+          mediaUrl: firstAudio && firstAudio.mediaUrl ? firstAudio.mediaUrl : null,
+          mediaContentType: firstAudio && firstAudio.contentType ? firstAudio.contentType : null,
+          mediaIndex: firstAudio && Number.isFinite(firstAudio.mediaIndex) ? firstAudio.mediaIndex : 0,
+          inboundMessageId: inboundRef.id,
+          rawCaption: String(params.Body || "").trim() || "",
+          runId,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+
+        const ackText = "Received your audio note. Processing now and I'll text you back with the result.";
+        await db.collection("messages").add({
+          direction: "outbound",
+          from: configuredFrom,
+          to: from,
+          body: ackText,
+          messageSid: null,
+          delivery: "twiml_audio_queue_ack",
+          replyToInboundDocId: inboundRef.id,
+          threadKey: from,
+          phoneE164: from,
+          channel: "sms",
+          schemaVersion: MESSAGE_SCHEMA_VERSION,
+          aiUsed: false,
+          aiError: null,
+          command: "audio_message_queued",
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        sendTwiml(res, ackText);
+        return;
       }
 
       logger.info("inboundSms: parsed webhook", {
