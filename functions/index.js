@@ -1091,6 +1091,15 @@ function sendVoiceTwiml(res, builder) {
   res.status(200).send(vr.toString());
 }
 
+/** Twilio <Say> voice — neural TTS so callers hear a clear “AI” assistant, not silence. */
+const VOICE_ASSISTANT_TWIML_VOICE = "Polly.Joanna-Neural";
+
+function sayVoiceAssistant(verb, text) {
+  const body = sanitizeVoiceText(text);
+  if (!body) return;
+  verb.say({ voice: VOICE_ASSISTANT_TWIML_VOICE }, body);
+}
+
 function sanitizeVoiceText(text) {
   return String(text || "")
     .replace(/<[^>]+>/g, " ")
@@ -3166,13 +3175,24 @@ exports.inboundVoice = onRequest(
     try {
       if (req.method === "OPTIONS") {
         res.set("Access-Control-Allow-Origin", "*");
-        res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         res.set("Access-Control-Allow-Headers", "Content-Type");
         res.status(204).send("");
         return;
       }
+      if (req.method === "GET") {
+        res
+          .status(200)
+          .type("text/plain")
+          .send(
+            "OK: inboundVoice is live. In Twilio Console → Phone Numbers → your number → Voice configuration: " +
+              "set A CALL COMES IN to HTTP POST with this function URL (same host as your SMS webhook). " +
+              "When someone calls, they should hear the assistant speak first, then can talk or press 1 for voicemail."
+          );
+        return;
+      }
       if (req.method !== "POST") {
-        res.status(405).set("Allow", "POST, OPTIONS").send("Method Not Allowed");
+        res.status(405).set("Allow", "GET, POST, OPTIONS").send("Method Not Allowed");
         return;
       }
 
@@ -3182,7 +3202,7 @@ exports.inboundVoice = onRequest(
       const openaiKey = OPENAI_API_KEY.value();
       if (!accountSid || !authToken || !configuredFrom) {
         sendVoiceTwiml(res, (vr) => {
-          vr.say("Voice assistant is misconfigured. Please contact admin.");
+          sayVoiceAssistant(vr, "Voice assistant is misconfigured. Please contact admin.");
         });
         return;
       }
@@ -3214,7 +3234,7 @@ exports.inboundVoice = onRequest(
       const mode = String((req.query && req.query.mode) || "").trim().toLowerCase();
       if (!from) {
         sendVoiceTwiml(res, (vr) => {
-          vr.say("I could not read the caller number.");
+          sayVoiceAssistant(vr, "I could not read the caller number.");
           vr.hangup();
         });
         return;
@@ -3222,7 +3242,7 @@ exports.inboundVoice = onRequest(
 
       if (!openaiKey) {
         sendVoiceTwiml(res, (vr) => {
-          vr.say("Assistant is offline due to missing AI configuration.");
+          sayVoiceAssistant(vr, "Assistant is offline due to missing AI configuration.");
           vr.hangup();
         });
         return;
@@ -3267,7 +3287,10 @@ exports.inboundVoice = onRequest(
         });
 
         sendVoiceTwiml(res, (vr) => {
-          vr.say("I got your voice message and I am processing it now. I will text you back with the result.");
+          sayVoiceAssistant(
+            vr,
+            "I got your voice message and I am processing it now. I will text you back with the result."
+          );
           vr.hangup();
         });
         return;
@@ -3275,7 +3298,10 @@ exports.inboundVoice = onRequest(
 
       if (digits === "1") {
         sendVoiceTwiml(res, (vr) => {
-          vr.say("Please leave your voice message after the tone. Press pound when you are done.");
+          sayVoiceAssistant(
+            vr,
+            "Please leave your voice message after the tone. Press pound when you are done."
+          );
           vr.record({
             action: recordActionUrl,
             method: "POST",
@@ -3284,7 +3310,7 @@ exports.inboundVoice = onRequest(
             finishOnKey: "#",
             trim: "do-not-trim",
           });
-          vr.say("No recording was received. Goodbye.");
+          sayVoiceAssistant(vr, "No recording was received. Goodbye.");
           vr.hangup();
         });
         return;
@@ -3292,17 +3318,24 @@ exports.inboundVoice = onRequest(
 
       if (!speechResult) {
         sendVoiceTwiml(res, (vr) => {
+          sayVoiceAssistant(
+            vr,
+            "Hi, this is your Gridline construction assistant. I can help with site logs, journal notes, daily reports, or quick questions."
+          );
           const gather = vr.gather({
             input: "speech dtmf",
             speechTimeout: "auto",
+            speechModel: "phone_call",
+            enhanced: "true",
             numDigits: 1,
             method: "POST",
             action: actionUrl,
           });
-          gather.say(
-            "Hi. This is your AI assistant. Tell me what you need, or press 1 to leave a recorded voice message."
+          sayVoiceAssistant(
+            gather,
+            "Go ahead and speak after the tone. Or press 1 to leave a recorded voice message for the team."
           );
-          vr.say("I did not catch that. Please call again if needed.");
+          sayVoiceAssistant(vr, "I did not catch that. Please call again when you are ready.");
           vr.hangup();
         });
         return;
@@ -3373,20 +3406,22 @@ exports.inboundVoice = onRequest(
       });
 
       sendVoiceTwiml(res, (vr) => {
-        vr.say(safeReply);
+        sayVoiceAssistant(vr, safeReply);
         const gather = vr.gather({
           input: "speech",
           speechTimeout: "auto",
+          speechModel: "phone_call",
+          enhanced: "true",
           method: "POST",
           action: actionUrl,
         });
-        gather.say("You can keep talking, or hang up when done.");
+        sayVoiceAssistant(gather, "If you need anything else, speak now. Or hang up to end the call.");
       });
     } catch (error) {
       logger.error("inboundVoice: error", { runId, message: error.message, stack: error.stack });
       if (!res.headersSent) {
         sendVoiceTwiml(res, (vr) => {
-          vr.say("Temporary error on our side. Please try again.");
+          sayVoiceAssistant(vr, "Temporary error on our side. Please try again.");
           vr.hangup();
         });
       }
