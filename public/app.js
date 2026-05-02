@@ -2853,6 +2853,10 @@ function initDailyPdfFromDashboard() {
 
   if (!dateInput.value) dateInput.value = todayDateKeyEastern();
 
+  function isJournalReportSelected() {
+    return (reportTypeSelect.value || "dailySiteLog") === "journal";
+  }
+
   phoneSelect.addEventListener("change", () => {
     const user = findUserByPhone(phoneSelect.value);
     projectInput.value = user ? user.activeProjectSlug || "" : "";
@@ -2879,7 +2883,7 @@ function initDailyPdfFromDashboard() {
     if (!projectSlug && accessible.length === 1) {
       projectSlug = accessible[0];
     }
-    if (!projectSlug) {
+    if (!projectSlug && !isJournalReportSelected()) {
       output.textContent =
         "Enter or pick a project slug (datalist). Daily site logs need a project so all field data for that site is included.";
       output.className = "daily-pdf-result err";
@@ -2890,10 +2894,10 @@ function initDailyPdfFromDashboard() {
 
     const payload = {
       phoneE164,
-      projectSlug,
       reportType: reportTypeSelect.value || "dailySiteLog",
       reportDateKey: dateInput.value || todayDateKeyEastern(),
     };
+    if (projectSlug) payload.projectSlug = projectSlug;
     const token = tokenInput.value.trim();
     if (token) payload.token = token;
 

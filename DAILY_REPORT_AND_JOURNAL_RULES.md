@@ -45,7 +45,7 @@ The dashboard Reports view lets management users generate daily PDFs by selectin
 
 The frontend defaults the report date to today's `America/New_York` date.
 
-The frontend currently requires a project slug before it calls the backend, even when the selected type is `journal`. The backend itself can create a projectless personal journal for management users, but the dashboard UI blocks that path.
+The frontend allows a blank project slug for `journal` reports. When left blank, the backend can create a projectless personal journal for management users. `dailySiteLog` still requires a project.
 
 ### Dashboard callable
 
