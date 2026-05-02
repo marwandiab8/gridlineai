@@ -894,6 +894,7 @@ async function routeGenericInboundLog({
   logger,
   runId,
   phoneE164,
+  user = null,
   trimmedBody,
   relatedMessageId,
   numMedia,
@@ -998,7 +999,13 @@ async function routeGenericInboundLog({
   }
 
   const isJournal = payload.logType === "journal";
-  const saveProjectSlug = effectiveProjectSlug || null;
+  let saveProjectSlug = effectiveProjectSlug || null;
+  if (isJournal && !saveProjectSlug && user) {
+    const homeAccess = await getAssistantProjectAccess(db, phoneE164, "home", user);
+    if (homeAccess.exists && homeAccess.allowed && homeAccess.projectSlug) {
+      saveProjectSlug = normalizeProjectSlug(homeAccess.projectSlug) || "home";
+    }
+  }
   const logEntry = await writeLogEntry(db, FieldValue, {
     phoneE164,
     ...logAuthorFields,
@@ -2422,7 +2429,8 @@ async function buildReply({
   const historyMessages = rowsToOpenAIMessages(historyRows);
   const explicitAiRequest = looksLikeExplicitAiChatRequest(userMessageForAI);
   if (!explicitAiRequest) {
-    if (String(channel || "").trim().toLowerCase().startsWith("voice")) {
+    const channelNorm = String(channel || "").trim().toLowerCase();
+    if (channelNorm.startsWith("voice") || channelNorm === "sms_audio_note") {
       logger.info("assistant: voice fast-path log routing", {
         runId,
         channel,
