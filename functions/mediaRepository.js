@@ -110,23 +110,16 @@ async function saveOneInboundMedia({
       : dateKeyEastern(new Date());
   const sid = safePathSegment(messageSidTwilio || "no-sid");
   const requestedType = contentType || "application/octet-stream";
-  const ext = guessExtension(requestedType);
-  let fileName = `${safePathSegment(fileStem || "image")}-${mediaIndex}.${ext}`;
-  let storagePath = path.posix.join(
-    "projects",
-    safePathSegment(projectId),
-    "media",
-    dk,
-    sid,
-    fileName
-  );
 
   let buf;
+  let downloadedContentType = null;
   try {
-    buf = await fetchTwilioMediaBuffer(mediaUrl, accountSid, authToken, {
+    const fetched = await fetchTwilioMediaBuffer(mediaUrl, accountSid, authToken, {
       logger,
       runId,
     });
+    buf = fetched.buffer;
+    downloadedContentType = fetched.contentType || null;
   } catch (e) {
     const diag =
       e instanceof TwilioMediaFetchError && e.diagnostics
@@ -165,6 +158,23 @@ async function saveOneInboundMedia({
     return null;
   }
 
+  const effectiveType =
+    downloadedContentType &&
+    downloadedContentType !== "application/octet-stream" &&
+    !String(downloadedContentType).startsWith("text/")
+      ? downloadedContentType
+      : requestedType;
+  const ext = guessExtension(effectiveType);
+  let fileName = `${safePathSegment(fileStem || "image")}-${mediaIndex}.${ext}`;
+  let storagePath = path.posix.join(
+    "projects",
+    safePathSegment(projectId),
+    "media",
+    dk,
+    sid,
+    fileName
+  );
+
   if (!buf || !buf.length) {
     logger.warn("mediaRepository: empty buffer after download", {
       runId,
@@ -197,7 +207,7 @@ async function saveOneInboundMedia({
     return null;
   }
 
-  const optimized = await optimizeImageForStorage(buf, requestedType);
+  const optimized = await optimizeImageForStorage(buf, effectiveType);
   const finalContentType = optimized.contentType || requestedType;
   const finalExt = guessExtension(finalContentType);
   if (finalExt !== ext) {

@@ -10,7 +10,10 @@ test("saveOneInboundMedia stores backdated MMS under the intended report day", a
 
   const twilioFetch = require("./twilioMediaFetch");
   const originalFetch = twilioFetch.fetchTwilioMediaBuffer;
-  twilioFetch.fetchTwilioMediaBuffer = async () => Buffer.from("fake-image-bytes");
+  twilioFetch.fetchTwilioMediaBuffer = async () => ({
+    buffer: Buffer.from("fake-image-bytes"),
+    contentType: "image/jpeg",
+  });
 
   t.after(() => {
     twilioFetch.fetchTwilioMediaBuffer = originalFetch;

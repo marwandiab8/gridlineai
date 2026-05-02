@@ -819,6 +819,45 @@ function firstAudioMediaFromParams(params, mediaCountEffective) {
   return null;
 }
 
+function sniffAudioMimeFromBuffer(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+  const ascii4 = buffer.slice(0, 4).toString("ascii");
+  if (ascii4 === "RIFF" && buffer.slice(8, 12).toString("ascii") === "WAVE") return "audio/wav";
+  if (ascii4 === "OggS") return "audio/ogg";
+  if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) return "audio/mpeg";
+  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return "audio/webm";
+  if (buffer.slice(4, 8).toString("ascii") === "ftyp") {
+    const brand = buffer.slice(8, 12).toString("ascii");
+    if (/m4a|mp41|mp42|isom|iso2|M4A/i.test(brand)) return "audio/mp4";
+    if (/3gp|3g2|3G2|3GP/i.test(brand)) return "audio/3gpp";
+  }
+  const headUtf8 = buffer.slice(0, 8).toString("utf8");
+  if (headUtf8.startsWith("#!AMR") || headUtf8.startsWith("#!amr")) return "audio/amr";
+  return null;
+}
+
+function resolveTranscriptionAudioMime(buffer, httpContentType, declaredType) {
+  const sniffed = sniffAudioMimeFromBuffer(buffer);
+  const http = String(httpContentType || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  const declared = String(declaredType || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  const candidates = [sniffed, http, declared];
+  for (const c of candidates) {
+    if (!c) continue;
+    if (c.startsWith("text/")) continue;
+    if (c.startsWith("audio/")) return c;
+    if (c.startsWith("video/3gpp") || c.startsWith("video/3gpp2")) return c.replace(/^video\//, "audio/");
+  }
+  if (http === "application/octet-stream" && sniffed) return sniffed;
+  if (declared === "application/octet-stream" && sniffed) return sniffed;
+  return sniffed || (http && http !== "application/octet-stream" ? http : null) || declared || "audio/mpeg";
+}
+
 async function transcribeInboundTwilioAudio({
   params,
   mediaCountEffective,
@@ -832,17 +871,23 @@ async function transcribeInboundTwilioAudio({
   const audioMedia = firstAudioMediaFromParams(params, mediaCountEffective);
   if (!audioMedia) return null;
   try {
-    const buffer = await fetchTwilioMediaBuffer(audioMedia.mediaUrl, accountSid, authToken, {
-      logger,
-      runId,
-    });
+    const { buffer, contentType: downloadedCt } = await fetchTwilioMediaBuffer(
+      audioMedia.mediaUrl,
+      accountSid,
+      authToken,
+      {
+        logger,
+        runId,
+      }
+    );
     if (!buffer || !buffer.length) return null;
-    const ext = guessExtension(audioMedia.contentType || "audio/mpeg");
-    const fileName = `voice-note-${audioMedia.mediaIndex}.${ext || "audio"}`;
+    const resolvedMime = resolveTranscriptionAudioMime(buffer, downloadedCt, audioMedia.contentType);
+    const ext = guessExtension(resolvedMime);
+    const fileName = `voice-note-${audioMedia.mediaIndex}.${ext || "bin"}`;
     const tx = await transcribeAudioBufferWithFallback({
       buffer,
       fileName,
-      contentType: audioMedia.contentType || "audio/mpeg",
+      contentType: resolvedMime,
       openaiKey,
       logger,
       runId,
@@ -852,7 +897,7 @@ async function transcribeInboundTwilioAudio({
     return {
       transcript: tx.transcript,
       mediaIndex: audioMedia.mediaIndex,
-      contentType: audioMedia.contentType || null,
+      contentType: resolvedMime || null,
       model: tx.model || null,
     };
   } catch (err) {
@@ -875,17 +920,18 @@ async function transcribeTwilioRecording({
 }) {
   if (!openaiKey || !recordingUrl) return null;
   try {
-    const buffer = await fetchTwilioMediaBuffer(recordingUrl, accountSid, authToken, {
+    const { buffer, contentType: downloadedCt } = await fetchTwilioMediaBuffer(recordingUrl, accountSid, authToken, {
       logger,
       runId,
     });
     if (!buffer || !buffer.length) return null;
-    const ext = guessExtension(contentType || "audio/mpeg");
-    const fileName = `voice-message.${ext || "audio"}`;
+    const resolvedMime = resolveTranscriptionAudioMime(buffer, downloadedCt, contentType);
+    const ext = guessExtension(resolvedMime);
+    const fileName = `voice-message.${ext || "bin"}`;
     const tx = await transcribeAudioBufferWithFallback({
       buffer,
       fileName,
-      contentType: contentType || "audio/mpeg",
+      contentType: resolvedMime,
       openaiKey,
       logger,
       runId,
@@ -894,7 +940,7 @@ async function transcribeTwilioRecording({
     if (!tx || !tx.transcript) return null;
     return {
       transcript: tx.transcript,
-      contentType: contentType || "audio/mpeg",
+      contentType: resolvedMime,
       model: tx.model || null,
     };
   } catch (err) {
@@ -918,7 +964,7 @@ async function transcribeAudioBufferWithFallback({
   if (!openaiKey || !buffer || !buffer.length) return null;
   const FileCtor = globalThis.File || require("node:buffer").File;
   const client = new OpenAI({ apiKey: openaiKey });
-  const models = ["gpt-4o-mini-transcribe", "whisper-1"];
+  const models = ["whisper-1", "gpt-4o-mini-transcribe"];
   let lastError = null;
   for (const model of models) {
     try {
@@ -1478,17 +1524,19 @@ async function processAudioMessageQueueDoc(snap) {
   }).catch(() => {});
 
   let audioTranscript = null;
+  let resolvedMimeForLog = null;
   try {
-    const buffer = await fetchTwilioMediaBuffer(mediaUrl, accountSid, authToken, {
+    const { buffer, contentType: downloadedCt } = await fetchTwilioMediaBuffer(mediaUrl, accountSid, authToken, {
       logger,
       runId,
     });
     if (buffer && buffer.length) {
-      const ext = guessExtension(mediaContentType || "audio/mpeg");
+      resolvedMimeForLog = resolveTranscriptionAudioMime(buffer, downloadedCt, mediaContentType);
+      const ext = guessExtension(resolvedMimeForLog);
       audioTranscript = await transcribeAudioBufferWithFallback({
         buffer,
-        fileName: `voice-note-${mediaIndex}.${ext || "audio"}`,
-        contentType: mediaContentType || "audio/mpeg",
+        fileName: `voice-note-${mediaIndex}.${ext || "bin"}`,
+        contentType: resolvedMimeForLog,
         openaiKey,
         logger,
         runId,
@@ -1513,7 +1561,7 @@ async function processAudioMessageQueueDoc(snap) {
     audioTranscription: {
       transcript: transcriptText || null,
       mediaIndex,
-      contentType: mediaContentType || null,
+      contentType: resolvedMimeForLog || mediaContentType || null,
       model: (audioTranscript && audioTranscript.model) || null,
       status: transcriptionOk ? "ok" : "failed",
     },
@@ -1570,7 +1618,7 @@ async function processAudioMessageQueueDoc(snap) {
       accountSid,
       authToken,
       mediaUrl,
-      contentType: mediaContentType || (audioTranscript && audioTranscript.contentType) || "audio/mpeg",
+      contentType: resolvedMimeForLog || mediaContentType || "audio/mpeg",
       mediaIndex,
       messageSidTwilio: messageSid || "",
       sourceMessageId: inboundMessageId,

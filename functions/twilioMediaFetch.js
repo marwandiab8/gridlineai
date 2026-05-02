@@ -26,9 +26,9 @@ function guessExtension(contentType) {
   if (c.includes("wav")) return "wav";
   if (c.includes("ogg")) return "ogg";
   if (c.includes("webm")) return "webm";
-  if (c.includes("mp4") || c.includes("m4a")) return "m4a";
+  if (c.includes("mp4") || c.includes("m4a") || c.includes("x-m4a") || c.includes("aac")) return "m4a";
   if (c.includes("amr")) return "amr";
-  if (c.includes("3gpp")) return "3gp";
+  if (c.includes("3gpp") || c.includes("3gp")) return "3gp";
   return "bin";
 }
 
@@ -232,7 +232,7 @@ async function getBinaryWithRedirects(
  * @param {string} configuredAccountSid
  * @param {string} authToken
  * @param {{ logger?: object, runId?: string }} [opts]
- * @returns {Promise<Buffer>}
+ * @returns {Promise<{ buffer: Buffer, contentType: string | null }>}
  */
 async function fetchTwilioMediaBuffer(
   mediaUrl,
@@ -300,7 +300,11 @@ async function fetchTwilioMediaBuffer(
       authHeader,
       { logger, runId }
     );
-    return out.buffer;
+    const contentType =
+      out && out.contentType && String(out.contentType).trim()
+        ? String(out.contentType).split(";")[0].trim().toLowerCase()
+        : null;
+    return { buffer: out.buffer, contentType };
   } catch (e) {
     if (e instanceof TwilioMediaFetchError) {
       throw new TwilioMediaFetchError(e.message, {
