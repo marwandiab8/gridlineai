@@ -81,6 +81,8 @@ const {
 
 const COL_APP_MEMBERS = "appMembers";
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
+const COL_PROJECT_TODOS = "projectTodos";
+const TODO_STATUSES = new Set(["open", "inprogress", "completed"]);
 
 const OPENAI_MODEL_PRIMARY = defineString("OPENAI_MODEL_PRIMARY", {
   default: "gpt-5.2-chat-latest",
@@ -93,6 +95,18 @@ const DAILY_PDF_DASHBOARD_TOKEN = defineString("DAILY_PDF_DASHBOARD_TOKEN", {
 
 /** Every message doc from this function includes this — if missing in Firestore, Twilio is not hitting this deployment. */
 const MESSAGE_SCHEMA_VERSION = 3;
+
+function normalizeTodoStatus(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return TODO_STATUSES.has(raw) ? raw : "";
+}
+
+function normalizeTodoText(value, maxLength = 500) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
 
 /** Prefer runtime FIREBASE_CONFIG; fallback matches `public/app.js` storageBucket. */
 let storageBucket = "gridlineai.firebasestorage.app";
@@ -4476,6 +4490,110 @@ exports.deleteLabourerCallable = onCall(
     await ref.delete();
 
     return { ok: true, phoneE164 };
+  }
+);
+
+exports.updateProjectTodoCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const todoId = String(request.data?.todoId || "").trim();
+    const status = normalizeTodoStatus(request.data?.status);
+    const subTodoId = String(request.data?.subTodoId || "").trim();
+    if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
+    if (!status) throw new HttpsError("invalid-argument", "status must be open, inprogress, or completed.");
+
+    const todoRef = db.collection(COL_PROJECT_TODOS).doc(todoId);
+    const todoSnap = await todoRef.get();
+    if (!todoSnap.exists) throw new HttpsError("not-found", "Todo item not found.");
+    const todoData = todoSnap.data() || {};
+    const projectSlug = normalizeProjectSlug(String(todoData.projectSlug || "").trim());
+    if (!projectSlug || !canAccessProject(operator, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot update this todo item.");
+    }
+
+    const updates = {
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedByEmail: operator.email || null,
+    };
+    if (subTodoId) {
+      const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
+      const nextSubTodos = currentSubTodos.map((item) => {
+        if (String(item?.id || "").trim() !== subTodoId) return item;
+        return {
+          ...item,
+          status,
+          updatedAt: new Date().toISOString(),
+          updatedByEmail: operator.email || null,
+        };
+      });
+      if (!nextSubTodos.some((item) => String(item?.id || "").trim() === subTodoId)) {
+        throw new HttpsError("not-found", "Sub-todo item not found.");
+      }
+      updates.subTodos = nextSubTodos;
+    } else {
+      updates.status = status;
+      if (status === "completed") {
+        updates.completedAt = FieldValue.serverTimestamp();
+        updates.completedByEmail = operator.email || null;
+      } else {
+        updates.completedAt = FieldValue.delete();
+        updates.completedByEmail = FieldValue.delete();
+      }
+    }
+
+    await todoRef.set(updates, { merge: true });
+    return { ok: true, todoId, subTodoId: subTodoId || null, status };
+  }
+);
+
+exports.addProjectSubTodoCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const todoId = String(request.data?.todoId || "").trim();
+    const text = normalizeTodoText(request.data?.text || "", 300);
+    if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
+    if (!text) throw new HttpsError("invalid-argument", "Sub-todo text is required.");
+
+    const todoRef = db.collection(COL_PROJECT_TODOS).doc(todoId);
+    const todoSnap = await todoRef.get();
+    if (!todoSnap.exists) throw new HttpsError("not-found", "Todo item not found.");
+    const todoData = todoSnap.data() || {};
+    const projectSlug = normalizeProjectSlug(String(todoData.projectSlug || "").trim());
+    if (!projectSlug || !canAccessProject(operator, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot update this todo item.");
+    }
+
+    const subTodo = {
+      id: db.collection("_").doc().id,
+      text,
+      status: "open",
+      createdAt: new Date().toISOString(),
+      createdByEmail: operator.email || null,
+      createdByName: String(operator.memberData?.displayName || operator.email || "").trim() || null,
+    };
+    const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
+    await todoRef.set(
+      {
+        subTodos: [...currentSubTodos, subTodo],
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedByEmail: operator.email || null,
+      },
+      { merge: true }
+    );
+
+    return { ok: true, todoId, subTodo };
   }
 );
 

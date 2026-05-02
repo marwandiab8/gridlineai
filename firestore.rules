@@ -247,6 +247,10 @@ service cloud.firestore {
       allow read: if isManagementApp();
       allow write: if false;
     }
+    match /projectTodos/{todoId} {
+      allow read: if isManagementApp();
+      allow write: if false;
+    }
     match /media/{mediaId} {
       allow read: if isAdminFast() ||
         (

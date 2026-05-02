@@ -10,6 +10,7 @@ const COL_PROJECTS = "projects";
 const COL_ADMIN = "adminSettings";
 const COL_ISSUES = "issueLogs";
 const COL_SUMMARIES = "summaries";
+const COL_PROJECT_TODOS = "projectTodos";
 
 const { createSmsIssue, makeTitleFromBody } = require("./issueRepository");
 const { getModels } = require("./aiConfig");
@@ -70,6 +71,7 @@ const HISTORY_LIMIT = 18;
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 40;
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
+const HOME_TODO_PROJECT_SLUG = "home";
 
 const rateBuckets = new Map();
 
@@ -508,6 +510,44 @@ function parseProjectNotesUpdateCommand(text) {
     .trim()
     .slice(0, 8000);
   return proposedNotes ? { proposedNotes } : null;
+}
+
+function parseHomeTodoCommand(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+  const match = raw.match(/^xxx\b[\s:,-]*([\s\S]*)$/i);
+  if (!match) return null;
+  const body = String(match[1] || "").replace(/\s+/g, " ").trim();
+  if (!body) {
+    return {
+      error: 'After "xxx", add the task text. Example: xxx fix the garage door by next week',
+    };
+  }
+  let dueWindow = null;
+  let dueLabel = null;
+  if (/\b(?:by|within|in)\s+next\s+week\b|\bin\s+the\s+next\s+week\b/i.test(body)) {
+    dueWindow = "next_week";
+    dueLabel = "next week";
+  } else if (/\b(?:by|within|in)\s+next\s+month\b|\bin\s+the\s+next\s+month\b/i.test(body)) {
+    dueWindow = "next_month";
+    dueLabel = "next month";
+  }
+  const cleanedTask = body
+    .replace(/\b(?:by|within|in)\s+next\s+week\b/gi, "")
+    .replace(/\bin\s+the\s+next\s+week\b/gi, "")
+    .replace(/\b(?:by|within|in)\s+next\s+month\b/gi, "")
+    .replace(/\bin\s+the\s+next\s+month\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/[,:;.\-]+$/g, "")
+    .trim();
+  const taskText = cleanedTask || body;
+  return {
+    projectSlug: HOME_TODO_PROJECT_SLUG,
+    taskText: taskText.slice(0, 500),
+    dueWindow,
+    dueLabel,
+    rawText: body.slice(0, 1000),
+  };
 }
 
 function parseLabourEntryCommand(text) {
@@ -2153,6 +2193,79 @@ async function buildReply({
     };
   }
 
+  const homeTodoCommand = parseHomeTodoCommand(userMessageForAI);
+  if (homeTodoCommand) {
+    if (homeTodoCommand.error) {
+      return {
+        replyText: homeTodoCommand.error,
+        outboundMeta: { ...outboundMeta, command: "home_todo_invalid" },
+      };
+    }
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can add home todo items. Ask admin to approve this phone in Team.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "home_todo_forbidden",
+          projectSlug: HOME_TODO_PROJECT_SLUG,
+        },
+      };
+    }
+    if (!canAccessProject(currentMemberAccess, HOME_TODO_PROJECT_SLUG)) {
+      return {
+        replyText: `This phone can’t add todo items for ${HOME_TODO_PROJECT_SLUG}.`,
+        outboundMeta: {
+          ...outboundMeta,
+          command: "home_todo_project_forbidden",
+          projectSlug: HOME_TODO_PROJECT_SLUG,
+        },
+      };
+    }
+    const todoRef = db.collection(COL_PROJECT_TODOS).doc();
+    await todoRef.set({
+      projectSlug: HOME_TODO_PROJECT_SLUG,
+      scope: "project",
+      visibility: "management",
+      status: "open",
+      taskText: homeTodoCommand.taskText,
+      sourceText: homeTodoCommand.rawText,
+      dueWindow: homeTodoCommand.dueWindow || null,
+      dueLabel: homeTodoCommand.dueLabel || null,
+      createdByPhone: phoneE164,
+      createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
+      createdByName:
+        String(currentMemberAccess.memberData?.displayName || logAuthorFields.authorName || phoneE164).trim() ||
+        phoneE164,
+      source: "sms",
+      sourceMessageId: relatedMessageId || null,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    return {
+      replyText: truncateSms(
+        `Saved home todo: ${homeTodoCommand.taskText}${
+          homeTodoCommand.dueLabel ? ` (${homeTodoCommand.dueLabel})` : ""
+        }.`
+      ),
+      outboundMeta: withRoutingDecision(
+        {
+          ...outboundMeta,
+          command: "home_todo_saved",
+          projectSlug: HOME_TODO_PROJECT_SLUG,
+        },
+        {
+          stage: "deterministic",
+          action: "create_todo",
+          confidence: 0.99,
+          reason: 'Matched "xxx" home todo command.',
+          source: "deterministic",
+          matchedBy: "parseHomeTodoCommand",
+        }
+      ),
+    };
+  }
+
   const notesUpdate = parseProjectNotesUpdateCommand(userMessageForAI);
   if (notesUpdate) {
     if (!effectiveProjectSlug) {
@@ -2861,6 +2974,7 @@ module.exports = {
   sanitizeIntentPayload,
   sanitizeRoutePayload,
   parseStartTimerCommand,
+  parseHomeTodoCommand,
   isStopTimerCommand,
   formatDurationFromMs,
   parseNotificationRequest,
@@ -2880,4 +2994,5 @@ module.exports = {
   COL_ADMIN,
   COL_ISSUES,
   COL_SUMMARIES,
+  COL_PROJECT_TODOS,
 };

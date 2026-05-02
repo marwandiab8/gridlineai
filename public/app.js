@@ -437,6 +437,7 @@ const summariesEl = document.getElementById("summaries");
 const dailyReportsEl = document.getElementById("dailyReports");
 const logEntriesEl = document.getElementById("logEntries");
 const mediaEl = document.getElementById("media");
+const homeTodosEl = document.getElementById("homeTodos");
 const appMembersEl = document.getElementById("appMembers");
 const projectNoteEditRequestsEl = document.getElementById("projectNoteEditRequests");
 const mediaViewerBackdropEl = document.getElementById("mediaViewerBackdrop");
@@ -479,6 +480,7 @@ let issueLogsCache = [];
 let summariesCache = [];
 let dailyReportsCache = [];
 let mediaCache = [];
+let homeTodosCache = [];
 let logEntriesCache = [];
 let projectNoteRequestsCache = [];
 let labourersCache = [];
@@ -682,6 +684,87 @@ function refreshDailyPdfProjectOptions(user) {
 
 function placeholderMiniList(message) {
   return `<div class="mini-item empty">${esc(message)}</div>`;
+}
+
+function formatTodoStatusLabel(status) {
+  const raw = String(status || "open").trim().toLowerCase();
+  if (raw === "inprogress") return "In Progress";
+  if (raw === "completed") return "Completed";
+  return "Open";
+}
+
+function renderTodoStatusOptions(currentStatus) {
+  const selected = String(currentStatus || "open").trim().toLowerCase();
+  return ["open", "inprogress", "completed"]
+    .map((status) => `<option value="${status}"${selected === status ? " selected" : ""}>${esc(formatTodoStatusLabel(status))}</option>`)
+    .join("");
+}
+
+function renderHomeTodos() {
+  if (!homeTodosEl) return;
+  if (!homeTodosCache.length) {
+    homeTodosEl.innerHTML =
+      '<div class="row-item muted">No home todo items yet. Text <code>xxx fix the garage door by next week</code> to create one.</div>';
+    return;
+  }
+  homeTodosEl.innerHTML = homeTodosCache
+    .map((todo) => {
+      const status = String(todo.status || "open").trim() || "open";
+      const due = String(todo.dueLabel || "").trim();
+      const createdBy = String(todo.createdByName || todo.createdByPhone || "-").trim();
+      const subTodos = Array.isArray(todo.subTodos) ? todo.subTodos : [];
+      return `
+        <div class="row-item">
+          <div class="project-manager-actions" style="align-items:center; justify-content:space-between; gap:12px;">
+            <div>
+              <span class="pill pill-user">${esc(formatTodoStatusLabel(status))}</span>
+            </div>
+            <label class="muted small">
+              Stage
+              <select data-home-todo-status="${esc(todo.id)}" class="project-manager-select" style="min-width:140px;">
+                ${renderTodoStatusOptions(status)}
+              </select>
+            </label>
+          </div>
+          <div><strong>${esc(todo.taskText || "")}</strong></div>
+          <div class="muted small">${esc(todo.projectSlug || "home")} · ${due ? `due ${esc(due)} · ` : ""}${fmtTime(todo.createdAt)}</div>
+          <div class="muted small">by ${esc(createdBy)}</div>
+          <div class="mini-list" style="margin-top:10px;">
+            ${
+              subTodos.length
+                ? subTodos
+                    .map((subTodo) => {
+                      const subStatus = String(subTodo?.status || "open").trim().toLowerCase();
+                      return `
+                        <div class="mini-item">
+                          <div class="project-manager-actions" style="align-items:center; justify-content:space-between; gap:12px;">
+                            <div>${esc(subTodo?.text || "")}</div>
+                            <label class="muted small">
+                              Stage
+                              <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:140px;">
+                                ${renderTodoStatusOptions(subStatus)}
+                              </select>
+                            </label>
+                          </div>
+                        </div>`;
+                    })
+                    .join("")
+                : '<div class="mini-item empty">No sub-todos yet.</div>'
+            }
+          </div>
+          <div class="project-manager-actions" style="margin-top:10px;">
+            <input
+              type="text"
+              class="project-manager-input"
+              data-home-subtodo-input="${esc(todo.id)}"
+              placeholder="Add sub-todo"
+              maxlength="300"
+            />
+            <button type="button" class="btn-secondary" data-home-subtodo-add="${esc(todo.id)}">Add sub-todo</button>
+          </div>
+        </div>`;
+    })
+    .join("");
 }
 
 function renderDashboard() {
@@ -2197,6 +2280,11 @@ function startAdminListeners() {
         ? '<div class="row-item muted small">Loading project media...</div>'
         : '<div class="row-item muted small">Admin-only section.</div>';
     }
+    if (homeTodosEl) {
+      homeTodosEl.innerHTML = isManagement
+        ? '<div class="row-item muted small">Loading home todo items...</div>'
+        : '<div class="row-item muted small">Management-only section.</div>';
+    }
     if (logEntriesEl) logEntriesEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
     if (appMembersEl) appMembersEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
   }
@@ -2368,6 +2456,34 @@ function startAdminListeners() {
       mediaCache = [];
       renderMediaPanel();
     }
+  }
+
+  if (isManagement) {
+    appUnsubscribers.push(
+      onSnapshot(
+        query(
+          collection(db, "projectTodos"),
+          orderBy("createdAt", "desc"),
+          limit(100)
+        ),
+        (snap) => {
+          setStatusOk();
+          homeTodosCache = snap.docs
+            .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+            .filter((todo) => normalizeProjectSlugClient(todo.projectSlug) === "home");
+          renderHomeTodos();
+        },
+        (err) => {
+          const message = `projectTodos: ${err.message}`;
+          setStatusError(message);
+          homeTodosCache = [];
+          if (homeTodosEl) homeTodosEl.innerHTML = `<div class="row-item muted small">${esc(message)}</div>`;
+        }
+      )
+    );
+  } else {
+    homeTodosCache = [];
+    if (homeTodosEl) homeTodosEl.innerHTML = '<div class="row-item muted small">Management-only section.</div>';
   }
 
   if (isManagement) {

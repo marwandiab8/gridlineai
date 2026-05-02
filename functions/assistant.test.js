@@ -14,6 +14,7 @@ const {
   looksLikeExplicitAiChatRequest,
   looksLikeNarrativeSaveCandidate,
   parseNotificationRequest,
+  parseHomeTodoCommand,
   parseStartTimerCommand,
   sanitizeIntentPayload,
   sanitizeRoutePayload,
@@ -166,6 +167,39 @@ test("parseNotificationRequest reads management and project audiences", () => {
       audience: "project_users",
       messageBody: "pour is delayed",
       projectSlug: "home-site",
+    }
+  );
+});
+
+test('parseHomeTodoCommand extracts case-insensitive "xxx" home todos', () => {
+  assert.deepEqual(
+    parseHomeTodoCommand("xxX fix the garage door by next week"),
+    {
+      projectSlug: "home",
+      taskText: "fix the garage door",
+      dueWindow: "next_week",
+      dueLabel: "next week",
+      rawText: "fix the garage door by next week",
+    }
+  );
+  assert.deepEqual(
+    parseHomeTodoCommand("XXX fix the garage door in the next month"),
+    {
+      projectSlug: "home",
+      taskText: "fix the garage door",
+      dueWindow: "next_month",
+      dueLabel: "next month",
+      rawText: "fix the garage door in the next month",
+    }
+  );
+  assert.deepEqual(
+    parseHomeTodoCommand("xxx fix the garage door"),
+    {
+      projectSlug: "home",
+      taskText: "fix the garage door",
+      dueWindow: null,
+      dueLabel: null,
+      rawText: "fix the garage door",
     }
   );
 });
