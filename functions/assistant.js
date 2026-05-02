@@ -297,6 +297,9 @@ function looksLikeExplicitAiChatRequest(text) {
   ) {
     return true;
   }
+  if (["schedule", "today", "safety", "report", "issue"].includes(lower)) {
+    return true;
+  }
   if (/\b(advice|suggestion|recommend|brainstorm|analyze|analysis)\b/i.test(raw)) {
     return true;
   }
@@ -2416,32 +2419,40 @@ async function buildReply({
     }
   }
   const historyMessages = rowsToOpenAIMessages(historyRows);
-
-  // Journal-first behavior: personal diary-style updates auto-save unless the user is explicitly asking AI.
-  let autoJournalLogEntryId = null;
-  if (!looksLikeExplicitAiChatRequest(userMessageForAI)) {
-    const journalText = String(userMessageForAI || "").trim();
-    if (journalText) {
-      try {
-        const journal = await writeLogEntry(db, FieldValue, {
-          phoneE164,
-          ...logAuthorFields,
-          // Keep journal updates project-scoped when an active project exists (e.g. shared "home" journal).
-          projectSlug: effectiveProjectSlug || null,
-          rawText: journalText,
-          normalizedText: journalText,
-          category: "journal",
-          subtype: "personal_diary",
-          tags: inferJournalTags(journalText),
-          sourceMessageId: relatedMessageId || null,
-        });
-        autoJournalLogEntryId = journal.logEntryId;
-      } catch (journalErr) {
-        logger.warn("assistant: auto journal save failed", {
-          runId,
-          message: journalErr.message,
-        });
-      }
+  const explicitAiRequest = looksLikeExplicitAiChatRequest(userMessageForAI);
+  if (!explicitAiRequest) {
+    const genericIntent = await classifyGenericInboundIntent({
+      openaiApiKey,
+      logger,
+      runId,
+      historyMessages,
+      trimmedBody: userMessageForAI,
+      modelsOverride,
+    });
+    if (genericIntent.intent !== "request") {
+      logger.info("assistant: generic inbound routed", {
+        runId,
+        intent: genericIntent.intent,
+        confidence: genericIntent.confidence,
+        reason: genericIntent.reason || null,
+      });
+      return routeGenericInboundLog({
+        db,
+        openaiApiKey,
+        logger,
+        runId,
+        phoneE164,
+        user,
+        trimmedBody,
+        userMessageForAI,
+        relatedMessageId,
+        numMedia,
+        effectiveProjectSlug,
+        effectiveProjectName,
+        logAuthorFields,
+        modelsOverride,
+        outboundMeta,
+      });
     }
   }
 
@@ -2509,9 +2520,9 @@ async function buildReply({
       outboundMeta: {
         ...outboundMeta,
         aiUsed: true,
-        command: autoJournalLogEntryId ? "journal_auto_saved_ai" : "ai",
-        logEntryId: autoJournalLogEntryId || outboundMeta.logEntryId || null,
-        logCategory: autoJournalLogEntryId ? "journal" : outboundMeta.logCategory || null,
+        command: "ai",
+        logEntryId: outboundMeta.logEntryId || null,
+        logCategory: outboundMeta.logCategory || null,
       },
     };
   } catch (e) {

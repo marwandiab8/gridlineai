@@ -89,6 +89,12 @@ test("journal auto-save heuristic distinguishes questions from diary updates", (
   assert.equal(looksLikeExplicitAiChatRequest("Today I feel tired and plan to slow down a bit"), false);
 });
 
+test("single-word field prompts stay on the AI request path", () => {
+  assert.equal(looksLikeExplicitAiChatRequest("safety"), true);
+  assert.equal(looksLikeExplicitAiChatRequest("report"), true);
+  assert.equal(looksLikeExplicitAiChatRequest("today"), true);
+});
+
 test("inferJournalTags captures feeling and plan cues", () => {
   const tags = inferJournalTags("I feel stressed today but I plan to work on framing and cleanup.");
   assert.ok(tags.includes("journal"));
