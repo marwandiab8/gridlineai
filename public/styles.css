@@ -1301,7 +1301,20 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
-  margin-bottom: 14px;
+}
+
+.todo-summary-strip {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.todo-summary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .todo-summary-card {
@@ -1641,8 +1654,8 @@ body {
 }
 
 .app-shell[data-active-view="todo"] #homeTodos {
-  min-height: calc(100vh - 280px);
-  max-height: calc(100vh - 180px);
+  min-height: calc(100vh - 240px);
+  max-height: calc(100vh - 150px);
   overflow: auto;
   resize: both;
   padding-right: 6px;
@@ -1655,6 +1668,14 @@ body {
   z-index: 2;
   background: linear-gradient(180deg, rgba(11, 16, 23, 0.98), rgba(11, 16, 23, 0.88));
   padding-bottom: 8px;
+}
+
+.app-shell[data-active-view="todo"] .todo-summary-strip {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding-bottom: 10px;
+  background: linear-gradient(180deg, rgba(11, 16, 23, 0.98), rgba(11, 16, 23, 0.9));
 }
 
 @media (max-width: 980px) {

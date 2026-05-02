@@ -494,6 +494,7 @@ let mediaViewerIndex = -1;
 let currentAppAccess = null;
 let expandedHomeTodoIds = new Set();
 let expandedHomeSubTodoKeys = new Set();
+let showCompletedHomeTodos = false;
 
 function setStatusOk(detail = "") {
   if (statusEl) statusEl.textContent = "Connected";
@@ -833,7 +834,11 @@ function renderHomeTodos() {
     },
     { total: 0, open: 0, inprogress: 0, completed: 0, subTodos: 0 }
   );
-  const todoCards = homeTodosCache
+  const visibleTodos = showCompletedHomeTodos
+    ? homeTodosCache
+    : homeTodosCache.filter((todo) => String(todo.status || "").trim().toLowerCase() !== "completed");
+  const hiddenCompletedCount = showCompletedHomeTodos ? 0 : totals.completed;
+  const todoCards = visibleTodos
     .map((todo, index) => {
       const status = String(todo.status || "open").trim() || "open";
       const due = String(todo.dueLabel || "").trim();
@@ -1075,16 +1080,38 @@ function renderHomeTodos() {
         </article>`;
     })
     .join("");
+  const listMarkup = todoCards
+    ? `<div class="todo-list">${todoCards}</div>`
+    : `<div class="row-item muted">${
+        hiddenCompletedCount
+          ? "Completed todos are hidden. Click Show completed to see them."
+          : "No todos match the current view."
+      }</div>`;
   homeTodosEl.innerHTML = `
-    <div class="todo-summary-grid">
+    <div class="todo-summary-strip">
+      <div class="todo-summary-grid">
       <div class="todo-summary-card"><span class="todo-summary-label">Total tasks</span><strong class="todo-summary-value">${totals.total}</strong></div>
       <div class="todo-summary-card"><span class="todo-summary-label">Open</span><strong class="todo-summary-value">${totals.open}</strong></div>
       <div class="todo-summary-card"><span class="todo-summary-label">In progress</span><strong class="todo-summary-value">${totals.inprogress}</strong></div>
       <div class="todo-summary-card"><span class="todo-summary-label">Completed</span><strong class="todo-summary-value">${totals.completed}</strong></div>
       <div class="todo-summary-card"><span class="todo-summary-label">Sub-tasks</span><strong class="todo-summary-value">${totals.subTodos}</strong></div>
+      </div>
+      <div class="todo-summary-actions">
+        <button type="button" class="btn-secondary" id="toggleCompletedTodosBtn">
+          ${showCompletedHomeTodos ? "Hide completed" : `Show completed (${totals.completed})`}
+        </button>
+        <div class="muted small">${hiddenCompletedCount ? `${hiddenCompletedCount} completed hidden` : "Completed tasks visible"}</div>
+      </div>
     </div>
-    <div class="todo-list">${todoCards}</div>
+    ${listMarkup}
   `;
+  const toggleBtn = document.getElementById("toggleCompletedTodosBtn");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      showCompletedHomeTodos = !showCompletedHomeTodos;
+      renderHomeTodos();
+    });
+  }
 }
 
 function renderDashboard() {
