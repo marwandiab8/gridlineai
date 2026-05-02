@@ -1517,60 +1517,165 @@ body {
 }
 
 .app-shell[data-active-view="todo"] {
-  max-width: 1440px;
-  padding-top: 14px;
+  max-width: none;
+  width: min(100%, 1720px);
+  padding-top: 10px;
 }
 
 .app-shell[data-active-view="todo"] .shell-header {
-  margin-bottom: 12px;
-  gap: 14px;
+  margin-bottom: 8px;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: nowrap;
 }
 
 .app-shell[data-active-view="todo"] .shell-brand {
-  gap: 12px;
-  margin-bottom: 4px;
+  gap: 10px;
+  margin-bottom: 0;
 }
 
 .app-shell[data-active-view="todo"] .shell-brand-logo {
-  width: 52px;
+  width: 34px;
 }
 
 .app-shell[data-active-view="todo"] .shell-header h1 {
-  font-size: clamp(1.3rem, 2.4vw, 1.9rem);
-  margin-bottom: 6px;
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
+  margin-bottom: 0;
+}
+
+.app-shell[data-active-view="todo"] .shell-brand-text .eyebrow {
+  margin: 0 0 2px;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+}
+
+.app-shell[data-active-view="todo"] .shell-header-copy {
+  max-width: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .app-shell[data-active-view="todo"] .shell-header-copy p:last-child {
-  font-size: 0.9rem;
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-shell[data-active-view="todo"] .status-chip,
 .app-shell[data-active-view="todo"] .user-chip {
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
 }
 
 .app-shell[data-active-view="todo"] .page-nav {
-  margin-bottom: 14px;
-  padding: 8px;
+  margin-bottom: 10px;
+  padding: 6px;
 }
 
 .app-shell[data-active-view="todo"] .page-header {
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+  margin-bottom: 2px;
 }
 
 .app-shell[data-active-view="todo"] .page-header .eyebrow {
-  margin-bottom: 6px;
+  margin-bottom: 2px;
+  font-size: 0.68rem;
 }
 
 .app-shell[data-active-view="todo"] .page-header h2 {
-  font-size: clamp(1.2rem, 2vw, 1.6rem);
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
 }
 
 .app-shell[data-active-view="todo"] .page-header p {
   max-width: none;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
+}
+
+.app-shell[data-active-view="todo"] .shell-header-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.app-shell[data-active-view="todo"] .status-chip-label,
+.app-shell[data-active-view="todo"] .user-chip .muted.small,
+.app-shell[data-active-view="todo"] #statusDetail {
+  display: none;
+}
+
+.app-shell[data-active-view="todo"] .user-chip {
+  white-space: nowrap;
+}
+
+.app-shell[data-active-view="todo"] #adminUserLabel {
+  font-size: 0.9rem;
+}
+
+.app-shell[data-active-view="todo"] .btn-inline {
+  padding: 4px 10px;
+  min-height: 0;
+}
+
+.app-shell[data-active-view="todo"] [data-view-panel="todo"] {
+  gap: 10px;
+}
+
+.app-shell[data-active-view="todo"] [data-view-panel="todo"] .card {
+  padding: 12px;
+}
+
+.app-shell[data-active-view="todo"] [data-view-panel="todo"] .card-head {
+  margin-bottom: 8px;
+}
+
+.app-shell[data-active-view="todo"] #homeTodos {
+  min-height: calc(100vh - 280px);
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+  resize: both;
+  padding-right: 6px;
+  width: 100%;
+}
+
+.app-shell[data-active-view="todo"] .todo-summary-grid {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(11, 16, 23, 0.98), rgba(11, 16, 23, 0.88));
+  padding-bottom: 8px;
+}
+
+@media (max-width: 980px) {
+  .app-shell[data-active-view="todo"] .shell-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .app-shell[data-active-view="todo"] .shell-header-copy {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .app-shell[data-active-view="todo"] .shell-header-copy p:last-child {
+    white-space: normal;
+  }
+
+  .app-shell[data-active-view="todo"] .shell-header-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .scroll-list {
