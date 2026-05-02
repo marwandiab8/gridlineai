@@ -693,6 +693,13 @@ function formatTodoStatusLabel(status) {
   return "Open";
 }
 
+function todoStatusClass(status) {
+  const raw = String(status || "open").trim().toLowerCase();
+  if (raw === "inprogress") return "status-inprogress";
+  if (raw === "completed") return "status-completed";
+  return "status-open";
+}
+
 function renderTodoStatusOptions(currentStatus) {
   const selected = String(currentStatus || "open").trim().toLowerCase();
   return ["open", "inprogress", "completed"]
@@ -808,8 +815,20 @@ function renderHomeTodos() {
       '<div class="row-item muted">No home todo items yet. Text <code>xxx fix the garage door by next week</code> to create one.</div>';
     return;
   }
-  homeTodosEl.innerHTML = homeTodosCache
-    .map((todo) => {
+  const totals = homeTodosCache.reduce(
+    (acc, todo) => {
+      acc.total += 1;
+      const status = String(todo.status || "open").trim().toLowerCase();
+      if (status === "completed") acc.completed += 1;
+      else if (status === "inprogress") acc.inprogress += 1;
+      else acc.open += 1;
+      acc.subTodos += Array.isArray(todo.subTodos) ? todo.subTodos.length : 0;
+      return acc;
+    },
+    { total: 0, open: 0, inprogress: 0, completed: 0, subTodos: 0 }
+  );
+  const todoCards = homeTodosCache
+    .map((todo, index) => {
       const status = String(todo.status || "open").trim() || "open";
       const due = String(todo.dueLabel || "").trim();
       const createdBy = String(todo.createdByName || todo.createdByPhone || "-").trim();
@@ -819,72 +838,81 @@ function renderHomeTodos() {
         : { mode: "none", customText: "" };
       const comments = Array.isArray(todo.comments) ? todo.comments : [];
       return `
-        <div class="row-item">
-          <div class="project-manager-actions" style="align-items:center; justify-content:space-between; gap:12px;">
+        <article class="todo-card">
+          <div class="todo-toolbar">
             <div>
-              <span class="pill pill-user">${esc(formatTodoStatusLabel(status))}</span>
+              <div class="todo-pill ${esc(todoStatusClass(status))}">${esc(formatTodoStatusLabel(status))}</div>
+              <h3 class="todo-title">${esc(todo.taskText || "")}</h3>
+              <div class="todo-subtitle muted small">Task ${index + 1} · ${esc(todo.projectSlug || "home")} · ${due ? `relative ${esc(due)} · ` : ""}${fmtTime(todo.createdAt)}</div>
+              <div class="todo-subtitle muted small">Created by ${esc(createdBy)}</div>
             </div>
-            <label class="muted small">
-              Stage
-              <select data-home-todo-status="${esc(todo.id)}" class="project-manager-select" style="min-width:140px;">
+            <div class="todo-controls">
+              <div class="todo-field">
+                <span class="todo-field-label">Stage</span>
+                <select data-home-todo-status="${esc(todo.id)}" class="project-manager-select">
                 ${renderTodoStatusOptions(status)}
               </select>
-            </label>
-            <label class="muted small">
-              Priority
-              <select data-home-todo-priority="${esc(todo.id)}" class="project-manager-select" style="min-width:140px;">
+              </div>
+              <div class="todo-field">
+                <span class="todo-field-label">Priority</span>
+                <select data-home-todo-priority="${esc(todo.id)}" class="project-manager-select">
                 ${renderTodoPriorityOptions(todo.priority)}
               </select>
-            </label>
+              </div>
+            </div>
           </div>
-          <div><strong>${esc(todo.taskText || "")}</strong></div>
-          <div class="muted small">${esc(todo.projectSlug || "home")} · ${due ? `relative ${esc(due)} · ` : ""}${fmtTime(todo.createdAt)}</div>
-          <div class="muted small">by ${esc(createdBy)}</div>
-          <div class="project-manager-actions" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
-            <label class="muted small">
-              Due by
+          <div class="todo-grid">
+            <div class="todo-field">
+              <label>Due by</label>
               <input type="datetime-local" class="project-manager-input" data-home-todo-dueby="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.dueBy))}" />
-            </label>
-            <label class="muted small">
-              Started at
+            </div>
+            <div class="todo-field">
+              <label>Started at</label>
               <input type="datetime-local" class="project-manager-input" data-home-todo-startedat="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.startedAt))}" />
-            </label>
-            <label class="muted small">
-              Finished at
+            </div>
+            <div class="todo-field">
+              <label>Finished at</label>
               <input type="datetime-local" class="project-manager-input" data-home-todo-finishedat="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.finishedAt))}" />
-            </label>
+            </div>
           </div>
-          <div class="project-manager-actions" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
-            <label class="muted small">
-              Recurrence
-              <select data-home-todo-recurrence="${esc(todo.id)}" class="project-manager-select" style="min-width:160px;">
+          <div class="todo-grid todo-grid-wide">
+            <div class="todo-field">
+              <label>Recurrence</label>
+              <select data-home-todo-recurrence="${esc(todo.id)}" class="project-manager-select">
                 ${renderTodoRecurrenceOptions(recurrence.mode)}
               </select>
-            </label>
-            <label class="muted small" style="min-width:220px;">
-              Custom recurrence
+            </div>
+            <div class="todo-field">
+              <label>Custom recurrence</label>
               <input type="text" class="project-manager-input" data-home-todo-recurrence-custom="${esc(todo.id)}" value="${esc(recurrence.customText || "")}" placeholder="Every 2nd Tuesday" maxlength="200" />
-            </label>
+            </div>
           </div>
-          <div class="project-manager-actions" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
-            <label class="muted small" style="min-width:220px;">
-              Labels
+          <div class="todo-grid todo-grid-wide">
+            <div class="todo-field">
+              <label>Labels</label>
               <input type="text" class="project-manager-input" data-home-todo-labels="${esc(todo.id)}" value="${esc(formatTodoListText(todo.labels))}" placeholder="urgent, home, garage" />
-            </label>
-            <label class="muted small" style="min-width:220px;">
-              Reminders
+            </div>
+            <div class="todo-field">
+              <label>Reminders</label>
               <textarea class="project-manager-input" data-home-todo-reminders="${esc(todo.id)}" rows="2" placeholder="One datetime per line">${esc(Array.isArray(todo.reminders) ? todo.reminders.map((item) => toDateTimeLocalValue(item)).filter(Boolean).join("\n") : "")}</textarea>
-            </label>
-            <label class="muted small" style="min-width:220px;">
-              Dependencies
+            </div>
+            <div class="todo-field">
+              <label>Dependencies</label>
               <input type="text" class="project-manager-input" data-home-todo-dependencies="${esc(todo.id)}" value="${esc(formatTodoListText(todo.dependencies))}" placeholder="todo id, subtodo id" />
-            </label>
+            </div>
           </div>
-          <div class="muted small">Started: ${esc(formatTodoMoment(todo.startedAt))} · Finished: ${esc(formatTodoMoment(todo.finishedAt))} · Due: ${esc(formatTodoMoment(todo.dueBy))}</div>
-          <div class="muted small">Priority: ${esc(formatTodoPriorityLabel(todo.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(recurrence))}</div>
-          <div class="muted small">Labels: ${esc(formatTodoListText(todo.labels) || "-")} · Dependencies: ${esc(formatTodoListText(todo.dependencies) || "-")}</div>
-          <div class="muted small">Reminders: ${esc(formatReminderList(todo.reminders))}</div>
-          <div class="mini-list" style="margin-top:10px;">
+          <div class="todo-insights muted small">
+            <div>Started: ${esc(formatTodoMoment(todo.startedAt))} · Finished: ${esc(formatTodoMoment(todo.finishedAt))} · Due: ${esc(formatTodoMoment(todo.dueBy))}</div>
+            <div>Priority: ${esc(formatTodoPriorityLabel(todo.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(recurrence))}</div>
+            <div>Labels: ${esc(formatTodoListText(todo.labels) || "-")} · Dependencies: ${esc(formatTodoListText(todo.dependencies) || "-")}</div>
+            <div>Reminders: ${esc(formatReminderList(todo.reminders))}</div>
+          </div>
+          <div class="todo-section">
+            <div class="todo-section-head">
+              <h4 class="todo-section-title">Sub-tasks</h4>
+              <span class="muted small">${subTodos.length} item${subTodos.length === 1 ? "" : "s"}</span>
+            </div>
+            <div class="todo-sublist">
             ${
               subTodos.length
                 ? subTodos
@@ -894,85 +922,105 @@ function renderHomeTodos() {
                         ? subTodo.recurrence
                         : { mode: "none", customText: "" };
                       return `
-                        <div class="mini-item">
-                          <div class="project-manager-actions" style="align-items:center; justify-content:space-between; gap:12px;">
-                            <div>${esc(subTodo?.text || "")}</div>
-                            <div class="project-manager-actions" style="gap:12px;">
-                              <label class="muted small">
-                                Stage
-                                <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:140px;">
+                        <article class="todo-card todo-subcard">
+                          <div class="todo-toolbar">
+                            <div>
+                              <div class="todo-pill ${esc(todoStatusClass(subStatus))}">${esc(formatTodoStatusLabel(subStatus))}</div>
+                              <h4 class="todo-title">${esc(subTodo?.text || "")}</h4>
+                            </div>
+                            <div class="todo-controls">
+                              <div class="todo-field">
+                                <span class="todo-field-label">Stage</span>
+                                <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
                                   ${renderTodoStatusOptions(subStatus)}
                                 </select>
-                              </label>
-                              <label class="muted small">
-                                Priority
-                                <select data-home-subtodo-priority="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:140px;">
+                              </div>
+                              <div class="todo-field">
+                                <span class="todo-field-label">Priority</span>
+                                <select data-home-subtodo-priority="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
                                   ${renderTodoPriorityOptions(subTodo?.priority)}
                                 </select>
-                              </label>
+                              </div>
                             </div>
                           </div>
-                          <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
-                            <label class="muted small">
-                              Due by
+                          <div class="todo-grid">
+                            <div class="todo-field">
+                              <label>Due by</label>
                               <input type="datetime-local" class="project-manager-input" data-home-subtodo-dueby="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.dueBy))}" />
-                            </label>
-                            <label class="muted small">
-                              Started at
+                            </div>
+                            <div class="todo-field">
+                              <label>Started at</label>
                               <input type="datetime-local" class="project-manager-input" data-home-subtodo-startedat="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.startedAt))}" />
-                            </label>
-                            <label class="muted small">
-                              Finished at
+                            </div>
+                            <div class="todo-field">
+                              <label>Finished at</label>
                               <input type="datetime-local" class="project-manager-input" data-home-subtodo-finishedat="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.finishedAt))}" />
-                            </label>
+                            </div>
                           </div>
-                          <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
-                            <label class="muted small">
-                              Recurrence
-                              <select data-home-subtodo-recurrence="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select" style="min-width:160px;">
+                          <div class="todo-grid todo-grid-wide">
+                            <div class="todo-field">
+                              <label>Recurrence</label>
+                              <select data-home-subtodo-recurrence="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
                                 ${renderTodoRecurrenceOptions(subRecurrence.mode)}
                               </select>
-                            </label>
-                            <label class="muted small" style="min-width:220px;">
-                              Custom recurrence
+                            </div>
+                            <div class="todo-field">
+                              <label>Custom recurrence</label>
                               <input type="text" class="project-manager-input" data-home-subtodo-recurrence-custom="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(subRecurrence.customText || "")}" placeholder="Every 2nd Tuesday" maxlength="200" />
-                            </label>
+                            </div>
                           </div>
-                          <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
-                            <label class="muted small" style="min-width:220px;">
-                              Labels
+                          <div class="todo-grid todo-grid-wide">
+                            <div class="todo-field">
+                              <label>Labels</label>
                               <input type="text" class="project-manager-input" data-home-subtodo-labels="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoListText(subTodo?.labels))}" placeholder="urgent, garage" />
-                            </label>
-                            <label class="muted small" style="min-width:220px;">
-                              Reminders
+                            </div>
+                            <div class="todo-field">
+                              <label>Reminders</label>
                               <textarea class="project-manager-input" data-home-subtodo-reminders="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" rows="2" placeholder="One datetime per line">${esc(Array.isArray(subTodo?.reminders) ? subTodo.reminders.map((item) => toDateTimeLocalValue(item)).filter(Boolean).join("\n") : "")}</textarea>
-                            </label>
-                            <label class="muted small" style="min-width:220px;">
-                              Dependencies
+                            </div>
+                            <div class="todo-field">
+                              <label>Dependencies</label>
                               <input type="text" class="project-manager-input" data-home-subtodo-dependencies="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoListText(subTodo?.dependencies))}" placeholder="todo id, subtodo id" />
-                            </label>
+                            </div>
                           </div>
-                          <div class="muted small">Started: ${esc(formatTodoMoment(subTodo?.startedAt))} · Finished: ${esc(formatTodoMoment(subTodo?.finishedAt))} · Due: ${esc(formatTodoMoment(subTodo?.dueBy))}</div>
-                          <div class="muted small">Priority: ${esc(formatTodoPriorityLabel(subTodo?.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(subRecurrence))}</div>
-                          <div class="muted small">Labels: ${esc(formatTodoListText(subTodo?.labels) || "-")} · Dependencies: ${esc(formatTodoListText(subTodo?.dependencies) || "-")}</div>
-                          <div class="muted small">Reminders: ${esc(formatReminderList(subTodo?.reminders))}</div>
-                          <div class="mini-list" style="margin-top:8px;">${renderTodoCommentList(subTodo?.comments)}</div>
-                          <div class="project-manager-actions" style="margin-top:8px;">
+                          <div class="todo-insights muted small">
+                            <div>Started: ${esc(formatTodoMoment(subTodo?.startedAt))} · Finished: ${esc(formatTodoMoment(subTodo?.finishedAt))} · Due: ${esc(formatTodoMoment(subTodo?.dueBy))}</div>
+                            <div>Priority: ${esc(formatTodoPriorityLabel(subTodo?.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(subRecurrence))}</div>
+                            <div>Labels: ${esc(formatTodoListText(subTodo?.labels) || "-")} · Dependencies: ${esc(formatTodoListText(subTodo?.dependencies) || "-")}</div>
+                            <div>Reminders: ${esc(formatReminderList(subTodo?.reminders))}</div>
+                          </div>
+                          <div class="todo-section">
+                            <div class="todo-section-head">
+                              <h5 class="todo-section-title">Comments</h5>
+                            </div>
+                            <div class="todo-comment-list">${renderTodoCommentList(subTodo?.comments)}</div>
+                          </div>
+                          <div class="todo-comment-row">
                             <input type="text" class="project-manager-input" data-home-subtodo-comment-input="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" placeholder="Add comment" maxlength="1000" />
                             <button type="button" class="btn-secondary" data-home-subtodo-comment-add="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}">Add comment</button>
                           </div>
-                        </div>`;
+                        </article>`;
                     })
                     .join("")
                 : '<div class="mini-item empty">No sub-todos yet.</div>'
             }
+            </div>
           </div>
-          <div class="mini-list" style="margin-top:10px;">${renderTodoCommentList(comments)}</div>
-          <div class="project-manager-actions" style="margin-top:8px;">
+          <div class="todo-section">
+            <div class="todo-section-head">
+              <h4 class="todo-section-title">Comments</h4>
+            </div>
+            <div class="todo-comment-list">${renderTodoCommentList(comments)}</div>
+          </div>
+          <div class="todo-comment-row">
             <input type="text" class="project-manager-input" data-home-todo-comment-input="${esc(todo.id)}" placeholder="Add comment" maxlength="1000" />
             <button type="button" class="btn-secondary" data-home-todo-comment-add="${esc(todo.id)}">Add comment</button>
           </div>
-          <div class="project-manager-actions" style="margin-top:10px;">
+          <div class="todo-section">
+            <div class="todo-section-head">
+              <h4 class="todo-section-title">Add sub-task</h4>
+            </div>
+            <div class="todo-add-row">
             <input
               type="text"
               class="project-manager-input"
@@ -987,9 +1035,20 @@ function renderHomeTodos() {
             />
             <button type="button" class="btn-secondary" data-home-subtodo-add="${esc(todo.id)}">Add sub-todo</button>
           </div>
-        </div>`;
+          </div>
+        </article>`;
     })
     .join("");
+  homeTodosEl.innerHTML = `
+    <div class="todo-summary-grid">
+      <div class="todo-summary-card"><span class="todo-summary-label">Total tasks</span><strong class="todo-summary-value">${totals.total}</strong></div>
+      <div class="todo-summary-card"><span class="todo-summary-label">Open</span><strong class="todo-summary-value">${totals.open}</strong></div>
+      <div class="todo-summary-card"><span class="todo-summary-label">In progress</span><strong class="todo-summary-value">${totals.inprogress}</strong></div>
+      <div class="todo-summary-card"><span class="todo-summary-label">Completed</span><strong class="todo-summary-value">${totals.completed}</strong></div>
+      <div class="todo-summary-card"><span class="todo-summary-label">Sub-tasks</span><strong class="todo-summary-value">${totals.subTodos}</strong></div>
+    </div>
+    <div class="todo-list">${todoCards}</div>
+  `;
 }
 
 function renderDashboard() {
