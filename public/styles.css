@@ -1297,21 +1297,11 @@ body {
   color: var(--admin-muted);
 }
 
-.todo-page-intro {
-  margin-bottom: 18px;
-}
-
-.todo-page-notes {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
 .todo-summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .todo-summary-card {
@@ -1339,13 +1329,13 @@ body {
 
 .todo-list {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .todo-card {
   border: 1px solid var(--admin-border);
   border-radius: 18px;
-  padding: 18px;
+  padding: 14px 16px;
   background:
     radial-gradient(circle at top right, rgba(47, 127, 109, 0.12), transparent 32%),
     linear-gradient(180deg, rgba(10, 15, 22, 0.95), rgba(18, 25, 34, 0.92));
@@ -1353,9 +1343,15 @@ body {
 }
 
 .todo-card.todo-subcard {
-  padding: 14px;
+  padding: 12px 14px;
   border-radius: 14px;
   background: rgba(8, 12, 18, 0.55);
+}
+
+.todo-list-card {
+  background:
+    radial-gradient(circle at top right, rgba(47, 127, 109, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(10, 15, 22, 0.94), rgba(18, 25, 34, 0.9));
 }
 
 .todo-toolbar {
@@ -1380,7 +1376,7 @@ body {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .todo-pill {
@@ -1412,6 +1408,20 @@ body {
   flex-wrap: wrap;
   gap: 10px 18px;
   margin-top: 12px;
+}
+
+.todo-compact-meta {
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.todo-inline-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
 }
 
 .todo-grid {
@@ -1504,6 +1514,63 @@ body {
   .todo-toolbar {
     flex-direction: column;
   }
+}
+
+.app-shell[data-active-view="todo"] {
+  max-width: 1440px;
+  padding-top: 14px;
+}
+
+.app-shell[data-active-view="todo"] .shell-header {
+  margin-bottom: 12px;
+  gap: 14px;
+}
+
+.app-shell[data-active-view="todo"] .shell-brand {
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.app-shell[data-active-view="todo"] .shell-brand-logo {
+  width: 52px;
+}
+
+.app-shell[data-active-view="todo"] .shell-header h1 {
+  font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+  margin-bottom: 6px;
+}
+
+.app-shell[data-active-view="todo"] .shell-header-copy p:last-child {
+  font-size: 0.9rem;
+}
+
+.app-shell[data-active-view="todo"] .status-chip,
+.app-shell[data-active-view="todo"] .user-chip {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.app-shell[data-active-view="todo"] .page-nav {
+  margin-bottom: 14px;
+  padding: 8px;
+}
+
+.app-shell[data-active-view="todo"] .page-header {
+  gap: 10px;
+  align-items: center;
+}
+
+.app-shell[data-active-view="todo"] .page-header .eyebrow {
+  margin-bottom: 6px;
+}
+
+.app-shell[data-active-view="todo"] .page-header h2 {
+  font-size: clamp(1.2rem, 2vw, 1.6rem);
+}
+
+.app-shell[data-active-view="todo"] .page-header p {
+  max-width: none;
+  font-size: 0.92rem;
 }
 
 .scroll-list {

@@ -492,6 +492,8 @@ let labourPayCache = [];
 let mediaViewerItems = [];
 let mediaViewerIndex = -1;
 let currentAppAccess = null;
+let expandedHomeTodoIds = new Set();
+let expandedHomeSubTodoKeys = new Set();
 
 function setStatusOk(detail = "") {
   if (statusEl) statusEl.textContent = "Connected";
@@ -693,6 +695,10 @@ function formatTodoStatusLabel(status) {
   return "Open";
 }
 
+function homeSubTodoKey(todoId, subTodoId) {
+  return `${String(todoId || "").trim()}::${String(subTodoId || "").trim()}`;
+}
+
 function todoStatusClass(status) {
   const raw = String(status || "open").trim().toLowerCase();
   if (raw === "inprogress") return "status-inprogress";
@@ -837,8 +843,9 @@ function renderHomeTodos() {
         ? todo.recurrence
         : { mode: "none", customText: "" };
       const comments = Array.isArray(todo.comments) ? todo.comments : [];
+      const expanded = expandedHomeTodoIds.has(String(todo.id || "").trim());
       return `
-        <article class="todo-card">
+        <article class="todo-card todo-list-card${expanded ? " is-expanded" : ""}">
           <div class="todo-toolbar">
             <div>
               <div class="todo-pill ${esc(todoStatusClass(status))}">${esc(formatTodoStatusLabel(status))}</div>
@@ -847,21 +854,34 @@ function renderHomeTodos() {
               <div class="todo-subtitle muted small">Created by ${esc(createdBy)}</div>
             </div>
             <div class="todo-controls">
-              <div class="todo-field">
-                <span class="todo-field-label">Stage</span>
-                <select data-home-todo-status="${esc(todo.id)}" class="project-manager-select">
-                ${renderTodoStatusOptions(status)}
-              </select>
-              </div>
-              <div class="todo-field">
-                <span class="todo-field-label">Priority</span>
-                <select data-home-todo-priority="${esc(todo.id)}" class="project-manager-select">
-                ${renderTodoPriorityOptions(todo.priority)}
-              </select>
-              </div>
+              <div class="todo-compact-meta muted small">Priority: ${esc(formatTodoPriorityLabel(todo.priority))}</div>
+              <div class="todo-compact-meta muted small">Due: ${esc(formatTodoMoment(todo.dueBy))}</div>
+              <div class="todo-compact-meta muted small">Sub-tasks: ${subTodos.length}</div>
+              <button type="button" class="btn-secondary" data-toggle-home-todo="${esc(todo.id)}">${expanded ? "Close" : "Edit"}</button>
             </div>
           </div>
+          <div class="todo-inline-stats muted small">
+            <span>Comments ${comments.length}</span>
+            <span>Recurrence ${esc(formatTodoRecurrenceLabel(recurrence))}</span>
+            <span>${esc(formatTodoListText(todo.labels) || "No labels")}</span>
+          </div>
+          ${
+            !expanded
+              ? ""
+              : `
           <div class="todo-grid">
+            <div class="todo-field">
+              <label>Stage</label>
+              <select data-home-todo-status="${esc(todo.id)}" class="project-manager-select">
+                ${renderTodoStatusOptions(status)}
+              </select>
+            </div>
+            <div class="todo-field">
+              <label>Priority</label>
+              <select data-home-todo-priority="${esc(todo.id)}" class="project-manager-select">
+                ${renderTodoPriorityOptions(todo.priority)}
+              </select>
+            </div>
             <div class="todo-field">
               <label>Due by</label>
               <input type="datetime-local" class="project-manager-input" data-home-todo-dueby="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.dueBy))}" />
@@ -921,29 +941,41 @@ function renderHomeTodos() {
                       const subRecurrence = subTodo?.recurrence && typeof subTodo.recurrence === "object"
                         ? subTodo.recurrence
                         : { mode: "none", customText: "" };
+                      const subExpanded = expandedHomeSubTodoKeys.has(homeSubTodoKey(todo.id, subTodo?.id));
                       return `
-                        <article class="todo-card todo-subcard">
+                        <article class="todo-card todo-subcard${subExpanded ? " is-expanded" : ""}">
                           <div class="todo-toolbar">
                             <div>
                               <div class="todo-pill ${esc(todoStatusClass(subStatus))}">${esc(formatTodoStatusLabel(subStatus))}</div>
                               <h4 class="todo-title">${esc(subTodo?.text || "")}</h4>
                             </div>
                             <div class="todo-controls">
-                              <div class="todo-field">
-                                <span class="todo-field-label">Stage</span>
-                                <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
-                                  ${renderTodoStatusOptions(subStatus)}
-                                </select>
-                              </div>
-                              <div class="todo-field">
-                                <span class="todo-field-label">Priority</span>
-                                <select data-home-subtodo-priority="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
-                                  ${renderTodoPriorityOptions(subTodo?.priority)}
-                                </select>
-                              </div>
+                              <div class="todo-compact-meta muted small">Priority: ${esc(formatTodoPriorityLabel(subTodo?.priority))}</div>
+                              <div class="todo-compact-meta muted small">Due: ${esc(formatTodoMoment(subTodo?.dueBy))}</div>
+                              <button type="button" class="btn-secondary" data-toggle-home-subtodo="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}">${subExpanded ? "Close" : "Edit"}</button>
                             </div>
                           </div>
+                          <div class="todo-inline-stats muted small">
+                            <span>Comments ${Array.isArray(subTodo?.comments) ? subTodo.comments.length : 0}</span>
+                            <span>Recurrence ${esc(formatTodoRecurrenceLabel(subRecurrence))}</span>
+                          </div>
+                          ${
+                            !subExpanded
+                              ? ""
+                              : `
                           <div class="todo-grid">
+                            <div class="todo-field">
+                              <label>Stage</label>
+                              <select data-home-subtodo-status="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
+                                ${renderTodoStatusOptions(subStatus)}
+                              </select>
+                            </div>
+                            <div class="todo-field">
+                              <label>Priority</label>
+                              <select data-home-subtodo-priority="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" class="project-manager-select">
+                                ${renderTodoPriorityOptions(subTodo?.priority)}
+                              </select>
+                            </div>
                             <div class="todo-field">
                               <label>Due by</label>
                               <input type="datetime-local" class="project-manager-input" data-home-subtodo-dueby="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.dueBy))}" />
@@ -999,6 +1031,8 @@ function renderHomeTodos() {
                             <input type="text" class="project-manager-input" data-home-subtodo-comment-input="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" placeholder="Add comment" maxlength="1000" />
                             <button type="button" class="btn-secondary" data-home-subtodo-comment-add="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}">Add comment</button>
                           </div>
+                          `
+                          }
                         </article>`;
                     })
                     .join("")
@@ -1036,6 +1070,8 @@ function renderHomeTodos() {
             <button type="button" class="btn-secondary" data-home-subtodo-add="${esc(todo.id)}">Add sub-todo</button>
           </div>
           </div>
+          `
+          }
         </article>`;
     })
     .join("");
@@ -3128,6 +3164,7 @@ function applyView(viewName) {
   const fallbacks = ["dashboard", "assistant", "todo", "lookahead", "voice", "reports", "labour", "tools", "approvals"];
   const fallbackView = fallbacks.find((candidate) => viewAllowedForCurrentRole(candidate)) || "reports";
   const resolvedView = viewAllowedForCurrentRole(viewName) ? viewName : fallbackView;
+  if (appPanelEl) appPanelEl.dataset.activeView = resolvedView;
   for (const panel of pagePanels) {
     const panelView = panel.getAttribute("data-view-panel");
     const blocked = panel.dataset.accessHidden === "true";
@@ -4132,6 +4169,26 @@ function initHomeTodos() {
   });
 
   homeTodosEl.addEventListener("click", async (event) => {
+    const toggleTodoButton = event.target.closest("[data-toggle-home-todo]");
+    if (toggleTodoButton) {
+      const todoId = String(toggleTodoButton.getAttribute("data-toggle-home-todo") || "").trim();
+      if (!todoId) return;
+      if (expandedHomeTodoIds.has(todoId)) expandedHomeTodoIds.delete(todoId);
+      else expandedHomeTodoIds.add(todoId);
+      renderHomeTodos();
+      return;
+    }
+    const toggleSubTodoButton = event.target.closest("[data-toggle-home-subtodo]");
+    if (toggleSubTodoButton) {
+      const todoId = String(toggleSubTodoButton.getAttribute("data-toggle-home-subtodo") || "").trim();
+      const subTodoId = String(toggleSubTodoButton.getAttribute("data-subtodo-id") || "").trim();
+      const key = homeSubTodoKey(todoId, subTodoId);
+      if (!todoId || !subTodoId) return;
+      if (expandedHomeSubTodoKeys.has(key)) expandedHomeSubTodoKeys.delete(key);
+      else expandedHomeSubTodoKeys.add(key);
+      renderHomeTodos();
+      return;
+    }
     const addButton = event.target.closest("[data-home-subtodo-add]");
     const addTodoCommentButton = event.target.closest("[data-home-todo-comment-add]");
     const addSubTodoCommentButton = event.target.closest("[data-home-subtodo-comment-add]");
