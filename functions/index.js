@@ -1038,15 +1038,58 @@ async function transcribeAudioBufferWithFallback({
 /** Twilio HTTP webhook must respond with TwiML in ~15s; keep AI path under this. */
 const BUILD_REPLY_TIMEOUT_MS = 12_000;
 
+/**
+ * Twilio signs the exact webhook URL. Cloud Run may report path as "/" while the public URL
+ * includes the function name (FUNCTION_TARGET) — try both. Also try with/without trailing slash.
+ */
 function buildWebhookUrls(req) {
-  const proto = (req.get("x-forwarded-proto") || "https").split(",")[0].trim();
+  const proto = (req.get("x-forwarded-proto") || "https").split(",")[0].trim() || "https";
   const host = (req.get("x-forwarded-host") || req.get("host") || "")
     .split(",")[0]
     .trim();
-  const path = req.originalUrl || req.url || "/";
-  const base = `${proto}://${host}${path}`;
-  const alt = base.endsWith("/") ? base.replace(/\/+$/, "") : `${base}/`;
-  return [base, alt];
+  const fullPathWithQuery = String(req.originalUrl || req.url || "/").trim() || "/";
+  const qIdx = fullPathWithQuery.indexOf("?");
+  const pathOnly = qIdx >= 0 ? fullPathWithQuery.slice(0, qIdx) : fullPathWithQuery;
+  const query = qIdx >= 0 ? fullPathWithQuery.slice(qIdx) : "";
+
+  const urls = new Set();
+  const addPathVariants = (pathname) => {
+    const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+    urls.add(`${proto}://${host}${p}${query}`);
+    if (p !== "/" && !p.endsWith("/")) {
+      urls.add(`${proto}://${host}${p}/${query}`);
+    } else if (p.length > 1 && p.endsWith("/")) {
+      const trimmed = p.replace(/\/+$/, "") || "/";
+      urls.add(`${proto}://${host}${trimmed}${query}`);
+    }
+  };
+
+  addPathVariants(pathOnly);
+
+  const target = String(process.env.FUNCTION_TARGET || "").trim();
+  if (target && (pathOnly === "/" || pathOnly === "")) {
+    addPathVariants(`/${target}`);
+  }
+
+  return Array.from(urls);
+}
+
+/** Same host/query as current request but last path segment replaced (e.g. inboundSms → inboundVoice). */
+function siblingCloudFunctionUrl(req, siblingExportName) {
+  const primary = buildWebhookUrls(req)[0];
+  try {
+    const u = new URL(primary);
+    const segs = u.pathname.split("/").filter(Boolean);
+    if (segs.length > 0) {
+      segs[segs.length - 1] = siblingExportName;
+    } else {
+      segs.push(siblingExportName);
+    }
+    u.pathname = `/${segs.join("/")}`;
+    return u.toString();
+  } catch (_) {
+    return primary;
+  }
 }
 
 function validateTwilioOrExplained(req, authToken, params) {
@@ -1054,12 +1097,13 @@ function validateTwilioOrExplained(req, authToken, params) {
   if (!signature) {
     return { ok: false, reason: "missing_signature" };
   }
-  for (const url of buildWebhookUrls(req)) {
+  const tried = buildWebhookUrls(req);
+  for (const url of tried) {
     if (twilio.validateRequest(authToken, signature, url, params)) {
       return { ok: true, url };
     }
   }
-  return { ok: false, reason: "bad_signature", tried: buildWebhookUrls(req) };
+  return { ok: false, reason: "bad_signature", tried };
 }
 
 function shouldEnforceTwilioValidation() {
@@ -2382,6 +2426,25 @@ exports.inboundSms = onRequest(
         logger.info("inboundSms: Twilio signature ok", { runId, url: v.url });
       }
 
+      // Incoming calls post CallSid; SMS/MMS post MessageSid. If the Voice webhook URL was set to this
+      // SMS endpoint, Twilio receives <Message> TwiML and plays "an application error has occurred".
+      if (
+        String(params.CallSid || "").trim() &&
+        !String(params.MessageSid || "").trim() &&
+        !String(params.SmsStatus || "").trim()
+      ) {
+        const voiceUrl = siblingCloudFunctionUrl(req, "inboundVoice");
+        logger.warn("inboundSms: voice webhook misrouted to SMS URL — redirecting to inboundVoice", {
+          runId,
+          voiceUrl,
+        });
+        const vr = new twilio.twiml.VoiceResponse();
+        vr.redirect({ method: "POST" }, voiceUrl);
+        res.set("Content-Type", "text/xml; charset=utf-8");
+        res.status(200).send(vr.toString());
+        return;
+      }
+
       const from = normalizePhoneE164(String(params.From || "").trim()) || String(params.From || "").trim();
       const to = normalizePhoneE164(String(params.To || "").trim()) || String(params.To || "").trim();
       const messagingServiceSid = normalizeTwilioSecret(params.MessagingServiceSid || "");
@@ -3161,6 +3224,7 @@ exports.inboundSms = onRequest(
 exports.inboundVoice = onRequest(
   {
     region: "northamerica-northeast1",
+    invoker: "public",
     timeoutSeconds: 120,
     memory: "512MiB",
     secrets: [
@@ -3214,6 +3278,7 @@ exports.inboundVoice = onRequest(
           logger.error("inboundVoice: Twilio signature failed", {
             runId,
             reason: v.reason,
+            tried: v.tried,
           });
           res.status(403).send("Forbidden");
           return;
@@ -3325,8 +3390,6 @@ exports.inboundVoice = onRequest(
           const gather = vr.gather({
             input: "speech dtmf",
             speechTimeout: "auto",
-            speechModel: "phone_call",
-            enhanced: "true",
             numDigits: 1,
             method: "POST",
             action: actionUrl,
@@ -3410,8 +3473,6 @@ exports.inboundVoice = onRequest(
         const gather = vr.gather({
           input: "speech",
           speechTimeout: "auto",
-          speechModel: "phone_call",
-          enhanced: "true",
           method: "POST",
           action: actionUrl,
         });
