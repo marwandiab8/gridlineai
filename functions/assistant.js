@@ -1513,6 +1513,7 @@ async function buildReply({
   body,
   relatedMessageId,
   numMedia = 0,
+  channel = "sms",
   models: modelsOverride,
 }) {
   const models = getModels(modelsOverride);
@@ -2421,6 +2422,29 @@ async function buildReply({
   const historyMessages = rowsToOpenAIMessages(historyRows);
   const explicitAiRequest = looksLikeExplicitAiChatRequest(userMessageForAI);
   if (!explicitAiRequest) {
+    if (String(channel || "").trim().toLowerCase().startsWith("voice")) {
+      logger.info("assistant: voice fast-path log routing", {
+        runId,
+        channel,
+      });
+      return routeGenericInboundLog({
+        db,
+        openaiApiKey,
+        logger,
+        runId,
+        phoneE164,
+        user,
+        trimmedBody,
+        userMessageForAI,
+        relatedMessageId,
+        numMedia,
+        effectiveProjectSlug,
+        effectiveProjectName,
+        logAuthorFields,
+        modelsOverride,
+        outboundMeta,
+      });
+    }
     const genericIntent = await classifyGenericInboundIntent({
       openaiApiKey,
       logger,

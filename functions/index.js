@@ -554,6 +554,7 @@ async function processAssistantMessage({
         body,
         relatedMessageId: inboundRef.id,
         numMedia: 0,
+        channel,
         models: {
           primary: OPENAI_MODEL_PRIMARY.value(),
         },
@@ -1693,8 +1694,8 @@ exports.inboundSms = onRequest(
         logger.info("inboundSms: Twilio signature ok", { runId, url: v.url });
       }
 
-      const from = (params.From || "").trim();
-      const to = (params.To || "").trim();
+      const from = normalizePhoneE164(String(params.From || "").trim()) || String(params.From || "").trim();
+      const to = normalizePhoneE164(String(params.To || "").trim()) || String(params.To || "").trim();
       const messagingServiceSid = normalizeTwilioSecret(params.MessagingServiceSid || "");
       const inboundAccountSid = normalizeAccountSid(params.AccountSid || "");
       if (
@@ -1933,6 +1934,7 @@ exports.inboundSms = onRequest(
             body,
             relatedMessageId: inboundRef.id,
             numMedia: mediaCountEffective,
+            channel: "sms",
             models: {
               primary: OPENAI_MODEL_PRIMARY.value(),
             },
@@ -2447,8 +2449,8 @@ exports.inboundVoice = onRequest(
         }
       }
 
-      const from = String(params.From || "").trim();
-      const to = String(params.To || "").trim();
+      const from = normalizePhoneE164(String(params.From || "").trim()) || String(params.From || "").trim();
+      const to = normalizePhoneE164(String(params.To || "").trim()) || String(params.To || "").trim();
       const speechResult = sanitizeVoiceText(params.SpeechResult || "");
       const recordingUrl = String(params.RecordingUrl || "").trim();
       const recordingDuration = String(params.RecordingDuration || "").trim();
@@ -2535,6 +2537,7 @@ exports.inboundVoice = onRequest(
                 body: voiceBody,
                 relatedMessageId: inboundRef.id,
                 numMedia: 1,
+                channel: "voice_recording",
                 models: { primary: OPENAI_MODEL_PRIMARY.value() },
               }),
               new Promise((_, reject) =>
@@ -2713,6 +2716,7 @@ exports.inboundVoice = onRequest(
           body: speechResult,
           relatedMessageId: inboundRef.id,
           numMedia: 0,
+          channel: "voice_live",
           models: { primary: OPENAI_MODEL_PRIMARY.value() },
         });
       } catch (err) {
