@@ -108,6 +108,14 @@ function normalizeTodoText(value, maxLength = 500) {
     .slice(0, maxLength);
 }
 
+function normalizeTodoDateTime(value) {
+  if (value == null || value === "") return null;
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const date = new Date(raw);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : "";
+}
+
 /** Prefer runtime FIREBASE_CONFIG; fallback matches `public/app.js` storageBucket. */
 let storageBucket = "gridlineai.firebasestorage.app";
 try {
@@ -4505,8 +4513,25 @@ exports.updateProjectTodoCallable = onCall(
     const todoId = String(request.data?.todoId || "").trim();
     const status = normalizeTodoStatus(request.data?.status);
     const subTodoId = String(request.data?.subTodoId || "").trim();
+    const dueByInput = request.data?.dueBy;
+    const startedAtInput = request.data?.startedAt;
+    const finishedAtInput = request.data?.finishedAt;
     if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
-    if (!status) throw new HttpsError("invalid-argument", "status must be open, inprogress, or completed.");
+    if (!status && dueByInput == null && startedAtInput == null && finishedAtInput == null) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Provide at least one update: status, dueBy, startedAt, or finishedAt."
+      );
+    }
+    if (request.data?.status != null && !status) {
+      throw new HttpsError("invalid-argument", "status must be open, inprogress, or completed.");
+    }
+    const dueBy = normalizeTodoDateTime(dueByInput);
+    const startedAt = normalizeTodoDateTime(startedAtInput);
+    const finishedAt = normalizeTodoDateTime(finishedAtInput);
+    if (dueBy === "" || startedAt === "" || finishedAt === "") {
+      throw new HttpsError("invalid-argument", "Todo date fields must be valid date/time values.");
+    }
 
     const todoRef = db.collection(COL_PROJECT_TODOS).doc(todoId);
     const todoSnap = await todoRef.get();
@@ -4525,9 +4550,27 @@ exports.updateProjectTodoCallable = onCall(
       const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
       const nextSubTodos = currentSubTodos.map((item) => {
         if (String(item?.id || "").trim() !== subTodoId) return item;
+        const nextStatus = status || String(item?.status || "open").trim().toLowerCase() || "open";
+        const nextStartedAt =
+          startedAtInput !== undefined
+            ? startedAt
+            : nextStatus === "inprogress" && !item?.startedAt
+              ? new Date().toISOString()
+              : item?.startedAt || null;
+        const nextFinishedAt =
+          finishedAtInput !== undefined
+            ? finishedAt
+            : nextStatus === "completed"
+              ? item?.finishedAt || new Date().toISOString()
+              : nextStatus === "open" || nextStatus === "inprogress"
+                ? null
+                : item?.finishedAt || null;
         return {
           ...item,
-          status,
+          status: nextStatus,
+          dueBy: dueByInput !== undefined ? dueBy : item?.dueBy || null,
+          startedAt: nextStartedAt,
+          finishedAt: nextFinishedAt,
           updatedAt: new Date().toISOString(),
           updatedByEmail: operator.email || null,
         };
@@ -4537,8 +4580,22 @@ exports.updateProjectTodoCallable = onCall(
       }
       updates.subTodos = nextSubTodos;
     } else {
-      updates.status = status;
-      if (status === "completed") {
+      const nextStatus = status || String(todoData.status || "open").trim().toLowerCase() || "open";
+      updates.status = nextStatus;
+      if (dueByInput !== undefined) updates.dueBy = dueBy;
+      if (startedAtInput !== undefined) {
+        updates.startedAt = startedAt;
+      } else if (nextStatus === "inprogress" && !todoData.startedAt) {
+        updates.startedAt = new Date().toISOString();
+      }
+      if (finishedAtInput !== undefined) {
+        updates.finishedAt = finishedAt;
+      } else if (nextStatus === "completed") {
+        updates.finishedAt = todoData.finishedAt || new Date().toISOString();
+      } else if (nextStatus === "open" || nextStatus === "inprogress") {
+        updates.finishedAt = null;
+      }
+      if (nextStatus === "completed") {
         updates.completedAt = FieldValue.serverTimestamp();
         updates.completedByEmail = operator.email || null;
       } else {
@@ -4563,8 +4620,10 @@ exports.addProjectSubTodoCallable = onCall(
     const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
     const todoId = String(request.data?.todoId || "").trim();
     const text = normalizeTodoText(request.data?.text || "", 300);
+    const dueBy = normalizeTodoDateTime(request.data?.dueBy);
     if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
     if (!text) throw new HttpsError("invalid-argument", "Sub-todo text is required.");
+    if (dueBy === "") throw new HttpsError("invalid-argument", "dueBy must be a valid date/time value.");
 
     const todoRef = db.collection(COL_PROJECT_TODOS).doc(todoId);
     const todoSnap = await todoRef.get();
@@ -4579,6 +4638,9 @@ exports.addProjectSubTodoCallable = onCall(
       id: db.collection("_").doc().id,
       text,
       status: "open",
+      dueBy: dueBy || null,
+      startedAt: null,
+      finishedAt: null,
       createdAt: new Date().toISOString(),
       createdByEmail: operator.email || null,
       createdByName: String(operator.memberData?.displayName || operator.email || "").trim() || null,

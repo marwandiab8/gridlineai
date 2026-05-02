@@ -532,6 +532,17 @@ function parseHomeTodoCommand(text) {
     dueWindow = "next_month";
     dueLabel = "next month";
   }
+  let dueByIso = null;
+  if (dueWindow) {
+    const dueDate = new Date();
+    if (dueWindow === "next_week") {
+      dueDate.setDate(dueDate.getDate() + 7);
+    } else if (dueWindow === "next_month") {
+      dueDate.setMonth(dueDate.getMonth() + 1);
+    }
+    dueDate.setHours(17, 0, 0, 0);
+    dueByIso = dueDate.toISOString();
+  }
   const cleanedTask = body
     .replace(/\b(?:by|within|in)\s+next\s+week\b/gi, "")
     .replace(/\bin\s+the\s+next\s+week\b/gi, "")
@@ -546,6 +557,7 @@ function parseHomeTodoCommand(text) {
     taskText: taskText.slice(0, 500),
     dueWindow,
     dueLabel,
+    dueByIso,
     rawText: body.slice(0, 1000),
   };
 }
@@ -2232,6 +2244,9 @@ async function buildReply({
       sourceText: homeTodoCommand.rawText,
       dueWindow: homeTodoCommand.dueWindow || null,
       dueLabel: homeTodoCommand.dueLabel || null,
+      dueBy: homeTodoCommand.dueByIso || null,
+      startedAt: null,
+      finishedAt: null,
       createdByPhone: phoneE164,
       createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
       createdByName:

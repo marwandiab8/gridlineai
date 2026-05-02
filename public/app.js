@@ -700,6 +700,36 @@ function renderTodoStatusOptions(currentStatus) {
     .join("");
 }
 
+function toDateTimeLocalValue(value) {
+  if (!value) return "";
+  try {
+    let date = null;
+    if (typeof value?.toDate === "function") date = value.toDate();
+    else if (value?.seconds) date = new Date(value.seconds * 1000);
+    else date = new Date(value);
+    if (!date || Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (_) {
+    return "";
+  }
+}
+
+function formatTodoMoment(value) {
+  if (!value) return "-";
+  try {
+    if (typeof value?.toDate === "function") return value.toDate().toLocaleString();
+    if (value?.seconds) return new Date(value.seconds * 1000).toLocaleString();
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date.toLocaleString();
+  } catch (_) {}
+  return esc(String(value));
+}
+
 function renderHomeTodos() {
   if (!homeTodosEl) return;
   if (!homeTodosCache.length) {
@@ -727,8 +757,23 @@ function renderHomeTodos() {
             </label>
           </div>
           <div><strong>${esc(todo.taskText || "")}</strong></div>
-          <div class="muted small">${esc(todo.projectSlug || "home")} · ${due ? `due ${esc(due)} · ` : ""}${fmtTime(todo.createdAt)}</div>
+          <div class="muted small">${esc(todo.projectSlug || "home")} · ${due ? `relative ${esc(due)} · ` : ""}${fmtTime(todo.createdAt)}</div>
           <div class="muted small">by ${esc(createdBy)}</div>
+          <div class="project-manager-actions" style="margin-top:10px; gap:12px; flex-wrap:wrap;">
+            <label class="muted small">
+              Due by
+              <input type="datetime-local" class="project-manager-input" data-home-todo-dueby="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.dueBy))}" />
+            </label>
+            <label class="muted small">
+              Started at
+              <input type="datetime-local" class="project-manager-input" data-home-todo-startedat="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.startedAt))}" />
+            </label>
+            <label class="muted small">
+              Finished at
+              <input type="datetime-local" class="project-manager-input" data-home-todo-finishedat="${esc(todo.id)}" value="${esc(toDateTimeLocalValue(todo.finishedAt))}" />
+            </label>
+          </div>
+          <div class="muted small">Started: ${esc(formatTodoMoment(todo.startedAt))} · Finished: ${esc(formatTodoMoment(todo.finishedAt))} · Due: ${esc(formatTodoMoment(todo.dueBy))}</div>
           <div class="mini-list" style="margin-top:10px;">
             ${
               subTodos.length
@@ -746,6 +791,21 @@ function renderHomeTodos() {
                               </select>
                             </label>
                           </div>
+                          <div class="project-manager-actions" style="margin-top:8px; gap:12px; flex-wrap:wrap;">
+                            <label class="muted small">
+                              Due by
+                              <input type="datetime-local" class="project-manager-input" data-home-subtodo-dueby="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.dueBy))}" />
+                            </label>
+                            <label class="muted small">
+                              Started at
+                              <input type="datetime-local" class="project-manager-input" data-home-subtodo-startedat="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.startedAt))}" />
+                            </label>
+                            <label class="muted small">
+                              Finished at
+                              <input type="datetime-local" class="project-manager-input" data-home-subtodo-finishedat="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(toDateTimeLocalValue(subTodo?.finishedAt))}" />
+                            </label>
+                          </div>
+                          <div class="muted small">Started: ${esc(formatTodoMoment(subTodo?.startedAt))} · Finished: ${esc(formatTodoMoment(subTodo?.finishedAt))} · Due: ${esc(formatTodoMoment(subTodo?.dueBy))}</div>
                         </div>`;
                     })
                     .join("")
@@ -759,6 +819,11 @@ function renderHomeTodos() {
               data-home-subtodo-input="${esc(todo.id)}"
               placeholder="Add sub-todo"
               maxlength="300"
+            />
+            <input
+              type="datetime-local"
+              class="project-manager-input"
+              data-home-subtodo-dueby-input="${esc(todo.id)}"
             />
             <button type="button" class="btn-secondary" data-home-subtodo-add="${esc(todo.id)}">Add sub-todo</button>
           </div>
@@ -3696,6 +3761,103 @@ function initApprovals() {
   });
 }
 
+function initHomeTodos() {
+  if (!homeTodosEl) return;
+  homeTodosEl.addEventListener("change", async (event) => {
+    const todoStatusSelect = event.target.closest("[data-home-todo-status]");
+    const subTodoStatusSelect = event.target.closest("[data-home-subtodo-status]");
+    const todoDueInput = event.target.closest("[data-home-todo-dueby]");
+    const todoStartedInput = event.target.closest("[data-home-todo-startedat]");
+    const todoFinishedInput = event.target.closest("[data-home-todo-finishedat]");
+    const subTodoDueInput = event.target.closest("[data-home-subtodo-dueby]");
+    const subTodoStartedInput = event.target.closest("[data-home-subtodo-startedat]");
+    const subTodoFinishedInput = event.target.closest("[data-home-subtodo-finishedat]");
+    if (
+      !todoStatusSelect &&
+      !subTodoStatusSelect &&
+      !todoDueInput &&
+      !todoStartedInput &&
+      !todoFinishedInput &&
+      !subTodoDueInput &&
+      !subTodoStartedInput &&
+      !subTodoFinishedInput
+    ) return;
+
+    const todoId = todoStatusSelect
+      ? String(todoStatusSelect.getAttribute("data-home-todo-status") || "").trim()
+      : subTodoStatusSelect
+        ? String(subTodoStatusSelect.getAttribute("data-home-subtodo-status") || "").trim()
+        : todoDueInput
+          ? String(todoDueInput.getAttribute("data-home-todo-dueby") || "").trim()
+          : todoStartedInput
+            ? String(todoStartedInput.getAttribute("data-home-todo-startedat") || "").trim()
+            : todoFinishedInput
+              ? String(todoFinishedInput.getAttribute("data-home-todo-finishedat") || "").trim()
+              : subTodoDueInput
+                ? String(subTodoDueInput.getAttribute("data-home-subtodo-dueby") || "").trim()
+                : subTodoStartedInput
+                  ? String(subTodoStartedInput.getAttribute("data-home-subtodo-startedat") || "").trim()
+                  : String(subTodoFinishedInput.getAttribute("data-home-subtodo-finishedat") || "").trim();
+    const subTodoId = subTodoStatusSelect
+      ? String(subTodoStatusSelect.getAttribute("data-subtodo-id") || "").trim()
+      : subTodoDueInput
+        ? String(subTodoDueInput.getAttribute("data-subtodo-id") || "").trim()
+        : subTodoStartedInput
+          ? String(subTodoStartedInput.getAttribute("data-subtodo-id") || "").trim()
+          : subTodoFinishedInput
+            ? String(subTodoFinishedInput.getAttribute("data-subtodo-id") || "").trim()
+            : "";
+    if (!todoId) return;
+
+    const payload = { todoId };
+    if (subTodoId) payload.subTodoId = subTodoId;
+    if (todoStatusSelect || subTodoStatusSelect) payload.status = String(event.target.value || "").trim().toLowerCase();
+    if (todoDueInput || subTodoDueInput) payload.dueBy = String(event.target.value || "").trim() || null;
+    if (todoStartedInput || subTodoStartedInput) payload.startedAt = String(event.target.value || "").trim() || null;
+    if (todoFinishedInput || subTodoFinishedInput) payload.finishedAt = String(event.target.value || "").trim() || null;
+
+    event.target.disabled = true;
+    try {
+      await callDashboardFunction("updateProjectTodoCallable", payload);
+    } catch (err) {
+      window.alert(`Failed: ${formatUiError(err)}`);
+    } finally {
+      event.target.disabled = false;
+    }
+  });
+
+  homeTodosEl.addEventListener("click", async (event) => {
+    const addButton = event.target.closest("[data-home-subtodo-add]");
+    if (!addButton) return;
+    const todoId = String(addButton.getAttribute("data-home-subtodo-add") || "").trim();
+    if (!todoId) return;
+    const input = homeTodosEl.querySelector(`[data-home-subtodo-input="${CSS.escape(todoId)}"]`);
+    const dueByInput = homeTodosEl.querySelector(`[data-home-subtodo-dueby-input="${CSS.escape(todoId)}"]`);
+    const text = String(input?.value || "").trim();
+    if (!text) {
+      window.alert("Enter a sub-todo first.");
+      return;
+    }
+    const dueBy = String(dueByInput?.value || "").trim();
+    addButton.disabled = true;
+    if (input) input.disabled = true;
+    if (dueByInput) dueByInput.disabled = true;
+    try {
+      const payload = { todoId, text };
+      if (dueBy) payload.dueBy = dueBy;
+      await callDashboardFunction("addProjectSubTodoCallable", payload);
+      if (input) input.value = "";
+      if (dueByInput) dueByInput.value = "";
+    } catch (err) {
+      window.alert(`Failed: ${formatUiError(err)}`);
+    } finally {
+      addButton.disabled = false;
+      if (input) input.disabled = false;
+      if (dueByInput) dueByInput.disabled = false;
+    }
+  });
+}
+
 function initAssistantComposer() {
   const phoneSelect = document.getElementById("assistantComposerPhone");
   const schedulePhoneSelect = document.getElementById("assistantSchedulePhone");
@@ -4122,5 +4284,6 @@ initMemberManager();
 initLabourPage();
 initProjectNotesRequestForm();
 initApprovals();
+initHomeTodos();
 initAssistantComposer();
 initAuthGate();

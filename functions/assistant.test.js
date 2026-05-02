@@ -172,26 +172,22 @@ test("parseNotificationRequest reads management and project audiences", () => {
 });
 
 test('parseHomeTodoCommand extracts case-insensitive "xxx" home todos', () => {
-  assert.deepEqual(
-    parseHomeTodoCommand("xxX fix the garage door by next week"),
-    {
-      projectSlug: "home",
-      taskText: "fix the garage door",
-      dueWindow: "next_week",
-      dueLabel: "next week",
-      rawText: "fix the garage door by next week",
-    }
-  );
-  assert.deepEqual(
-    parseHomeTodoCommand("XXX fix the garage door in the next month"),
-    {
-      projectSlug: "home",
-      taskText: "fix the garage door",
-      dueWindow: "next_month",
-      dueLabel: "next month",
-      rawText: "fix the garage door in the next month",
-    }
-  );
+  const nextWeek = parseHomeTodoCommand("xxX fix the garage door by next week");
+  assert.equal(nextWeek.projectSlug, "home");
+  assert.equal(nextWeek.taskText, "fix the garage door");
+  assert.equal(nextWeek.dueWindow, "next_week");
+  assert.equal(nextWeek.dueLabel, "next week");
+  assert.equal(nextWeek.rawText, "fix the garage door by next week");
+  assert.match(String(nextWeek.dueByIso || ""), /^\d{4}-\d{2}-\d{2}T/);
+
+  const nextMonth = parseHomeTodoCommand("XXX fix the garage door in the next month");
+  assert.equal(nextMonth.projectSlug, "home");
+  assert.equal(nextMonth.taskText, "fix the garage door");
+  assert.equal(nextMonth.dueWindow, "next_month");
+  assert.equal(nextMonth.dueLabel, "next month");
+  assert.equal(nextMonth.rawText, "fix the garage door in the next month");
+  assert.match(String(nextMonth.dueByIso || ""), /^\d{4}-\d{2}-\d{2}T/);
+
   assert.deepEqual(
     parseHomeTodoCommand("xxx fix the garage door"),
     {
@@ -199,6 +195,7 @@ test('parseHomeTodoCommand extracts case-insensitive "xxx" home todos', () => {
       taskText: "fix the garage door",
       dueWindow: null,
       dueLabel: null,
+      dueByIso: null,
       rawText: "fix the garage door",
     }
   );
