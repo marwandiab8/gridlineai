@@ -1,0 +1,52 @@
+[
+  {
+    "id": "journal_plain_activities_note",
+    "text": "We did lots of activities today. Ashley and I went to the Restore place after breakfast and bought a desk for Myles",
+    "expect": {
+      "dayRollup": false,
+      "explicitAiRequest": false,
+      "narrativeSaveCandidate": true,
+      "fallbackAction": "save_log",
+      "safeFallbackUsed": true
+    }
+  },
+  {
+    "id": "activity_lookup_request",
+    "text": "show me the activities for 2026-04-18",
+    "expect": {
+      "dayRollup": true
+    }
+  },
+  {
+    "id": "journal_home_note_not_labour",
+    "text": "Worked on home activities and errands today and then sat with Ashley for coffee",
+    "expect": {
+      "explicitLabourEntry": false,
+      "explicitAiRequest": false,
+      "narrativeSaveCandidate": true
+    }
+  },
+  {
+    "id": "labour_entry_explicit",
+    "text": "labour 8.0 framing cleanup",
+    "expect": {
+      "explicitLabourEntry": true
+    }
+  },
+  {
+    "id": "labour_balance_explicit",
+    "text": "how many hours this week",
+    "expect": {
+      "explicitLabourBalance": true
+    }
+  },
+  {
+    "id": "direct_question_request",
+    "text": "Should I log this under deficiency?",
+    "expect": {
+      "explicitAiRequest": true,
+      "fallbackAction": "ai_reply",
+      "safeFallbackUsed": false
+    }
+  }
+]

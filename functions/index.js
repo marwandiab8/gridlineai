@@ -2771,6 +2771,18 @@ exports.inboundSms = onRequest(
         ]);
         replyText = out.replyText;
         outboundMeta = out.outboundMeta || {};
+        if (outboundMeta.routingDecision) {
+          logger.info("inboundSms: routing telemetry", {
+            runId,
+            stage: outboundMeta.routingDecision.stage || null,
+            action: outboundMeta.routingDecision.action || null,
+            confidence: outboundMeta.routingDecision.confidence ?? null,
+            reason: outboundMeta.routingDecision.reason || null,
+            source: outboundMeta.routingDecision.source || null,
+            matchedBy: outboundMeta.routingDecision.matchedBy || null,
+            safeFallbackUsed: outboundMeta.routingDecision.safeFallbackUsed === true,
+          });
+        }
       } catch (handlerErr) {
         if (handlerErr && handlerErr.message === "__BUILD_REPLY_TIMEOUT__") {
           logger.warn("inboundSms: buildReply timed out", { runId });
@@ -2902,6 +2914,17 @@ exports.inboundSms = onRequest(
             outboundMeta.notifyRequest && outboundMeta.notifyRequest.projectSlug
               ? normalizeProjectSlug(outboundMeta.notifyRequest.projectSlug)
               : null,
+          routingStage: outboundMeta.routingDecision ? outboundMeta.routingDecision.stage || null : null,
+          routingAction: outboundMeta.routingDecision ? outboundMeta.routingDecision.action || null : null,
+          routingConfidence:
+            outboundMeta.routingDecision && Number.isFinite(Number(outboundMeta.routingDecision.confidence))
+              ? Number(outboundMeta.routingDecision.confidence)
+              : null,
+          routingReason: outboundMeta.routingDecision ? outboundMeta.routingDecision.reason || null : null,
+          routingSource: outboundMeta.routingDecision ? outboundMeta.routingDecision.source || null : null,
+          routingMatchedBy: outboundMeta.routingDecision ? outboundMeta.routingDecision.matchedBy || null : null,
+          routingSafeFallbackUsed:
+            outboundMeta.routingDecision ? outboundMeta.routingDecision.safeFallbackUsed === true : false,
         });
 
         const outboundRef = await db.collection("messages").add({
@@ -2931,6 +2954,17 @@ exports.inboundSms = onRequest(
           reportDateKey: outboundMeta.reportDateKey || null,
           reportType: outboundMeta.reportType || null,
           pendingDeficiencyIntake: Boolean(outboundMeta.pendingDeficiencyIntake),
+          routingStage: outboundMeta.routingDecision ? outboundMeta.routingDecision.stage || null : null,
+          routingAction: outboundMeta.routingDecision ? outboundMeta.routingDecision.action || null : null,
+          routingConfidence:
+            outboundMeta.routingDecision && Number.isFinite(Number(outboundMeta.routingDecision.confidence))
+              ? Number(outboundMeta.routingDecision.confidence)
+              : null,
+          routingReason: outboundMeta.routingDecision ? outboundMeta.routingDecision.reason || null : null,
+          routingSource: outboundMeta.routingDecision ? outboundMeta.routingDecision.source || null : null,
+          routingMatchedBy: outboundMeta.routingDecision ? outboundMeta.routingDecision.matchedBy || null : null,
+          routingSafeFallbackUsed:
+            outboundMeta.routingDecision ? outboundMeta.routingDecision.safeFallbackUsed === true : false,
           notifyAudience:
             outboundMeta.notifyRequest && outboundMeta.notifyRequest.audience
               ? String(outboundMeta.notifyRequest.audience)

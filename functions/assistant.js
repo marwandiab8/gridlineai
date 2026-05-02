@@ -279,7 +279,8 @@ function sanitizeIntentPayload(raw, fallbackText) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 240);
-  return { intent, confidence, reason };
+  const source = raw && typeof raw === "object" && Object.keys(raw).length ? "ai" : "fallback";
+  return { intent, confidence, reason, source };
 }
 
 function looksLikeExplicitAiChatRequest(text) {
@@ -307,6 +308,107 @@ function looksLikeExplicitAiChatRequest(text) {
     return true;
   }
   return false;
+}
+
+function buildRoutingDecision(patch = {}) {
+  return {
+    stage: String(patch.stage || "").trim() || "unknown",
+    action: String(patch.action || "").trim() || "unknown",
+    confidence: Number.isFinite(Number(patch.confidence))
+      ? Math.max(0, Math.min(1, Number(patch.confidence)))
+      : 0,
+    reason: String(patch.reason || "").replace(/\s+/g, " ").trim().slice(0, 280) || "",
+    source: String(patch.source || "").trim() || "unknown",
+    matchedBy: String(patch.matchedBy || "").trim() || "unknown",
+    safeFallbackUsed: patch.safeFallbackUsed === true,
+  };
+}
+
+function withRoutingDecision(outboundMeta, patch) {
+  return {
+    ...outboundMeta,
+    routingDecision: buildRoutingDecision(patch),
+  };
+}
+
+function logRoutingTelemetry(logger, runId, phoneE164, routingDecision, extra = {}) {
+  if (!logger || !routingDecision) return;
+  logger.info("assistant: routing decision", {
+    runId,
+    phoneE164,
+    stage: routingDecision.stage,
+    action: routingDecision.action,
+    confidence: routingDecision.confidence,
+    reason: routingDecision.reason || null,
+    source: routingDecision.source,
+    matchedBy: routingDecision.matchedBy,
+    safeFallbackUsed: routingDecision.safeFallbackUsed === true,
+    ...extra,
+  });
+}
+
+function looksLikeNarrativeSaveCandidate(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw || raw.length < 20) return false;
+  if (raw.endsWith("?")) return false;
+  if (/^(?:please\s+)?(?:show|what|when|where|why|how|who|can\s+you|could\s+you|would\s+you|do|did|is|are|should|tell|read|give|list|summarize|summary|daily\s+report|daily\s+log|report|help|status|project|reset)\b/i.test(raw)) {
+    return false;
+  }
+  if (/^(?:labour|labor|hours?|time)\b/i.test(raw)) return false;
+  if (/\b(?:i|we|ashley|my|our|today|this\s+morning|after|before|went|did|bought|woke|felt|planning|worked)\b/i.test(raw)) {
+    return true;
+  }
+  return /[.!]\s+[A-Z]/.test(raw) || raw.split(/\s+/).length >= 8;
+}
+
+function decideFallbackRouting(intentPayload, text, explicitAiRequest) {
+  const intent = intentPayload && intentPayload.intent ? intentPayload.intent : "request";
+  const confidence = Number(intentPayload && intentPayload.confidence) || 0;
+  const reason = String(intentPayload && intentPayload.reason || "").trim();
+  const narrative = looksLikeNarrativeSaveCandidate(text);
+
+  if (explicitAiRequest) {
+    return buildRoutingDecision({
+      stage: "non_command",
+      action: "ai_reply",
+      confidence: 0.98,
+      reason: "Explicit conversational request matched question/help heuristics.",
+      source: "deterministic",
+      matchedBy: "explicit_ai_request",
+    });
+  }
+
+  if (intent !== "request") {
+    return buildRoutingDecision({
+      stage: "non_command",
+      action: "save_log",
+      confidence: confidence || 0.75,
+      reason: reason || `Intent classifier chose ${intent}.`,
+      source: intentPayload && intentPayload.source ? intentPayload.source : "unknown",
+      matchedBy: `intent:${intent}`,
+    });
+  }
+
+  if (narrative && confidence < 0.8) {
+    return buildRoutingDecision({
+      stage: "non_command",
+      action: "save_log",
+      confidence: 0.7,
+      reason: "Low-confidence request classification on narrative prose; using safe fallback to save the note.",
+      source: "safe_fallback",
+      matchedBy: "narrative_save_candidate",
+      safeFallbackUsed: true,
+    });
+  }
+
+  return buildRoutingDecision({
+    stage: "non_command",
+    action: "ai_reply",
+    confidence: confidence || 0.7,
+    reason: reason || "Intent classifier kept the message on the conversational path.",
+    source: intentPayload && intentPayload.source ? intentPayload.source : "unknown",
+    matchedBy: `intent:${intent}`,
+  });
 }
 
 function isExplicitLabourEntryText(text) {
@@ -979,6 +1081,21 @@ async function routeGenericInboundLog({
   modelsOverride,
   outboundMeta,
 }) {
+  const routingDecision =
+    outboundMeta && outboundMeta.routingDecision
+      ? outboundMeta.routingDecision
+      : buildRoutingDecision({
+          stage: "non_command",
+          action: "save_log",
+          confidence: 0.7,
+          reason: "Generic inbound log routing selected the save-to-log path.",
+          source: "generic_router",
+          matchedBy: "routeGenericInboundLog",
+        });
+  logRoutingTelemetry(logger, runId, phoneE164, routingDecision, {
+    projectSlug: effectiveProjectSlug || null,
+    numMedia: Math.max(0, Number(numMedia) || 0),
+  });
   const extracted = extractExplicitReportDate(trimmedBody);
   const cleanedText = (extracted.cleanedText || trimmedBody || "").trim() || "Field update";
   let routed = null;
@@ -1058,7 +1175,7 @@ async function routeGenericInboundLog({
         `Saved as ${payload.logType}${payload.requiresFollowUp ? " for follow-up" : ""}: ${payload.title}`
       ),
       outboundMeta: {
-        ...outboundMeta,
+        ...withRoutingDecision(outboundMeta, routingDecision),
         aiUsed: Boolean(routed),
         command: `log_${payload.logType}`,
         projectSlug: effectiveProjectSlug,
@@ -1101,7 +1218,7 @@ async function routeGenericInboundLog({
         : `Saved to today's construction log${payload.title ? `: ${payload.title}` : "."}`
     ),
     outboundMeta: {
-      ...outboundMeta,
+      ...withRoutingDecision(outboundMeta, routingDecision),
       aiUsed: Boolean(routed),
       command: isJournal ? "log_journal" : "log_construction",
       projectSlug: saveProjectSlug,
@@ -1630,6 +1747,7 @@ async function buildReply({
     labourPdfRequested: false,
     labourReportStartKey: null,
     labourReportEndKey: null,
+    routingDecision: null,
   };
 
   const isLabourReportRequest = (text) => {
@@ -2163,7 +2281,14 @@ async function buildReply({
           })
         ),
         outboundMeta: {
-          ...outboundMeta,
+          ...withRoutingDecision(outboundMeta, {
+            stage: "deterministic",
+            action: "labour_balance",
+            confidence: 0.99,
+            reason: "Matched labour balance query.",
+            source: "deterministic",
+            matchedBy: "parseLabourHoursBalanceQuery",
+          }),
           command: "labour_hours_balance",
           reportStartKey: range.startKey,
           reportEndKey: range.endKey,
@@ -2245,7 +2370,14 @@ async function buildReply({
           }: ${labourEntryCommand.workOn}`
         ),
         outboundMeta: {
-          ...outboundMeta,
+          ...withRoutingDecision(outboundMeta, {
+            stage: "deterministic",
+            action: "labour_entry",
+            confidence: 0.99,
+            reason: "Matched labour entry command.",
+            source: "deterministic",
+            matchedBy: "parseLabourHoursCommand",
+          }),
           command: "labour_entry_saved",
           labourEntryId: entry.labourEntryId,
           labourerName,
@@ -2454,7 +2586,14 @@ async function buildReply({
           structuredReportDateKey ? `(${structuredReportDateKey}) ` : ""
         }${logBody}`
       ),
-      outboundMeta,
+      outboundMeta: withRoutingDecision(outboundMeta, {
+        stage: "deterministic",
+        action: "save_log",
+        confidence: 0.99,
+        reason: "Matched structured log command.",
+        source: "deterministic",
+        matchedBy: `parseStructuredLog:${structured.logParsedType}`,
+      }),
     };
   }
 
@@ -2497,7 +2636,14 @@ async function buildReply({
     });
     return {
       replyText: sum.text,
-      outboundMeta,
+      outboundMeta: withRoutingDecision(outboundMeta, {
+        stage: "deterministic",
+        action: "day_rollup",
+        confidence: 0.99,
+        reason: "Matched daily log/summary lookup request.",
+        source: "deterministic",
+        matchedBy: preferAi ? "parseDayRollupRequest:summary" : "parseDayRollupRequest:view",
+      }),
     };
   }
 
@@ -2551,7 +2697,8 @@ async function buildReply({
       trimmedBody: userMessageForAI,
       modelsOverride,
     });
-    if (genericIntent.intent !== "request") {
+    const fallbackDecision = decideFallbackRouting(genericIntent, userMessageForAI, explicitAiRequest);
+    if (fallbackDecision.action === "save_log") {
       logger.info("assistant: generic inbound routed", {
         runId,
         intent: genericIntent.intent,
@@ -2573,9 +2720,21 @@ async function buildReply({
         effectiveProjectName,
         logAuthorFields,
         modelsOverride,
-        outboundMeta,
+        outboundMeta: withRoutingDecision(outboundMeta, fallbackDecision),
       });
     }
+    logRoutingTelemetry(logger, runId, phoneE164, fallbackDecision, {
+      projectSlug: effectiveProjectSlug || null,
+      numMedia: Math.max(0, Number(numMedia) || 0),
+    });
+    outboundMeta.routingDecision = fallbackDecision;
+  } else {
+    const explicitDecision = decideFallbackRouting(null, userMessageForAI, true);
+    logRoutingTelemetry(logger, runId, phoneE164, explicitDecision, {
+      projectSlug: effectiveProjectSlug || null,
+      numMedia: Math.max(0, Number(numMedia) || 0),
+    });
+    outboundMeta.routingDecision = explicitDecision;
   }
 
   if (
@@ -2710,6 +2869,8 @@ module.exports = {
   isExplicitLabourBalanceText,
   looksLikeAssistantFollowUpAnswer,
   shouldTrackAssistantFollowUp,
+  looksLikeNarrativeSaveCandidate,
+  decideFallbackRouting,
   inferJournalTags,
   RATE_MAX,
   RATE_WINDOW_MS,

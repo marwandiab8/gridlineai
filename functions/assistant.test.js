@@ -6,11 +6,13 @@ const {
   formatDurationFromMs,
   inferInboundLogType,
   inferJournalTags,
+  decideFallbackRouting,
   isExplicitLabourBalanceText,
   isExplicitLabourEntryText,
   isStopTimerCommand,
   looksLikeAssistantFollowUpAnswer,
   looksLikeExplicitAiChatRequest,
+  looksLikeNarrativeSaveCandidate,
   parseNotificationRequest,
   parseStartTimerCommand,
   sanitizeIntentPayload,
@@ -117,6 +119,20 @@ test("assistant follow-up helpers recognize short context replies", () => {
   );
   assert.equal(shouldTrackAssistantFollowUp("Should I log this under deficiency?"), true);
   assert.equal(shouldTrackAssistantFollowUp("Saved to the home journal."), false);
+});
+
+test("safe fallback routing saves narrative text on low-confidence request classifications", () => {
+  assert.equal(
+    looksLikeNarrativeSaveCandidate("We did lots of activities today and bought a desk for Myles after breakfast."),
+    true
+  );
+  const decision = decideFallbackRouting(
+    { intent: "request", confidence: 0.55, reason: "uncertain", source: "ai" },
+    "We did lots of activities today and bought a desk for Myles after breakfast.",
+    false
+  );
+  assert.equal(decision.action, "save_log");
+  assert.equal(decision.safeFallbackUsed, true);
 });
 
 test("inferJournalTags captures feeling and plan cues", () => {
