@@ -75,6 +75,7 @@
           <a href="#dashboard" class="page-nav-link" data-view-link="dashboard" data-min-role="admin">Dashboard</a>
           <a href="#assistant" class="page-nav-link" data-view-link="assistant" data-min-role="management">Assistant</a>
           <a href="#lookahead" class="page-nav-link" data-view-link="lookahead" data-min-role="management">Lookahead</a>
+          <a href="#voice" class="page-nav-link" data-view-link="voice" data-min-role="management">Voice</a>
           <a href="#messages" class="page-nav-link" data-view-link="messages" data-min-role="admin">Messages</a>
           <a href="#reports" class="page-nav-link" data-view-link="reports">Reports</a>
           <a href="#approvals" class="page-nav-link" data-view-link="approvals">Approvals</a>
@@ -134,6 +135,7 @@
                   <button type="button" class="btn-primary" data-view-target="reports">Generate report</button>
                   <button type="button" class="btn-secondary" data-view-target="projects">Create project</button>
                   <button type="button" class="btn-secondary" data-view-target="labour">Labour page</button>
+                  <button type="button" class="btn-secondary" data-view-target="voice">Review voice</button>
                   <button type="button" class="btn-secondary" data-view-target="messages">Review messages</button>
                   <a href="./issues.html" class="btn-secondary quick-link">Open issue board</a>
                 </div>
@@ -341,7 +343,7 @@
                 <div class="card-head">
                   <div>
                     <h3>Recent SMS</h3>
-                    <p class="muted small">Inbound and outbound messages with project, MMS, and command context.</p>
+                    <p class="muted small">Inbound and outbound SMS/MMS threads with project, media, and command context.</p>
                   </div>
                 </div>
                 <div id="messages" class="scroll-list scroll-list-tall"></div>
@@ -357,6 +359,44 @@
                   </div>
                 </div>
                 <div id="logEntries" class="scroll-list scroll-list-tall"></div>
+              </article>
+            </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="voice" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Voice review</p>
+                <h2>Voice Messages</h2>
+              </div>
+              <p class="muted">
+                Review call-based updates, transcripts, and saved recordings without mixing them into the SMS thread view.
+              </p>
+            </div>
+
+            <div class="section-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Recent voice activity</h3>
+                    <p class="muted small">
+                      Recorded voice messages and spoken assistant replies with project, transcript, and duration context.
+                    </p>
+                  </div>
+                </div>
+                <div id="voiceMessages" class="scroll-list scroll-list-tall"></div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Saved recordings</h3>
+                    <p class="muted small">
+                      Audio files linked to voice interactions. Open the stored recording separately from the text transcript.
+                    </p>
+                  </div>
+                </div>
+                <div id="voiceRecordings" class="scroll-list scroll-list-tall"></div>
               </article>
             </div>
           </section>

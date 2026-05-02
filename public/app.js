@@ -429,6 +429,8 @@ const adminUserLabelEl = document.getElementById("adminUserLabel");
 const statusEl = document.getElementById("status");
 const statusDetailEl = document.getElementById("statusDetail");
 const messagesEl = document.getElementById("messages");
+const voiceMessagesEl = document.getElementById("voiceMessages");
+const voiceRecordingsEl = document.getElementById("voiceRecordings");
 const usersEl = document.getElementById("users");
 const issuesEl = document.getElementById("issues");
 const summariesEl = document.getElementById("summaries");
@@ -469,6 +471,7 @@ const quickViewButtons = Array.from(document.querySelectorAll("[data-view-target
 
 let appUnsubscribers = [];
 let messagesCache = [];
+let voiceMessagesCache = [];
 let smsUsersCache = [];
 let projectsCache = [];
 let appMembersCache = [];
@@ -1397,9 +1400,179 @@ function renderAssistantComposer() {
   `;
 }
 
+function timestampSeconds(value) {
+  return value && value.seconds ? value.seconds : 0;
+}
+
+function sortByCreatedAtDesc(docs) {
+  return [...(docs || [])].sort((a, b) => timestampSeconds(b.createdAt) - timestampSeconds(a.createdAt));
+}
+
+function isVoiceMessage(msg) {
+  return String(msg?.channel || "").trim().toLowerCase() === "voice";
+}
+
+function isTextMessage(msg) {
+  return !isVoiceMessage(msg);
+}
+
+function messageMediaCount(msg) {
+  if (Number.isFinite(msg?.mediaAttachedCount) && msg.mediaAttachedCount > 0) return msg.mediaAttachedCount;
+  if (Number.isFinite(msg?.numMedia) && msg.numMedia > 0) return msg.numMedia;
+  return Array.isArray(msg?.mediaIds) ? msg.mediaIds.length : 0;
+}
+
+function renderMessageRow(msg, options = {}) {
+  const {
+    mediaLabel = "MMS",
+    showPhotoStrip = false,
+    showVoiceMeta = false,
+    mediaDocs = [],
+  } = options;
+  const dir = msg.direction === "inbound" ? "inbound" : "outbound";
+  const pillClass = dir === "inbound" ? "pill-inbound" : "pill-outbound";
+  const aiPill =
+    msg.aiError || (msg.command === "ai_error" && msg.aiError)
+      ? '<span class="pill pill-warn">AI error</span>'
+      : msg.aiUsed
+        ? '<span class="pill pill-ai">AI</span>'
+        : msg.command
+          ? `<span class="pill pill-ai">${esc(msg.command)}</span>`
+          : "";
+  const proj = msg.projectSlug ? `<div><strong>Project:</strong> ${esc(msg.projectSlug)}</div>` : "";
+  const err =
+    msg.aiError && dir === "outbound" ? `<div class="muted small">Error: ${esc(msg.aiError)}</div>` : "";
+  const mediaCount = messageMediaCount(msg);
+  const mediaPill = mediaCount ? `<span class="pill pill-ai">${esc(mediaLabel)} ${esc(String(mediaCount))}</span>` : "";
+  const photoUrls = Array.isArray(msg.photoPreviewUrls) ? msg.photoPreviewUrls.filter(Boolean) : [];
+  const photoPaths = Array.isArray(msg.photoStoragePaths) ? msg.photoStoragePaths.filter(Boolean) : [];
+  const photoStrip =
+    showPhotoStrip && photoUrls.length
+      ? `<div class="message-photo-strip">${photoUrls
+          .map(
+            (url) =>
+              `<a href="${esc(url)}" target="_blank" rel="noopener" title="Full size"><img class="media-thumb" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></a>`
+          )
+          .join("")}</div>`
+      : showPhotoStrip && photoPaths.length
+        ? `<div class="message-photo-strip">${photoPaths
+            .map(
+              (storagePath) =>
+                `<a href="#" class="media-thumb-link" rel="noopener" onclick="return false" title="Loading..."><img class="media-thumb media-thumb-pending" data-storage-path="${esc(storagePath)}" src="${TRANSPARENT_PIXEL}" alt="" loading="lazy" /></a>`
+            )
+            .join("")}</div>`
+        : "";
+  const transcript = String(msg?.audioTranscription?.transcript || "").trim();
+  const duration = String(msg?.recordingDuration || "").trim();
+  const recordingLinks = showVoiceMeta
+    ? mediaDocs
+        .map((media) => {
+          const directUrl = media?.downloadURL ? String(media.downloadURL).trim() : "";
+          const storagePath = media?.storagePath ? String(media.storagePath).trim() : "";
+          if (directUrl) {
+            return `<a href="${esc(directUrl)}" target="_blank" rel="noopener">Open recording</a>`;
+          }
+          if (storagePath) {
+            return `<a href="#" class="storage-link-pending" data-storage-path="${esc(storagePath)}" data-ready-label="Open recording" target="_blank" rel="noopener" onclick="return false">Resolving recording...</a>`;
+          }
+          return `<span class="muted small">Recording saved without a file link yet.</span>`;
+        })
+        .join(" · ")
+    : "";
+  const voiceMeta = showVoiceMeta
+    ? `
+      <div class="muted small">
+        ${duration ? `Duration: ${esc(duration)}s` : "Duration: -"}
+        ${transcript ? ` · Transcript saved` : ""}
+        ${recordingLinks ? ` · ${recordingLinks}` : ""}
+      </div>
+      ${transcript ? `<div><strong>Transcript:</strong> ${esc(transcript)}</div>` : ""}`
+    : "";
+  return `
+    <div class="row-item">
+      <div><span class="pill ${pillClass}">${esc(dir)}</span>${mediaPill}${aiPill}</div>
+      <div class="mono">${fmtTime(msg.createdAt)}</div>
+      <div><strong>From:</strong> ${esc(msg.from)} -> <strong>To:</strong> ${esc(msg.to)}</div>
+      ${proj}
+      <div>${esc(msg.body || "")}</div>
+      ${voiceMeta}
+      ${photoStrip}
+      ${err}
+      <div class="muted small mono">sid ${esc(msg.messageSid || "")} · doc ${esc(msg.id)}</div>
+    </div>`;
+}
+
+function renderVoiceMessages() {
+  if (!voiceMessagesEl) return;
+  const docs = sortByCreatedAtDesc(voiceMessagesCache);
+  if (!docs.length) {
+    voiceMessagesEl.innerHTML =
+      '<div class="row-item muted small">No voice messages yet. Call the Twilio number and press 1 to leave a recording.</div>';
+    return;
+  }
+  const mediaByMessageId = new Map();
+  for (const media of mediaCache) {
+    const sourceMessageId = String(media?.sourceMessageId || "").trim();
+    if (!sourceMessageId) continue;
+    if (!mediaByMessageId.has(sourceMessageId)) mediaByMessageId.set(sourceMessageId, []);
+    mediaByMessageId.get(sourceMessageId).push(media);
+  }
+  voiceMessagesEl.innerHTML = docs
+    .map((msg) =>
+      renderMessageRow(msg, {
+        mediaLabel: "REC",
+        showVoiceMeta: true,
+        mediaDocs: mediaByMessageId.get(String(msg.id || "").trim()) || [],
+      })
+    )
+    .join("");
+  scheduleHydrateMediaThumbs();
+}
+
+function isVoiceRecordingMedia(media) {
+  const source = String(media?.source || "").trim().toLowerCase();
+  const contentType = String(media?.contentType || "").trim().toLowerCase();
+  return source === "voice" || contentType.startsWith("audio/");
+}
+
+function renderVoiceRecordings() {
+  if (!voiceRecordingsEl) return;
+  const docs = sortByCreatedAtDesc(mediaCache.filter(isVoiceRecordingMedia));
+  if (!docs.length) {
+    voiceRecordingsEl.innerHTML =
+      '<div class="row-item muted small">No saved recordings yet. Voice recordings will appear here after callers leave a message.</div>';
+    return;
+  }
+  voiceRecordingsEl.innerHTML = docs
+    .map((media) => {
+      const directUrl = media.downloadURL && String(media.downloadURL).trim();
+      const storagePath = media.storagePath && String(media.storagePath).trim();
+      const link = directUrl
+        ? `<a href="${esc(directUrl)}" target="_blank" rel="noopener">Open recording</a>`
+        : storagePath
+          ? `<a href="#" class="storage-link-pending" data-storage-path="${esc(storagePath)}" data-ready-label="Open recording" target="_blank" rel="noopener" onclick="return false">Resolving recording...</a>`
+          : '<span class="muted small">No file link available yet.</span>';
+      return `
+        <div class="row-item">
+          <div><span class="pill pill-ai">recording</span></div>
+          <div class="mono">${fmtTime(media.createdAt)}</div>
+          <div><strong>Project:</strong> ${esc(media.projectId || media.projectSlug || "_unassigned")}</div>
+          <div><strong>From:</strong> ${esc(media.senderPhone || "-")}</div>
+          <div><strong>Type:</strong> ${esc(media.contentType || "audio")}</div>
+          <div>${link}</div>
+          <div class="muted small">${esc(media.captionText || "(no transcript excerpt saved on media record)")}</div>
+          <div class="muted small mono">msg ${esc(media.sourceMessageId || "-")} · media ${esc(media.id || "-")}</div>
+        </div>`;
+    })
+    .join("");
+  scheduleHydrateMediaThumbs();
+}
+
 function clearAdminPanels() {
   const placeholder = '<div class="row-item muted small">Sign in to load this section.</div>';
   if (messagesEl) messagesEl.innerHTML = placeholder;
+  if (voiceMessagesEl) voiceMessagesEl.innerHTML = placeholder;
+  if (voiceRecordingsEl) voiceRecordingsEl.innerHTML = placeholder;
   if (usersEl) usersEl.innerHTML = placeholder;
   if (appMembersEl) appMembersEl.innerHTML = placeholder;
   if (labourersEl) labourersEl.innerHTML = placeholder;
@@ -1415,6 +1588,7 @@ function clearAdminPanels() {
 
 function resetAdminCaches() {
   messagesCache = [];
+  voiceMessagesCache = [];
   smsUsersCache = [];
   projectsCache = [];
   appMembersCache = [];
@@ -1432,6 +1606,8 @@ function resetAdminCaches() {
   labourPayCache = [];
   currentAppAccess = null;
   renderDashboard();
+  renderVoiceMessages();
+  renderVoiceRecordings();
   renderLabourPanel();
 }
 
@@ -1556,6 +1732,28 @@ async function hydrateAllMediaThumbs() {
       wrap.innerHTML = `<div class="muted small">Could not resolve PDF from Storage.</div>`;
       anchor.replaceWith(wrap);
       console.warn("gridline: daily report getDownloadURL failed", storagePath, err);
+    }
+  }
+
+  const pendingStorageLinks = document.querySelectorAll("a.storage-link-pending[data-storage-path]");
+  for (const anchor of pendingStorageLinks) {
+    const storagePath = anchor.getAttribute("data-storage-path");
+    if (!storagePath) continue;
+    try {
+      const url = await getCachedStorageDownloadURL(storagePath);
+      if (!url) throw new Error("Empty URL from Storage");
+      anchor.href = url;
+      anchor.textContent = anchor.getAttribute("data-ready-label") || "Open file";
+      anchor.classList.remove("storage-link-pending");
+      anchor.removeAttribute("data-storage-path");
+      anchor.removeAttribute("data-ready-label");
+      anchor.removeAttribute("onclick");
+    } catch (err) {
+      anchor.textContent = "Could not resolve file link";
+      anchor.title = String(err?.message || err);
+      anchor.classList.remove("storage-link-pending");
+      anchor.removeAttribute("data-storage-path");
+      anchor.removeAttribute("data-ready-label");
     }
   }
 }
@@ -1816,72 +2014,19 @@ function startAdminListeners() {
         query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(40)),
         messagesEl,
         (docs) => {
-          if (!docs.length) {
+          const textDocs = docs.filter(isTextMessage);
+          if (!textDocs.length) {
             return '<div class="row-item muted">No messages yet.</div>';
           }
-          return docs
-            .map((msg) => {
-              const dir = msg.direction === "inbound" ? "inbound" : "outbound";
-              const pillClass = dir === "inbound" ? "pill-inbound" : "pill-outbound";
-              const aiPill =
-                msg.aiError || (msg.command === "ai_error" && msg.aiError)
-                  ? '<span class="pill pill-warn">AI error</span>'
-                  : msg.aiUsed
-                    ? '<span class="pill pill-ai">AI</span>'
-                    : msg.command
-                      ? `<span class="pill pill-ai">${esc(msg.command)}</span>`
-                      : "";
-              const proj = msg.projectSlug
-                ? `<div><strong>Project:</strong> ${esc(msg.projectSlug)}</div>`
-                : "";
-              const err =
-                msg.aiError && dir === "outbound"
-                  ? `<div class="muted small">Error: ${esc(msg.aiError)}</div>`
-                  : "";
-              const mms =
-                dir === "inbound" &&
-                (msg.numMedia > 0 ||
-                  (msg.mediaIds && msg.mediaIds.length) ||
-                  msg.mediaAttachedCount > 0)
-                  ? `<span class="pill pill-ai">MMS ${msg.numMedia || msg.mediaAttachedCount || (msg.mediaIds && msg.mediaIds.length) || ""}</span>`
-                  : "";
-              const photoUrls =
-                dir === "inbound" && Array.isArray(msg.photoPreviewUrls) ? msg.photoPreviewUrls.filter(Boolean) : [];
-              const photoPaths =
-                dir === "inbound" && Array.isArray(msg.photoStoragePaths) ? msg.photoStoragePaths.filter(Boolean) : [];
-              const photoStrip =
-                dir === "inbound" && photoUrls.length
-                  ? `<div class="message-photo-strip">${photoUrls
-                      .map(
-                        (url) =>
-                          `<a href="${esc(url)}" target="_blank" rel="noopener" title="Full size"><img class="media-thumb" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></a>`
-                      )
-                      .join("")}</div>`
-                  : dir === "inbound" && photoPaths.length
-                    ? `<div class="message-photo-strip">${photoPaths
-                        .map(
-                          (storagePath) =>
-                            `<a href="#" class="media-thumb-link" rel="noopener" onclick="return false" title="Loading..."><img class="media-thumb media-thumb-pending" data-storage-path="${esc(storagePath)}" src="${TRANSPARENT_PIXEL}" alt="" loading="lazy" /></a>`
-                        )
-                        .join("")}</div>`
-                    : "";
-              return `
-                <div class="row-item">
-                  <div><span class="pill ${pillClass}">${esc(dir)}</span>${mms}${aiPill}</div>
-                  <div class="mono">${fmtTime(msg.createdAt)}</div>
-                  <div><strong>From:</strong> ${esc(msg.from)} -> <strong>To:</strong> ${esc(msg.to)}</div>
-                  ${proj}
-                  <div>${esc(msg.body)}</div>
-                  ${photoStrip}
-                  ${err}
-                  <div class="muted small mono">sid ${esc(msg.messageSid || "")} · doc ${esc(msg.id)}</div>
-                </div>`;
-            })
+          return textDocs
+            .map((msg) => renderMessageRow(msg, { mediaLabel: "MMS", showPhotoStrip: true }))
             .join("");
       },
       (docs) => {
         messagesCache = docs;
+        voiceMessagesCache = sortByCreatedAtDesc(docs.filter(isVoiceMessage));
         renderDashboard();
+        renderVoiceMessages();
         scheduleHydrateMediaThumbs();
       },
       "messages"
@@ -1981,6 +2126,8 @@ function startAdminListeners() {
           mediaCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
           renderMediaPanel();
           renderLogEntriesWithMedia();
+          renderVoiceMessages();
+          renderVoiceRecordings();
         },
         (err) => {
           const message = `media: ${err.message}`;
@@ -2025,12 +2172,23 @@ function startAdminListeners() {
     }
   } else {
     messagesCache = [];
+    voiceMessagesCache = [];
     smsUsersCache = [];
     issueLogsCache = [];
     summariesCache = [];
     mediaCache = [];
     logEntriesCache = [];
     if (messagesEl) messagesEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
+    if (voiceMessagesEl) {
+      voiceMessagesEl.innerHTML = isManagement
+        ? '<div class="row-item muted small">Loading voice activity...</div>'
+        : '<div class="row-item muted small">Management-only section.</div>';
+    }
+    if (voiceRecordingsEl) {
+      voiceRecordingsEl.innerHTML = isManagement
+        ? '<div class="row-item muted small">Loading recordings...</div>'
+        : '<div class="row-item muted small">Management-only section.</div>';
+    }
     if (usersEl) usersEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
     if (issuesEl) issuesEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
     if (summariesEl) summariesEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
@@ -2090,17 +2248,78 @@ function startAdminListeners() {
     if (currentUserAllProjects()) {
       appUnsubscribers.push(
         onSnapshot(
+          query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(120)),
+          (snap) => {
+            setStatusOk();
+            const docs = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+            voiceMessagesCache = docs.filter(isVoiceMessage);
+            renderVoiceMessages();
+          },
+          (err) => {
+            const message = `voice messages: ${err.message}`;
+            setStatusError(message);
+            voiceMessagesCache = [];
+            if (voiceMessagesEl) voiceMessagesEl.innerHTML = `<div class="row-item muted small">${esc(message)}</div>`;
+          }
+        )
+      );
+    } else if (managedProjectKeys.length) {
+      const voiceByQuery = new Map();
+      const syncScopedVoice = () => {
+        voiceMessagesCache = mergeScopedDocs(voiceByQuery).filter(isVoiceMessage);
+        renderVoiceMessages();
+      };
+      const watchScopedVoice = (queryKey, voiceQuery) => {
+        appUnsubscribers.push(
+          onSnapshot(
+            voiceQuery,
+            (snap) => {
+              setStatusOk();
+              voiceByQuery.set(
+                queryKey,
+                snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+              );
+              syncScopedVoice();
+            },
+            (err) => {
+              const message = `voice(${queryKey}): ${err.message}`;
+              setStatusError(message);
+              voiceByQuery.delete(queryKey);
+              syncScopedVoice();
+              if (voiceMessagesEl) voiceMessagesEl.innerHTML = `<div class="row-item muted small">${esc(message)}</div>`;
+            }
+          )
+        );
+      };
+
+      for (const projectKey of managedProjectKeys) {
+        watchScopedVoice(
+          `projectSlug:${projectKey}`,
+          query(collection(db, "messages"), where("projectSlug", "==", projectKey), limit(100))
+        );
+      }
+    } else {
+      voiceMessagesCache = [];
+      renderVoiceMessages();
+    }
+
+    if (currentUserAllProjects()) {
+      appUnsubscribers.push(
+        onSnapshot(
           query(collection(db, "media"), orderBy("createdAt", "desc")),
           (snap) => {
             setStatusOk();
             mediaCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
             renderMediaPanel();
+            renderVoiceMessages();
+            renderVoiceRecordings();
           },
           (err) => {
             const message = `media: ${err.message}`;
             setStatusError(message);
             mediaCache = [];
             if (mediaEl) mediaEl.innerHTML = `<div class="row-item muted small">${esc(message)}</div>`;
+            if (voiceRecordingsEl) voiceRecordingsEl.innerHTML = `<div class="row-item muted small">${esc(message)}</div>`;
           }
         )
       );
@@ -2109,6 +2328,8 @@ function startAdminListeners() {
       const syncScopedMedia = () => {
         mediaCache = mergeScopedDocs(mediaByQuery);
         renderMediaPanel();
+        renderVoiceMessages();
+        renderVoiceRecordings();
       };
       const watchScopedMedia = (queryKey, mediaQuery) => {
         appUnsubscribers.push(
@@ -2468,6 +2689,7 @@ function currentViewFromHash() {
     "dashboard",
     "assistant",
     "lookahead",
+    "voice",
     "messages",
     "reports",
     "approvals",
@@ -2502,7 +2724,7 @@ function syncAccessControlledUi() {
 }
 
 function applyView(viewName) {
-  const fallbacks = ["dashboard", "assistant", "lookahead", "reports", "labour", "tools", "approvals"];
+  const fallbacks = ["dashboard", "assistant", "lookahead", "voice", "reports", "labour", "tools", "approvals"];
   const fallbackView = fallbacks.find((candidate) => viewAllowedForCurrentRole(candidate)) || "reports";
   const resolvedView = viewAllowedForCurrentRole(viewName) ? viewName : fallbackView;
   for (const panel of pagePanels) {
