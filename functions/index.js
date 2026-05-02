@@ -111,6 +111,7 @@ const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
 const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
 const TWILIO_PHONE_NUMBER = defineSecret("TWILIO_PHONE_NUMBER");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+const COL_VOICE_MESSAGE_QUEUE = "voiceMessageProcessingQueue";
 
 /** "auto" enforces signature validation outside emulator/dev. */
 const ENFORCE_TWILIO_VALIDATE = defineString("ENFORCE_TWILIO_VALIDATE", {
@@ -1127,6 +1128,275 @@ async function deliverDailyPdfSmsViaTwilio({
   };
 }
 
+async function sendVoiceFollowupSms({
+  phoneE164,
+  body,
+  replyToInboundDocId = null,
+  projectSlug = null,
+  command = "voice_message_sms_followup",
+  accountSid,
+  authToken,
+  configuredFrom,
+  logger,
+  runId,
+}) {
+  const toPhone = normalizePhoneE164(String(phoneE164 || "").trim());
+  const fromPhone = normalizePhoneE164(String(configuredFrom || "").trim());
+  const smsBody = String(body || "").trim().slice(0, 640);
+  if (!toPhone || !fromPhone || !smsBody) return { sent: false, reason: "missing_fields" };
+  try {
+    const sent = await twilio(accountSid, authToken).messages.create({
+      to: toPhone,
+      from: fromPhone,
+      body: smsBody,
+    });
+    await db.collection("messages").add({
+      direction: "outbound",
+      from: fromPhone,
+      to: toPhone,
+      body: smsBody,
+      messageSid: sent.sid || null,
+      delivery: "twilio_api_voice_followup_sms",
+      replyToInboundDocId: replyToInboundDocId || null,
+      threadKey: toPhone,
+      phoneE164: toPhone,
+      channel: "sms",
+      schemaVersion: MESSAGE_SCHEMA_VERSION,
+      command,
+      projectSlug: projectSlug || null,
+      twilioMessageStatus: sent.status || null,
+      twilioAccountSid: accountSid || null,
+      twilioSenderPhoneE164: fromPhone,
+      twilioDestinationPhoneE164: toPhone,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { sent: true, sid: sent.sid || null, status: sent.status || null };
+  } catch (err) {
+    logger.error("voice follow-up sms send failed", {
+      runId,
+      toPhone,
+      message: err.message,
+      stack: err.stack,
+    });
+    return { sent: false, reason: String(err.message || err) };
+  }
+}
+
+async function processVoiceMessageQueueDoc(snap, eventData = null) {
+  const d = snap.data() || {};
+  const queueRef = snap.ref;
+  const markQueue = async (patch) => {
+    await queueRef.set(
+      {
+        ...patch,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  };
+  if (d.status === "processed") return;
+
+  const from = normalizePhoneE164(String(d.from || "").trim()) || String(d.from || "").trim();
+  const to = normalizePhoneE164(String(d.to || "").trim()) || String(d.to || "").trim();
+  const inboundMessageId = String(d.inboundMessageId || "").trim();
+  const recordingUrl = String(d.recordingUrl || "").trim();
+  const recordingContentType = String(d.recordingContentType || "audio/mpeg").trim();
+  const recordingDuration = String(d.recordingDuration || "").trim();
+  const callSid = String(d.callSid || "").trim();
+  const runId = d.runId || `voiceq-${snap.id}`;
+
+  if (!from || !recordingUrl || !inboundMessageId) {
+    await markQueue({
+      status: "failed",
+      failedAt: FieldValue.serverTimestamp(),
+      lastError: "missing required voice queue fields",
+    }).catch(() => {});
+    return;
+  }
+
+  const inboundRef = db.collection("messages").doc(inboundMessageId);
+  const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+  const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+  const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+  const openaiKey = OPENAI_API_KEY.value();
+
+  await markQueue({
+    status: "processing",
+    processingStartedAt: FieldValue.serverTimestamp(),
+    attemptCount: Number(d.attemptCount || 0) + 1,
+  }).catch(() => {});
+
+  const voiceTranscript = await transcribeTwilioRecording({
+    recordingUrl,
+    contentType: recordingContentType,
+    accountSid,
+    authToken,
+    openaiKey,
+    logger,
+    runId,
+  });
+  const voiceTranscriptText = String(voiceTranscript && voiceTranscript.transcript || "").trim();
+  const transcriptionOk = Boolean(voiceTranscriptText);
+  const voiceBody = transcriptionOk
+    ? voiceTranscriptText
+    : "Voice recording received but transcription failed";
+
+  await inboundRef.set({
+    body: voiceBody,
+    audioTranscription: {
+      transcript: voiceTranscriptText || null,
+      mediaIndex: 0,
+      contentType: (voiceTranscript && voiceTranscript.contentType) || recordingContentType || null,
+      model: (voiceTranscript && voiceTranscript.model) || null,
+      status: transcriptionOk ? "ok" : "failed",
+    },
+    recordingDuration: recordingDuration || null,
+    mediaProcessingAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  let replyText = "";
+  let outboundMeta = {};
+  if (!transcriptionOk) {
+    replyText =
+      "I saved your voice message, but I could not transcribe it clearly. Please call again and speak a bit slower after the tone, or text me the update.";
+    outboundMeta = {
+      aiUsed: false,
+      aiError: "voice_transcription_failed",
+      command: "voice_record_transcription_failed",
+    };
+  } else {
+    try {
+      const out = await buildReply({
+        db,
+        openaiApiKey: openaiKey,
+        logger,
+        runId,
+        from,
+        body: voiceBody,
+        relatedMessageId: inboundMessageId,
+        numMedia: 1,
+        channel: "voice_recording",
+        models: { primary: OPENAI_MODEL_PRIMARY.value() },
+      });
+      replyText = out.replyText;
+      outboundMeta = out.outboundMeta || {};
+    } catch (handlerErr) {
+      logger.error("voice queue: buildReply failed", {
+        runId,
+        message: handlerErr.message,
+        stack: handlerErr.stack,
+      });
+      replyText = "I saved your voice message, but hit an error processing it.";
+      outboundMeta = {
+        aiUsed: false,
+        aiError: String(handlerErr.message || handlerErr),
+        command: "voice_record_exception",
+      };
+    }
+  }
+
+  let attachResult = null;
+  try {
+    attachResult = await saveOneInboundMedia({
+      db,
+      bucket: admin.storage().bucket(),
+      FieldValue,
+      accountSid,
+      authToken,
+      mediaUrl: recordingUrl,
+      contentType: recordingContentType || (voiceTranscript && voiceTranscript.contentType) || "audio/mpeg",
+      mediaIndex: 0,
+      messageSidTwilio: callSid || "",
+      sourceMessageId: inboundMessageId,
+      senderPhone: from,
+      projectSlug: outboundMeta.projectSlug || null,
+      reportDateKey: outboundMeta.reportDateKey || null,
+      captionText: voiceBody,
+      linkedLogEntryId: outboundMeta.logEntryId || null,
+      fileStem: "voice-message",
+      sourceLabel: "voice",
+      storageSource: "twilio_voice",
+      issueCollection: null,
+      issueId: null,
+      uploadedByPhone: from,
+      logger,
+      runId,
+    });
+  } catch (mediaErr) {
+    logger.error("voice queue: media save failed", {
+      runId,
+      message: mediaErr.message,
+      stack: mediaErr.stack,
+    });
+  }
+
+  await inboundRef.set({
+    projectSlug: outboundMeta.projectSlug || null,
+    command: outboundMeta.command || "voice_message",
+    aiUsed: Boolean(outboundMeta.aiUsed),
+    aiError: outboundMeta.aiError || null,
+    logEntryId: outboundMeta.logEntryId || null,
+    logCategory: outboundMeta.logCategory || null,
+    classification: outboundMeta.classification || null,
+    reportDateKey: outboundMeta.reportDateKey || null,
+    reportType: outboundMeta.reportType || null,
+    mediaIds: attachResult && attachResult.mediaId ? [attachResult.mediaId] : [],
+    mediaAttachedCount: attachResult ? 1 : 0,
+  }, { merge: true });
+
+  const safeReply = sanitizeVoiceText(replyText || "I saved your voice message.");
+  const smsFollowup = await sendVoiceFollowupSms({
+    phoneE164: from,
+    body: safeReply,
+    replyToInboundDocId: inboundMessageId,
+    projectSlug: outboundMeta.projectSlug || null,
+    command: outboundMeta.command || "voice_message_sms_followup",
+    accountSid,
+    authToken,
+    configuredFrom,
+    logger,
+    runId,
+  });
+
+  await db.collection("messages").add({
+    direction: "outbound",
+    from: configuredFrom || to || null,
+    to: from,
+    body: safeReply,
+    messageSid: null,
+    delivery: "voice_queue_result",
+    replyToInboundDocId: inboundMessageId,
+    threadKey: from,
+    phoneE164: from,
+    channel: "voice",
+    schemaVersion: MESSAGE_SCHEMA_VERSION,
+    projectSlug: outboundMeta.projectSlug || null,
+    aiUsed: Boolean(outboundMeta.aiUsed),
+    aiError: outboundMeta.aiError || null,
+    command: outboundMeta.command || "voice_message_ai",
+    issueLogId: outboundMeta.issueLogId || null,
+    issueCollection: outboundMeta.issueCollection || null,
+    logEntryId: outboundMeta.logEntryId || null,
+    logCategory: outboundMeta.logCategory || null,
+    classification: outboundMeta.classification || null,
+    reportDateKey: outboundMeta.reportDateKey || null,
+    reportType: outboundMeta.reportType || null,
+    smsFollowupSent: Boolean(smsFollowup.sent),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  await markQueue({
+    status: "processed",
+    processedAt: FieldValue.serverTimestamp(),
+    transcriptionStatus: transcriptionOk ? "ok" : "failed",
+    logEntryId: outboundMeta.logEntryId || null,
+    projectSlug: outboundMeta.projectSlug || null,
+    smsFollowupSent: Boolean(smsFollowup.sent),
+    smsFollowupSid: smsFollowup.sid || null,
+    lastError: outboundMeta.aiError || null,
+  }).catch(() => {});
+}
+
 exports.deliverDailyPdfSms = onDocumentCreated(
   {
     document: "dailyPdfDeliveryQueue/{docId}",
@@ -1609,6 +1879,51 @@ exports.deliverLabourPdfSms = onDocumentCreated(
       }).catch(() => {});
       if (attemptNumber < MAX_LABOUR_PDF_SMS_ATTEMPTS) throw err;
     }
+  }
+);
+
+exports.processVoiceMessageQueue = onDocumentCreated(
+  {
+    document: `${COL_VOICE_MESSAGE_QUEUE}/{docId}`,
+    region: "northamerica-northeast1",
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    retry: true,
+    secrets: [
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER,
+      OPENAI_API_KEY,
+    ],
+  },
+  async (event) => {
+    const docId = event.params && event.params.docId;
+    logger.info("processVoiceMessageQueue: invoked", {
+      docId: docId || null,
+      hasEventData: Boolean(event.data),
+    });
+
+    let snap = null;
+    if (docId) {
+      try {
+        snap = await db.collection(COL_VOICE_MESSAGE_QUEUE).doc(docId).get();
+      } catch (e) {
+        logger.error("processVoiceMessageQueue: queue read failed", {
+          docId,
+          message: e.message,
+        });
+      }
+    }
+    if ((!snap || !snap.exists) && event.data && event.data.exists) {
+      snap = event.data;
+    }
+    if (!snap || !snap.exists) {
+      logger.error("processVoiceMessageQueue: missing or empty document snapshot", {
+        docId: docId || null,
+      });
+      return;
+    }
+    await processVoiceMessageQueueDoc(snap, event.data || null);
   }
 );
 
@@ -2478,26 +2793,11 @@ exports.inboundVoice = onRequest(
       }
 
       if (mode === "recorded" && recordingUrl) {
-        const voiceTranscript = await transcribeTwilioRecording({
-          recordingUrl,
-          contentType: recordingContentType,
-          accountSid,
-          authToken,
-          openaiKey,
-          logger,
-          runId,
-        });
-        const voiceTranscriptText = String(voiceTranscript && voiceTranscript.transcript || "").trim();
-        const transcriptionOk = Boolean(voiceTranscriptText);
-        const voiceBody = transcriptionOk
-          ? voiceTranscriptText
-          : "Voice recording received but transcription failed";
-
         const inboundRef = await db.collection("messages").add({
           direction: "inbound",
           from,
           to,
-          body: voiceBody,
+          body: "Voice recording received. Processing now.",
           messageSid: callSid || null,
           numMedia: 1,
           mediaCountEffective: 1,
@@ -2506,150 +2806,30 @@ exports.inboundVoice = onRequest(
           channel: "voice",
           schemaVersion: MESSAGE_SCHEMA_VERSION,
           audioTranscription: {
-            transcript: voiceTranscriptText || null,
+            transcript: null,
             mediaIndex: 0,
-            contentType: (voiceTranscript && voiceTranscript.contentType) || recordingContentType || null,
-            model: (voiceTranscript && voiceTranscript.model) || null,
-            status: transcriptionOk ? "ok" : "failed",
+            contentType: recordingContentType || null,
+            model: null,
+            status: "queued",
           },
           createdAt: FieldValue.serverTimestamp(),
         });
-
-        let replyText;
-        let outboundMeta = {};
-        if (!transcriptionOk) {
-          replyText =
-            "I saved your voice message, but I could not transcribe it clearly. Please call again and speak a bit slower after the tone, or text me the update.";
-          outboundMeta = {
-            aiUsed: false,
-            aiError: "voice_transcription_failed",
-            command: "voice_record_transcription_failed",
-          };
-        } else {
-          try {
-            const out = await Promise.race([
-              buildReply({
-                db,
-                openaiApiKey: openaiKey,
-                logger,
-                runId,
-                from,
-                body: voiceBody,
-                relatedMessageId: inboundRef.id,
-                numMedia: 1,
-                channel: "voice_recording",
-                models: { primary: OPENAI_MODEL_PRIMARY.value() },
-              }),
-              new Promise((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("__BUILD_REPLY_TIMEOUT__")),
-                  BUILD_REPLY_TIMEOUT_MS
-                )
-              ),
-            ]);
-            replyText = out.replyText;
-            outboundMeta = out.outboundMeta || {};
-          } catch (handlerErr) {
-            if (handlerErr && handlerErr.message === "__BUILD_REPLY_TIMEOUT__") {
-              logger.warn("inboundVoice: buildReply timed out for recorded message", { runId });
-              replyText = "I saved your voice message, but processing took too long. Please check by text.";
-              outboundMeta = { aiUsed: false, aiError: "timeout", command: "voice_record_timeout" };
-            } else {
-              logger.error("inboundVoice: buildReply threw for recorded message", {
-                runId,
-                message: handlerErr.message,
-                stack: handlerErr.stack,
-              });
-              replyText = "I saved your voice message, but hit an error processing it.";
-              outboundMeta = {
-                aiUsed: false,
-                aiError: String(handlerErr.message || handlerErr),
-                command: "voice_record_exception",
-              };
-            }
-          }
-        }
-
-        let attachResult = null;
-        try {
-          attachResult = await saveOneInboundMedia({
-            db,
-            bucket: admin.storage().bucket(),
-            FieldValue,
-            accountSid,
-            authToken,
-            mediaUrl: recordingUrl,
-            contentType: recordingContentType || (voiceTranscript && voiceTranscript.contentType) || "audio/mpeg",
-            mediaIndex: 0,
-            messageSidTwilio: callSid || "",
-            sourceMessageId: inboundRef.id,
-            senderPhone: from,
-            projectSlug: outboundMeta.projectSlug || null,
-            reportDateKey: outboundMeta.reportDateKey || null,
-            captionText: voiceBody,
-            linkedLogEntryId: outboundMeta.logEntryId || null,
-            fileStem: "voice-message",
-            sourceLabel: "voice",
-            storageSource: "twilio_voice",
-            issueCollection: null,
-            issueId: null,
-            uploadedByPhone: from,
-            logger,
-            runId,
-          });
-        } catch (mediaErr) {
-          logger.error("inboundVoice: voice media save failed", {
-            runId,
-            message: mediaErr.message,
-            stack: mediaErr.stack,
-          });
-        }
-
-        const safeReply = sanitizeVoiceText(replyText || "I saved your voice message.");
-        await inboundRef.update({
-          projectSlug: outboundMeta.projectSlug || null,
-          command: outboundMeta.command || "voice_message",
-          aiUsed: Boolean(outboundMeta.aiUsed),
-          aiError: outboundMeta.aiError || null,
-          logEntryId: outboundMeta.logEntryId || null,
-          logCategory: outboundMeta.logCategory || null,
-          classification: outboundMeta.classification || null,
-          reportDateKey: outboundMeta.reportDateKey || null,
-          reportType: outboundMeta.reportType || null,
-          mediaIds: attachResult && attachResult.mediaId ? [attachResult.mediaId] : [],
-          mediaAttachedCount: attachResult ? 1 : 0,
-          mediaProcessingAt: FieldValue.serverTimestamp(),
+        await db.collection(COL_VOICE_MESSAGE_QUEUE).add({
+          status: "queued",
+          from,
+          to,
+          callSid: callSid || null,
+          recordingUrl,
           recordingDuration: recordingDuration || null,
-        });
-
-        await db.collection("messages").add({
-          direction: "outbound",
-          from: configuredFrom,
-          to: from,
-          body: safeReply,
-          messageSid: null,
-          delivery: "twiml_voice",
-          replyToInboundDocId: inboundRef.id,
-          threadKey: from,
-          phoneE164: from,
-          channel: "voice",
-          schemaVersion: MESSAGE_SCHEMA_VERSION,
-          projectSlug: outboundMeta.projectSlug || null,
-          aiUsed: Boolean(outboundMeta.aiUsed),
-          aiError: outboundMeta.aiError || null,
-          command: outboundMeta.command || "voice_message_ai",
-          issueLogId: outboundMeta.issueLogId || null,
-          issueCollection: outboundMeta.issueCollection || null,
-          logEntryId: outboundMeta.logEntryId || null,
-          logCategory: outboundMeta.logCategory || null,
-          classification: outboundMeta.classification || null,
-          reportDateKey: outboundMeta.reportDateKey || null,
-          reportType: outboundMeta.reportType || null,
+          recordingContentType: recordingContentType || "audio/mpeg",
+          inboundMessageId: inboundRef.id,
+          runId,
           createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
         });
 
         sendVoiceTwiml(res, (vr) => {
-          vr.say(safeReply);
+          vr.say("I got your voice message and I am processing it now. I will text you back with the result.");
           vr.hangup();
         });
         return;
