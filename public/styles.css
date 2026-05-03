@@ -18,7 +18,31 @@ a:focus-visible {
 .wrap {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 10px 20px 40px;
+}
+
+.issues-wrap .hero {
+  margin-bottom: 10px;
+}
+
+.issues-wrap .hero .brand-lockup {
+  margin-bottom: 6px;
+}
+
+.issues-wrap .hero .brand-lockup-logo {
+  width: 34px;
+}
+
+.issues-wrap .hero h1 {
+  margin: 0 0 4px;
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
+  font-weight: 600;
+}
+
+.issues-wrap .hero > .muted {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .hero h1 {
@@ -1059,31 +1083,37 @@ body {
 .app-shell {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 10px 20px 48px;
 }
 
 .shell-header {
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  align-items: flex-start;
-  margin-bottom: 20px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: nowrap;
 }
 
 .shell-header-copy {
-  max-width: 720px;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .shell-brand {
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 0;
 }
 
 .shell-brand-logo {
   display: block;
-  width: clamp(72px, 9vw, 96px);
+  width: 34px;
   aspect-ratio: 1 / 1;
   height: auto;
   object-fit: contain;
@@ -1095,32 +1125,42 @@ body {
 }
 
 .shell-brand-text .eyebrow {
-  margin-bottom: 10px;
+  margin: 0 0 2px;
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
 }
 
 .shell-header-copy p:last-child {
-  margin-bottom: 0;
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .shell-header h1 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  margin-bottom: 12px;
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
+  margin-bottom: 0;
 }
 
 .shell-header-meta {
-  min-width: 320px;
-  display: grid;
-  gap: 12px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .status-chip,
 .user-chip {
   background: rgba(19, 25, 34, 0.88);
   border: 1px solid var(--admin-border);
-  border-radius: 16px;
-  padding: 14px 16px;
-  display: grid;
-  gap: 4px;
+  border-radius: 10px;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
 }
 
 .status-chip-label {
@@ -1130,12 +1170,31 @@ body {
   color: var(--admin-muted);
 }
 
+.app-shell .status-chip-label,
+.app-shell .user-chip .muted.small,
+.app-shell #statusDetail {
+  display: none;
+}
+
+.app-shell .user-chip {
+  white-space: nowrap;
+}
+
+.app-shell #adminUserLabel {
+  font-size: 0.9rem;
+}
+
+.app-shell .btn-inline {
+  padding: 4px 10px;
+  min-height: 0;
+}
+
 .page-nav {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 26px;
-  padding: 10px;
+  margin-bottom: 10px;
+  padding: 6px;
   border: 1px solid var(--admin-border);
   border-radius: 18px;
   background: rgba(19, 25, 34, 0.8);
@@ -1146,8 +1205,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0 16px;
+  min-height: 34px;
+  padding: 0 12px;
   border-radius: 12px;
   color: var(--admin-text);
   text-decoration: none;
@@ -1173,28 +1232,35 @@ body {
 
 .view-stack {
   display: grid;
-  gap: 22px;
+  gap: 14px;
 }
 
 .view-panel {
   display: grid;
-  gap: 22px;
+  gap: 14px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.page-header .eyebrow {
+  margin-bottom: 2px;
+  font-size: 0.68rem;
 }
 
 .page-header h2 {
-  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-size: clamp(1rem, 1.7vw, 1.35rem);
 }
 
 .page-header p {
-  max-width: 560px;
+  max-width: none;
   margin: 0;
+  font-size: 0.82rem;
 }
 
 .metric-grid {
@@ -1529,116 +1595,10 @@ body {
   }
 }
 
+/* Todo view: wider shell + tall list; compact chrome is global on .app-shell */
 .app-shell[data-active-view="todo"] {
   max-width: none;
   width: min(100%, 1720px);
-  padding-top: 10px;
-}
-
-.app-shell[data-active-view="todo"] .shell-header {
-  margin-bottom: 8px;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
-.app-shell[data-active-view="todo"] .shell-brand {
-  gap: 10px;
-  margin-bottom: 0;
-}
-
-.app-shell[data-active-view="todo"] .shell-brand-logo {
-  width: 34px;
-}
-
-.app-shell[data-active-view="todo"] .shell-header h1 {
-  font-size: clamp(1rem, 1.7vw, 1.35rem);
-  margin-bottom: 0;
-}
-
-.app-shell[data-active-view="todo"] .shell-brand-text .eyebrow {
-  margin: 0 0 2px;
-  font-size: 0.66rem;
-  letter-spacing: 0.12em;
-}
-
-.app-shell[data-active-view="todo"] .shell-header-copy {
-  max-width: none;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.app-shell[data-active-view="todo"] .shell-header-copy p:last-child {
-  margin: 0;
-  font-size: 0.8rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.app-shell[data-active-view="todo"] .status-chip,
-.app-shell[data-active-view="todo"] .user-chip {
-  padding: 7px 10px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 0;
-}
-
-.app-shell[data-active-view="todo"] .page-nav {
-  margin-bottom: 10px;
-  padding: 6px;
-}
-
-.app-shell[data-active-view="todo"] .page-header {
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 2px;
-}
-
-.app-shell[data-active-view="todo"] .page-header .eyebrow {
-  margin-bottom: 2px;
-  font-size: 0.68rem;
-}
-
-.app-shell[data-active-view="todo"] .page-header h2 {
-  font-size: clamp(1rem, 1.7vw, 1.35rem);
-}
-
-.app-shell[data-active-view="todo"] .page-header p {
-  max-width: none;
-  font-size: 0.82rem;
-}
-
-.app-shell[data-active-view="todo"] .shell-header-meta {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.app-shell[data-active-view="todo"] .status-chip-label,
-.app-shell[data-active-view="todo"] .user-chip .muted.small,
-.app-shell[data-active-view="todo"] #statusDetail {
-  display: none;
-}
-
-.app-shell[data-active-view="todo"] .user-chip {
-  white-space: nowrap;
-}
-
-.app-shell[data-active-view="todo"] #adminUserLabel {
-  font-size: 0.9rem;
-}
-
-.app-shell[data-active-view="todo"] .btn-inline {
-  padding: 4px 10px;
-  min-height: 0;
 }
 
 .app-shell[data-active-view="todo"] [data-view-panel="todo"] {
@@ -1679,21 +1639,21 @@ body {
 }
 
 @media (max-width: 980px) {
-  .app-shell[data-active-view="todo"] .shell-header {
+  .app-shell .shell-header {
     flex-wrap: wrap;
     align-items: flex-start;
   }
 
-  .app-shell[data-active-view="todo"] .shell-header-copy {
+  .app-shell .shell-header-copy {
     width: 100%;
     flex-wrap: wrap;
   }
 
-  .app-shell[data-active-view="todo"] .shell-header-copy p:last-child {
+  .app-shell .shell-header-copy p:last-child {
     white-space: normal;
   }
 
-  .app-shell[data-active-view="todo"] .shell-header-meta {
+  .app-shell .shell-header-meta {
     width: 100%;
     justify-content: space-between;
   }
@@ -1749,11 +1709,15 @@ code {
 }
 
 @media (max-width: 1040px) {
-  .shell-header,
+  .shell-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
   .page-header {
-    grid-template-columns: 1fr;
-    display: grid;
-    align-items: start;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   .shell-header-meta {
@@ -1781,9 +1745,10 @@ code {
   }
 
   .shell-brand {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .metric-grid,
