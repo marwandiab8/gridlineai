@@ -224,6 +224,13 @@
                   </div>
                 </div>
                 <div class="form-row full">
+                  <label for="assistantComposerAudio">Voice note</label>
+                  <input type="file" id="assistantComposerAudio" accept="audio/*" />
+                  <div class="muted small">
+                    Transcribe the voice note first, review or edit the transcript in the message box, then send it.
+                  </div>
+                </div>
+                <div class="form-row full">
                   <label for="assistantComposerToken">Dashboard token</label>
                   <input
                     type="password"
@@ -233,6 +240,9 @@
                   />
                 </div>
                 <div class="project-manager-actions">
+                  <button type="button" class="btn-secondary" id="assistantComposerTranscribeBtn">
+                    Transcribe voice note
+                  </button>
                   <button type="button" class="btn-primary" id="assistantComposerSendBtn" disabled>
                     Send to assistant
                   </button>

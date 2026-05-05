@@ -1775,6 +1775,8 @@ function renderAssistantComposer() {
   const sendButton = document.getElementById("assistantComposerSendBtn");
   const bodyInput = document.getElementById("assistantComposerBody");
   const photoInput = document.getElementById("assistantComposerPhotos");
+  const audioInput = document.getElementById("assistantComposerAudio");
+  const transcribeButton = document.getElementById("assistantComposerTranscribeBtn");
   const schedulePhoneSelect = document.getElementById("assistantSchedulePhone");
   const scheduleDetails = document.getElementById("assistantScheduleProjectDetails");
   const scheduleFileInput = document.getElementById("assistantScheduleFile");
@@ -1787,10 +1789,12 @@ function renderAssistantComposer() {
   const user = resolveSmsUserForAssistant(phoneSelect.value);
   const hasBody = String(bodyInput.value || "").trim() !== "";
   const photoCount = photoInput && photoInput.files ? photoInput.files.length : 0;
+  const audioCount = audioInput && audioInput.files ? audioInput.files.length : 0;
   const scheduleFileCount = scheduleFileInput && scheduleFileInput.files ? scheduleFileInput.files.length : 0;
   const scheduleUser = resolveSmsUserForAssistant(schedulePhoneSelect ? schedulePhoneSelect.value : "");
   // Keep action button clickable so validation messages can explain what is missing.
   sendButton.disabled = false;
+  if (transcribeButton) transcribeButton.disabled = !user || !audioCount;
   if (scheduleParseButton) scheduleParseButton.disabled = !scheduleFileCount;
   // Keep report button clickable; handler validates requirements and prints explicit messages.
   if (scheduleCreateReportButton) scheduleCreateReportButton.disabled = false;
@@ -1804,6 +1808,7 @@ function renderAssistantComposer() {
       <div><strong>Active project:</strong> ${esc(user.activeProjectSlug || "none")}</div>
       <div><strong>Project count:</strong> ${esc(String(projects.length || 0))}</div>
       <div><strong>Photos queued:</strong> ${esc(String(photoCount))}</div>
+      <div><strong>Voice notes queued:</strong> ${esc(String(audioCount))}</div>
       <div><strong>Message ready:</strong> ${hasBody ? "yes" : "no"}</div>
       <div class="muted small">Backdated example: log note (2026-04-16) Dewatering complete on east side</div>
     `;
@@ -4289,6 +4294,8 @@ function initAssistantComposer() {
   const schedulePhoneSelect = document.getElementById("assistantSchedulePhone");
   const bodyInput = document.getElementById("assistantComposerBody");
   const photoInput = document.getElementById("assistantComposerPhotos");
+  const audioInput = document.getElementById("assistantComposerAudio");
+  const transcribeButton = document.getElementById("assistantComposerTranscribeBtn");
   const scheduleFileInput = document.getElementById("assistantScheduleFile");
   const scheduleStartInput = document.getElementById("assistantScheduleStart");
   const scheduleEndInput = document.getElementById("assistantScheduleEnd");
@@ -4313,7 +4320,73 @@ function initAssistantComposer() {
   if (schedulePhoneSelect) schedulePhoneSelect.addEventListener("change", refresh);
   bodyInput.addEventListener("input", refresh);
   if (photoInput) photoInput.addEventListener("change", refresh);
+  if (audioInput) audioInput.addEventListener("change", refresh);
   if (scheduleFileInput) scheduleFileInput.addEventListener("change", refresh);
+
+  if (transcribeButton && audioInput) {
+    transcribeButton.addEventListener("click", async () => {
+      const phoneE164 = String(phoneSelect.value || "").trim();
+      const file =
+        audioInput.files && audioInput.files[0]
+          ? audioInput.files[0]
+          : null;
+      if (!phoneE164) {
+        result.textContent = "Select a phone before transcribing a voice note.";
+        result.className = "project-manager-result err";
+        return;
+      }
+      if (!file) {
+        result.textContent = "Choose an audio file first.";
+        result.className = "project-manager-result err";
+        return;
+      }
+
+      transcribeButton.disabled = true;
+      sendButton.disabled = true;
+      result.textContent = "Uploading voice note...";
+      result.className = "project-manager-result muted small";
+
+      try {
+        const user = resolveSmsUserForAssistant(phoneE164);
+        const reportDateKey = extractReportDateKeyClient(String(bodyInput.value || "")) || todayDateKeyEastern();
+        const projectSlug = normalizeProjectSlugClient(user && user.activeProjectSlug ? user.activeProjectSlug : "");
+        const storagePath = [
+          "projects",
+          sanitizeStorageSegment(projectSlug || "_unassigned", "_unassigned"),
+          "audio-drafts",
+          sanitizeStorageSegment(reportDateKey, todayDateKeyEastern()),
+          `dashboard-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          sanitizeStorageSegment(file.name || "voice-note", "voice-note"),
+        ].join("/");
+        const uploaded = await uploadFileToStorage(storagePath, file);
+        const payload = {
+          phoneE164,
+          storagePath: uploaded.storagePath,
+          contentType: uploaded.contentType || file.type || "audio/mpeg",
+          fileName: uploaded.fileName || file.name || "voice-note",
+        };
+        const token = composerTokenInput && composerTokenInput.value ? composerTokenInput.value.trim() : "";
+        if (token) payload.token = token;
+        result.textContent = "Transcribing voice note...";
+        const data = await callDashboardFunction("transcribeAssistantAudioCallable", payload);
+        const transcript = String(data?.transcript || "").trim();
+        if (!transcript) {
+          throw new Error("No transcript returned.");
+        }
+        bodyInput.value = bodyInput.value.trim()
+          ? `${bodyInput.value.trim()}\n\n${transcript}`
+          : transcript;
+        result.textContent = "Transcript loaded into the message box. Review or edit it before sending.";
+        result.className = "project-manager-result ok";
+        audioInput.value = "";
+      } catch (err) {
+        result.textContent = `Failed: ${err?.message || err}`;
+        result.className = "project-manager-result err";
+      } finally {
+        renderAssistantComposer();
+      }
+    });
+  }
 
   sendButton.addEventListener("click", async () => {
     const phoneE164 = String(phoneSelect.value || "").trim();
