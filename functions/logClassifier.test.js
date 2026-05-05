@@ -34,6 +34,17 @@ test("parseStructuredLog extracts leading 'for YYYY-MM-DD' report dates", () => 
   assert.equal(parsed.body, "photos - east entrance trench flooding");
 });
 
+test("parseStructuredLog extracts a leading bare ISO report date", () => {
+  const parsed = parseStructuredLog(
+    "log note 2026-04-16 photos - east entrance trench flooding"
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.category, "note");
+  assert.equal(parsed.reportDateKey, "2026-04-16");
+  assert.equal(parsed.body, "photos - east entrance trench flooding");
+});
+
 test("parseDayRollupRequest recognizes explicit dated log lookups", () => {
   const parsed = parseDayRollupRequest("show me what is logged for (2026-04-16)");
 

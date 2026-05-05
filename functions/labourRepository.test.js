@@ -40,6 +40,18 @@ test("parseLabourHoursCommand keeps explicit report dates", () => {
   assert.equal(parsed.reportDateKey, "2026-04-24");
 });
 
+test("parseLabourHoursCommand accepts a leading bare ISO date for backdated labour entries", () => {
+  const parsed = parseLabourHoursCommand(
+    "2026-05-04 12 hours 5 hours pumping water 7 hours house keeping"
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.hours, 12);
+  assert.equal(parsed.reportDateKey, "2026-05-04");
+  assert.ok(parsed.workOn.toLowerCase().includes("5h pumping water"));
+  assert.ok(parsed.workOn.toLowerCase().includes("7h house keeping"));
+});
+
 test("parseLabourHoursCommand parses total N H style field SMS", () => {
   const parsed = parseLabourHoursCommand(
     "Hi Sunday April 26- total 9 H . Pumping water all footings including tow wall Thanks Wael",

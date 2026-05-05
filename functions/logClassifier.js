@@ -312,6 +312,7 @@ function extractExplicitReportDate(text) {
 
   const patterns = [
     /^\(\s*(\d{4}-\d{2}(?:-?\d{2,3}))\s*\)\s*[:\-–—]?\s*/i,
+    /^(\d{4}-\d{2}(?:-?\d{2,3}))\b\s*[:\-–—]?\s*/i,
     /^(?:for|on|dated|date)\s+(\d{4}-\d{2}(?:-?\d{2,3}))\b\s*[:\-–—]?\s*/i,
   ];
 
