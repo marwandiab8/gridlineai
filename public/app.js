@@ -867,6 +867,71 @@ function collectHomeTodoDiscoveries() {
   };
 }
 
+function renderTodoCatalogs() {
+  const labelsEl = document.getElementById("todoLabelsCatalog");
+  const tagsEl = document.getElementById("todoTagsCatalog");
+  if (!labelsEl || !tagsEl) return;
+  const discoveries = collectHomeTodoDiscoveries();
+  labelsEl.innerHTML = discoveries.labels.length
+    ? discoveries.labels
+        .map(
+          (label) => `
+            <span class="todo-chip">
+              <button type="button" data-todo-search-chip="#${esc(label)}">#${esc(label)}</button>
+              <button type="button" data-todo-label-remove="${esc(label)}" title="Delete label">x</button>
+            </span>`
+        )
+        .join("")
+    : '<span class="muted small">No labels yet.</span>';
+  tagsEl.innerHTML = discoveries.tags.length
+    ? discoveries.tags
+        .map(
+          (tag) => `
+            <span class="todo-chip">
+              <button type="button" data-todo-search-chip="@${esc(tag)}">@${esc(tag)}</button>
+              <button type="button" data-todo-tag-remove="${esc(tag)}" title="Delete tag">x</button>
+            </span>`
+        )
+        .join("")
+    : '<span class="muted small">No tags yet.</span>';
+}
+
+async function removeTodoTaxonomyValue(kind, value) {
+  const target = String(value || "").trim().toLowerCase();
+  if (!target) return;
+  const field = kind === "tag" ? "tags" : "labels";
+  const updates = [];
+  for (const todo of homeTodosCache) {
+    const todoValues = Array.isArray(todo?.[field]) ? todo[field].map((item) => String(item || "").trim().toLowerCase()) : [];
+    const todoNeedsUpdate = todoValues.includes(target);
+    const subTodos = Array.isArray(todo?.subTodos) ? todo.subTodos : [];
+    const touchedSubTodos = subTodos.filter((subTodo) => {
+      const values = Array.isArray(subTodo?.[field]) ? subTodo[field].map((item) => String(item || "").trim().toLowerCase()) : [];
+      return values.includes(target);
+    });
+    if (todoNeedsUpdate) {
+      updates.push(
+        callDashboardFunction("updateProjectTodoCallable", {
+          todoId: String(todo.id || "").trim(),
+          [field]: todoValues.filter((item) => item !== target),
+        })
+      );
+    }
+    for (const subTodo of touchedSubTodos) {
+      const values = Array.isArray(subTodo?.[field]) ? subTodo[field].map((item) => String(item || "").trim().toLowerCase()) : [];
+      updates.push(
+        callDashboardFunction("updateProjectTodoCallable", {
+          todoId: String(todo.id || "").trim(),
+          subTodoId: String(subTodo?.id || "").trim(),
+          [field]: values.filter((item) => item !== target),
+        })
+      );
+    }
+  }
+  if (!updates.length) return;
+  await Promise.all(updates);
+}
+
 function renderTodoSearchHints() {
   const hintsEl = document.getElementById("todoSearchHints");
   if (!hintsEl) return;
@@ -941,6 +1006,7 @@ function formatTodoMoment(value) {
 function renderHomeTodos() {
   if (!homeTodosEl) return;
   renderTodoSearchHints();
+  renderTodoCatalogs();
   if (!homeTodosCache.length) {
     homeTodosEl.innerHTML =
       '<div class="row-item muted">No home todo items yet. Use the create bar above or send <code>todo fix the garage door @home by next week</code>.</div>';
@@ -4211,6 +4277,8 @@ function initHomeTodos() {
   const searchInput = document.getElementById("todoSearchInput");
   const searchHints = document.getElementById("todoSearchHints");
   const createReminderList = document.getElementById("todoCreateReminders");
+  const labelsCatalog = document.getElementById("todoLabelsCatalog");
+  const tagsCatalog = document.getElementById("todoTagsCatalog");
 
   if (searchInput) {
     searchInput.addEventListener("input", () => {
@@ -4227,6 +4295,40 @@ function initHomeTodos() {
       renderHomeTodos();
     });
   }
+  const bindCatalogClicks = (el, kind) => {
+    if (!el) return;
+    el.addEventListener("click", async (event) => {
+      const searchChip = event.target.closest("[data-todo-search-chip]");
+      if (searchChip && searchInput) {
+        homeTodoSearchQuery = String(searchChip.getAttribute("data-todo-search-chip") || "").trim();
+        searchInput.value = homeTodoSearchQuery;
+        renderHomeTodos();
+        return;
+      }
+      const removeButton = event.target.closest(
+        kind === "tag" ? "[data-todo-tag-remove]" : "[data-todo-label-remove]"
+      );
+      if (!removeButton) return;
+      const value = String(
+        removeButton.getAttribute(kind === "tag" ? "data-todo-tag-remove" : "data-todo-label-remove") || ""
+      ).trim();
+      if (!value) return;
+      const confirmed = window.confirm(
+        `Delete ${kind} "${value}" from all todos and sub-todos?`
+      );
+      if (!confirmed) return;
+      removeButton.disabled = true;
+      try {
+        await removeTodoTaxonomyValue(kind, value);
+      } catch (err) {
+        window.alert(`Failed: ${formatUiError(err)}`);
+      } finally {
+        removeButton.disabled = false;
+      }
+    });
+  };
+  bindCatalogClicks(labelsCatalog, "label");
+  bindCatalogClicks(tagsCatalog, "tag");
   if (createReminderList) {
     createReminderList.addEventListener("click", (event) => {
       const removeButton = event.target.closest("[data-create-todo-reminder-remove]");
