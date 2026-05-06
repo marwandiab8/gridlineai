@@ -726,6 +726,58 @@ async function createMmsPlaceholderIssue(db, FieldValue, input) {
   return { issueId, issueCollection: col };
 }
 
+async function updateSmsIssueBody(db, FieldValue, input) {
+  const issueRecord = await getIssueSnapshot(db, input && input.issueCollection, input && input.issueId);
+  const changedBy = normalizeText(input && input.changedBy, 320) || "sms";
+  const description = normalizeLongText(input && input.description, 4000);
+  if (!description) throw new Error("description is required.");
+  const title = normalizeText(input && input.title, 160) || makeTitleFromBody(description);
+  const nextTags = normalizeTags(input && input.tags);
+  const prev = issueRecord.issueData || {};
+  const historyEntries = [...(Array.isArray(prev.history) ? prev.history : [])];
+
+  if (String(prev.title || "") !== title) {
+    historyEntries.push(
+      buildHistoryEntry({
+        action: "edited",
+        changedBy,
+        field: "title",
+        oldValue: prev.title || "",
+        newValue: title,
+      })
+    );
+  }
+  if (String(prev.description || "") !== description) {
+    historyEntries.push(
+      buildHistoryEntry({
+        action: "edited",
+        changedBy,
+        field: "description",
+        oldValue: "(text)",
+        newValue: "(text)",
+        note: "SMS correction updated description",
+      })
+    );
+  }
+
+  await issueRecord.issueRef.set(
+    {
+      title,
+      description,
+      ...(nextTags.length ? { tags: nextTags } : {}),
+      history: historyEntries,
+      updatedAt: FieldValue.serverTimestamp(),
+      lastUpdatedByUid: null,
+    },
+    { merge: true }
+  );
+
+  return {
+    issueId: issueRecord.issueId,
+    issueCollection: issueRecord.issueCollection,
+  };
+}
+
 module.exports = {
   addDashboardIssueNote,
   attachDashboardIssuePhoto,
@@ -738,6 +790,7 @@ module.exports = {
   deleteDashboardIssue,
   getIssueSnapshot,
   inferIssueTypeFromKeywords,
+  updateSmsIssueBody,
   resolveIssueType,
   legacyTypeForIssueLog,
   makeTitleFromBody,

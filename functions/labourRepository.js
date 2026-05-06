@@ -28,6 +28,48 @@ function normalizeLabourerPhone(value) {
   return String(value || "").trim();
 }
 
+function roundLabourHours(value) {
+  return Math.round(Number(value) * 100) / 100;
+}
+
+function parseImplicitSegmentedTail(tail, declaredHours) {
+  const rawTail = String(tail || "").trim();
+  const total = Number(declaredHours);
+  if (!rawTail || !Number.isFinite(total) || total <= 0) return [];
+
+  const segments = [];
+  const numberRe = /(^|\s)(\d+(?:\.\d+)?)(?=\s+(?:hours?|hrs?|h\b)?\s*\S)/gi;
+  let match;
+  while ((match = numberRe.exec(rawTail))) {
+    segments.push({
+      hours: Number(match[2]),
+      index: match.index + match[1].length,
+      length: match[2].length,
+    });
+  }
+
+  if (segments.length < 2) return [];
+  const sum = roundLabourHours(segments.reduce((acc, part) => acc + part.hours, 0));
+  if (Math.abs(sum - total) > 0.25) return [];
+
+  const parts = [];
+  for (let i = 0; i < segments.length; i += 1) {
+    const current = segments[i];
+    const next = segments[i + 1];
+    const start = current.index + current.length;
+    const end = next ? next.index : rawTail.length;
+    const task = normalizeLabourEntryText(
+      rawTail
+        .slice(start, end)
+        .replace(/^\s*(?:hours?|hrs?|h)\b/i, "")
+        .trim()
+    );
+    if (!Number.isFinite(current.hours) || current.hours <= 0 || !task) return [];
+    parts.push({ hours: roundLabourHours(current.hours), task });
+  }
+  return parts;
+}
+
 function parseDateKey(value) {
   const raw = String(value || "").trim();
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -260,16 +302,24 @@ function parseLabourHoursCommand(text) {
       const h = Number(m[1]);
       const task = normalizeLabourEntryText(m[2]);
       if (!Number.isFinite(h) || h <= 0 || !task) continue;
-      parts.push({ hours: Math.round(h * 100) / 100, task });
+      parts.push({ hours: roundLabourHours(h), task });
     }
-    if (parts.length) {
-      const sum = parts.reduce((total, p) => total + p.hours, 0);
-      const normalizedSum = Math.round(sum * 100) / 100;
+    const normalizedExplicitSum = roundLabourHours(parts.reduce((total, p) => total + p.hours, 0));
+    const implicitParts = parseImplicitSegmentedTail(tail, declaredHours);
+    const effectiveParts =
+      parts.length && Math.abs(normalizedExplicitSum - declaredHours) <= 0.25
+        ? parts
+        : implicitParts.length
+          ? implicitParts
+          : parts;
+    if (effectiveParts.length) {
+      const sum = effectiveParts.reduce((total, p) => total + p.hours, 0);
+      const normalizedSum = roundLabourHours(sum);
       const effectiveHours =
         Number.isFinite(declaredHours) && declaredHours > 0 && Math.abs(normalizedSum - declaredHours) <= 0.25
-          ? Math.round(declaredHours * 100) / 100
+          ? roundLabourHours(declaredHours)
           : normalizedSum;
-      const workOnSource = parts.map((p) => `${p.hours}h ${p.task}`).join(" - ");
+      const workOnSource = effectiveParts.map((p) => `${p.hours}h ${p.task}`).join(" - ");
       const workOnDate = extractExplicitReportDate(workOnSource);
       const workOn = normalizeLabourEntryText(String(workOnDate.cleanedText || workOnSource).trim());
       if (workOn && effectiveHours > 0) {
@@ -306,7 +356,7 @@ function parseLabourHoursCommand(text) {
     const workOn = normalizeLabourEntryText(workOnCleaned);
     if (!workOn) continue;
     return {
-      hours: Math.round(hours * 100) / 100,
+      hours: roundLabourHours(hours),
       workOn,
       reportDateKey: cleaned.reportDateKey || workOnDate.reportDateKey || null,
       rawText: raw,

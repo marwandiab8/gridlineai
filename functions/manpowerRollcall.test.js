@@ -6,7 +6,10 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  parseBareManpowerPair,
+  parseManpowerCorrectionCommand,
   parseManpowerRollcallLine,
+  replaceManpowerTradeCount,
   textContainsManpowerRollcall,
   tailAfterManpowerRollcall,
 } = require("./manpowerRollcall");
@@ -74,4 +77,25 @@ test("daily report model expands one manpower entry into multiple trade rows", (
   assert.ok(String(alc[3]).toLowerCase().includes("formwork"));
   const mat = rows.find((r) => r[0] === "Matheson");
   assert.ok(String(mat[3]).toLowerCase().includes("pumping"));
+});
+
+test("parses manpower correction commands and bare correction replies", () => {
+  assert.deepEqual(parseManpowerCorrectionCommand("correct manpower for ALC to 17"), {
+    trade: "ALC",
+    workers: "17",
+  });
+  assert.deepEqual(parseManpowerCorrectionCommand("ALC should be 17"), {
+    trade: "ALC",
+    workers: "17",
+  });
+  assert.deepEqual(parseManpowerCorrectionCommand("ALC 17", { allowBarePair: true }), {
+    trade: "ALC",
+    workers: "17",
+  });
+  assert.equal(parseBareManpowerPair("ALC 17")?.workers, "17");
+});
+
+test("replaces one trade count inside manpower text", () => {
+  const updated = replaceManpowerTradeCount("Manpower ALC 14 Matheson 6", "ALC", "17");
+  assert.equal(updated, "Manpower ALC 17 Matheson 6");
 });

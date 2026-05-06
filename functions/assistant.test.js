@@ -7,9 +7,12 @@ const {
   inferInboundLogType,
   inferJournalTags,
   decideFallbackRouting,
+  applyManpowerCorrectionToEntry,
   isExplicitLabourBalanceText,
   isExplicitLabourEntryText,
+  isAffirmativeCorrectionFollowUp,
   isStopTimerCommand,
+  looksLikeCorrectionPrompt,
   looksLikeAssistantFollowUpAnswer,
   looksLikeExplicitAiChatRequest,
   looksLikeNarrativeSaveCandidate,
@@ -122,6 +125,30 @@ test("assistant follow-up helpers recognize short context replies", () => {
   assert.equal(shouldTrackAssistantFollowUp("Saved to the home journal."), false);
 });
 
+test("correction follow-up helpers detect correction prompts and affirmative replies", () => {
+  assert.equal(looksLikeCorrectionPrompt("Are you sure about the manpower? Do you want to correct it?"), true);
+  assert.equal(isAffirmativeCorrectionFollowUp("yes correct it"), true);
+  assert.equal(isAffirmativeCorrectionFollowUp("yes"), false);
+});
+
+test("applyManpowerCorrectionToEntry rewrites the matching manpower count", () => {
+  const updated = applyManpowerCorrectionToEntry(
+    {
+      rawText: "manpower ALC 14 Matheson 6",
+      normalizedText: "ALC 14 Matheson 6",
+      tags: ["manpower"],
+      dailySummarySections: ["dayLog"],
+    },
+    { trade: "ALC", workers: "17" }
+  );
+
+  assert.ok(updated);
+  assert.match(updated.rawText, /\bALC 17\b/);
+  assert.match(updated.normalizedText, /\bALC 17\b/);
+  assert.ok(updated.tags.includes("manpower"));
+  assert.ok(updated.dailySummarySections.includes("dayLog"));
+});
+
 test("safe fallback routing saves narrative text on low-confidence request classifications", () => {
   assert.equal(
     looksLikeNarrativeSaveCandidate("We did lots of activities today and bought a desk for Myles after breakfast."),
@@ -196,6 +223,7 @@ test('parseHomeTodoCommand extracts case-insensitive "xxx" home todos', () => {
       dueWindow: null,
       dueLabel: null,
       dueByIso: null,
+      tags: [],
       rawText: "fix the garage door",
     }
   );

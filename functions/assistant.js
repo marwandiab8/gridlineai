@@ -12,7 +12,7 @@ const COL_ISSUES = "issueLogs";
 const COL_SUMMARIES = "summaries";
 const COL_PROJECT_TODOS = "projectTodos";
 
-const { createSmsIssue, makeTitleFromBody } = require("./issueRepository");
+const { createSmsIssue, makeTitleFromBody, updateSmsIssueBody } = require("./issueRepository");
 const { getModels } = require("./aiConfig");
 const { completionText, chatCompletionWithFallback } = require("./openaiHelpers");
 const {
@@ -47,6 +47,12 @@ const {
 const {
   attachExistingMediaToIssueBySourceMessages,
 } = require("./mediaRepository");
+const {
+  escapeRegExp,
+  parseBareManpowerPair,
+  parseManpowerCorrectionCommand,
+  replaceManpowerTradeCount,
+} = require("./manpowerRollcall");
 const {
   findActiveAppMemberByApprovedPhone,
   findActiveLabourerByPhone,
@@ -458,6 +464,98 @@ function looksLikeAssistantFollowUpAnswer(text) {
   }
   if (/^(?:it'?s|its|the|for|on|in|at|use|make it|set it to)\b/i.test(raw)) return true;
   return false;
+}
+
+function isAffirmativeCorrectionFollowUp(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return false;
+  return /^(?:yes|y|yeah|yep|sure|ok|okay)\b[\s,.-]*(?:correct|fix|change|update)\b/i.test(raw);
+}
+
+function looksLikeCorrectionPrompt(prompt) {
+  const raw = String(prompt || "").replace(/\s+/g, " ").trim();
+  if (!raw) return false;
+  return /\b(correct|correction|fix|change|update)\b/i.test(raw);
+}
+
+function applyManpowerCorrectionToEntry(entry, correction) {
+  if (!entry || !correction) return null;
+  const nextRaw = replaceManpowerTradeCount(entry.rawText || "", correction.trade, correction.workers);
+  const nextNormalized =
+    replaceManpowerTradeCount(entry.normalizedText || "", correction.trade, correction.workers) ||
+    (nextRaw ? replaceManpowerTradeCount(nextRaw, correction.trade, correction.workers) : null);
+  if (!nextRaw && !nextNormalized) return null;
+
+  const rawText = nextRaw || entry.rawText || "";
+  const normalizedText = nextNormalized || nextRaw || entry.normalizedText || rawText;
+  const existingTags = Array.isArray(entry.tags) ? entry.tags : [];
+  const existingSections = Array.isArray(entry.dailySummarySections) ? entry.dailySummarySections : [];
+  return {
+    rawText,
+    normalizedText,
+    tags: [...new Set([...existingTags, "manpower"])],
+    dailySummarySections: [...new Set([...existingSections, "manpower", "dayLog"])],
+  };
+}
+
+async function applyLatestManpowerCorrectionForSenderProject({
+  db,
+  FieldValue,
+  phoneE164,
+  projectSlug,
+  reportDateKey,
+  correction,
+}) {
+  const rows = await loadLogEntriesForDayForProject(db, phoneE164, reportDateKey, projectSlug);
+  const tradeRe = new RegExp(`\\b${escapeRegExp(String(correction.trade || "").trim())}\\b\\s+\\d{1,3}\\b`, "i");
+  const candidates = rows.filter((entry) => {
+    const tags = Array.isArray(entry.tags) ? entry.tags : [];
+    const text = `${entry.rawText || ""}\n${entry.normalizedText || ""}`;
+    return (
+      tags.includes("manpower") ||
+      entry.logCategory === "manpower" ||
+      /\bmanpower\b/i.test(text)
+    ) && tradeRe.test(text);
+  });
+  const target = candidates.length ? candidates[candidates.length - 1] : null;
+  if (!target || !target.id) return null;
+
+  const updated = applyManpowerCorrectionToEntry(target, correction);
+  if (!updated) return null;
+
+  await db.collection("logEntries").doc(target.id).set(
+    {
+      rawText: updated.rawText,
+      normalizedText: updated.normalizedText,
+      tags: updated.tags,
+      dailySummarySections: updated.dailySummarySections,
+      aiEnhanced: false,
+      aiError: null,
+      aiReportExtract: null,
+      summaryText: null,
+      updatedAt: FieldValue.serverTimestamp(),
+      editedAt: FieldValue.serverTimestamp(),
+      editedByPhone: phoneE164,
+    },
+    { merge: true }
+  );
+
+  if (target.issueCollection && target.canonicalIssueId) {
+    await updateSmsIssueBody(db, FieldValue, {
+      issueCollection: target.issueCollection,
+      issueId: target.canonicalIssueId,
+      changedBy: phoneE164,
+      title: makeTitleFromBody(updated.normalizedText),
+      description: updated.normalizedText,
+      tags: updated.tags,
+    }).catch(() => null);
+  }
+
+  return {
+    logEntryId: target.id,
+    reportDateKey: String(target.reportDateKey || reportDateKey || "").trim() || null,
+    updatedText: updated.normalizedText,
+  };
 }
 
 async function savePendingAssistantFollowUp(db, phoneE164, prompt, projectSlug) {
@@ -2052,6 +2150,71 @@ async function buildReply({
       !pendingAssistantFollowUp.projectSlug ||
       pendingAssistantFollowUp.projectSlug === normalizeProjectSlug(effectiveProjectSlug)
     );
+  const correctionPromptActive =
+    Boolean(pendingAssistantFollowUp) && looksLikeCorrectionPrompt(pendingAssistantFollowUp.prompt);
+
+  if (shortAssistantFollowUp && correctionPromptActive && isAffirmativeCorrectionFollowUp(userMessageForAI)) {
+    await savePendingAssistantFollowUp(
+      db,
+      phoneE164,
+      "Send the corrected manpower like: ALC 17 or: correct manpower for ALC to 17.",
+      effectiveProjectSlug
+    );
+    return {
+      replyText: 'Send the corrected manpower like "ALC 17" or "correct manpower for ALC to 17".',
+      outboundMeta: { ...outboundMeta, command: "manpower_correction_clarify" },
+    };
+  }
+
+  const manpowerCorrection =
+    parseManpowerCorrectionCommand(userMessageForAI, { allowBarePair: correctionPromptActive }) ||
+    (shortAssistantFollowUp && correctionPromptActive ? parseBareManpowerPair(userMessageForAI) : null);
+  if (manpowerCorrection) {
+    const correctionDateKey = extractExplicitReportDate(userMessageForAI).reportDateKey || dateKeyEastern(new Date());
+    const corrected = await applyLatestManpowerCorrectionForSenderProject({
+      db,
+      FieldValue,
+      phoneE164,
+      projectSlug: effectiveProjectSlug,
+      reportDateKey: correctionDateKey,
+      correction: manpowerCorrection,
+    });
+    if (corrected) {
+      if (pendingAssistantFollowUp) {
+        await clearPendingAssistantFollowUp(db, phoneE164);
+      }
+      return {
+        replyText: truncateSms(
+          `Corrected manpower for ${manpowerCorrection.trade} to ${manpowerCorrection.workers}${
+            corrected.reportDateKey ? ` on ${corrected.reportDateKey}` : ""
+          }.`
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, {
+            stage: "deterministic",
+            action: "edit_log",
+            confidence: 0.99,
+            reason: "Matched manpower correction command.",
+            source: "deterministic",
+            matchedBy: "parseManpowerCorrectionCommand",
+          }),
+          command: "manpower_corrected",
+          logEntryId: corrected.logEntryId,
+          logCategory: "note",
+          reportDateKey: corrected.reportDateKey,
+        },
+      };
+    }
+    return {
+      replyText: truncateSms(
+        `Could not find a manpower entry for ${manpowerCorrection.trade} to correct${
+          correctionDateKey ? ` on ${correctionDateKey}` : ""
+        }. Send the full manpower line again if needed.`
+      ),
+      outboundMeta: { ...outboundMeta, command: "manpower_correction_not_found", reportDateKey: correctionDateKey },
+    };
+  }
+
   const dailyReportRequest = parseDailyReportRequest(userMessageForAI);
   if (dailyReportRequest && dailyReportRequest.invalidReason) {
     return {
@@ -3011,8 +3174,11 @@ module.exports = {
   looksLikeExplicitAiChatRequest,
   isExplicitLabourEntryText,
   isExplicitLabourBalanceText,
+  isAffirmativeCorrectionFollowUp,
   looksLikeAssistantFollowUpAnswer,
+  looksLikeCorrectionPrompt,
   shouldTrackAssistantFollowUp,
+  applyManpowerCorrectionToEntry,
   looksLikeNarrativeSaveCandidate,
   decideFallbackRouting,
   inferJournalTags,

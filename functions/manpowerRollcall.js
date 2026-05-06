@@ -92,6 +92,61 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function parseBareManpowerPair(text) {
+  const raw = sanitizeCell(text);
+  if (!raw) return null;
+  const match = raw.match(
+    /^([A-Za-z][A-Za-z0-9'./\-]*(?:\s+[A-Za-z][A-Za-z0-9'./\-]*){0,2})\s+(\d{1,3})$/
+  );
+  if (!match) return null;
+  const trade = sanitizeCell(match[1]);
+  const workers = String(parseInt(match[2], 10));
+  if (!isRollcallTradeToken(trade)) return null;
+  return { trade, workers };
+}
+
+function parseManpowerCorrectionCommand(text, options = {}) {
+  const raw = sanitizeCell(text);
+  if (!raw) return null;
+
+  const allowBarePair = options && options.allowBarePair === true;
+  const correctionIntent =
+    /\b(correct|change|update|revise|fix|set)\b/i.test(raw) ||
+    /\bshould\s+be\b/i.test(raw);
+
+  if (!correctionIntent && allowBarePair) {
+    return parseBareManpowerPair(raw);
+  }
+  if (!correctionIntent) return null;
+
+  const patterns = [
+    /\b(?:correct|change|update|revise|fix|set)\b[\s\S]*?\b(?:manpower|workers?|crew|headcount)?\b[\s\S]*?\bfor\s+([A-Za-z][A-Za-z0-9'./\-]*(?:\s+[A-Za-z][A-Za-z0-9'./\-]*){0,2})\b[\s,:-]*(?:to|at|is|should\s+be)?\s*(\d{1,3})\b/i,
+    /\b([A-Za-z][A-Za-z0-9'./\-]*(?:\s+[A-Za-z][A-Za-z0-9'./\-]*){0,2})\b[\s,:-]*(?:manpower|workers?|crew|headcount)?[\s,:-]*(?:to|at|is|should\s+be)\s*(\d{1,3})\b/i,
+  ];
+
+  for (const re of patterns) {
+    const match = raw.match(re);
+    if (!match) continue;
+    const trade = sanitizeCell(match[1]).replace(/\b(?:to|at|is)\b$/i, "").trim();
+    const workers = String(parseInt(match[2], 10));
+    if (!isRollcallTradeToken(trade)) continue;
+    return { trade, workers };
+  }
+
+  return allowBarePair ? parseBareManpowerPair(raw) : null;
+}
+
+function replaceManpowerTradeCount(text, trade, workers) {
+  const source = String(text || "");
+  const tradeName = sanitizeCell(trade);
+  const workerCount = String(parseInt(String(workers || ""), 10) || "");
+  if (!source.trim() || !tradeName || !workerCount) return null;
+
+  const re = new RegExp(`\\b(${escapeRegExp(tradeName)})\\b\\s+\\d{1,3}\\b`, "i");
+  if (!re.test(source)) return null;
+  return source.replace(re, (_, matchedTrade) => `${matchedTrade} ${workerCount}`);
+}
+
 /**
  * Text after the last valid roll-call "Trade N" token (for single-line SMS: counts + narratives).
  */
@@ -115,6 +170,9 @@ function tailAfterManpowerRollcall(flatText) {
 
 module.exports = {
   parseManpowerRollcallLine,
+  parseBareManpowerPair,
+  parseManpowerCorrectionCommand,
+  replaceManpowerTradeCount,
   textContainsManpowerRollcall,
   tailAfterManpowerRollcall,
   escapeRegExp,

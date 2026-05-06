@@ -89,6 +89,19 @@ test("parseLabourHoursCommand parses segmented breakdown without declared total 
   assert.equal(parsed.hours, 9);
 });
 
+test("parseLabourHoursCommand accepts segmented breakdowns that omit repeated hour units", () => {
+  const parsed = parseLabourHoursCommand(
+    "2025-05-05 11 hours 6 house keeping 3 hours side walk protection 2 fill diesel"
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.hours, 11);
+  assert.equal(parsed.reportDateKey, "2025-05-05");
+  assert.ok(parsed.workOn.toLowerCase().includes("6h house keeping"));
+  assert.ok(parsed.workOn.toLowerCase().includes("3h side walk protection"));
+  assert.ok(parsed.workOn.toLowerCase().includes("2h fill diesel"));
+});
+
 test("dayMultiplierFromDateKey applies holiday/weekend multipliers to the report date", () => {
   assert.equal(dayMultiplierFromDateKey("2026-04-24"), 1);
   assert.equal(dayMultiplierFromDateKey("2026-04-25"), 1.5);
