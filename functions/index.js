@@ -153,6 +153,26 @@ function normalizeTodoLabels(value) {
   return out;
 }
 
+function normalizeTodoTags(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",");
+  const out = [];
+  for (const item of source) {
+    const clean = String(item || "")
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    if (clean && !out.includes(clean)) out.push(clean);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
 function normalizeTodoDependencies(value) {
   const source = Array.isArray(value)
     ? value
@@ -4843,6 +4863,71 @@ exports.deleteLabourerCallable = onCall(
   }
 );
 
+exports.createProjectTodoCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const projectSlug = normalizeProjectSlug(String(request.data?.projectSlug || "home").trim()) || "home";
+    const taskText = normalizeTodoText(request.data?.taskText || "", 500);
+    const dueBy = normalizeTodoDateTime(request.data?.dueBy);
+    const priority = normalizeTodoPriority(request.data?.priority);
+    const labels = normalizeTodoLabels(request.data?.labels);
+    const tags = normalizeTodoTags(request.data?.tags);
+    const reminders = normalizeTodoReminders(request.data?.reminders);
+    const dependencies = normalizeTodoDependencies(request.data?.dependencies);
+    const recurrence = normalizeTodoRecurrence(request.data?.recurrence);
+
+    if (!taskText) throw new HttpsError("invalid-argument", "taskText is required.");
+    if (dueBy === "") throw new HttpsError("invalid-argument", "dueBy must be a valid date/time value.");
+    if (priority === "") throw new HttpsError("invalid-argument", "priority must be p1, p2, p3, or p4.");
+    if (reminders === "") throw new HttpsError("invalid-argument", "reminders must be valid date/time values.");
+    if (recurrence === "") throw new HttpsError("invalid-argument", "recurrence is invalid.");
+    if (!canAccessProject(operator, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot create todo items for this project.");
+    }
+
+    const todoRef = db.collection(COL_PROJECT_TODOS).doc();
+    const createdByName =
+      String(operator.memberData?.displayName || operator.email || "").trim() || null;
+    await todoRef.set({
+      projectSlug,
+      scope: "project",
+      visibility: "management",
+      status: "open",
+      taskText,
+      sourceText: taskText,
+      dueWindow: null,
+      dueLabel: null,
+      dueBy: dueBy || null,
+      startedAt: null,
+      finishedAt: null,
+      priority: priority || null,
+      recurrence,
+      labels,
+      tags,
+      reminders,
+      dependencies,
+      comments: [],
+      subTodos: [],
+      createdByPhone: operator.approvedPhoneE164 || null,
+      createdByEmail: operator.email || null,
+      createdByName,
+      source: "dashboard",
+      sourceMessageId: null,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedByEmail: operator.email || null,
+    });
+
+    return { ok: true, todoId: todoRef.id, projectSlug, taskText };
+  }
+);
+
 exports.updateProjectTodoCallable = onCall(
   {
     region: "northamerica-northeast1",
@@ -4861,6 +4946,7 @@ exports.updateProjectTodoCallable = onCall(
     const priorityInput = request.data?.priority;
     const recurrenceInput = request.data?.recurrence;
     const labelsInput = request.data?.labels;
+    const tagsInput = request.data?.tags;
     const remindersInput = request.data?.reminders;
     const dependenciesInput = request.data?.dependencies;
     if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
@@ -4872,6 +4958,7 @@ exports.updateProjectTodoCallable = onCall(
       priorityInput == null &&
       recurrenceInput == null &&
       labelsInput == null &&
+      tagsInput == null &&
       remindersInput == null &&
       dependenciesInput == null
     ) {
@@ -4889,6 +4976,7 @@ exports.updateProjectTodoCallable = onCall(
     const priority = normalizeTodoPriority(priorityInput);
     const recurrence = normalizeTodoRecurrence(recurrenceInput);
     const labels = labelsInput == null ? null : normalizeTodoLabels(labelsInput);
+    const tags = tagsInput == null ? null : normalizeTodoTags(tagsInput);
     const reminders = remindersInput == null ? null : normalizeTodoReminders(remindersInput);
     const dependencies = dependenciesInput == null ? null : normalizeTodoDependencies(dependenciesInput);
     if (
@@ -4897,6 +4985,7 @@ exports.updateProjectTodoCallable = onCall(
       finishedAt === "" ||
       priority === "" ||
       recurrence === "" ||
+      tags === "" ||
       reminders === ""
     ) {
       throw new HttpsError("invalid-argument", "Todo date fields must be valid date/time values.");
@@ -4943,6 +5032,7 @@ exports.updateProjectTodoCallable = onCall(
           priority: priorityInput !== undefined ? priority : item?.priority || null,
           recurrence: recurrenceInput !== undefined ? recurrence : item?.recurrence || { mode: "none", customText: "" },
           labels: labelsInput !== undefined ? labels : Array.isArray(item?.labels) ? item.labels : [],
+          tags: tagsInput !== undefined ? tags : Array.isArray(item?.tags) ? item.tags : [],
           reminders: remindersInput !== undefined ? reminders : Array.isArray(item?.reminders) ? item.reminders : [],
           dependencies:
             dependenciesInput !== undefined
@@ -4979,6 +5069,7 @@ exports.updateProjectTodoCallable = onCall(
       if (priorityInput !== undefined) updates.priority = priority;
       if (recurrenceInput !== undefined) updates.recurrence = recurrence;
       if (labelsInput !== undefined) updates.labels = labels;
+      if (tagsInput !== undefined) updates.tags = tags;
       if (remindersInput !== undefined) updates.reminders = reminders;
       if (dependenciesInput !== undefined) updates.dependencies = dependencies;
       if (nextStatus === "completed") {
@@ -5030,6 +5121,7 @@ exports.addProjectSubTodoCallable = onCall(
       priority: null,
       recurrence: { mode: "none", customText: "" },
       labels: [],
+      tags: [],
       reminders: [],
       dependencies: [],
       comments: [],

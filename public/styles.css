@@ -1570,6 +1570,57 @@ body {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.todo-filter-bar {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.todo-filter-hints,
+.todo-tag-row,
+.todo-label-row,
+.todo-reminder-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.todo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.78rem;
+}
+
+.todo-chip button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.todo-reminder-builder {
+  display: grid;
+  gap: 10px;
+}
+
+.todo-reminder-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.todo-reminder-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
 .todo-add-row {
   display: grid;
   grid-template-columns: minmax(220px, 1.8fr) minmax(180px, 1fr) auto;

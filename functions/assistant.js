@@ -515,7 +515,7 @@ function parseProjectNotesUpdateCommand(text) {
 function parseHomeTodoCommand(text) {
   const raw = String(text || "").trim();
   if (!raw) return null;
-  const match = raw.match(/^xxx\b[\s:,-]*([\s\S]*)$/i);
+  const match = raw.match(/^(?:xxx|todo|add\s+todo|create\s+todo)\b[\s:,-]*([\s\S]*)$/i);
   if (!match) return null;
   const body = String(match[1] || "").replace(/\s+/g, " ").trim();
   if (!body) {
@@ -543,7 +543,13 @@ function parseHomeTodoCommand(text) {
     dueDate.setHours(17, 0, 0, 0);
     dueByIso = dueDate.toISOString();
   }
-  const cleanedTask = body
+  const extractedTags = [];
+  const tagStrippedBody = body.replace(/(^|\s)@([a-z0-9][a-z0-9._-]{0,39})\b/gi, (_, lead, tag) => {
+    const clean = String(tag || "").trim().toLowerCase();
+    if (clean && !extractedTags.includes(clean)) extractedTags.push(clean);
+    return lead || " ";
+  });
+  const cleanedTask = tagStrippedBody
     .replace(/\b(?:by|within|in)\s+next\s+week\b/gi, "")
     .replace(/\bin\s+the\s+next\s+week\b/gi, "")
     .replace(/\b(?:by|within|in)\s+next\s+month\b/gi, "")
@@ -558,6 +564,7 @@ function parseHomeTodoCommand(text) {
     dueWindow,
     dueLabel,
     dueByIso,
+    tags: extractedTags,
     rawText: body.slice(0, 1000),
   };
 }
@@ -2250,6 +2257,7 @@ async function buildReply({
       priority: null,
       recurrence: { mode: "none", customText: "" },
       labels: [],
+      tags: homeTodoCommand.tags || [],
       reminders: [],
       dependencies: [],
       comments: [],

@@ -495,6 +495,8 @@ let currentAppAccess = null;
 let expandedHomeTodoIds = new Set();
 let expandedHomeSubTodoKeys = new Set();
 let showCompletedHomeTodos = false;
+let homeTodoSearchQuery = "";
+let pendingNewTodoReminders = [];
 
 function setStatusOk(detail = "") {
   if (statusEl) statusEl.textContent = "Connected";
@@ -766,9 +768,130 @@ function formatTodoListText(list) {
   return Array.isArray(list) ? list.join(", ") : "";
 }
 
+function normalizeTodoTokenListClient(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(",");
+  const out = [];
+  for (const item of source) {
+    const clean = String(item || "")
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    if (clean && !out.includes(clean)) out.push(clean);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function formatTodoTagList(list) {
+  return Array.isArray(list) ? list.map((item) => `@${item}`).join(", ") : "";
+}
+
 function formatReminderList(list) {
   if (!Array.isArray(list) || !list.length) return "-";
   return list.map((item) => formatTodoMoment(item)).join(" | ");
+}
+
+function renderReminderEditor(reminders, attrs = {}) {
+  const rows = Array.isArray(reminders) ? reminders.filter(Boolean) : [];
+  const todoId = String(attrs.todoId || "").trim();
+  const subTodoId = String(attrs.subTodoId || "").trim();
+  const scope = subTodoId ? "subtodo" : "todo";
+  const extra = subTodoId ? ` data-subtodo-id="${esc(subTodoId)}"` : "";
+  const listMarkup = rows.length
+    ? rows
+        .map(
+          (item) => `
+            <span class="todo-chip">
+              <span>${esc(formatTodoMoment(item))}</span>
+              <button type="button" data-home-${scope}-reminder-remove="${esc(todoId)}" data-reminder-value="${esc(String(item))}"${extra}>x</button>
+            </span>`
+        )
+        .join("")
+    : '<span class="muted small">No reminders set.</span>';
+  return `
+    <div class="todo-reminder-editor">
+      <div class="todo-reminder-list">${listMarkup}</div>
+      <div class="todo-reminder-add-row">
+        <input type="datetime-local" class="project-manager-input" data-home-${scope}-reminder-input="${esc(todoId)}"${extra} />
+        <button type="button" class="btn-secondary" data-home-${scope}-reminder-add="${esc(todoId)}"${extra}>Add reminder</button>
+      </div>
+    </div>`;
+}
+
+function todoMatchesSearch(todo, query) {
+  const raw = String(query || "").trim().toLowerCase();
+  if (!raw) return true;
+  const labels = Array.isArray(todo?.labels) ? todo.labels.map((item) => String(item || "").toLowerCase()) : [];
+  const tags = Array.isArray(todo?.tags) ? todo.tags.map((item) => String(item || "").toLowerCase()) : [];
+  const subTodos = Array.isArray(todo?.subTodos) ? todo.subTodos : [];
+  const haystack = [
+    todo?.taskText,
+    todo?.projectSlug,
+    formatTodoListText(labels),
+    formatTodoListText(tags),
+    ...subTodos.map((item) => item?.text || ""),
+  ]
+    .join(" ")
+    .toLowerCase();
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  return tokens.every((token) => {
+    if (token.startsWith("@")) return tags.includes(token.slice(1));
+    if (token.startsWith("#") || token.startsWith("label:")) {
+      const label = token.startsWith("label:") ? token.slice(6) : token.slice(1);
+      return labels.includes(label);
+    }
+    return haystack.includes(token);
+  });
+}
+
+function collectHomeTodoDiscoveries() {
+  const labels = new Set();
+  const tags = new Set();
+  for (const todo of homeTodosCache) {
+    for (const label of Array.isArray(todo?.labels) ? todo.labels : []) labels.add(String(label || ""));
+    for (const tag of Array.isArray(todo?.tags) ? todo.tags : []) tags.add(String(tag || ""));
+    for (const subTodo of Array.isArray(todo?.subTodos) ? todo.subTodos : []) {
+      for (const label of Array.isArray(subTodo?.labels) ? subTodo.labels : []) labels.add(String(label || ""));
+      for (const tag of Array.isArray(subTodo?.tags) ? subTodo.tags : []) tags.add(String(tag || ""));
+    }
+  }
+  return {
+    labels: Array.from(labels).filter(Boolean).sort(),
+    tags: Array.from(tags).filter(Boolean).sort(),
+  };
+}
+
+function renderTodoSearchHints() {
+  const hintsEl = document.getElementById("todoSearchHints");
+  if (!hintsEl) return;
+  const discoveries = collectHomeTodoDiscoveries();
+  const chips = [
+    ...discoveries.tags.slice(0, 10).map((tag) => `<button type="button" class="todo-chip" data-todo-search-chip="@${esc(tag)}">@${esc(tag)}</button>`),
+    ...discoveries.labels.slice(0, 8).map((label) => `<button type="button" class="todo-chip" data-todo-search-chip="#${esc(label)}">#${esc(label)}</button>`),
+  ];
+  hintsEl.innerHTML = chips.length ? chips.join("") : '<span class="muted small">Create labels and @tags to search faster.</span>';
+}
+
+function renderNewTodoReminderList() {
+  const listEl = document.getElementById("todoCreateReminders");
+  if (!listEl) return;
+  listEl.innerHTML = pendingNewTodoReminders.length
+    ? pendingNewTodoReminders
+        .map(
+          (item) => `
+            <span class="todo-chip">
+              <span>${esc(formatTodoMoment(item))}</span>
+              <button type="button" data-create-todo-reminder-remove="${esc(String(item))}">x</button>
+            </span>`
+        )
+        .join("")
+    : '<span class="muted small">No reminders queued.</span>';
 }
 
 function renderTodoCommentList(comments) {
@@ -817,9 +940,10 @@ function formatTodoMoment(value) {
 
 function renderHomeTodos() {
   if (!homeTodosEl) return;
+  renderTodoSearchHints();
   if (!homeTodosCache.length) {
     homeTodosEl.innerHTML =
-      '<div class="row-item muted">No home todo items yet. Text <code>xxx fix the garage door by next week</code> to create one.</div>';
+      '<div class="row-item muted">No home todo items yet. Use the create bar above or send <code>todo fix the garage door @home by next week</code>.</div>';
     return;
   }
   const totals = homeTodosCache.reduce(
@@ -837,13 +961,15 @@ function renderHomeTodos() {
   const visibleTodos = showCompletedHomeTodos
     ? homeTodosCache
     : homeTodosCache.filter((todo) => String(todo.status || "").trim().toLowerCase() !== "completed");
+  const filteredTodos = visibleTodos.filter((todo) => todoMatchesSearch(todo, homeTodoSearchQuery));
   const hiddenCompletedCount = showCompletedHomeTodos ? 0 : totals.completed;
-  const todoCards = visibleTodos
+  const todoCards = filteredTodos
     .map((todo, index) => {
       const status = String(todo.status || "open").trim() || "open";
       const due = String(todo.dueLabel || "").trim();
       const createdBy = String(todo.createdByName || todo.createdByPhone || "-").trim();
       const subTodos = Array.isArray(todo.subTodos) ? todo.subTodos : [];
+      const tags = Array.isArray(todo.tags) ? todo.tags : [];
       const recurrence = todo.recurrence && typeof todo.recurrence === "object"
         ? todo.recurrence
         : { mode: "none", customText: "" };
@@ -869,6 +995,7 @@ function renderHomeTodos() {
             <span>Comments ${comments.length}</span>
             <span>Recurrence ${esc(formatTodoRecurrenceLabel(recurrence))}</span>
             <span>${esc(formatTodoListText(todo.labels) || "No labels")}</span>
+            <span>${esc(formatTodoTagList(tags) || "No tags")}</span>
           </div>
           ${
             !expanded
@@ -918,18 +1045,24 @@ function renderHomeTodos() {
               <input type="text" class="project-manager-input" data-home-todo-labels="${esc(todo.id)}" value="${esc(formatTodoListText(todo.labels))}" placeholder="urgent, home, garage" />
             </div>
             <div class="todo-field">
-              <label>Reminders</label>
-              <textarea class="project-manager-input" data-home-todo-reminders="${esc(todo.id)}" rows="2" placeholder="One datetime per line">${esc(Array.isArray(todo.reminders) ? todo.reminders.map((item) => toDateTimeLocalValue(item)).filter(Boolean).join("\n") : "")}</textarea>
+              <label>Tags</label>
+              <input type="text" class="project-manager-input" data-home-todo-tags="${esc(todo.id)}" value="${esc(formatTodoTagList(todo.tags))}" placeholder="@urgent, @gate, @supplier" />
             </div>
             <div class="todo-field">
               <label>Dependencies</label>
               <input type="text" class="project-manager-input" data-home-todo-dependencies="${esc(todo.id)}" value="${esc(formatTodoListText(todo.dependencies))}" placeholder="todo id, subtodo id" />
             </div>
           </div>
+          <div class="todo-section">
+            <div class="todo-section-head">
+              <h4 class="todo-section-title">Reminders</h4>
+            </div>
+            ${renderReminderEditor(todo.reminders, { todoId: todo.id })}
+          </div>
           <div class="todo-insights muted small">
             <div>Started: ${esc(formatTodoMoment(todo.startedAt))} · Finished: ${esc(formatTodoMoment(todo.finishedAt))} · Due: ${esc(formatTodoMoment(todo.dueBy))}</div>
             <div>Priority: ${esc(formatTodoPriorityLabel(todo.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(recurrence))}</div>
-            <div>Labels: ${esc(formatTodoListText(todo.labels) || "-")} · Dependencies: ${esc(formatTodoListText(todo.dependencies) || "-")}</div>
+            <div>Labels: ${esc(formatTodoListText(todo.labels) || "-")} · Tags: ${esc(formatTodoTagList(todo.tags) || "-")} · Dependencies: ${esc(formatTodoListText(todo.dependencies) || "-")}</div>
             <div>Reminders: ${esc(formatReminderList(todo.reminders))}</div>
           </div>
           <div class="todo-section">
@@ -946,6 +1079,7 @@ function renderHomeTodos() {
                       const subRecurrence = subTodo?.recurrence && typeof subTodo.recurrence === "object"
                         ? subTodo.recurrence
                         : { mode: "none", customText: "" };
+                      const subTags = Array.isArray(subTodo?.tags) ? subTodo.tags : [];
                       const subExpanded = expandedHomeSubTodoKeys.has(homeSubTodoKey(todo.id, subTodo?.id));
                       return `
                         <article class="todo-card todo-subcard${subExpanded ? " is-expanded" : ""}">
@@ -963,6 +1097,7 @@ function renderHomeTodos() {
                           <div class="todo-inline-stats muted small">
                             <span>Comments ${Array.isArray(subTodo?.comments) ? subTodo.comments.length : 0}</span>
                             <span>Recurrence ${esc(formatTodoRecurrenceLabel(subRecurrence))}</span>
+                            <span>${esc(formatTodoTagList(subTags) || "No tags")}</span>
                           </div>
                           ${
                             !subExpanded
@@ -1012,18 +1147,24 @@ function renderHomeTodos() {
                               <input type="text" class="project-manager-input" data-home-subtodo-labels="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoListText(subTodo?.labels))}" placeholder="urgent, garage" />
                             </div>
                             <div class="todo-field">
-                              <label>Reminders</label>
-                              <textarea class="project-manager-input" data-home-subtodo-reminders="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" rows="2" placeholder="One datetime per line">${esc(Array.isArray(subTodo?.reminders) ? subTodo.reminders.map((item) => toDateTimeLocalValue(item)).filter(Boolean).join("\n") : "")}</textarea>
+                              <label>Tags</label>
+                              <input type="text" class="project-manager-input" data-home-subtodo-tags="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoTagList(subTodo?.tags))}" placeholder="@urgent, @garage" />
                             </div>
                             <div class="todo-field">
                               <label>Dependencies</label>
                               <input type="text" class="project-manager-input" data-home-subtodo-dependencies="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" value="${esc(formatTodoListText(subTodo?.dependencies))}" placeholder="todo id, subtodo id" />
                             </div>
                           </div>
+                          <div class="todo-section">
+                            <div class="todo-section-head">
+                              <h5 class="todo-section-title">Reminders</h5>
+                            </div>
+                            ${renderReminderEditor(subTodo?.reminders, { todoId: todo.id, subTodoId: subTodo?.id || "" })}
+                          </div>
                           <div class="todo-insights muted small">
                             <div>Started: ${esc(formatTodoMoment(subTodo?.startedAt))} · Finished: ${esc(formatTodoMoment(subTodo?.finishedAt))} · Due: ${esc(formatTodoMoment(subTodo?.dueBy))}</div>
                             <div>Priority: ${esc(formatTodoPriorityLabel(subTodo?.priority))} · Recurrence: ${esc(formatTodoRecurrenceLabel(subRecurrence))}</div>
-                            <div>Labels: ${esc(formatTodoListText(subTodo?.labels) || "-")} · Dependencies: ${esc(formatTodoListText(subTodo?.dependencies) || "-")}</div>
+                            <div>Labels: ${esc(formatTodoListText(subTodo?.labels) || "-")} · Tags: ${esc(formatTodoTagList(subTodo?.tags) || "-")} · Dependencies: ${esc(formatTodoListText(subTodo?.dependencies) || "-")}</div>
                             <div>Reminders: ${esc(formatReminderList(subTodo?.reminders))}</div>
                           </div>
                           <div class="todo-section">
@@ -1100,7 +1241,13 @@ function renderHomeTodos() {
         <button type="button" class="btn-secondary" id="toggleCompletedTodosBtn">
           ${showCompletedHomeTodos ? "Hide completed" : `Show completed (${totals.completed})`}
         </button>
-        <div class="muted small">${hiddenCompletedCount ? `${hiddenCompletedCount} completed hidden` : "Completed tasks visible"}</div>
+        <div class="muted small">${
+          homeTodoSearchQuery
+            ? `${filteredTodos.length} matching task${filteredTodos.length === 1 ? "" : "s"}`
+            : hiddenCompletedCount
+              ? `${hiddenCompletedCount} completed hidden`
+              : "Completed tasks visible"
+        }</div>
       </div>
     </div>
     ${listMarkup}
@@ -4052,6 +4199,104 @@ function initApprovals() {
 
 function initHomeTodos() {
   if (!homeTodosEl) return;
+  const createTextInput = document.getElementById("todoCreateText");
+  const createPriorityInput = document.getElementById("todoCreatePriority");
+  const createDueByInput = document.getElementById("todoCreateDueBy");
+  const createLabelsInput = document.getElementById("todoCreateLabels");
+  const createTagsInput = document.getElementById("todoCreateTags");
+  const createReminderInput = document.getElementById("todoCreateReminderAt");
+  const createReminderAddBtn = document.getElementById("todoCreateReminderAddBtn");
+  const createBtn = document.getElementById("todoCreateBtn");
+  const createResult = document.getElementById("todoCreateResult");
+  const searchInput = document.getElementById("todoSearchInput");
+  const searchHints = document.getElementById("todoSearchHints");
+  const createReminderList = document.getElementById("todoCreateReminders");
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      homeTodoSearchQuery = String(searchInput.value || "").trim();
+      renderHomeTodos();
+    });
+  }
+  if (searchHints && searchInput) {
+    searchHints.addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-todo-search-chip]");
+      if (!chip) return;
+      homeTodoSearchQuery = String(chip.getAttribute("data-todo-search-chip") || "").trim();
+      searchInput.value = homeTodoSearchQuery;
+      renderHomeTodos();
+    });
+  }
+  if (createReminderList) {
+    createReminderList.addEventListener("click", (event) => {
+      const removeButton = event.target.closest("[data-create-todo-reminder-remove]");
+      if (!removeButton) return;
+      const value = String(removeButton.getAttribute("data-create-todo-reminder-remove") || "").trim();
+      pendingNewTodoReminders = pendingNewTodoReminders.filter((item) => item !== value);
+      renderNewTodoReminderList();
+    });
+  }
+
+  if (createReminderAddBtn && createReminderInput) {
+    createReminderAddBtn.addEventListener("click", () => {
+      const value = String(createReminderInput.value || "").trim();
+      if (!value) return;
+      const iso = new Date(value).toISOString();
+      if (!pendingNewTodoReminders.includes(iso)) pendingNewTodoReminders.push(iso);
+      pendingNewTodoReminders.sort();
+      createReminderInput.value = "";
+      renderNewTodoReminderList();
+    });
+  }
+
+  if (createBtn && createTextInput) {
+    createBtn.addEventListener("click", async () => {
+      const taskText = String(createTextInput.value || "").trim();
+      if (!taskText) {
+        if (createResult) {
+          createResult.textContent = "Enter a todo first.";
+          createResult.className = "project-manager-result err";
+        }
+        return;
+      }
+      createBtn.disabled = true;
+      if (createResult) {
+        createResult.textContent = "Creating todo...";
+        createResult.className = "project-manager-result muted small";
+      }
+      try {
+        await callDashboardFunction("createProjectTodoCallable", {
+          projectSlug: "home",
+          taskText,
+          priority: String(createPriorityInput?.value || "").trim() || null,
+          dueBy: String(createDueByInput?.value || "").trim() || null,
+          labels: String(createLabelsInput?.value || ""),
+          tags: String(createTagsInput?.value || ""),
+          reminders: pendingNewTodoReminders,
+        });
+        createTextInput.value = "";
+        if (createPriorityInput) createPriorityInput.value = "";
+        if (createDueByInput) createDueByInput.value = "";
+        if (createLabelsInput) createLabelsInput.value = "";
+        if (createTagsInput) createTagsInput.value = "";
+        pendingNewTodoReminders = [];
+        renderNewTodoReminderList();
+        if (createResult) {
+          createResult.textContent = "Todo created.";
+          createResult.className = "project-manager-result ok";
+        }
+      } catch (err) {
+        if (createResult) {
+          createResult.textContent = `Failed: ${formatUiError(err)}`;
+          createResult.className = "project-manager-result err";
+        }
+      } finally {
+        createBtn.disabled = false;
+      }
+    });
+    renderNewTodoReminderList();
+  }
+
   homeTodosEl.addEventListener("change", async (event) => {
     const todoStatusSelect = event.target.closest("[data-home-todo-status]");
     const todoPrioritySelect = event.target.closest("[data-home-todo-priority]");
@@ -4065,13 +4310,13 @@ function initHomeTodos() {
     const todoStartedInput = event.target.closest("[data-home-todo-startedat]");
     const todoFinishedInput = event.target.closest("[data-home-todo-finishedat]");
     const todoLabelsInput = event.target.closest("[data-home-todo-labels]");
-    const todoRemindersInput = event.target.closest("[data-home-todo-reminders]");
+    const todoTagsInput = event.target.closest("[data-home-todo-tags]");
     const todoDependenciesInput = event.target.closest("[data-home-todo-dependencies]");
     const subTodoDueInput = event.target.closest("[data-home-subtodo-dueby]");
     const subTodoStartedInput = event.target.closest("[data-home-subtodo-startedat]");
     const subTodoFinishedInput = event.target.closest("[data-home-subtodo-finishedat]");
     const subTodoLabelsInput = event.target.closest("[data-home-subtodo-labels]");
-    const subTodoRemindersInput = event.target.closest("[data-home-subtodo-reminders]");
+    const subTodoTagsInput = event.target.closest("[data-home-subtodo-tags]");
     const subTodoDependenciesInput = event.target.closest("[data-home-subtodo-dependencies]");
     if (
       !todoStatusSelect &&
@@ -4086,13 +4331,13 @@ function initHomeTodos() {
       !todoStartedInput &&
       !todoFinishedInput &&
       !todoLabelsInput &&
-      !todoRemindersInput &&
+      !todoTagsInput &&
       !todoDependenciesInput &&
       !subTodoDueInput &&
       !subTodoStartedInput &&
       !subTodoFinishedInput &&
       !subTodoLabelsInput &&
-      !subTodoRemindersInput &&
+      !subTodoTagsInput &&
       !subTodoDependenciesInput
     ) return;
 
@@ -4120,8 +4365,8 @@ function initHomeTodos() {
               ? String(todoFinishedInput.getAttribute("data-home-todo-finishedat") || "").trim()
               : todoLabelsInput
                 ? String(todoLabelsInput.getAttribute("data-home-todo-labels") || "").trim()
-                : todoRemindersInput
-                  ? String(todoRemindersInput.getAttribute("data-home-todo-reminders") || "").trim()
+                : todoTagsInput
+                  ? String(todoTagsInput.getAttribute("data-home-todo-tags") || "").trim()
                   : todoDependenciesInput
                     ? String(todoDependenciesInput.getAttribute("data-home-todo-dependencies") || "").trim()
               : subTodoDueInput
@@ -4132,8 +4377,8 @@ function initHomeTodos() {
                     ? String(subTodoFinishedInput.getAttribute("data-home-subtodo-finishedat") || "").trim()
                     : subTodoLabelsInput
                       ? String(subTodoLabelsInput.getAttribute("data-home-subtodo-labels") || "").trim()
-                      : subTodoRemindersInput
-                        ? String(subTodoRemindersInput.getAttribute("data-home-subtodo-reminders") || "").trim()
+                      : subTodoTagsInput
+                        ? String(subTodoTagsInput.getAttribute("data-home-subtodo-tags") || "").trim()
                         : String(subTodoDependenciesInput.getAttribute("data-home-subtodo-dependencies") || "").trim();
     const subTodoId = subTodoStatusSelect
       ? String(subTodoStatusSelect.getAttribute("data-subtodo-id") || "").trim()
@@ -4151,8 +4396,8 @@ function initHomeTodos() {
             ? String(subTodoFinishedInput.getAttribute("data-subtodo-id") || "").trim()
             : subTodoLabelsInput
               ? String(subTodoLabelsInput.getAttribute("data-subtodo-id") || "").trim()
-              : subTodoRemindersInput
-                ? String(subTodoRemindersInput.getAttribute("data-subtodo-id") || "").trim()
+              : subTodoTagsInput
+                ? String(subTodoTagsInput.getAttribute("data-subtodo-id") || "").trim()
                 : subTodoDependenciesInput
                   ? String(subTodoDependenciesInput.getAttribute("data-subtodo-id") || "").trim()
             : "";
@@ -4187,7 +4432,7 @@ function initHomeTodos() {
     if (todoStartedInput || subTodoStartedInput) payload.startedAt = String(event.target.value || "").trim() || null;
     if (todoFinishedInput || subTodoFinishedInput) payload.finishedAt = String(event.target.value || "").trim() || null;
     if (todoLabelsInput || subTodoLabelsInput) payload.labels = String(event.target.value || "");
-    if (todoRemindersInput || subTodoRemindersInput) payload.reminders = String(event.target.value || "").split("\n").map((item) => item.trim()).filter(Boolean);
+    if (todoTagsInput || subTodoTagsInput) payload.tags = String(event.target.value || "");
     if (todoDependenciesInput || subTodoDependenciesInput) payload.dependencies = String(event.target.value || "");
 
     event.target.disabled = true;
@@ -4219,6 +4464,55 @@ function initHomeTodos() {
       if (expandedHomeSubTodoKeys.has(key)) expandedHomeSubTodoKeys.delete(key);
       else expandedHomeSubTodoKeys.add(key);
       renderHomeTodos();
+      return;
+    }
+    const reminderAddButton = event.target.closest("[data-home-todo-reminder-add], [data-home-subtodo-reminder-add]");
+    const reminderRemoveButton = event.target.closest("[data-home-todo-reminder-remove], [data-home-subtodo-reminder-remove]");
+    if (reminderAddButton || reminderRemoveButton) {
+      const isSubTodo = reminderAddButton
+        ? reminderAddButton.hasAttribute("data-home-subtodo-reminder-add")
+        : reminderRemoveButton.hasAttribute("data-home-subtodo-reminder-remove");
+      const todoId = String(
+        reminderAddButton
+          ? reminderAddButton.getAttribute(isSubTodo ? "data-home-subtodo-reminder-add" : "data-home-todo-reminder-add")
+          : reminderRemoveButton.getAttribute(isSubTodo ? "data-home-subtodo-reminder-remove" : "data-home-todo-reminder-remove") || ""
+      ).trim();
+      const subTodoId = String(
+        (reminderAddButton || reminderRemoveButton).getAttribute("data-subtodo-id") || ""
+      ).trim();
+      const todo = homeTodosCache.find((item) => String(item.id || "").trim() === todoId);
+      if (!todoId || !todo) return;
+      const currentReminders = isSubTodo
+        ? (Array.isArray(todo.subTodos)
+            ? (todo.subTodos.find((item) => String(item?.id || "").trim() === subTodoId)?.reminders || [])
+            : [])
+        : (Array.isArray(todo.reminders) ? todo.reminders : []);
+      let nextReminders = Array.isArray(currentReminders) ? [...currentReminders] : [];
+      if (reminderAddButton) {
+        const input = isSubTodo
+          ? homeTodosEl.querySelector(
+              `[data-home-subtodo-reminder-input="${CSS.escape(todoId)}"][data-subtodo-id="${CSS.escape(subTodoId)}"]`
+            )
+          : homeTodosEl.querySelector(`[data-home-todo-reminder-input="${CSS.escape(todoId)}"]`);
+        const value = String(input?.value || "").trim();
+        if (!value) {
+          window.alert("Choose a reminder date and time first.");
+          return;
+        }
+        const iso = new Date(value).toISOString();
+        if (!nextReminders.includes(iso)) nextReminders.push(iso);
+        nextReminders.sort();
+      } else if (reminderRemoveButton) {
+        const value = String(reminderRemoveButton.getAttribute("data-reminder-value") || "").trim();
+        nextReminders = nextReminders.filter((item) => String(item || "").trim() !== value);
+      }
+      const payload = { todoId, reminders: nextReminders };
+      if (isSubTodo && subTodoId) payload.subTodoId = subTodoId;
+      try {
+        await callDashboardFunction("updateProjectTodoCallable", payload);
+      } catch (err) {
+        window.alert(`Failed: ${formatUiError(err)}`);
+      }
       return;
     }
     const addButton = event.target.closest("[data-home-subtodo-add]");
