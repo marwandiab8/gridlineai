@@ -363,7 +363,19 @@
                     Create, edit, search, and triage management-only home project tasks.
                   </p>
                 </div>
+                <div class="project-manager-actions">
+                  <input
+                    type="password"
+                    id="todoReportToken"
+                    class="project-manager-input"
+                    placeholder="Dashboard token if required"
+                    autocomplete="off"
+                  />
+                  <button type="button" class="btn-secondary" id="todoReportPdfBtn">Generate PDF</button>
+                  <button type="button" class="btn-secondary" id="todoReportExcelBtn">Generate Excel</button>
+                </div>
               </div>
+              <div id="todoReportResult" class="project-manager-result muted small" aria-live="polite"></div>
               <div id="homeTodos" class="scroll-list"></div>
             </article>
           </section>

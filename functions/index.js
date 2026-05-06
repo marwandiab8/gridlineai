@@ -33,6 +33,11 @@ const {
   normalizeLabourRangeKeys,
 } = require("./labourRepository");
 const { generateLabourReportPdf } = require("./labourReportPdf");
+const {
+  generateTodoReportExcel,
+  generateTodoReportPdf,
+  summarizeTodos,
+} = require("./todoReport");
 const { maybeCaptionFirstMmsPhoto } = require("./mmsVisionCaption");
 const { registerUploadedMedia, saveOneInboundMedia } = require("./mediaRepository");
 const {
@@ -269,6 +274,111 @@ async function upsertTodoTaxonomyValues(projectSlug, labels = [], tags = [], act
     );
   }
   if (writes.length) await Promise.all(writes);
+}
+
+function normalizeTodoReportFormat(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "pdf") return "pdf";
+  if (raw === "xlsx" || raw === "excel") return "xlsx";
+  return "";
+}
+
+function makeTodoReportFileName({ projectSlug, format, sequence }) {
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "_");
+  const seq = String(sequence || 1).padStart(3, "0");
+  return `Todo_Report_${String(projectSlug || "home").replace(/[^a-z0-9._-]+/gi, "_")}_${stamp}_${seq}.${format === "pdf" ? "pdf" : "xlsx"}`;
+}
+
+async function loadProjectTodosForReport(projectSlug) {
+  const normalizedProjectSlug = normalizeProjectSlug(String(projectSlug || "").trim()) || "home";
+  const snap = await db
+    .collection(COL_PROJECT_TODOS)
+    .where("projectSlug", "==", normalizedProjectSlug)
+    .orderBy("createdAt", "desc")
+    .limit(500)
+    .get();
+  return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+}
+
+async function generateStoredTodoReport({
+  projectSlug,
+  format,
+  reportTitle,
+  createdByEmail = null,
+  createdByPhone = null,
+  runId,
+}) {
+  const normalizedProjectSlug = normalizeProjectSlug(String(projectSlug || "").trim()) || "home";
+  const normalizedFormat = normalizeTodoReportFormat(format);
+  if (!normalizedFormat) {
+    throw new HttpsError("invalid-argument", "format must be pdf or excel.");
+  }
+
+  const todos = await loadProjectTodosForReport(normalizedProjectSlug);
+  const summary = summarizeTodos(todos);
+  const sameScopeReportsSnap = await db
+    .collection("todoReports")
+    .where("projectSlug", "==", normalizedProjectSlug)
+    .where("format", "==", normalizedFormat)
+    .get();
+  const sequence = (sameScopeReportsSnap.size || 0) + 1;
+  const fileName = makeTodoReportFileName({
+    projectSlug: normalizedProjectSlug,
+    format: normalizedFormat,
+    sequence,
+  });
+  const storagePath = `todoReports/${normalizedProjectSlug}/${fileName}`;
+  const downloadToken = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const bucket = admin.storage().bucket();
+  const finalTitle = String(reportTitle || "").trim() || "Home Todo Report";
+  const reportResult =
+    normalizedFormat === "pdf"
+      ? await generateTodoReportPdf({
+          reportTitle: finalTitle,
+          projectSlug: normalizedProjectSlug,
+          todos,
+          storageBucket: bucket,
+          storagePath,
+          downloadToken,
+        })
+      : await generateTodoReportExcel({
+          reportTitle: finalTitle,
+          projectSlug: normalizedProjectSlug,
+          todos,
+          storageBucket: bucket,
+          storagePath,
+          downloadToken,
+        });
+
+  const reportRef = await db.collection("todoReports").add({
+    type: "todo",
+    format: normalizedFormat,
+    projectSlug: normalizedProjectSlug,
+    reportTitle: finalTitle,
+    totalTodos: summary.totalTodos,
+    openTodos: summary.openTodos,
+    inProgressTodos: summary.inProgressTodos,
+    completedTodos: summary.completedTodos,
+    totalSubTodos: summary.totalSubTodos,
+    totalComments: summary.totalComments,
+    fileName,
+    fileSequence: sequence,
+    storagePath: reportResult.storagePath,
+    downloadURL: reportResult.downloadURL,
+    createdAt: FieldValue.serverTimestamp(),
+    createdByEmail: createdByEmail || null,
+    createdByPhone: createdByPhone || null,
+    runId: runId || null,
+  });
+
+  return {
+    ...reportResult,
+    reportId: reportRef.id,
+    format: normalizedFormat,
+    reportTitle: finalTitle,
+    fileName,
+    summary,
+  };
 }
 
 /** Prefer runtime FIREBASE_CONFIG; fallback matches `public/app.js` storageBucket. */
@@ -662,6 +772,7 @@ async function assertAccessibleSmsUserForAccess(access, phoneE164) {
 
 const MAX_DAILY_PDF_SMS_ATTEMPTS = 3;
 const MAX_LABOUR_PDF_SMS_ATTEMPTS = 3;
+const MAX_TODO_REPORT_SMS_ATTEMPTS = 3;
 
 function buildDailyPdfSmsReplyBody({ pdfResult, projectName, projectSlug }) {
   const label = pdfResult.reportType === "journal" ? "Journal PDF" : "Daily PDF report";
@@ -836,6 +947,8 @@ async function processAssistantMessage({
     logCategory: outboundMeta.logCategory || null,
     classification: outboundMeta.classification || null,
     dailyPdfRequested: Boolean(outboundMeta.dailyPdfRequested),
+    todoReportRequested: Boolean(outboundMeta.todoReportRequested),
+    todoReportFormat: outboundMeta.todoReportFormat || null,
     reportDateKey: outboundMeta.reportDateKey || null,
     reportType: outboundMeta.reportType || null,
     pendingDeficiencyIntake: Boolean(outboundMeta.pendingDeficiencyIntake),
@@ -864,6 +977,8 @@ async function processAssistantMessage({
     logCategory: outboundMeta.logCategory || null,
     classification: outboundMeta.classification || null,
     dailyPdfRequested: Boolean(outboundMeta.dailyPdfRequested),
+    todoReportRequested: Boolean(outboundMeta.todoReportRequested),
+    todoReportFormat: outboundMeta.todoReportFormat || null,
     reportDateKey: outboundMeta.reportDateKey || null,
     reportType: outboundMeta.reportType || null,
     pendingDeficiencyIntake: Boolean(outboundMeta.pendingDeficiencyIntake),
@@ -915,6 +1030,14 @@ async function processAssistantMessage({
     pdfResult,
     uploadedMedia: uploadedMediaResult,
   };
+}
+
+function buildTodoReportSmsReplyBody({ reportResult, projectSlug }) {
+  const label = reportResult.format === "pdf" ? "Todo PDF report" : "Todo Excel report";
+  const scopeText = projectSlug ? ` (${projectSlug})` : "";
+  return reportResult.downloadURL
+    ? `${label}${scopeText}: ${reportResult.downloadURL}`
+    : `${label}${scopeText} was generated, but no download link could be created. Stored at: ${reportResult.storagePath}`;
 }
 
 function normalizePendingAudioReview(raw) {
@@ -1084,6 +1207,37 @@ async function processPendingAudioReviewReply({
         aiUsed: false,
         aiError: String(handlerErr.message || handlerErr),
         command: "handler_exception",
+      };
+    }
+  }
+
+  if (outboundMeta.todoReportRequested) {
+    const todoFormat = normalizeTodoReportFormat(outboundMeta.todoReportFormat || "");
+    if (!todoFormat) {
+      safeReply = "Could not determine the todo report format. Try: todo report pdf or todo report excel.";
+      outboundMeta = {
+        ...outboundMeta,
+        todoReportRequested: false,
+        command: "todo_report_invalid_format",
+        aiUsed: false,
+      };
+    } else {
+      pdfResult = await generateStoredTodoReport({
+        projectSlug: outboundMeta.projectSlug || "home",
+        format: todoFormat,
+        reportTitle: "Home Todo Report",
+        createdByEmail: uploadedBy || null,
+        createdByPhone: phoneE164,
+        runId,
+      });
+      safeReply = pdfResult.downloadURL
+        ? `Todo report (${todoFormat === "pdf" ? "PDF" : "Excel"}): ${pdfResult.downloadURL}`
+        : `Todo report generated, but no download link could be created. Stored at: ${pdfResult.storagePath}`;
+      outboundMeta = {
+        ...outboundMeta,
+        todoReportRequested: false,
+        todoReportFormat: todoFormat,
+        command: todoFormat === "pdf" ? "todo_report_pdf_link" : "todo_report_excel_link",
       };
     }
   }
@@ -1739,6 +1893,73 @@ async function deliverDailyPdfSmsViaTwilio({
     messagingServiceSid,
     messageBody: renderedSmsReplyBody,
     pdfResult,
+  };
+}
+
+async function deliverTodoReportSmsViaTwilio({
+  phoneE164,
+  projectSlug,
+  format,
+  replyToNumber,
+  replyMessagingServiceSid,
+  existingReportResult,
+  runId,
+  accountSid,
+  authToken,
+  configuredFrom,
+}) {
+  const normalizedProjectSlug = normalizeProjectSlug(projectSlug) || "home";
+  const normalizedFormat = normalizeTodoReportFormat(format);
+  if (!normalizedFormat) {
+    throw new Error("Invalid todo report format.");
+  }
+  const reportResult =
+    existingReportResult ||
+    (await generateStoredTodoReport({
+      projectSlug: normalizedProjectSlug,
+      format: normalizedFormat,
+      reportTitle: "Home Todo Report",
+      createdByPhone: phoneE164,
+      runId,
+    }));
+
+  const smsClient = twilio(accountSid, authToken);
+  const senderPhoneE164 = normalizePhoneE164(replyToNumber || "") || configuredFrom || null;
+  const messagingServiceSid = normalizeTwilioSecret(replyMessagingServiceSid || "") || null;
+  const messageBody = buildTodoReportSmsReplyBody({
+    reportResult,
+    projectSlug: normalizedProjectSlug,
+  });
+  const messagePayload = {
+    to: phoneE164,
+    body: messageBody,
+  };
+  if (messagingServiceSid) {
+    messagePayload.messagingServiceSid = messagingServiceSid;
+  } else if (senderPhoneE164) {
+    messagePayload.from = senderPhoneE164;
+  } else {
+    throw new Error("No Twilio sender identity is available for todo report SMS delivery.");
+  }
+
+  let sent;
+  try {
+    sent = await smsClient.messages.create(messagePayload);
+  } catch (sendErr) {
+    sendErr.reportResult = reportResult;
+    sendErr.messageBody = messageBody;
+    sendErr.senderPhoneE164 = senderPhoneE164;
+    sendErr.messagingServiceSid = messagingServiceSid;
+    throw sendErr;
+  }
+
+  return {
+    messageSid: sent && sent.sid ? sent.sid : null,
+    messageStatus: sent && sent.status ? sent.status : null,
+    senderPhoneE164,
+    messagingServiceSid,
+    messageBody,
+    reportResult,
   };
 }
 
@@ -2604,6 +2825,222 @@ exports.deliverLabourPdfSms = onDocumentCreated(
   }
 );
 
+exports.deliverTodoReportSms = onDocumentCreated(
+  {
+    document: "todoReportDeliveryQueue/{docId}",
+    region: "northamerica-northeast1",
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    retry: true,
+    secrets: [
+      TWILIO_ACCOUNT_SID,
+      TWILIO_AUTH_TOKEN,
+      TWILIO_PHONE_NUMBER,
+    ],
+  },
+  async (event) => {
+    const docId = event.params && event.params.docId;
+    logger.info("deliverTodoReportSms: invoked", { docId: docId || null, hasEventData: Boolean(event.data) });
+
+    let snap = null;
+    if (docId) {
+      try {
+        snap = await db.collection("todoReportDeliveryQueue").doc(docId).get();
+      } catch (e) {
+        logger.error("deliverTodoReportSms: queue read failed", { docId, message: e.message });
+      }
+    }
+    if ((!snap || !snap.exists) && event.data && event.data.exists) {
+      snap = event.data;
+    }
+    if (!snap || !snap.exists) {
+      logger.error("deliverTodoReportSms: missing or empty document snapshot", { docId: docId || null });
+      return;
+    }
+
+    const d = snap.data() || {};
+    const queueRef = snap.ref;
+    const markQueue = async (patch) => {
+      await queueRef.set(
+        {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    };
+
+    if (d.status === "sent" && d.twilioMessageSid) {
+      logger.info("deliverTodoReportSms: queue already sent, skipping", {
+        docId: snap.id,
+        phoneE164: d.phoneE164 || null,
+        twilioMessageSid: d.twilioMessageSid || null,
+      });
+      return;
+    }
+
+    const phoneE164 = String(d.phoneE164 || "").trim();
+    const runId = d.runId || `todoreportq-${snap.id}`;
+    const priorAttemptCount = Number(d.attemptCount || 0);
+    const attemptNumber = priorAttemptCount + 1;
+    const replyToNumber = String(d.replyToNumber || "").trim();
+    const replyMessagingServiceSid = normalizeTwilioSecret(d.replyMessagingServiceSid || "") || null;
+    const inboundDocId = d.replyToInboundDocId || null;
+    const projectSlug = normalizeProjectSlug(String(d.projectSlug || "").trim()) || "home";
+    const format = normalizeTodoReportFormat(d.format);
+
+    if (!phoneE164) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing phoneE164",
+      }).catch(() => {});
+      return;
+    }
+    if (!format) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing or invalid format",
+      }).catch(() => {});
+      return;
+    }
+
+    const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+    const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+    const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+    const runtimeAccountSid = accountSid;
+    if (!runtimeAccountSid || !authToken) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing Twilio secrets",
+        attemptCount: attemptNumber,
+      }).catch(() => {});
+      return;
+    }
+
+    await markQueue({
+      status: "processing",
+      processingAt: FieldValue.serverTimestamp(),
+      attemptCount: attemptNumber,
+      lastError: null,
+    }).catch(() => {});
+
+    const existingReportResult =
+      d.downloadURL || d.storagePath || d.reportId
+        ? {
+            reportId: d.reportId || null,
+            storagePath: d.storagePath || null,
+            downloadURL: d.downloadURL || null,
+            format,
+          }
+        : null;
+
+    try {
+      const delivery = await deliverTodoReportSmsViaTwilio({
+        phoneE164,
+        projectSlug,
+        format,
+        replyToNumber,
+        replyMessagingServiceSid,
+        existingReportResult,
+        runId,
+        accountSid: runtimeAccountSid,
+        authToken,
+        configuredFrom,
+      });
+
+      await markQueue({
+        status: "sent",
+        sentAt: FieldValue.serverTimestamp(),
+        twilioMessageSid: delivery.messageSid || null,
+        twilioMessageStatus: delivery.messageStatus || null,
+        twilioAccountSid: runtimeAccountSid || null,
+        twilioSenderPhoneE164: delivery.senderPhoneE164 || null,
+        twilioMessagingServiceSid: delivery.messagingServiceSid || null,
+        twilioDestinationPhoneE164: phoneE164,
+        storagePath: delivery.reportResult?.storagePath || null,
+        downloadURL: delivery.reportResult?.downloadURL || null,
+        reportId: delivery.reportResult?.reportId || null,
+        lastError: null,
+      }).catch(() => {});
+
+      await db.collection("messages").add({
+        direction: "outbound",
+        from: delivery.senderPhoneE164 || configuredFrom || null,
+        to: phoneE164,
+        body: delivery.messageBody || null,
+        messageSid: delivery.messageSid || null,
+        delivery: "twilio_api",
+        replyToInboundDocId: inboundDocId,
+        threadKey: phoneE164,
+        phoneE164,
+        channel: "sms",
+        schemaVersion: MESSAGE_SCHEMA_VERSION,
+        projectSlug,
+        command: format === "pdf" ? "todo_report_pdf_link" : "todo_report_excel_link",
+        twilioStatus: delivery.messageStatus || null,
+        twilioMessagingServiceSid: delivery.messagingServiceSid || null,
+        createdAt: FieldValue.serverTimestamp(),
+      }).catch(() => {});
+    } catch (reportErr) {
+      logger.error("deliverTodoReportSms: todo report failed", {
+        runId,
+        message: reportErr.message,
+        stack: reportErr.stack,
+      });
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: String(reportErr.message || reportErr).slice(0, 1000),
+        attemptCount: attemptNumber,
+        reportId: reportErr?.reportResult?.reportId || d.reportId || null,
+        downloadURL: reportErr?.reportResult?.downloadURL || d.downloadURL || null,
+        storagePath: reportErr?.reportResult?.storagePath || d.storagePath || null,
+      }).catch(() => {});
+      if (attemptNumber < MAX_TODO_REPORT_SMS_ATTEMPTS) {
+        throw reportErr;
+      }
+      try {
+        const smsClient = twilio(runtimeAccountSid, authToken);
+        const failurePayload = {
+          to: phoneE164,
+          body: "Could not finish your todo report. Try again later.",
+        };
+        if (replyMessagingServiceSid) {
+          failurePayload.messagingServiceSid = replyMessagingServiceSid;
+        } else {
+          failurePayload.from = replyToNumber || configuredFrom;
+        }
+        const failureMessage = await smsClient.messages.create(failurePayload);
+        await db.collection("messages").add({
+          direction: "outbound",
+          from: replyToNumber || configuredFrom || null,
+          to: phoneE164,
+          body: "Could not finish your todo report. Try again later.",
+          messageSid: failureMessage?.sid || null,
+          delivery: "twilio_api",
+          replyToInboundDocId: inboundDocId,
+          threadKey: phoneE164,
+          phoneE164,
+          channel: "sms",
+          schemaVersion: MESSAGE_SCHEMA_VERSION,
+          projectSlug,
+          command: "todo_report_link_failed",
+          twilioMessagingServiceSid: replyMessagingServiceSid || null,
+          createdAt: FieldValue.serverTimestamp(),
+        }).catch(() => {});
+      } catch (smsErr) {
+        logger.error("deliverTodoReportSms: failed to send failure SMS", {
+          runId,
+          message: String(smsErr.message || smsErr),
+        });
+      }
+    }
+  }
+);
+
 exports.processVoiceMessageQueue = onDocumentCreated(
   {
     document: `${COL_VOICE_MESSAGE_QUEUE}/{docId}`,
@@ -3182,6 +3619,7 @@ exports.inboundSms = onRequest(
       let safeReply = String(replyText || "").trim() || "OK.";
       let dailyPdfQueueRef = null;
       let labourPdfQueueRef = null;
+      let todoReportQueueRef = null;
 
       if (outboundMeta.dailyPdfRequested) {
         try {
@@ -3256,6 +3694,42 @@ exports.inboundSms = onRequest(
         }
       }
 
+      if (outboundMeta.todoReportRequested) {
+        try {
+          todoReportQueueRef = await db.collection("todoReportDeliveryQueue").add({
+            phoneE164: from,
+            projectSlug: outboundMeta.projectSlug || "home",
+            format: outboundMeta.todoReportFormat || null,
+            replyToNumber: to || null,
+            replyMessagingServiceSid: messagingServiceSid || null,
+            replyAccountSid: inboundAccountSid || null,
+            runId,
+            replyToInboundDocId: inboundRef.id,
+            status: "queued",
+            attemptCount: 0,
+            lastError: null,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          logger.info("inboundSms: todo report queued for SMS delivery", {
+            runId,
+            queueDocId: todoReportQueueRef.id,
+          });
+        } catch (queueErr) {
+          logger.error("inboundSms: todo report queue failed", {
+            runId,
+            message: queueErr.message,
+            stack: queueErr.stack,
+          });
+          safeReply = "Could not queue your todo report. Try again in a minute.";
+          outboundMeta = {
+            ...outboundMeta,
+            todoReportRequested: false,
+            aiError: String(queueErr.message || queueErr),
+            command: "todo_report_queue_failed",
+          };
+        }
+      }
+
       // Twilio waits ~15s for this HTTP response — reply must be sent before that.
       sendTwiml(res, safeReply);
 
@@ -3273,6 +3747,9 @@ exports.inboundSms = onRequest(
           dailyPdfQueueDocId: dailyPdfQueueRef ? dailyPdfQueueRef.id : null,
           labourPdfRequested: Boolean(outboundMeta.labourPdfRequested),
           labourPdfQueueDocId: labourPdfQueueRef ? labourPdfQueueRef.id : null,
+          todoReportRequested: Boolean(outboundMeta.todoReportRequested),
+          todoReportFormat: outboundMeta.todoReportFormat || null,
+          todoReportQueueDocId: todoReportQueueRef ? todoReportQueueRef.id : null,
           reportDateKey: outboundMeta.reportDateKey || null,
           reportType: outboundMeta.reportType || null,
           pendingDeficiencyIntake: Boolean(outboundMeta.pendingDeficiencyIntake),
@@ -3321,6 +3798,9 @@ exports.inboundSms = onRequest(
           classification: outboundMeta.classification || null,
           dailyPdfRequested: Boolean(outboundMeta.dailyPdfRequested),
           dailyPdfQueueDocId: dailyPdfQueueRef ? dailyPdfQueueRef.id : null,
+          todoReportRequested: Boolean(outboundMeta.todoReportRequested),
+          todoReportFormat: outboundMeta.todoReportFormat || null,
+          todoReportQueueDocId: todoReportQueueRef ? todoReportQueueRef.id : null,
           reportDateKey: outboundMeta.reportDateKey || null,
           reportType: outboundMeta.reportType || null,
           pendingDeficiencyIntake: Boolean(outboundMeta.pendingDeficiencyIntake),
@@ -5365,6 +5845,62 @@ exports.addProjectTodoCommentCallable = onCall(
     }
 
     return { ok: true, todoId, subTodoId: subTodoId || null, comment };
+  }
+);
+
+exports.generateTodoReportCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    if (!roleAtLeast(access.role, "management")) {
+      throw new HttpsError(
+        "permission-denied",
+        "Management or admin access is required to generate todo reports."
+      );
+    }
+    assertDashboardToken(request);
+
+    const projectSlug = normalizeProjectSlug(String(request.data?.projectSlug || "home").trim()) || "home";
+    const format = normalizeTodoReportFormat(request.data?.format);
+    const reportTitle = String(request.data?.reportTitle || "").trim() || "Home Todo Report";
+    if (!format) {
+      throw new HttpsError("invalid-argument", "format must be pdf or excel.");
+    }
+    if (!canAccessProject(access, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot generate todo reports for this project.");
+    }
+
+    const runId = `todo-report-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const result = await generateStoredTodoReport({
+      projectSlug,
+      format,
+      reportTitle,
+      createdByEmail: access.email || null,
+      createdByPhone: access.approvedPhoneE164 || null,
+      runId,
+    });
+
+    return {
+      ok: true,
+      reportId: result.reportId,
+      projectSlug,
+      format: result.format,
+      reportTitle: result.reportTitle,
+      totalTodos: result.summary.totalTodos,
+      openTodos: result.summary.openTodos,
+      inProgressTodos: result.summary.inProgressTodos,
+      completedTodos: result.summary.completedTodos,
+      totalSubTodos: result.summary.totalSubTodos,
+      totalComments: result.summary.totalComments,
+      downloadURL: result.downloadURL || null,
+      storagePath: result.storagePath || null,
+      fileName: result.fileName || null,
+    };
   }
 );
 

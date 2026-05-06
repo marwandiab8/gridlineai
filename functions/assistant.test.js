@@ -18,6 +18,7 @@ const {
   looksLikeNarrativeSaveCandidate,
   parseNotificationRequest,
   parseHomeTodoCommand,
+  parseTodoReportRequest,
   parseStartTimerCommand,
   sanitizeIntentPayload,
   sanitizeRoutePayload,
@@ -227,6 +228,18 @@ test('parseHomeTodoCommand extracts case-insensitive "xxx" home todos', () => {
       rawText: "fix the garage door",
     }
   );
+});
+
+test("parseTodoReportRequest recognizes todo PDF and Excel export commands", () => {
+  assert.deepEqual(parseTodoReportRequest("todo report pdf"), {
+    projectSlug: "home",
+    format: "pdf",
+  });
+  assert.deepEqual(parseTodoReportRequest("todo report excel"), {
+    projectSlug: "home",
+    format: "xlsx",
+  });
+  assert.equal(parseTodoReportRequest("todo fix the garage door"), null);
 });
 
 test("elevateProjectAccessWithApprovedMember honors app-member project access for SMS", () => {

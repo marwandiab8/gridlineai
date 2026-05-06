@@ -4286,6 +4286,10 @@ function initHomeTodos() {
   const tagResult = document.getElementById("todoTagResult");
   const labelsCatalog = document.getElementById("todoLabelsCatalog");
   const tagsCatalog = document.getElementById("todoTagsCatalog");
+  const todoReportTokenInput = document.getElementById("todoReportToken");
+  const todoReportPdfBtn = document.getElementById("todoReportPdfBtn");
+  const todoReportExcelBtn = document.getElementById("todoReportExcelBtn");
+  const todoReportResult = document.getElementById("todoReportResult");
 
   const createTaxonomyValue = async (kind, input, button, resultEl) => {
     const values = normalizeTodoTokenListClient(String(input?.value || ""));
@@ -4470,6 +4474,52 @@ function initHomeTodos() {
       }
     });
     renderNewTodoReminderList();
+  }
+
+  const runTodoReport = async (format, button) => {
+    if (!todoReportResult) return;
+    button.disabled = true;
+    if (todoReportPdfBtn && todoReportPdfBtn !== button) todoReportPdfBtn.disabled = true;
+    if (todoReportExcelBtn && todoReportExcelBtn !== button) todoReportExcelBtn.disabled = true;
+    todoReportResult.textContent = `Generating todo ${format === "pdf" ? "PDF" : "Excel"} report...`;
+    todoReportResult.className = "project-manager-result muted small";
+    try {
+      const payload = {
+        projectSlug: "home",
+        format,
+        reportTitle: "Home Todo Report",
+      };
+      const token = String(todoReportTokenInput?.value || "").trim();
+      if (token) payload.token = token;
+      const data = await callDashboardFunction("generateTodoReportCallable", payload);
+      const lines = [
+        `Todo ${data.format === "pdf" ? "PDF" : "Excel"} report created.`,
+        `Todos: ${Number(data.totalTodos) || 0}`,
+        `Open: ${Number(data.openTodos) || 0} · In progress: ${Number(data.inProgressTodos) || 0} · Completed: ${Number(data.completedTodos) || 0}`,
+        `Sub-tasks: ${Number(data.totalSubTodos) || 0} · Comments: ${Number(data.totalComments) || 0}`,
+      ];
+      if (data.downloadURL) lines.push(`Download: ${data.downloadURL}`);
+      if (!data.downloadURL && data.storagePath) lines.push(`Storage path: ${data.storagePath}`);
+      todoReportResult.textContent = lines.join("\n");
+      todoReportResult.className = "project-manager-result ok";
+    } catch (err) {
+      todoReportResult.textContent = `Failed: ${formatUiError(err)}`;
+      todoReportResult.className = "project-manager-result err";
+    } finally {
+      if (todoReportPdfBtn) todoReportPdfBtn.disabled = false;
+      if (todoReportExcelBtn) todoReportExcelBtn.disabled = false;
+    }
+  };
+
+  if (todoReportPdfBtn) {
+    todoReportPdfBtn.addEventListener("click", () => {
+      void runTodoReport("pdf", todoReportPdfBtn);
+    });
+  }
+  if (todoReportExcelBtn) {
+    todoReportExcelBtn.addEventListener("click", () => {
+      void runTodoReport("excel", todoReportExcelBtn);
+    });
   }
 
   homeTodosEl.addEventListener("change", async (event) => {

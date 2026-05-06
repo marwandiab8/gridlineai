@@ -616,6 +616,7 @@ function parseHomeTodoCommand(text) {
   const match = raw.match(/^(?:xxx|todo|add\s+todo|create\s+todo)\b[\s:,-]*([\s\S]*)$/i);
   if (!match) return null;
   const body = String(match[1] || "").replace(/\s+/g, " ").trim();
+  if (/^report\b/i.test(body)) return null;
   if (!body) {
     return {
       error: 'After "xxx", add the task text. Example: xxx fix the garage door by next week',
@@ -664,6 +665,20 @@ function parseHomeTodoCommand(text) {
     dueByIso,
     tags: extractedTags,
     rawText: body.slice(0, 1000),
+  };
+}
+
+function parseTodoReportRequest(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  const match = raw.match(
+    /^(?:(?:please|can\s+you|could\s+you|i\s+need|i\s+want|get\s+me|send\s+me|text\s+me)\s+)?todo\s+report\s+(pdf|excel|xlsx)\b/i
+  );
+  if (!match) return null;
+  const format = /pdf/i.test(match[1]) ? "pdf" : "xlsx";
+  return {
+    projectSlug: HOME_TODO_PROJECT_SLUG,
+    format,
   };
 }
 
@@ -1904,6 +1919,8 @@ async function buildReply({
     labourPdfRequested: false,
     labourReportStartKey: null,
     labourReportEndKey: null,
+    todoReportRequested: false,
+    todoReportFormat: null,
     routingDecision: null,
   };
 
@@ -2371,6 +2388,44 @@ async function buildReply({
           requestedByName: logAuthorFields.authorName || null,
           requestedByEmail: logAuthorFields.authorEmail || null,
         },
+      },
+    };
+  }
+
+  const todoReportRequest = parseTodoReportRequest(userMessageForAI);
+  if (todoReportRequest) {
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can generate todo reports. Ask admin to approve this phone in Team.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "todo_report_forbidden",
+          projectSlug: HOME_TODO_PROJECT_SLUG,
+        },
+      };
+    }
+    if (!canAccessProject(currentMemberAccess, HOME_TODO_PROJECT_SLUG)) {
+      return {
+        replyText: `This phone can’t generate todo reports for ${HOME_TODO_PROJECT_SLUG}.`,
+        outboundMeta: {
+          ...outboundMeta,
+          command: "todo_report_project_forbidden",
+          projectSlug: HOME_TODO_PROJECT_SLUG,
+        },
+      };
+    }
+    return {
+      replyText:
+        todoReportRequest.format === "pdf"
+          ? "OK. Generating your todo PDF report now. You will get a download link shortly."
+          : "OK. Generating your todo Excel report now. You will get a download link shortly.",
+      outboundMeta: {
+        ...outboundMeta,
+        command: todoReportRequest.format === "pdf" ? "todo_report_pdf" : "todo_report_excel",
+        projectSlug: HOME_TODO_PROJECT_SLUG,
+        todoReportRequested: true,
+        todoReportFormat: todoReportRequest.format,
       },
     };
   }
@@ -3174,6 +3229,7 @@ module.exports = {
   looksLikeExplicitAiChatRequest,
   isExplicitLabourEntryText,
   isExplicitLabourBalanceText,
+  parseTodoReportRequest,
   isAffirmativeCorrectionFollowUp,
   looksLikeAssistantFollowUpAnswer,
   looksLikeCorrectionPrompt,
