@@ -82,6 +82,7 @@ const {
 const COL_APP_MEMBERS = "appMembers";
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
 const COL_PROJECT_TODOS = "projectTodos";
+const COL_TODO_TAXONOMY = "todoTaxonomy";
 const TODO_STATUSES = new Set(["open", "inprogress", "completed"]);
 const TODO_PRIORITIES = new Set(["p1", "p2", "p3", "p4"]);
 const TODO_RECURRENCE_MODES = new Set([
@@ -219,6 +220,55 @@ function normalizeTodoRecurrence(value) {
 
 function normalizeTodoCommentText(value) {
   return normalizeTodoText(value || "", 1000);
+}
+
+function normalizeTodoTaxonomyKind(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "tag" || raw === "label" ? raw : "";
+}
+
+function buildTodoTaxonomyDocId(projectSlug, kind, value) {
+  return `${projectSlug}__${kind}__${value}`;
+}
+
+async function upsertTodoTaxonomyValues(projectSlug, labels = [], tags = [], actorEmail = null) {
+  const normalizedProjectSlug = normalizeProjectSlug(String(projectSlug || "").trim()) || "home";
+  const writes = [];
+  for (const value of normalizeTodoLabels(labels)) {
+    writes.push(
+      db.collection(COL_TODO_TAXONOMY)
+        .doc(buildTodoTaxonomyDocId(normalizedProjectSlug, "label", value))
+        .set(
+          {
+            projectSlug: normalizedProjectSlug,
+            kind: "label",
+            value,
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedByEmail: actorEmail || null,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        )
+    );
+  }
+  for (const value of normalizeTodoTags(tags)) {
+    writes.push(
+      db.collection(COL_TODO_TAXONOMY)
+        .doc(buildTodoTaxonomyDocId(normalizedProjectSlug, "tag", value))
+        .set(
+          {
+            projectSlug: normalizedProjectSlug,
+            kind: "tag",
+            value,
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedByEmail: actorEmail || null,
+            createdAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        )
+    );
+  }
+  if (writes.length) await Promise.all(writes);
 }
 
 /** Prefer runtime FIREBASE_CONFIG; fallback matches `public/app.js` storageBucket. */
@@ -4863,6 +4913,98 @@ exports.deleteLabourerCallable = onCall(
   }
 );
 
+exports.upsertTodoTaxonomyCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const projectSlug = normalizeProjectSlug(String(request.data?.projectSlug || "home").trim()) || "home";
+    const kind = normalizeTodoTaxonomyKind(request.data?.kind);
+    if (!kind) throw new HttpsError("invalid-argument", "kind must be label or tag.");
+    if (!canAccessProject(operator, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot manage todo taxonomy for this project.");
+    }
+    const value =
+      kind === "tag"
+        ? normalizeTodoTags([request.data?.value])[0] || ""
+        : normalizeTodoLabels([request.data?.value])[0] || "";
+    if (!value) throw new HttpsError("invalid-argument", `${kind} value is required.`);
+    await upsertTodoTaxonomyValues(
+      projectSlug,
+      kind === "label" ? [value] : [],
+      kind === "tag" ? [value] : [],
+      operator.email || null
+    );
+    return { ok: true, projectSlug, kind, value };
+  }
+);
+
+exports.deleteTodoTaxonomyCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const projectSlug = normalizeProjectSlug(String(request.data?.projectSlug || "home").trim()) || "home";
+    const kind = normalizeTodoTaxonomyKind(request.data?.kind);
+    if (!kind) throw new HttpsError("invalid-argument", "kind must be label or tag.");
+    if (!canAccessProject(operator, projectSlug)) {
+      throw new HttpsError("permission-denied", "You cannot manage todo taxonomy for this project.");
+    }
+    const value =
+      kind === "tag"
+        ? normalizeTodoTags([request.data?.value])[0] || ""
+        : normalizeTodoLabels([request.data?.value])[0] || "";
+    if (!value) throw new HttpsError("invalid-argument", `${kind} value is required.`);
+
+    const field = kind === "tag" ? "tags" : "labels";
+    const snap = await db
+      .collection(COL_PROJECT_TODOS)
+      .where("projectSlug", "==", projectSlug)
+      .limit(500)
+      .get();
+    const writes = [];
+    for (const todoSnap of snap.docs) {
+      const todoData = todoSnap.data() || {};
+      const topValues = Array.isArray(todoData[field]) ? todoData[field].map((item) => String(item || "").trim().toLowerCase()) : [];
+      const nextTopValues = topValues.filter((item) => item && item !== value);
+      const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
+      let changed = nextTopValues.length !== topValues.length;
+      const nextSubTodos = currentSubTodos.map((item) => {
+        const values = Array.isArray(item?.[field]) ? item[field].map((entry) => String(entry || "").trim().toLowerCase()) : [];
+        const nextValues = values.filter((entry) => entry && entry !== value);
+        if (nextValues.length !== values.length) changed = true;
+        return {
+          ...item,
+          [field]: nextValues,
+        };
+      });
+      if (!changed) continue;
+      writes.push(
+        todoSnap.ref.set(
+          {
+            [field]: nextTopValues,
+            subTodos: nextSubTodos,
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedByEmail: operator.email || null,
+          },
+          { merge: true }
+        )
+      );
+    }
+    await Promise.all(writes);
+    await db.collection(COL_TODO_TAXONOMY).doc(buildTodoTaxonomyDocId(projectSlug, kind, value)).delete();
+    return { ok: true, projectSlug, kind, value, updatedTodos: writes.length };
+  }
+);
+
 exports.createProjectTodoCallable = onCall(
   {
     region: "northamerica-northeast1",
@@ -4923,6 +5065,7 @@ exports.createProjectTodoCallable = onCall(
       updatedAt: FieldValue.serverTimestamp(),
       updatedByEmail: operator.email || null,
     });
+    await upsertTodoTaxonomyValues(projectSlug, labels, tags, operator.email || null);
 
     return { ok: true, todoId: todoRef.id, projectSlug, taskText };
   }
@@ -5082,6 +5225,19 @@ exports.updateProjectTodoCallable = onCall(
     }
 
     await todoRef.set(updates, { merge: true });
+    if (labelsInput !== undefined || tagsInput !== undefined) {
+      const todoLabels = subTodoId
+        ? normalizeTodoLabels(
+            (Array.isArray(updates.subTodos) ? updates.subTodos : []).find((item) => String(item?.id || "").trim() === subTodoId)?.labels || []
+          )
+        : normalizeTodoLabels(updates.labels != null ? updates.labels : todoData.labels || []);
+      const todoTags = subTodoId
+        ? normalizeTodoTags(
+            (Array.isArray(updates.subTodos) ? updates.subTodos : []).find((item) => String(item?.id || "").trim() === subTodoId)?.tags || []
+          )
+        : normalizeTodoTags(updates.tags != null ? updates.tags : todoData.tags || []);
+      await upsertTodoTaxonomyValues(projectSlug, todoLabels, todoTags, operator.email || null);
+    }
     return { ok: true, todoId, subTodoId: subTodoId || null, status };
   }
 );

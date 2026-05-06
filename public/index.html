@@ -331,12 +331,24 @@
                     <div class="todo-section-head">
                       <h4 class="todo-section-title">Labels</h4>
                     </div>
+                    <div class="todo-taxonomy-create">
+                      <input id="todoNewLabelInput" type="text" placeholder="Create label: supplier" maxlength="120" />
+                      <button type="button" class="btn-secondary" id="todoNewLabelBtn">Add label</button>
+                    </div>
+                    <div class="muted small">Create labels before assigning them to a todo. Click a label to search. Use x to delete it everywhere.</div>
+                    <div id="todoLabelResult" class="project-manager-result muted small" aria-live="polite"></div>
                     <div id="todoLabelsCatalog" class="todo-filter-hints"></div>
                   </div>
                   <div class="todo-taxonomy-card">
                     <div class="todo-section-head">
                       <h4 class="todo-section-title">Tags</h4>
                     </div>
+                    <div class="todo-taxonomy-create">
+                      <input id="todoNewTagInput" type="text" placeholder="Create tag: @site" maxlength="120" />
+                      <button type="button" class="btn-secondary" id="todoNewTagBtn">Add tag</button>
+                    </div>
+                    <div class="muted small">Tags are searchable with @. Click a tag to filter the list. Use x to delete it everywhere.</div>
+                    <div id="todoTagResult" class="project-manager-result muted small" aria-live="polite"></div>
                     <div id="todoTagsCatalog" class="todo-filter-hints"></div>
                   </div>
                 </div>

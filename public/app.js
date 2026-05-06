@@ -481,6 +481,7 @@ let summariesCache = [];
 let dailyReportsCache = [];
 let mediaCache = [];
 let homeTodosCache = [];
+let todoTaxonomyCache = [];
 let logEntriesCache = [];
 let projectNoteRequestsCache = [];
 let labourersCache = [];
@@ -853,6 +854,13 @@ function todoMatchesSearch(todo, query) {
 function collectHomeTodoDiscoveries() {
   const labels = new Set();
   const tags = new Set();
+  for (const entry of todoTaxonomyCache) {
+    const kind = String(entry?.kind || "").trim().toLowerCase();
+    const value = String(entry?.value || "").trim().toLowerCase();
+    if (!value) continue;
+    if (kind === "tag") tags.add(value);
+    else if (kind === "label") labels.add(value);
+  }
   for (const todo of homeTodosCache) {
     for (const label of Array.isArray(todo?.labels) ? todo.labels : []) labels.add(String(label || ""));
     for (const tag of Array.isArray(todo?.tags) ? todo.tags : []) tags.add(String(tag || ""));
@@ -899,37 +907,11 @@ function renderTodoCatalogs() {
 async function removeTodoTaxonomyValue(kind, value) {
   const target = String(value || "").trim().toLowerCase();
   if (!target) return;
-  const field = kind === "tag" ? "tags" : "labels";
-  const updates = [];
-  for (const todo of homeTodosCache) {
-    const todoValues = Array.isArray(todo?.[field]) ? todo[field].map((item) => String(item || "").trim().toLowerCase()) : [];
-    const todoNeedsUpdate = todoValues.includes(target);
-    const subTodos = Array.isArray(todo?.subTodos) ? todo.subTodos : [];
-    const touchedSubTodos = subTodos.filter((subTodo) => {
-      const values = Array.isArray(subTodo?.[field]) ? subTodo[field].map((item) => String(item || "").trim().toLowerCase()) : [];
-      return values.includes(target);
-    });
-    if (todoNeedsUpdate) {
-      updates.push(
-        callDashboardFunction("updateProjectTodoCallable", {
-          todoId: String(todo.id || "").trim(),
-          [field]: todoValues.filter((item) => item !== target),
-        })
-      );
-    }
-    for (const subTodo of touchedSubTodos) {
-      const values = Array.isArray(subTodo?.[field]) ? subTodo[field].map((item) => String(item || "").trim().toLowerCase()) : [];
-      updates.push(
-        callDashboardFunction("updateProjectTodoCallable", {
-          todoId: String(todo.id || "").trim(),
-          subTodoId: String(subTodo?.id || "").trim(),
-          [field]: values.filter((item) => item !== target),
-        })
-      );
-    }
-  }
-  if (!updates.length) return;
-  await Promise.all(updates);
+  await callDashboardFunction("deleteTodoTaxonomyCallable", {
+    projectSlug: "home",
+    kind,
+    value: target,
+  });
 }
 
 function renderTodoSearchHints() {
@@ -3046,8 +3028,27 @@ function startAdminListeners() {
         }
       )
     );
+    appUnsubscribers.push(
+      onSnapshot(
+        query(collection(db, "todoTaxonomy"), limit(500)),
+        (snap) => {
+          setStatusOk();
+          todoTaxonomyCache = snap.docs
+            .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+            .filter((entry) => normalizeProjectSlugClient(entry.projectSlug) === "home");
+          renderHomeTodos();
+        },
+        (err) => {
+          const message = `todoTaxonomy: ${err.message}`;
+          setStatusError(message);
+          todoTaxonomyCache = [];
+          renderHomeTodos();
+        }
+      )
+    );
   } else {
     homeTodosCache = [];
+    todoTaxonomyCache = [];
     if (homeTodosEl) homeTodosEl.innerHTML = '<div class="row-item muted small">Management-only section.</div>';
   }
 
@@ -4277,8 +4278,72 @@ function initHomeTodos() {
   const searchInput = document.getElementById("todoSearchInput");
   const searchHints = document.getElementById("todoSearchHints");
   const createReminderList = document.getElementById("todoCreateReminders");
+  const newLabelInput = document.getElementById("todoNewLabelInput");
+  const newLabelBtn = document.getElementById("todoNewLabelBtn");
+  const labelResult = document.getElementById("todoLabelResult");
+  const newTagInput = document.getElementById("todoNewTagInput");
+  const newTagBtn = document.getElementById("todoNewTagBtn");
+  const tagResult = document.getElementById("todoTagResult");
   const labelsCatalog = document.getElementById("todoLabelsCatalog");
   const tagsCatalog = document.getElementById("todoTagsCatalog");
+
+  const createTaxonomyValue = async (kind, input, button, resultEl) => {
+    const values = normalizeTodoTokenListClient(String(input?.value || ""));
+    const value = values[0] || "";
+    if (!value) {
+      if (resultEl) {
+        resultEl.textContent = `Enter a ${kind} first.`;
+        resultEl.className = "project-manager-result err";
+      }
+      return;
+    }
+    if (button) button.disabled = true;
+    if (resultEl) {
+      resultEl.textContent = `Saving ${kind}...`;
+      resultEl.className = "project-manager-result muted small";
+    }
+    try {
+      await callDashboardFunction("upsertTodoTaxonomyCallable", {
+        projectSlug: "home",
+        kind,
+        value,
+      });
+      if (input) input.value = "";
+      if (resultEl) {
+        resultEl.textContent = `${kind === "tag" ? "Tag" : "Label"} saved.`;
+        resultEl.className = "project-manager-result ok";
+      }
+    } catch (err) {
+      if (resultEl) {
+        resultEl.textContent = `Failed: ${formatUiError(err)}`;
+        resultEl.className = "project-manager-result err";
+      }
+    } finally {
+      if (button) button.disabled = false;
+    }
+  };
+
+  if (newLabelBtn && newLabelInput) {
+    newLabelBtn.addEventListener("click", () => {
+      void createTaxonomyValue("label", newLabelInput, newLabelBtn, labelResult);
+    });
+    newLabelInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      void createTaxonomyValue("label", newLabelInput, newLabelBtn, labelResult);
+    });
+  }
+
+  if (newTagBtn && newTagInput) {
+    newTagBtn.addEventListener("click", () => {
+      void createTaxonomyValue("tag", newTagInput, newTagBtn, tagResult);
+    });
+    newTagInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      void createTaxonomyValue("tag", newTagInput, newTagBtn, tagResult);
+    });
+  }
 
   if (searchInput) {
     searchInput.addEventListener("input", () => {
@@ -4320,6 +4385,14 @@ function initHomeTodos() {
       removeButton.disabled = true;
       try {
         await removeTodoTaxonomyValue(kind, value);
+        if (kind === "tag" && tagResult) {
+          tagResult.textContent = `Tag "${value}" deleted.`;
+          tagResult.className = "project-manager-result ok";
+        }
+        if (kind === "label" && labelResult) {
+          labelResult.textContent = `Label "${value}" deleted.`;
+          labelResult.className = "project-manager-result ok";
+        }
       } catch (err) {
         window.alert(`Failed: ${formatUiError(err)}`);
       } finally {

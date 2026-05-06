@@ -1589,6 +1589,17 @@ body {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.todo-taxonomy-create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+
+.todo-taxonomy-create input {
+  flex: 1 1 180px;
+}
+
 .todo-filter-hints,
 .todo-tag-row,
 .todo-label-row,
