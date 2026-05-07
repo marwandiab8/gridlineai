@@ -293,11 +293,22 @@ async function loadProjectTodosForReport(projectSlug) {
   const normalizedProjectSlug = normalizeProjectSlug(String(projectSlug || "").trim()) || "home";
   const snap = await db
     .collection(COL_PROJECT_TODOS)
-    .where("projectSlug", "==", normalizedProjectSlug)
-    .orderBy("createdAt", "desc")
     .limit(500)
     .get();
-  return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  return snap.docs
+    .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+    .filter((todo) => normalizeProjectSlug(String(todo.projectSlug || "").trim()) === normalizedProjectSlug)
+    .sort((a, b) => {
+      const aMs =
+        typeof a?.createdAt?.toMillis === "function"
+          ? a.createdAt.toMillis()
+          : new Date(a?.createdAt || 0).getTime() || 0;
+      const bMs =
+        typeof b?.createdAt?.toMillis === "function"
+          ? b.createdAt.toMillis()
+          : new Date(b?.createdAt || 0).getTime() || 0;
+      return bMs - aMs;
+    });
 }
 
 async function generateStoredTodoReport({
@@ -319,9 +330,12 @@ async function generateStoredTodoReport({
   const sameScopeReportsSnap = await db
     .collection("todoReports")
     .where("projectSlug", "==", normalizedProjectSlug)
-    .where("format", "==", normalizedFormat)
+    .limit(500)
     .get();
-  const sequence = (sameScopeReportsSnap.size || 0) + 1;
+  const sameScopeCount = sameScopeReportsSnap.docs.filter(
+    (docSnap) => normalizeTodoReportFormat(docSnap.data()?.format) === normalizedFormat
+  ).length;
+  const sequence = sameScopeCount + 1;
   const fileName = makeTodoReportFileName({
     projectSlug: normalizedProjectSlug,
     format: normalizedFormat,
