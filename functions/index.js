@@ -229,6 +229,47 @@ function normalizeTodoCommentText(value) {
   return normalizeTodoText(value || "", 1000);
 }
 
+function normalizeTodoCommentTree(comments) {
+  return (Array.isArray(comments) ? comments : [])
+    .map((comment) => {
+      if (!comment || typeof comment !== "object") return null;
+      return {
+        ...comment,
+        id: String(comment.id || "").trim() || db.collection("_").doc().id,
+        text: normalizeTodoCommentText(comment.text || ""),
+        createdAt: normalizeTodoDateTime(comment.createdAt) || comment.createdAt || null,
+        createdByEmail: comment.createdByEmail || null,
+        createdByName: comment.createdByName || null,
+        replies: normalizeTodoCommentTree(comment.replies),
+      };
+    })
+    .filter((comment) => comment && comment.text);
+}
+
+function appendReplyToTodoComments(comments, parentCommentId, replyComment) {
+  const rows = normalizeTodoCommentTree(comments);
+  let matched = false;
+  const nextRows = rows.map((comment) => {
+    if (comment.id === parentCommentId) {
+      matched = true;
+      return {
+        ...comment,
+        replies: [...normalizeTodoCommentTree(comment.replies), replyComment],
+      };
+    }
+    const childResult = appendReplyToTodoComments(comment.replies, parentCommentId, replyComment);
+    if (childResult.matched) {
+      matched = true;
+      return {
+        ...comment,
+        replies: childResult.comments,
+      };
+    }
+    return comment;
+  });
+  return { comments: nextRows, matched };
+}
+
 function normalizeTodoTaxonomyKind(value) {
   const raw = String(value || "").trim().toLowerCase();
   return raw === "tag" || raw === "label" ? raw : "";
@@ -1051,6 +1092,107 @@ async function processAssistantMessage({
 function formatTodoNotificationDateTime(value) {
   const iso = normalizeTodoDateTime(value);
   return iso ? iso.replace("T", " ").replace(".000Z", " UTC") : "";
+}
+
+function normalizeTodoReminderDeliveryLog(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (typeof entry === "string") {
+        const reminderAt = normalizeTodoDateTime(entry);
+        return reminderAt ? { reminderAt } : null;
+      }
+      if (!entry || typeof entry !== "object") return null;
+      const reminderAt = normalizeTodoDateTime(entry.reminderAt || entry.sentFor || entry.at);
+      if (!reminderAt) return null;
+      return {
+        reminderAt,
+        deliveredAt: normalizeTodoDateTime(entry.deliveredAt || entry.sentAt) || null,
+        queueDocId: String(entry.queueDocId || "").trim() || null,
+        messageSid: String(entry.messageSid || "").trim() || null,
+        messageStatus: String(entry.messageStatus || "").trim() || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+function todoReminderWasDelivered(deliveryLog, reminderAt) {
+  const normalizedReminderAt = normalizeTodoDateTime(reminderAt);
+  if (!normalizedReminderAt) return false;
+  return normalizeTodoReminderDeliveryLog(deliveryLog).some(
+    (entry) => entry && entry.reminderAt === normalizedReminderAt
+  );
+}
+
+function buildTodoReminderQueueDocId(todoId, subTodoId, reminderAt) {
+  return [String(todoId || "").trim(), String(subTodoId || "root").trim() || "root", String(reminderAt || "").trim()]
+    .join("__")
+    .replace(/\//g, "_");
+}
+
+async function markTodoReminderDelivered({
+  db,
+  todoId,
+  subTodoId = null,
+  reminderAt,
+  queueDocId = null,
+  messageSid = null,
+  messageStatus = null,
+}) {
+  const normalizedReminderAt = normalizeTodoDateTime(reminderAt);
+  if (!todoId || !normalizedReminderAt) return false;
+  const todoRef = db.collection(COL_PROJECT_TODOS).doc(todoId);
+  let updated = false;
+  await db.runTransaction(async (tx) => {
+    const todoSnap = await tx.get(todoRef);
+    if (!todoSnap.exists) return;
+    const todoData = todoSnap.data() || {};
+    const deliveryEntry = {
+      reminderAt: normalizedReminderAt,
+      deliveredAt: new Date().toISOString(),
+      queueDocId: String(queueDocId || "").trim() || null,
+      messageSid: String(messageSid || "").trim() || null,
+      messageStatus: String(messageStatus || "").trim() || null,
+    };
+    if (subTodoId) {
+      const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
+      let found = false;
+      const nextSubTodos = currentSubTodos.map((item) => {
+        if (String(item?.id || "").trim() !== String(subTodoId || "").trim()) return item;
+        found = true;
+        const deliveryLog = normalizeTodoReminderDeliveryLog(item?.reminderDeliveryLog);
+        if (deliveryLog.some((entry) => entry.reminderAt === normalizedReminderAt)) return item;
+        updated = true;
+        return {
+          ...item,
+          reminderDeliveryLog: [...deliveryLog, deliveryEntry],
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      if (!found || !updated) return;
+      tx.set(
+        todoRef,
+        {
+          subTodos: nextSubTodos,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return;
+    }
+    const deliveryLog = normalizeTodoReminderDeliveryLog(todoData.reminderDeliveryLog);
+    if (deliveryLog.some((entry) => entry.reminderAt === normalizedReminderAt)) return;
+    updated = true;
+    tx.set(
+      todoRef,
+      {
+        reminderDeliveryLog: [...deliveryLog, deliveryEntry],
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+  return updated;
 }
 
 async function notifyManagementAboutTodoActivity({
@@ -3121,6 +3263,304 @@ exports.deliverTodoReportSms = onDocumentCreated(
         });
       }
     }
+  }
+);
+
+exports.queueDueTodoReminders = onSchedule(
+  {
+    schedule: "every 1 minutes",
+    region: "northamerica-northeast1",
+    timeZone: "America/New_York",
+    timeoutSeconds: 300,
+    memory: "256MiB",
+  },
+  async (event) => {
+    const runId = `todo-reminder-scan-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const snap = await db.collection(COL_PROJECT_TODOS).limit(1000).get();
+    let queuedCount = 0;
+    let skippedDeliveredCount = 0;
+    let skippedFutureCount = 0;
+    let skippedCompletedCount = 0;
+    let existingCount = 0;
+
+    for (const docSnap of snap.docs) {
+      const todo = docSnap.data() || {};
+      const todoId = docSnap.id;
+      const projectSlug = normalizeProjectSlug(String(todo.projectSlug || "").trim()) || "home";
+      const todoTaskText = normalizeTodoText(todo.taskText || "", 160) || "Untitled todo";
+      const todoCompleted = normalizeTodoStatus(todo.status) === "completed";
+
+      if (!todoCompleted) {
+        const reminderLog = normalizeTodoReminderDeliveryLog(todo.reminderDeliveryLog);
+        for (const reminderAt of Array.isArray(todo.reminders) ? todo.reminders : []) {
+          const normalizedReminderAt = normalizeTodoDateTime(reminderAt);
+          if (!normalizedReminderAt) continue;
+          if (normalizedReminderAt > nowIso) {
+            skippedFutureCount += 1;
+            continue;
+          }
+          if (todoReminderWasDelivered(reminderLog, normalizedReminderAt)) {
+            skippedDeliveredCount += 1;
+            continue;
+          }
+          const queueDocId = buildTodoReminderQueueDocId(todoId, null, normalizedReminderAt);
+          try {
+            await db.collection(COL_TODO_REMINDER_QUEUE).doc(queueDocId).create({
+              status: "queued",
+              todoId,
+              subTodoId: null,
+              reminderAt: normalizedReminderAt,
+              projectSlug,
+              todoTaskText,
+              subTodoText: null,
+              sourceScope: "todo",
+              runId,
+              createdAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            queuedCount += 1;
+          } catch (error) {
+            if (String(error?.message || "").toLowerCase().includes("already exists")) existingCount += 1;
+            else throw error;
+          }
+        }
+      } else {
+        skippedCompletedCount += Array.isArray(todo.reminders) ? todo.reminders.length : 0;
+      }
+
+      const subTodos = Array.isArray(todo.subTodos) ? todo.subTodos : [];
+      for (const subTodo of subTodos) {
+        if (todoCompleted || normalizeTodoStatus(subTodo?.status) === "completed") {
+          skippedCompletedCount += Array.isArray(subTodo?.reminders) ? subTodo.reminders.length : 0;
+          continue;
+        }
+        const reminderLog = normalizeTodoReminderDeliveryLog(subTodo?.reminderDeliveryLog);
+        for (const reminderAt of Array.isArray(subTodo?.reminders) ? subTodo.reminders : []) {
+          const normalizedReminderAt = normalizeTodoDateTime(reminderAt);
+          if (!normalizedReminderAt) continue;
+          if (normalizedReminderAt > nowIso) {
+            skippedFutureCount += 1;
+            continue;
+          }
+          if (todoReminderWasDelivered(reminderLog, normalizedReminderAt)) {
+            skippedDeliveredCount += 1;
+            continue;
+          }
+          const subTodoId = String(subTodo?.id || "").trim();
+          if (!subTodoId) continue;
+          const queueDocId = buildTodoReminderQueueDocId(todoId, subTodoId, normalizedReminderAt);
+          try {
+            await db.collection(COL_TODO_REMINDER_QUEUE).doc(queueDocId).create({
+              status: "queued",
+              todoId,
+              subTodoId,
+              reminderAt: normalizedReminderAt,
+              projectSlug,
+              todoTaskText,
+              subTodoText: normalizeTodoText(subTodo?.text || "", 160) || subTodoId,
+              sourceScope: "subtodo",
+              runId,
+              createdAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            queuedCount += 1;
+          } catch (error) {
+            if (String(error?.message || "").toLowerCase().includes("already exists")) existingCount += 1;
+            else throw error;
+          }
+        }
+      }
+    }
+
+    logger.info("queueDueTodoReminders: scan complete", {
+      runId,
+      scannedTodos: snap.size,
+      queuedCount,
+      existingCount,
+      skippedDeliveredCount,
+      skippedFutureCount,
+      skippedCompletedCount,
+      eventType: event?.type || null,
+    });
+  }
+);
+
+exports.deliverTodoReminderNotifications = onDocumentCreated(
+  {
+    document: `${COL_TODO_REMINDER_QUEUE}/{docId}`,
+    region: "northamerica-northeast1",
+    timeoutSeconds: 300,
+    memory: "256MiB",
+    retry: true,
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
+  },
+  async (event) => {
+    const docId = event.params && event.params.docId;
+    let snap = null;
+    if (docId) {
+      snap = await db.collection(COL_TODO_REMINDER_QUEUE).doc(docId).get().catch(() => null);
+    }
+    if ((!snap || !snap.exists) && event.data && event.data.exists) snap = event.data;
+    if (!snap || !snap.exists) return;
+
+    const d = snap.data() || {};
+    const queueRef = snap.ref;
+    const markQueue = async (patch) => {
+      await queueRef.set(
+        {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    };
+
+    if (d.status === "sent") return;
+
+    const todoId = String(d.todoId || "").trim();
+    const subTodoId = String(d.subTodoId || "").trim() || null;
+    const reminderAt = normalizeTodoDateTime(d.reminderAt);
+    const projectSlug = normalizeProjectSlug(String(d.projectSlug || "").trim()) || "home";
+    const todoTaskText = normalizeTodoText(d.todoTaskText || "", 160) || "Untitled todo";
+    const subTodoText = normalizeTodoText(d.subTodoText || "", 160) || null;
+    const runId = String(d.runId || `todo-reminder-delivery-${snap.id}`).trim();
+    const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+    const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+    const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+
+    if (!todoId || !reminderAt) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing todoId or reminderAt",
+      }).catch(() => {});
+      return;
+    }
+    if (!accountSid || !authToken || !configuredFrom) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing Twilio configuration",
+      }).catch(() => {});
+      return;
+    }
+
+    const todoSnap = await db.collection(COL_PROJECT_TODOS).doc(todoId).get();
+    if (!todoSnap.exists) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "todo not found",
+      }).catch(() => {});
+      return;
+    }
+    const todoData = todoSnap.data() || {};
+    if (subTodoId) {
+      const subTodo = (Array.isArray(todoData.subTodos) ? todoData.subTodos : []).find(
+        (item) => String(item?.id || "").trim() === subTodoId
+      );
+      if (!subTodo) {
+        await markQueue({
+          status: "failed",
+          failedAt: FieldValue.serverTimestamp(),
+          lastError: "sub-todo not found",
+        }).catch(() => {});
+        return;
+      }
+      if (normalizeTodoStatus(todoData.status) === "completed" || normalizeTodoStatus(subTodo.status) === "completed") {
+        await markQueue({
+          status: "skipped",
+          skippedAt: FieldValue.serverTimestamp(),
+          lastError: "todo completed before reminder delivery",
+        }).catch(() => {});
+        return;
+      }
+      if (todoReminderWasDelivered(subTodo.reminderDeliveryLog, reminderAt)) {
+        await markQueue({
+          status: "sent",
+          sentAt: FieldValue.serverTimestamp(),
+          lastError: null,
+          deduped: true,
+        }).catch(() => {});
+        return;
+      }
+    } else {
+      if (normalizeTodoStatus(todoData.status) === "completed") {
+        await markQueue({
+          status: "skipped",
+          skippedAt: FieldValue.serverTimestamp(),
+          lastError: "todo completed before reminder delivery",
+        }).catch(() => {});
+        return;
+      }
+      if (todoReminderWasDelivered(todoData.reminderDeliveryLog, reminderAt)) {
+        await markQueue({
+          status: "sent",
+          sentAt: FieldValue.serverTimestamp(),
+          lastError: null,
+          deduped: true,
+        }).catch(() => {});
+        return;
+      }
+    }
+
+    await markQueue({
+      status: "processing",
+      processingAt: FieldValue.serverTimestamp(),
+      lastError: null,
+    }).catch(() => {});
+
+    const scopeText = subTodoId
+      ? `Reminder for sub-todo "${subTodoText || subTodoId}" on todo "${todoTaskText}"`
+      : `Reminder for todo "${todoTaskText}"`;
+    const notifyResult = await notifyManagementAboutTodoActivity({
+      db,
+      accountSid,
+      authToken,
+      configuredFrom,
+      operator: {
+        approvedPhoneE164: null,
+        email: null,
+        memberData: { displayName: "Todo reminder" },
+      },
+      projectSlug,
+      runId,
+      messageBody: `${scopeText} at ${formatTodoNotificationDateTime(reminderAt)}`,
+    });
+
+    if (!notifyResult.attempted || Number(notifyResult.sentCount || 0) <= 0) {
+      const reason = notifyResult.reason || "notification_send_failed";
+      await markQueue({
+        status: reason === "no_recipients" ? "skipped" : "failed",
+        failedAt: reason === "no_recipients" ? null : FieldValue.serverTimestamp(),
+        skippedAt: reason === "no_recipients" ? FieldValue.serverTimestamp() : null,
+        lastError: reason,
+      }).catch(() => {});
+      if (reason !== "no_recipients") {
+        throw new Error(`todo reminder delivery failed: ${reason}`);
+      }
+      return;
+    }
+
+    await markTodoReminderDelivered({
+      db,
+      todoId,
+      subTodoId,
+      reminderAt,
+      queueDocId: snap.id,
+      messageSid: null,
+      messageStatus: `fanout_sent_${notifyResult.sentCount}`,
+    });
+
+    await markQueue({
+      status: "sent",
+      sentAt: FieldValue.serverTimestamp(),
+      lastError: null,
+      notifyAttemptedCount: notifyResult.attemptedCount || 0,
+      notifySentCount: notifyResult.sentCount || 0,
+      notifyFailedCount: notifyResult.failedCount || 0,
+    }).catch(() => {});
   }
 );
 
@@ -5616,6 +6056,7 @@ exports.createProjectTodoCallable = onCall(
       labels,
       tags,
       reminders,
+      reminderDeliveryLog: [],
       dependencies,
       comments: [],
       subTodos: [],
@@ -5640,7 +6081,6 @@ exports.updateProjectTodoCallable = onCall(
     cors: true,
     timeoutSeconds: 60,
     memory: "256MiB",
-    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
   },
   async (request) => {
     const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
@@ -5789,41 +6229,6 @@ exports.updateProjectTodoCallable = onCall(
     }
 
     await todoRef.set(updates, { merge: true });
-    let notifyResult = null;
-    if (remindersInput !== undefined) {
-      const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
-      const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
-      const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
-      const todoTaskText = normalizeTodoText(todoData.taskText || "", 140) || "Untitled todo";
-      const reminderTarget = subTodoId
-        ? (Array.isArray(updates.subTodos) ? updates.subTodos : []).find(
-            (item) => String(item?.id || "").trim() === subTodoId
-          ) || null
-        : null;
-      const reminderValues = subTodoId
-        ? Array.isArray(reminderTarget?.reminders)
-          ? reminderTarget.reminders
-          : []
-        : Array.isArray(updates.reminders)
-          ? updates.reminders
-          : [];
-      const reminderLabel = reminderValues.length
-        ? reminderValues.map((value) => formatTodoNotificationDateTime(value)).filter(Boolean).join(", ")
-        : "cleared";
-      const reminderScope = subTodoId
-        ? `Sub-todo "${normalizeTodoText(reminderTarget?.text || "", 120) || subTodoId}" on todo "${todoTaskText}"`
-        : `Todo "${todoTaskText}"`;
-      notifyResult = await notifyManagementAboutTodoActivity({
-        db,
-        accountSid,
-        authToken,
-        configuredFrom,
-        operator,
-        projectSlug,
-        runId: `todo-reminder-${todoId}-${Date.now()}`,
-        messageBody: `${reminderScope} reminder updated: ${reminderLabel}`,
-      });
-    }
     if (labelsInput !== undefined || tagsInput !== undefined) {
       const todoLabels = subTodoId
         ? normalizeTodoLabels(
@@ -5837,7 +6242,7 @@ exports.updateProjectTodoCallable = onCall(
         : normalizeTodoTags(updates.tags != null ? updates.tags : todoData.tags || []);
       await upsertTodoTaxonomyValues(projectSlug, todoLabels, todoTags, operator.email || null);
     }
-    return { ok: true, todoId, subTodoId: subTodoId || null, status, notifyResult };
+    return { ok: true, todoId, subTodoId: subTodoId || null, status };
   }
 );
 
@@ -5878,6 +6283,7 @@ exports.addProjectSubTodoCallable = onCall(
       labels: [],
       tags: [],
       reminders: [],
+      reminderDeliveryLog: [],
       dependencies: [],
       comments: [],
       createdAt: new Date().toISOString(),
@@ -5910,6 +6316,7 @@ exports.addProjectTodoCommentCallable = onCall(
     const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
     const todoId = String(request.data?.todoId || "").trim();
     const subTodoId = String(request.data?.subTodoId || "").trim();
+    const parentCommentId = String(request.data?.parentCommentId || "").trim();
     const text = normalizeTodoCommentText(request.data?.text || "");
     if (!todoId) throw new HttpsError("invalid-argument", "todoId is required.");
     if (!text) throw new HttpsError("invalid-argument", "Comment text is required.");
@@ -5935,9 +6342,22 @@ exports.addProjectTodoCommentCallable = onCall(
       const currentSubTodos = Array.isArray(todoData.subTodos) ? todoData.subTodos : [];
       const nextSubTodos = currentSubTodos.map((item) => {
         if (String(item?.id || "").trim() !== subTodoId) return item;
+        const existingComments = normalizeTodoCommentTree(item?.comments);
+        const nextComments = parentCommentId
+          ? (() => {
+              const replyResult = appendReplyToTodoComments(existingComments, parentCommentId, {
+                ...comment,
+                replies: [],
+              });
+              if (!replyResult.matched) {
+                throw new HttpsError("not-found", "Parent comment not found.");
+              }
+              return replyResult.comments;
+            })()
+          : [...existingComments, { ...comment, replies: [] }];
         return {
           ...item,
-          comments: [...(Array.isArray(item?.comments) ? item.comments : []), comment],
+          comments: nextComments,
           updatedAt: new Date().toISOString(),
           updatedByEmail: operator.email || null,
         };
@@ -5954,9 +6374,22 @@ exports.addProjectTodoCommentCallable = onCall(
         { merge: true }
       );
     } else {
+      const existingComments = normalizeTodoCommentTree(todoData.comments);
+      const nextComments = parentCommentId
+        ? (() => {
+            const replyResult = appendReplyToTodoComments(existingComments, parentCommentId, {
+              ...comment,
+              replies: [],
+            });
+            if (!replyResult.matched) {
+              throw new HttpsError("not-found", "Parent comment not found.");
+            }
+            return replyResult.comments;
+          })()
+        : [...existingComments, { ...comment, replies: [] }];
       await todoRef.set(
         {
-          comments: [...(Array.isArray(todoData.comments) ? todoData.comments : []), comment],
+          comments: nextComments,
           updatedAt: FieldValue.serverTimestamp(),
           updatedByEmail: operator.email || null,
         },
@@ -5977,8 +6410,8 @@ exports.addProjectTodoCommentCallable = onCall(
         ) || subTodoId
       : "";
     const scope = subTodoId
-      ? `New comment on sub-todo "${subTodoText}" for todo "${todoTaskText}"`
-      : `New comment on todo "${todoTaskText}"`;
+      ? `${parentCommentId ? "New reply on" : "New comment on"} sub-todo "${subTodoText}" for todo "${todoTaskText}"`
+      : `${parentCommentId ? "New reply on" : "New comment on"} todo "${todoTaskText}"`;
     const notifyResult = await notifyManagementAboutTodoActivity({
       db,
       accountSid,
@@ -5990,7 +6423,7 @@ exports.addProjectTodoCommentCallable = onCall(
       messageBody: `${scope}: ${comment.text}`,
     });
 
-    return { ok: true, todoId, subTodoId: subTodoId || null, comment, notifyResult };
+    return { ok: true, todoId, subTodoId: subTodoId || null, parentCommentId: parentCommentId || null, comment: { ...comment, replies: [] }, notifyResult };
   }
 );
 

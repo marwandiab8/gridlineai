@@ -521,6 +521,7 @@ let expandedHomeSubTodoKeys = new Set();
 let showCompletedHomeTodos = false;
 let homeTodoSearchQuery = "";
 let pendingNewTodoReminders = [];
+let activeTodoReplyComposerKeys = new Set();
 
 function setStatusOk(detail = "") {
   if (statusEl) statusEl.textContent = "Connected";
@@ -964,17 +965,35 @@ function renderNewTodoReminderList() {
     : '<span class="muted small">No reminders queued.</span>';
 }
 
-function renderTodoCommentList(comments) {
+function todoCommentReplyKey(todoId, commentId, subTodoId = "") {
+  return `${String(todoId || "").trim()}::${String(subTodoId || "").trim()}::${String(commentId || "").trim()}`;
+}
+
+function renderTodoCommentList(comments, attrs = {}, depth = 0) {
   const rows = Array.isArray(comments) ? comments : [];
-  if (!rows.length) return '<div class="mini-item empty">No comments yet.</div>';
+  if (!rows.length && depth === 0) return '<div class="mini-item empty">No comments yet.</div>';
   return rows
     .slice()
     .reverse()
-    .map((comment) => `
-      <div class="mini-item">
+    .map((comment) => {
+      const todoId = String(attrs.todoId || "").trim();
+      const subTodoId = String(attrs.subTodoId || "").trim();
+      const commentId = String(comment?.id || "").trim();
+      const replyKey = todoCommentReplyKey(todoId, commentId, subTodoId);
+      const replyOpen = activeTodoReplyComposerKeys.has(replyKey);
+      const repliesMarkup = renderTodoCommentList(comment?.replies, attrs, depth + 1);
+      return `
+      <div class="mini-item todo-comment-item" data-comment-depth="${depth}">
         <div>${esc(comment?.text || "")}</div>
         <div class="muted small">${esc(comment?.createdByName || comment?.createdByEmail || "-")} · ${esc(formatTodoMoment(comment?.createdAt))}</div>
-      </div>`)
+        ${commentId ? `<div class="todo-comment-actions"><button type="button" class="btn-secondary btn-small" data-todo-comment-reply-toggle="${esc(todoId)}" data-comment-id="${esc(commentId)}"${subTodoId ? ` data-subtodo-id="${esc(subTodoId)}"` : ""}>${replyOpen ? "Cancel" : "Reply"}</button></div>` : ""}
+        ${replyOpen ? `<div class="todo-comment-row todo-comment-reply-row">
+            <input type="text" class="project-manager-input" data-home-comment-reply-input="${esc(todoId)}" data-comment-id="${esc(commentId)}"${subTodoId ? ` data-subtodo-id="${esc(subTodoId)}"` : ""} placeholder="Reply to comment" maxlength="1000" />
+            <button type="button" class="btn-secondary" data-home-comment-reply-add="${esc(todoId)}" data-comment-id="${esc(commentId)}"${subTodoId ? ` data-subtodo-id="${esc(subTodoId)}"` : ""}>Send reply</button>
+          </div>` : ""}
+        ${repliesMarkup ? `<div class="todo-comment-replies">${repliesMarkup}</div>` : ""}
+      </div>`;
+    })
     .join("");
 }
 
@@ -1242,7 +1261,7 @@ function renderHomeTodos() {
                             <div class="todo-section-head">
                               <h5 class="todo-section-title">Comments</h5>
                             </div>
-                            <div class="todo-comment-list">${renderTodoCommentList(subTodo?.comments)}</div>
+                            <div class="todo-comment-list">${renderTodoCommentList(subTodo?.comments, { todoId: todo.id, subTodoId: subTodo?.id || "" })}</div>
                           </div>
                           <div class="todo-comment-row">
                             <input type="text" class="project-manager-input" data-home-subtodo-comment-input="${esc(todo.id)}" data-subtodo-id="${esc(subTodo?.id || "")}" placeholder="Add comment" maxlength="1000" />
@@ -1261,7 +1280,7 @@ function renderHomeTodos() {
             <div class="todo-section-head">
               <h4 class="todo-section-title">Comments</h4>
             </div>
-            <div class="todo-comment-list">${renderTodoCommentList(comments)}</div>
+            <div class="todo-comment-list">${renderTodoCommentList(comments, { todoId: todo.id })}</div>
           </div>
           <div class="todo-comment-row">
             <input type="text" class="project-manager-input" data-home-todo-comment-input="${esc(todo.id)}" placeholder="Add comment" maxlength="1000" />
@@ -4714,6 +4733,18 @@ function initHomeTodos() {
       renderHomeTodos();
       return;
     }
+    const toggleReplyButton = event.target.closest("[data-todo-comment-reply-toggle]");
+    if (toggleReplyButton) {
+      const todoId = String(toggleReplyButton.getAttribute("data-todo-comment-reply-toggle") || "").trim();
+      const commentId = String(toggleReplyButton.getAttribute("data-comment-id") || "").trim();
+      const subTodoId = String(toggleReplyButton.getAttribute("data-subtodo-id") || "").trim();
+      const replyKey = todoCommentReplyKey(todoId, commentId, subTodoId);
+      if (!todoId || !commentId) return;
+      if (activeTodoReplyComposerKeys.has(replyKey)) activeTodoReplyComposerKeys.delete(replyKey);
+      else activeTodoReplyComposerKeys.add(replyKey);
+      renderHomeTodos();
+      return;
+    }
     const reminderAddButton = event.target.closest("[data-home-todo-reminder-add], [data-home-subtodo-reminder-add]");
     const reminderRemoveButton = event.target.closest("[data-home-todo-reminder-remove], [data-home-subtodo-reminder-remove]");
     if (reminderAddButton || reminderRemoveButton) {
@@ -4766,6 +4797,7 @@ function initHomeTodos() {
     const addButton = event.target.closest("[data-home-subtodo-add]");
     const addTodoCommentButton = event.target.closest("[data-home-todo-comment-add]");
     const addSubTodoCommentButton = event.target.closest("[data-home-subtodo-comment-add]");
+    const addReplyCommentButton = event.target.closest("[data-home-comment-reply-add]");
     if (addButton) {
       const todoId = String(addButton.getAttribute("data-home-subtodo-add") || "").trim();
       if (!todoId) return;
@@ -4795,15 +4827,27 @@ function initHomeTodos() {
       }
       return;
     }
-    if (addTodoCommentButton || addSubTodoCommentButton) {
+    if (addTodoCommentButton || addSubTodoCommentButton || addReplyCommentButton) {
+      const isReply = Boolean(addReplyCommentButton);
       const todoId = addTodoCommentButton
         ? String(addTodoCommentButton.getAttribute("data-home-todo-comment-add") || "").trim()
-        : String(addSubTodoCommentButton.getAttribute("data-home-subtodo-comment-add") || "").trim();
+        : addSubTodoCommentButton
+          ? String(addSubTodoCommentButton.getAttribute("data-home-subtodo-comment-add") || "").trim()
+          : String(addReplyCommentButton.getAttribute("data-home-comment-reply-add") || "").trim();
       const subTodoId = addSubTodoCommentButton
         ? String(addSubTodoCommentButton.getAttribute("data-subtodo-id") || "").trim()
+        : String(addReplyCommentButton?.getAttribute("data-subtodo-id") || "").trim();
+      const parentCommentId = isReply
+        ? String(addReplyCommentButton.getAttribute("data-comment-id") || "").trim()
         : "";
       if (!todoId) return;
-      const input = addTodoCommentButton
+      const input = isReply
+        ? homeTodosEl.querySelector(
+            `[data-home-comment-reply-input="${CSS.escape(todoId)}"][data-comment-id="${CSS.escape(parentCommentId)}"]${
+              subTodoId ? `[data-subtodo-id="${CSS.escape(subTodoId)}"]` : ""
+            }`
+          )
+        : addTodoCommentButton
         ? homeTodosEl.querySelector(`[data-home-todo-comment-input="${CSS.escape(todoId)}"]`)
         : homeTodosEl.querySelector(
             `[data-home-subtodo-comment-input="${CSS.escape(todoId)}"][data-subtodo-id="${CSS.escape(subTodoId)}"]`
@@ -4813,14 +4857,19 @@ function initHomeTodos() {
         window.alert("Enter a comment first.");
         return;
       }
-      const button = addTodoCommentButton || addSubTodoCommentButton;
+      const button = addTodoCommentButton || addSubTodoCommentButton || addReplyCommentButton;
       button.disabled = true;
       if (input) input.disabled = true;
       try {
         const payload = { todoId, text };
         if (subTodoId) payload.subTodoId = subTodoId;
+        if (parentCommentId) payload.parentCommentId = parentCommentId;
         await callDashboardFunction("addProjectTodoCommentCallable", payload);
         if (input) input.value = "";
+        if (parentCommentId) {
+          activeTodoReplyComposerKeys.delete(todoCommentReplyKey(todoId, parentCommentId, subTodoId));
+          renderHomeTodos();
+        }
       } catch (err) {
         window.alert(`Failed: ${formatUiError(err)}`);
       } finally {
