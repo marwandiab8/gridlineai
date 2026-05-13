@@ -53,7 +53,7 @@ const {
   maskSidParts,
   logInboundTwilioSecrets,
 } = require("./twilioSecrets");
-const { isDailyReportPdfRequest } = require("./logClassifier");
+const { isDailyReportPdfRequest, dateKeyEastern } = require("./logClassifier");
 const {
   buildUserProjectPatch,
   getAccessibleProjectForUser,
@@ -90,6 +90,7 @@ const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
 const COL_PROJECT_TODOS = "projectTodos";
 const COL_TODO_TAXONOMY = "todoTaxonomy";
 const COL_TODO_REMINDER_QUEUE = "todoReminderQueue";
+const COL_MANAGEMENT_JOURNAL_PUSH_QUEUE = "managementJournalPushQueue";
 const TODO_STATUSES = new Set(["open", "inprogress", "completed"]);
 const TODO_PRIORITIES = new Set(["p1", "p2", "p3", "p4"]);
 const TODO_RECURRENCE_MODES = new Set([
@@ -3383,6 +3384,187 @@ exports.queueDueTodoReminders = onSchedule(
       skippedCompletedCount,
       eventType: event?.type || null,
     });
+  }
+);
+
+exports.queueDailyManagementJournalPush = onSchedule(
+  {
+    schedule: "0 21 * * *",
+    region: "northamerica-northeast1",
+    timeZone: "America/New_York",
+    timeoutSeconds: 300,
+    memory: "256MiB",
+  },
+  async () => {
+    const reportDateKey = dateKeyEastern(new Date());
+    const runId = `mgmt-journal-push-${reportDateKey}`;
+    const projectsSnap = await db.collection("projects").limit(500).get();
+    let queuedCount = 0;
+    let existingCount = 0;
+    let skippedInactiveCount = 0;
+
+    for (const projectSnap of projectsSnap.docs) {
+      const projectData = projectSnap.data() || {};
+      if (projectData.active === false) {
+        skippedInactiveCount += 1;
+        continue;
+      }
+      const projectSlug = normalizeProjectSlug(projectSnap.id);
+      if (!projectSlug) continue;
+      const queueDocId = `${reportDateKey}__${projectSlug}`;
+      try {
+        await db.collection(COL_MANAGEMENT_JOURNAL_PUSH_QUEUE).doc(queueDocId).create({
+          status: "queued",
+          projectSlug,
+          projectName: String(projectData.name || projectSlug).trim() || projectSlug,
+          reportDateKey,
+          reportType: "journal",
+          includeAllManagementEntries: true,
+          runId,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        queuedCount += 1;
+      } catch (error) {
+        if (String(error?.message || "").toLowerCase().includes("already exists")) existingCount += 1;
+        else throw error;
+      }
+    }
+
+    logger.info("queueDailyManagementJournalPush: queued", {
+      runId,
+      reportDateKey,
+      scannedProjects: projectsSnap.size,
+      queuedCount,
+      existingCount,
+      skippedInactiveCount,
+    });
+  }
+);
+
+exports.deliverDailyManagementJournalPush = onDocumentCreated(
+  {
+    document: `${COL_MANAGEMENT_JOURNAL_PUSH_QUEUE}/{docId}`,
+    region: "northamerica-northeast1",
+    timeoutSeconds: 300,
+    memory: "512MiB",
+    retry: true,
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, OPENAI_API_KEY],
+  },
+  async (event) => {
+    const docId = event.params && event.params.docId;
+    let snap = null;
+    if (docId) {
+      snap = await db.collection(COL_MANAGEMENT_JOURNAL_PUSH_QUEUE).doc(docId).get().catch(() => null);
+    }
+    if ((!snap || !snap.exists) && event.data && event.data.exists) snap = event.data;
+    if (!snap || !snap.exists) return;
+
+    const d = snap.data() || {};
+    const queueRef = snap.ref;
+    const markQueue = async (patch) => {
+      await queueRef.set(
+        {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    };
+
+    if (d.status === "sent") return;
+
+    const projectSlug = normalizeProjectSlug(String(d.projectSlug || "").trim());
+    const projectName = String(d.projectName || projectSlug || "").trim() || projectSlug;
+    const reportDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(d.reportDateKey || "").trim())
+      ? String(d.reportDateKey || "").trim()
+      : dateKeyEastern(new Date());
+    const runId = String(d.runId || `mgmt-journal-delivery-${snap.id}`).trim();
+    const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+    const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+    const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+    const openaiKey = OPENAI_API_KEY.value();
+
+    if (!projectSlug) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing projectSlug",
+      }).catch(() => {});
+      return;
+    }
+    if (!accountSid || !authToken || !configuredFrom) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: "missing Twilio configuration",
+      }).catch(() => {});
+      return;
+    }
+
+    await markQueue({
+      status: "processing",
+      processingAt: FieldValue.serverTimestamp(),
+      lastError: null,
+    }).catch(() => {});
+
+    const recipients = await resolveNotificationRecipients(db, { audience: "management" });
+    if (!recipients.length) {
+      await markQueue({
+        status: "skipped",
+        skippedAt: FieldValue.serverTimestamp(),
+        lastError: "no_management_recipients",
+      }).catch(() => {});
+      return;
+    }
+
+    const pdfResult = await generateDailyReportPdf({
+      db,
+      bucket: admin.storage().bucket(),
+      phoneE164: configuredFrom,
+      projectSlug,
+      projectName,
+      reportDateKey,
+      reportType: "journal",
+      includeAllManagementEntries: true,
+      openaiApiKey: openaiKey || null,
+      logger,
+      runId,
+      modelsOverride: {
+        primary: OPENAI_MODEL_PRIMARY.value(),
+      },
+    });
+
+    const messageBody = pdfResult.downloadURL
+      ? `Journal PDF for ${projectName || projectSlug} on ${reportDateKey}: ${pdfResult.downloadURL}`
+      : `Journal PDF for ${projectName || projectSlug} on ${reportDateKey} was generated. Stored at: ${pdfResult.storagePath}`;
+
+    const fanout = await sendSmsNotificationFanout({
+      db,
+      smsClient: twilio(accountSid, authToken),
+      accountSid,
+      fromPhone: configuredFrom,
+      messagingServiceSid: null,
+      requestedByPhone: configuredFrom,
+      requestedByName: "Daily journal auto-send",
+      requestedByEmail: null,
+      projectSlug,
+      messageBody,
+      recipients,
+      runId,
+    });
+
+    await markQueue({
+      status: "sent",
+      sentAt: FieldValue.serverTimestamp(),
+      lastError: null,
+      reportId: pdfResult.reportId || null,
+      downloadURL: pdfResult.downloadURL || null,
+      storagePath: pdfResult.storagePath || null,
+      recipientCount: fanout.attemptedCount || 0,
+      sentCount: fanout.sentCount || 0,
+      failedCount: fanout.failedCount || 0,
+    }).catch(() => {});
   }
 );
 
