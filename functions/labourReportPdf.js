@@ -29,6 +29,16 @@ function formatHours(value) {
   return n % 1 === 0 ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+function labourHoursForReportEntry(entry) {
+  const hours = Number(entry?.hours);
+  if (Number.isFinite(hours) && hours > 0) return hours;
+  const minutesWorked = Number(entry?.minutesWorked);
+  if (Number.isFinite(minutesWorked) && minutesWorked > 0) {
+    return Math.round((minutesWorked / 60) * 100) / 100;
+  }
+  return 0;
+}
+
 function formatRangeLabel(startKey, endKey) {
   if (!startKey && !endKey) return "All time";
   if (startKey && endKey && startKey === endKey) return startKey;
@@ -289,7 +299,7 @@ async function generateLabourReportPdf({
     for (const entry of periodEntries || []) {
       const who = String(entry?.labourerName || entry?.labourerPhone || "Unknown").trim() || "Unknown";
       const dateKey = String(entry?.reportDateKey || "").trim();
-      const hours = Number(entry?.hours) || 0;
+      const hours = labourHoursForReportEntry(entry);
       if (!dateKey || !Number.isFinite(hours) || hours <= 0) continue;
       if (!labourerRows.has(who)) labourerRows.set(who, new Map());
       const byDay = labourerRows.get(who);
@@ -566,7 +576,7 @@ async function generateLabourReportPdf({
       for (const item of day.entries || []) {
         const line = [
           item.labourerName || item.labourerPhone || "Unknown",
-          `${formatHours(item.hours)}h`,
+          `${formatHours(labourHoursForReportEntry(item))}h`,
           item.workOn || "",
         ].filter(Boolean).join(" · ");
         draw(line, 9.2, false, colors.muted, margin + 10, contentW - 12);
@@ -672,7 +682,7 @@ async function generateLabourReportPdf({
     for (const item of labourer.entries || []) {
       const dateKey = item.reportDateKey || "-";
       const tag = isSundayDateKey(dateKey) ? " · DOUBLE" : "";
-      const line = `${dateKey} · ${formatHours(item.hours)}h${tag} · ${item.projectSlug || "-"} · ${item.workOn || ""}`;
+      const line = `${dateKey} · ${formatHours(labourHoursForReportEntry(item))}h${tag} · ${item.projectSlug || "-"} · ${item.workOn || ""}`;
       draw(line, 9.2, false, colors.muted, margin + 10, contentW - 12);
     }
     y -= 4;
@@ -684,7 +694,7 @@ async function generateLabourReportPdf({
     const dateKey = item.reportDateKey || "-";
     const tag = isSundayDateKey(dateKey) ? " · DOUBLE" : "";
     draw(
-      `${dateKey} · ${item.labourerName || item.labourerPhone || "Unknown"} · ${formatHours(item.hours)}h${tag}`,
+      `${dateKey} · ${item.labourerName || item.labourerPhone || "Unknown"} · ${formatHours(labourHoursForReportEntry(item))}h${tag}`,
       9.5,
       true,
       colors.ink

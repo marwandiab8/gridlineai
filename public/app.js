@@ -175,6 +175,29 @@ function formatHoursClient(value) {
   return n % 1 === 0 ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+function labourHoursFromEntryClient(value) {
+  const hours = Number(value && value.hours);
+  if (Number.isFinite(hours) && hours > 0) return hours;
+  const minutesWorked = Number(value && value.minutesWorked);
+  if (Number.isFinite(minutesWorked) && minutesWorked > 0) {
+    return Math.round((minutesWorked / 60) * 100) / 100;
+  }
+  return 0;
+}
+
+function normalizeLabourEntryClient(value) {
+  const entry = value && typeof value === "object" ? { ...value } : {};
+  const hours = labourHoursFromEntryClient(entry);
+  const minutesWorkedRaw = Number(entry.minutesWorked);
+  const minutesWorked =
+    Number.isFinite(minutesWorkedRaw) && minutesWorkedRaw > 0 ? Math.round(minutesWorkedRaw) : Math.round(hours * 60);
+  return {
+    ...entry,
+    hours,
+    minutesWorked: minutesWorked || 0,
+  };
+}
+
 /** Matches server labourRepository.dayMultiplierFromDateKey (report date = calendar day). */
 function dayMultiplierFromDateKeyClient(dateKey) {
   const date = parseDateKeyClient(String(dateKey || "").trim());
@@ -225,12 +248,12 @@ function dayMultiplierFromDateKeyClient(dateKey) {
 }
 
 function sumHoursClient(entries) {
-  return (entries || []).reduce((total, item) => total + (Number(item && item.hours) || 0), 0);
+  return (entries || []).reduce((total, item) => total + labourHoursFromEntryClient(item), 0);
 }
 
 function sumWeightedPaidHoursClient(entries) {
   const raw = (entries || []).reduce((total, item) => {
-    const h = Number(item && item.hours) || 0;
+    const h = labourHoursFromEntryClient(item);
     const m = dayMultiplierFromDateKeyClient(String(item && item.reportDateKey || "").trim());
     return total + h * m;
   }, 0);
@@ -252,7 +275,7 @@ function labourerLabelClient(item) {
 }
 
 function renderLabourListItemText(item) {
-  const hours = formatHoursClient(item.hours);
+  const hours = formatHoursClient(labourHoursFromEntryClient(item));
   const who = labourerLabelClient(item) || item.labourerPhone || "Unknown";
   return `${item.reportDateKey || "-"} · ${who} · ${hours}h · ${String(item.workOn || "")}`;
 }
@@ -1842,7 +1865,7 @@ function renderLabourEntriesList() {
       const title = labourerLabelClient(entry) || entry.labourerPhone || "Unknown";
       const project = entry.projectSlug ? `Project: ${entry.projectSlug}` : "Project: -";
       const notes = entry.notes ? `<div class="muted small">Notes: ${esc(String(entry.notes).slice(0, 220))}</div>` : "";
-      const h = Number(entry.hours) || 0;
+      const h = labourHoursFromEntryClient(entry);
       const hourPill = `${esc(formatHoursClient(h))}h`;
       return `
         <div class="row-item" data-labour-entry-id="${esc(entry.id)}">
@@ -3098,7 +3121,7 @@ function startAdminListeners() {
         query(collection(db, "labourEntries"), orderBy("createdAt", "desc"), limit(100)),
         (snap) => {
           setStatusOk();
-          labourEntriesCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          labourEntriesCache = snap.docs.map((docSnap) => normalizeLabourEntryClient({ id: docSnap.id, ...docSnap.data() }));
           renderLabourPanel();
         },
         (err) => {
@@ -3121,7 +3144,7 @@ function startAdminListeners() {
         ),
         (snap) => {
           setStatusOk();
-          labourTodayCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          labourTodayCache = snap.docs.map((docSnap) => normalizeLabourEntryClient({ id: docSnap.id, ...docSnap.data() }));
           renderLabourSummary();
         },
         (err) => {
@@ -3145,7 +3168,7 @@ function startAdminListeners() {
         ),
         (snap) => {
           setStatusOk();
-          labourWeekCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          labourWeekCache = snap.docs.map((docSnap) => normalizeLabourEntryClient({ id: docSnap.id, ...docSnap.data() }));
           renderLabourSummary();
         },
         (err) => {
@@ -3169,7 +3192,7 @@ function startAdminListeners() {
         ),
         (snap) => {
           setStatusOk();
-          labourPayCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          labourPayCache = snap.docs.map((docSnap) => normalizeLabourEntryClient({ id: docSnap.id, ...docSnap.data() }));
           renderLabourSummary();
         },
         (err) => {

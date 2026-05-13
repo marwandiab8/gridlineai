@@ -32,6 +32,88 @@ function roundLabourHours(value) {
   return Math.round(Number(value) * 100) / 100;
 }
 
+function labourMinutesFromHours(value) {
+  const hours = Number(value);
+  if (!Number.isFinite(hours) || hours <= 0) return 0;
+  return Math.round(hours * 60);
+}
+
+function labourHoursFromStoredValue(value) {
+  const hours = Number(value && value.hours);
+  if (Number.isFinite(hours) && hours > 0) return roundLabourHours(hours);
+  const minutesWorked = Number(value && value.minutesWorked);
+  if (Number.isFinite(minutesWorked) && minutesWorked > 0) {
+    return roundLabourHours(minutesWorked / 60);
+  }
+  return 0;
+}
+
+function normalizeLoadedLabourEntry(value) {
+  const entry = value && typeof value === "object" ? { ...value } : {};
+  const minutesWorkedRaw = Number(entry.minutesWorked);
+  const hours = labourHoursFromStoredValue(entry);
+  const minutesWorked =
+    Number.isFinite(minutesWorkedRaw) && minutesWorkedRaw > 0
+      ? Math.round(minutesWorkedRaw)
+      : labourMinutesFromHours(hours);
+  return {
+    ...entry,
+    hours,
+    minutesWorked: minutesWorked || 0,
+  };
+}
+
+function extractDurationSegments(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+
+  const durationRe =
+    /(^|[\s\-–—,;:()])(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h(?![a-z]))(?:\s*(\d{1,2})\s*(?:minutes?|mins?|min|m(?![a-z])))?/gi;
+  const segments = [];
+  let match;
+  while ((match = durationRe.exec(raw))) {
+    const hoursPart = Number(match[2]);
+    const minutesPart = match[3] == null ? 0 : Number(match[3]);
+    if (!Number.isFinite(hoursPart) || hoursPart < 0) continue;
+    if (!Number.isFinite(minutesPart) || minutesPart < 0 || minutesPart >= 60) continue;
+    const leading = match[1] || "";
+    const index = match.index + leading.length;
+    const token = match[0].slice(leading.length);
+    segments.push({
+      hours: roundLabourHours(hoursPart + minutesPart / 60),
+      index,
+      length: token.length,
+    });
+  }
+  return segments;
+}
+
+function parseSegmentedBreakdown(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+
+  const segments = extractDurationSegments(raw);
+  if (segments.length < 2) return [];
+
+  const parts = [];
+  for (let i = 0; i < segments.length; i += 1) {
+    const current = segments[i];
+    const next = segments[i + 1];
+    const start = current.index + current.length;
+    const end = next ? next.index : raw.length;
+    const task = normalizeLabourEntryText(
+      raw
+        .slice(start, end)
+        .replace(/^[\s\-–—,;:.()]+/g, "")
+        .replace(/[\s\-–—,;:.()]+$/g, "")
+        .trim()
+    );
+    if (!Number.isFinite(current.hours) || current.hours <= 0 || !task) return [];
+    parts.push({ hours: current.hours, task });
+  }
+  return parts;
+}
+
 function parseImplicitSegmentedTail(tail, declaredHours) {
   const rawTail = String(tail || "").trim();
   const total = Number(declaredHours);
@@ -291,6 +373,22 @@ function parseLabourHoursCommand(text) {
 
   const cleaned = extractExplicitReportDate(raw);
   const body = String(cleaned.cleanedText || raw).trim();
+  const fullBreakdownParts =
+    /(?:\s[-–—]\s|[;,]\s*)/.test(body) ? parseSegmentedBreakdown(body) : [];
+  if (fullBreakdownParts.length) {
+    const totalHours = roundLabourHours(fullBreakdownParts.reduce((sum, part) => sum + part.hours, 0));
+    const workOnSource = fullBreakdownParts.map((p) => `${p.hours}h ${p.task}`).join(" - ");
+    const workOnDate = extractExplicitReportDate(workOnSource);
+    const workOn = normalizeLabourEntryText(String(workOnDate.cleanedText || workOnSource).trim());
+    if (workOn && totalHours > 0) {
+      return {
+        hours: totalHours,
+        workOn,
+        reportDateKey: cleaned.reportDateKey || workOnDate.reportDateKey || null,
+        rawText: raw,
+      };
+    }
+  }
   const segmented = body.match(/^(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s+([\s\S]+)$/i);
   if (segmented) {
     const declaredHours = Number(segmented[1]);
@@ -487,7 +585,8 @@ function buildLabourEntryDoc(input) {
     labourerPhone: labourerPhone || null,
     projectSlug: normalizeProjectSlug(input && input.projectSlug) || null,
     reportDateKey,
-    hours: Math.round(hours * 100) / 100,
+    hours: roundLabourHours(hours),
+    minutesWorked: labourMinutesFromHours(hours),
     workOn,
     notes: normalizeLabourEntryText(input && input.notes) || "",
     source: String(input && input.source || "dashboard").trim() || "dashboard",
@@ -498,8 +597,9 @@ function buildLabourEntryDoc(input) {
 
 async function writeLabourEntry(db, FieldValue, input) {
   const doc = buildLabourEntryDoc(input);
+  const { hours, ...storageDoc } = doc;
   const ref = await db.collection(COL_LABOUR_ENTRIES).add({
-    ...doc,
+    ...storageDoc,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -522,11 +622,11 @@ async function loadLabourEntries(db, filters = {}) {
   else query = query.orderBy("createdAt", "desc");
 
   const snap = await query.limit(5000).get();
-  return snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+  return snap.docs.map((docSnap) => normalizeLoadedLabourEntry({ id: docSnap.id, ...docSnap.data() }));
 }
 
 function sumHours(entries) {
-  return (entries || []).reduce((total, item) => total + (Number(item && item.hours) || 0), 0);
+  return (entries || []).reduce((total, item) => total + labourHoursFromStoredValue(item), 0);
 }
 
 function groupEntriesByKey(entries, keyFn) {
@@ -652,6 +752,9 @@ module.exports = {
   writeLabourEntry,
   loadLabourEntries,
   sumHours,
+  labourMinutesFromHours,
+  labourHoursFromStoredValue,
+  normalizeLoadedLabourEntry,
   buildLabourRollup,
   normalizeLabourRangeKeys,
   monthKeyFromDateKey,

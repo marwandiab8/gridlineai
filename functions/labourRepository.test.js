@@ -3,13 +3,18 @@ const assert = require("node:assert/strict");
 const {
   biweeklyPayPeriodStartKeyFromDateKey,
   buildLabourRollup,
+  buildLabourEntryDoc,
   dayMultiplierFromDateKey,
   formatLabourBalanceReply,
   getDateKeyRangeForBalanceQuery,
   isPublicHolidayDateKey,
+  labourHoursFromStoredValue,
+  labourMinutesFromHours,
   monthKeyFromDateKey,
+  normalizeLoadedLabourEntry,
   parseLabourHoursBalanceQuery,
   parseLabourHoursCommand,
+  sumHours,
   weeklyKeyFromDateKey,
 } = require("./labourRepository");
 
@@ -100,6 +105,46 @@ test("parseLabourHoursCommand accepts segmented breakdowns that omit repeated ho
   assert.ok(parsed.workOn.toLowerCase().includes("6h house keeping"));
   assert.ok(parsed.workOn.toLowerCase().includes("3h side walk protection"));
   assert.ok(parsed.workOn.toLowerCase().includes("2h fill diesel"));
+});
+
+test("parseLabourHoursCommand parses hyphenated breakdowns with mixed hour and minute durations", () => {
+  const parsed = parseLabourHoursCommand(
+    "4h fast fence tow wall - 1h traffic control - 4h keeping - 2h 30 min general help"
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.hours, 11.5);
+  assert.equal(
+    parsed.workOn,
+    "4h fast fence tow wall - 1h traffic control - 4h keeping - 2.5h general help"
+  );
+});
+
+test("labour minute conversion stores fractional hours as int-safe minutes", () => {
+  assert.equal(labourMinutesFromHours(11.5), 690);
+  assert.equal(labourHoursFromStoredValue({ minutesWorked: 690 }), 11.5);
+
+  const doc = buildLabourEntryDoc({
+    labourerName: "Wael",
+    labourerPhone: "+12898882780",
+    reportDateKey: "2026-05-12",
+    hours: 11.5,
+    workOn: "4h fast fence tow wall - 1h traffic control - 4h keeping - 2.5h general help",
+  });
+
+  assert.equal(doc.hours, 11.5);
+  assert.equal(doc.minutesWorked, 690);
+});
+
+test("labour entry normalization and totals support both legacy hours and minutesWorked", () => {
+  const legacy = normalizeLoadedLabourEntry({ hours: 8, workOn: "legacy" });
+  const intSafe = normalizeLoadedLabourEntry({ minutesWorked: 150, workOn: "minutes" });
+
+  assert.equal(legacy.hours, 8);
+  assert.equal(legacy.minutesWorked, 480);
+  assert.equal(intSafe.hours, 2.5);
+  assert.equal(intSafe.minutesWorked, 150);
+  assert.equal(sumHours([legacy, intSafe]), 10.5);
 });
 
 test("dayMultiplierFromDateKey applies holiday/weekend multipliers to the report date", () => {

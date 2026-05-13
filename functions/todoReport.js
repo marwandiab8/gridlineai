@@ -370,6 +370,7 @@ async function generateTodoReportPdf({
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const todoGroups = partitionTodos(todos);
   const pageW = 612;
   const pageH = 792;
   const margin = 42;
