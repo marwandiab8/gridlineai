@@ -48,6 +48,34 @@ function normalizeTodoRow(todoSnap) {
   };
 }
 
+function normalizeCommentRow(comment) {
+  const row = comment || {};
+  return {
+    ...row,
+    replies: Array.isArray(row.replies) ? row.replies : [],
+  };
+}
+
+function flattenCommentThread(comments, depth = 0, parentCommentId = "") {
+  const out = [];
+  for (const rawComment of Array.isArray(comments) ? comments : []) {
+    const comment = normalizeCommentRow(rawComment);
+    out.push({
+      ...comment,
+      depth,
+      parentCommentId: parentCommentId || "",
+    });
+    if (comment.replies.length) {
+      out.push(...flattenCommentThread(comment.replies, depth + 1, comment.id || ""));
+    }
+  }
+  return out;
+}
+
+function countCommentThread(comments) {
+  return flattenCommentThread(comments).length;
+}
+
 function normalizeStatus(status) {
   return String(status || "open").trim().toLowerCase();
 }
@@ -73,10 +101,10 @@ function summarizeTodos(todos) {
       else if (status === "inprogress") acc.inProgressTodos += 1;
       else acc.openTodos += 1;
       acc.totalSubTodos += todo.subTodos.length;
-      acc.totalComments += todo.comments.length;
+      acc.totalComments += countCommentThread(todo.comments);
       for (const subTodo of todo.subTodos) {
         const comments = Array.isArray(subTodo?.comments) ? subTodo.comments : [];
-        acc.totalComments += comments.length;
+        acc.totalComments += countCommentThread(comments);
       }
       return acc;
     },
@@ -192,6 +220,8 @@ async function generateTodoReportExcel({
     { header: "Parent Todo ID", key: "parentId", width: 20 },
     { header: "Scope", key: "scope", width: 12 },
     { header: "Sub-todo ID", key: "subTodoId", width: 20 },
+    { header: "Parent Comment ID", key: "parentCommentId", width: 20 },
+    { header: "Depth", key: "depth", width: 10 },
     { header: "Comment", key: "text", width: 60 },
     { header: "Created By", key: "createdBy", width: 24 },
     { header: "Created At", key: "createdAt", width: 22 },
@@ -270,7 +300,7 @@ async function generateTodoReportExcel({
       dependencies: formatList(todo.dependencies),
       reminders: formatList(todo.reminders),
       recurrence: formatRecurrence(todo.recurrence),
-      commentCount: todo.comments.length,
+      commentCount: countCommentThread(todo.comments),
       subTodoCount: todo.subTodos.length,
       createdBy: todo.createdByName || todo.createdByEmail || todo.createdByPhone || "",
       createdAt: formatTimestamp(todo.createdAt),
@@ -298,11 +328,13 @@ async function generateTodoReportExcel({
   appendTodoSection(todoGroups.completed, "Completed Todos", completedSectionHeaderFill);
 
   for (const todo of [...todoGroups.active, ...todoGroups.completed]) {
-    for (const comment of todo.comments) {
+    for (const comment of flattenCommentThread(todo.comments)) {
       commentsSheet.addRow({
         parentId: todo.id || "",
         scope: "todo",
         subTodoId: "",
+        parentCommentId: comment?.parentCommentId || "",
+        depth: Number(comment?.depth) || 0,
         text: comment?.text || "",
         createdBy: comment?.createdByName || comment?.createdByEmail || "",
         createdAt: formatTimestamp(comment?.createdAt),
@@ -325,17 +357,19 @@ async function generateTodoReportExcel({
         dependencies: formatList(subTodo?.dependencies),
         reminders: formatList(subTodo?.reminders),
         recurrence: formatRecurrence(subTodo?.recurrence),
-        commentCount: comments.length,
+        commentCount: countCommentThread(comments),
         createdBy: subTodo?.createdByName || subTodo?.createdByEmail || "",
         createdAt: formatTimestamp(subTodo?.createdAt),
         updatedAt: formatTimestamp(subTodo?.updatedAt),
       });
 
-      for (const comment of comments) {
+      for (const comment of flattenCommentThread(comments)) {
         commentsSheet.addRow({
           parentId: todo.id || "",
           scope: "subtodo",
           subTodoId: subTodo?.id || "",
+          parentCommentId: comment?.parentCommentId || "",
+          depth: Number(comment?.depth) || 0,
           text: comment?.text || "",
           createdBy: comment?.createdByName || comment?.createdByEmail || "",
           createdAt: formatTimestamp(comment?.createdAt),
@@ -479,18 +513,19 @@ async function generateTodoReportPdf({
         colors.muted
       );
       wrap(
-        `Recurrence: ${formatRecurrence(todo.recurrence)} · Reminders: ${formatList(todo.reminders) || "-"} · Sub-tasks: ${todo.subTodos.length} · Comments: ${todo.comments.length}`,
+        `Recurrence: ${formatRecurrence(todo.recurrence)} · Reminders: ${formatList(todo.reminders) || "-"} · Sub-tasks: ${todo.subTodos.length} · Comments: ${countCommentThread(todo.comments)}`,
         9,
         false,
         margin,
         maxW,
         colors.muted
       );
-      if (todo.comments.length) {
+      const todoCommentsFlat = flattenCommentThread(todo.comments);
+      if (todoCommentsFlat.length) {
         wrap("Comments:", 9.5, true);
-        for (const comment of todo.comments.slice(-3)) {
+        for (const comment of todoCommentsFlat.slice(-5)) {
           wrap(
-            `- ${comment?.text || ""} (${comment?.createdByName || comment?.createdByEmail || "-"} · ${formatTimestamp(
+            `${"  ".repeat(Math.max(0, Number(comment?.depth) || 0))}- ${comment?.text || ""} (${comment?.createdByName || comment?.createdByEmail || "-"} · ${formatTimestamp(
               comment?.createdAt
             ) || "-"})`,
             9
@@ -501,16 +536,17 @@ async function generateTodoReportPdf({
         wrap("Sub-tasks:", 9.5, true);
         for (const subTodo of todo.subTodos) {
           const comments = Array.isArray(subTodo?.comments) ? subTodo.comments : [];
+          const commentsFlat = flattenCommentThread(comments);
           wrap(
             `- ${subTodo?.text || ""} · ${subTodo?.status || "open"} · Priority ${subTodo?.priority || "-"} · Due ${
               formatTimestamp(subTodo?.dueBy) || "-"
-            }`,
+            } · Comments ${commentsFlat.length}`,
             9
           );
-          if (comments.length) {
-            for (const comment of comments.slice(-2)) {
+          if (commentsFlat.length) {
+            for (const comment of commentsFlat.slice(-3)) {
               wrap(
-                `  Comment: ${comment?.text || ""} (${comment?.createdByName || comment?.createdByEmail || "-"} · ${formatTimestamp(
+                `  ${"  ".repeat(Math.max(0, Number(comment?.depth) || 0))}Comment: ${comment?.text || ""} (${comment?.createdByName || comment?.createdByEmail || "-"} · ${formatTimestamp(
                   comment?.createdAt
                 ) || "-"})`,
                 8.5
