@@ -1,5 +1,6 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -88,6 +89,7 @@ const COL_APP_MEMBERS = "appMembers";
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
 const COL_PROJECT_TODOS = "projectTodos";
 const COL_TODO_TAXONOMY = "todoTaxonomy";
+const COL_TODO_REMINDER_QUEUE = "todoReminderQueue";
 const TODO_STATUSES = new Set(["open", "inprogress", "completed"]);
 const TODO_PRIORITIES = new Set(["p1", "p2", "p3", "p4"]);
 const TODO_RECURRENCE_MODES = new Set([
@@ -1044,6 +1046,73 @@ async function processAssistantMessage({
     pdfResult,
     uploadedMedia: uploadedMediaResult,
   };
+}
+
+function formatTodoNotificationDateTime(value) {
+  const iso = normalizeTodoDateTime(value);
+  return iso ? iso.replace("T", " ").replace(".000Z", " UTC") : "";
+}
+
+async function notifyManagementAboutTodoActivity({
+  db,
+  accountSid,
+  authToken,
+  configuredFrom,
+  operator,
+  projectSlug,
+  messageBody,
+  runId,
+}) {
+  const normalizedProjectSlug = normalizeProjectSlug(String(projectSlug || "").trim()) || "home";
+  const finalMessage = String(messageBody || "").trim().slice(0, 640);
+  if (!finalMessage) return { attempted: false, reason: "missing_message" };
+  if (!accountSid || !authToken || !configuredFrom) {
+    logger.warn("todo management notify skipped: missing Twilio configuration", {
+      runId,
+      projectSlug: normalizedProjectSlug,
+    });
+    return { attempted: false, reason: "missing_twilio_config" };
+  }
+
+  try {
+    const recipients = await resolveNotificationRecipients(db, {
+      audience: "management",
+      projectSlug: normalizedProjectSlug,
+    });
+    if (!recipients.length) {
+      return { attempted: false, reason: "no_recipients" };
+    }
+    const smsClient = twilio(accountSid, authToken);
+    const fanout = await sendSmsNotificationFanout({
+      db,
+      smsClient,
+      accountSid,
+      fromPhone: configuredFrom,
+      messagingServiceSid: null,
+      requestedByPhone: operator.approvedPhoneE164 || null,
+      requestedByName:
+        String(operator.memberData?.displayName || operator.email || "").trim() || null,
+      requestedByEmail: operator.email || null,
+      projectSlug: normalizedProjectSlug,
+      messageBody: finalMessage,
+      recipients,
+      runId,
+    });
+    return {
+      attempted: true,
+      sentCount: fanout.sentCount,
+      failedCount: fanout.failedCount,
+      attemptedCount: fanout.attemptedCount,
+    };
+  } catch (error) {
+    logger.error("todo management notify failed", {
+      runId,
+      projectSlug: normalizedProjectSlug,
+      message: error.message,
+      stack: error.stack,
+    });
+    return { attempted: false, reason: String(error.message || error) };
+  }
 }
 
 function buildTodoReportSmsReplyBody({ reportResult, projectSlug }) {
@@ -5571,6 +5640,7 @@ exports.updateProjectTodoCallable = onCall(
     cors: true,
     timeoutSeconds: 60,
     memory: "256MiB",
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
   },
   async (request) => {
     const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
@@ -5719,6 +5789,41 @@ exports.updateProjectTodoCallable = onCall(
     }
 
     await todoRef.set(updates, { merge: true });
+    let notifyResult = null;
+    if (remindersInput !== undefined) {
+      const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+      const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+      const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+      const todoTaskText = normalizeTodoText(todoData.taskText || "", 140) || "Untitled todo";
+      const reminderTarget = subTodoId
+        ? (Array.isArray(updates.subTodos) ? updates.subTodos : []).find(
+            (item) => String(item?.id || "").trim() === subTodoId
+          ) || null
+        : null;
+      const reminderValues = subTodoId
+        ? Array.isArray(reminderTarget?.reminders)
+          ? reminderTarget.reminders
+          : []
+        : Array.isArray(updates.reminders)
+          ? updates.reminders
+          : [];
+      const reminderLabel = reminderValues.length
+        ? reminderValues.map((value) => formatTodoNotificationDateTime(value)).filter(Boolean).join(", ")
+        : "cleared";
+      const reminderScope = subTodoId
+        ? `Sub-todo "${normalizeTodoText(reminderTarget?.text || "", 120) || subTodoId}" on todo "${todoTaskText}"`
+        : `Todo "${todoTaskText}"`;
+      notifyResult = await notifyManagementAboutTodoActivity({
+        db,
+        accountSid,
+        authToken,
+        configuredFrom,
+        operator,
+        projectSlug,
+        runId: `todo-reminder-${todoId}-${Date.now()}`,
+        messageBody: `${reminderScope} reminder updated: ${reminderLabel}`,
+      });
+    }
     if (labelsInput !== undefined || tagsInput !== undefined) {
       const todoLabels = subTodoId
         ? normalizeTodoLabels(
@@ -5732,7 +5837,7 @@ exports.updateProjectTodoCallable = onCall(
         : normalizeTodoTags(updates.tags != null ? updates.tags : todoData.tags || []);
       await upsertTodoTaxonomyValues(projectSlug, todoLabels, todoTags, operator.email || null);
     }
-    return { ok: true, todoId, subTodoId: subTodoId || null, status };
+    return { ok: true, todoId, subTodoId: subTodoId || null, status, notifyResult };
   }
 );
 
@@ -5799,6 +5904,7 @@ exports.addProjectTodoCommentCallable = onCall(
     cors: true,
     timeoutSeconds: 60,
     memory: "256MiB",
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
   },
   async (request) => {
     const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
@@ -5858,7 +5964,33 @@ exports.addProjectTodoCommentCallable = onCall(
       );
     }
 
-    return { ok: true, todoId, subTodoId: subTodoId || null, comment };
+    const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+    const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+    const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+    const todoTaskText = normalizeTodoText(todoData.taskText || "", 140) || "Untitled todo";
+    const subTodoText = subTodoId
+      ? normalizeTodoText(
+          (Array.isArray(todoData.subTodos) ? todoData.subTodos : []).find(
+            (item) => String(item?.id || "").trim() === subTodoId
+          )?.text || "",
+          120
+        ) || subTodoId
+      : "";
+    const scope = subTodoId
+      ? `New comment on sub-todo "${subTodoText}" for todo "${todoTaskText}"`
+      : `New comment on todo "${todoTaskText}"`;
+    const notifyResult = await notifyManagementAboutTodoActivity({
+      db,
+      accountSid,
+      authToken,
+      configuredFrom,
+      operator,
+      projectSlug,
+      runId: `todo-comment-${todoId}-${Date.now()}`,
+      messageBody: `${scope}: ${comment.text}`,
+    });
+
+    return { ok: true, todoId, subTodoId: subTodoId || null, comment, notifyResult };
   }
 );
 
