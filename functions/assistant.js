@@ -69,6 +69,7 @@ const {
   loadLabourEntries,
   buildLabourRollup,
   dayMultiplierFromDateKey,
+  labourMinutesFromHours,
 } = require("./labourRepository");
 
 const ADMIN_DOC_ID = "company";
@@ -434,6 +435,121 @@ function isExplicitLabourBalanceText(text) {
   if (/\bpay\s*period\b|\bpayroll\b|\bpay\s*report\b|\bmy\s+hours?\b|\bhours?\s+for\b/i.test(raw)) return true;
   if (/\bhow\s+many\s+hours?\b|\bwhat(?:'s|s| is)\s+my\s+(?:total\s+)?hours?\b/i.test(raw)) return true;
   return false;
+}
+
+function formatLabourHoursShort(value) {
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  if (!Number.isFinite(n)) return "0";
+  return n % 1 === 0 ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function parseNamedMonthDateKey(text, now = new Date()) {
+  const raw = String(text || "");
+  const match = raw.match(
+    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?\b/i
+  );
+  if (!match) return null;
+  const months = {
+    jan: 1,
+    january: 1,
+    feb: 2,
+    february: 2,
+    mar: 3,
+    march: 3,
+    apr: 4,
+    april: 4,
+    may: 5,
+    jun: 6,
+    june: 6,
+    jul: 7,
+    july: 7,
+    aug: 8,
+    august: 8,
+    sep: 9,
+    sept: 9,
+    september: 9,
+    oct: 10,
+    october: 10,
+    nov: 11,
+    november: 11,
+    dec: 12,
+    december: 12,
+  };
+  const month = months[String(match[1] || "").toLowerCase()];
+  const day = Number(match[2]);
+  const fallbackYear = Number(String(dateKeyEastern(now)).slice(0, 4));
+  const year = Number(match[3] || fallbackYear);
+  if (!Number.isInteger(month) || !Number.isInteger(day) || !Number.isInteger(year)) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (Number.isNaN(date.getTime())) return null;
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function resolveLabourCorrectionDateKey(text, now = new Date()) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  const explicit = extractExplicitReportDate(raw).reportDateKey;
+  if (explicit) return explicit;
+  const named = parseNamedMonthDateKey(raw, now);
+  if (named) return named;
+  if (/\byesterday\b/i.test(raw)) {
+    return dateKeyEastern(new Date(startOfEasternDay(now).getTime() - 86400000));
+  }
+  if (/\btoday\b/i.test(raw)) return dateKeyEastern(now);
+  return null;
+}
+
+function sanitizeLabourCorrectionText(text) {
+  return String(text || "")
+    .replace(/\b(?:i\s+made\s+a\s+mistake|made\s+a\s+mistake)\b/gi, " ")
+    .replace(/\b(?:please|pls|kindly)\b/gi, " ")
+    .replace(/\b(?:can\s+you|could\s+you|would\s+you)\b/gi, " ")
+    .replace(/\b(?:correct|correction|change|fix|update|wrong)\b/gi, " ")
+    .replace(/\b(?:today|yesterday)\b/gi, " ")
+    .replace(
+      /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?\b/gi,
+      " "
+    )
+    .replace(/\(\s*\d{4}-\d{2}(?:-?\d{2,3})\s*\)/gi, " ")
+    .replace(/\b(?:for|on|dated|date)\s+\d{4}-\d{2}(?:-?\d{2,3})\b/gi, " ")
+    .replace(/\b\d{4}-\d{2}(?:-?\d{2,3})\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseLabourCorrectionCommand(text, now = new Date()) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  const hasCorrectionCue =
+    /\b(?:made\s+a\s+mistake|mistake|wrong|correct|correction|change|fix|update)\b/i.test(raw);
+  if (!hasCorrectionCue) return null;
+
+  const reportDateKey = resolveLabourCorrectionDateKey(raw, now) || dateKeyEastern(now);
+  const cleaned = sanitizeLabourCorrectionText(raw);
+  const replacementEntry = parseLabourHoursCommand(cleaned);
+
+  const targetHoursPatterns = [
+    /\b(?:should\s+be|should've\s+been|should\s+have\s+been|should\s+of\s+been|total\s+to|hours?\s+to|to|is|be|make\s+it)\s+(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)?\b/i,
+    /\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s*$/i,
+  ];
+  let hours = replacementEntry && Number.isFinite(replacementEntry.hours) ? replacementEntry.hours : null;
+  for (const re of targetHoursPatterns) {
+    const match = raw.match(re);
+    if (!match) continue;
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      hours = parsed;
+    }
+  }
+
+  if (!Number.isFinite(hours) || hours <= 0) return null;
+  return {
+    hours: Math.round(hours * 100) / 100,
+    reportDateKey,
+    workOn: replacementEntry && replacementEntry.workOn ? replacementEntry.workOn : null,
+    rawText: raw,
+  };
 }
 
 function normalizePendingAssistantFollowUp(raw) {
@@ -2600,6 +2716,80 @@ async function buildReply({
     };
   }
 
+  const labourCorrectionCommand = shortAssistantFollowUp ? null : parseLabourCorrectionCommand(userMessageForAI);
+  if (labourCorrectionCommand) {
+    const labourer = await findActiveLabourerByPhone(db, phoneE164);
+    if (!labourer) {
+      return {
+        replyText:
+          "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
+        outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
+      };
+    }
+    const labourerName =
+      labourer.displayName ||
+      String(labourer.labourerData && labourer.labourerData.name ? labourer.labourerData.name : "").trim() ||
+      phoneE164;
+    const existingForDate = await loadLabourEntries(db, {
+      startKey: labourCorrectionCommand.reportDateKey,
+      endKey: labourCorrectionCommand.reportDateKey,
+      labourerPhone: phoneE164,
+    });
+    if (existingForDate.length < 1) {
+      return {
+        replyText: truncateSms(
+          `${labourerName}, I could not find your hours entry for ${labourCorrectionCommand.reportDateKey} to correct.`
+        ),
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_correction_missing_entry",
+          labourerName,
+          labourerPhone: phoneE164,
+          reportDateKey: labourCorrectionCommand.reportDateKey,
+        },
+      };
+    }
+
+    const targetEntry = existingForDate[existingForDate.length - 1];
+    const nextWorkOn = labourCorrectionCommand.workOn || String(targetEntry.workOn || "").trim();
+    const nextNotes = labourCorrectionCommand.workOn
+      ? labourCorrectionCommand.rawText
+      : String(targetEntry.notes || "").trim();
+    await db.collection("labourEntries").doc(String(targetEntry.id)).update({
+      minutesWorked: labourMinutesFromHours(labourCorrectionCommand.hours),
+      hours: FieldValue.delete(),
+      workOn: nextWorkOn,
+      notes: nextNotes,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    const correctedHours = formatLabourHoursShort(labourCorrectionCommand.hours);
+    const isTodayCorrection = labourCorrectionCommand.reportDateKey === dateKeyEastern(new Date());
+    return {
+      replyText: truncateSms(
+        `OK. Corrected your hours for ${isTodayCorrection ? "today" : labourCorrectionCommand.reportDateKey} to ${correctedHours}h. Your total for ${
+          isTodayCorrection ? "today" : labourCorrectionCommand.reportDateKey
+        } is now ${correctedHours}h.`
+      ),
+      outboundMeta: {
+        ...withRoutingDecision(outboundMeta, {
+          stage: "deterministic",
+          action: "labour_entry_corrected",
+          confidence: 0.99,
+          reason: "Matched labour correction command.",
+          source: "deterministic",
+          matchedBy: "parseLabourCorrectionCommand",
+        }),
+        command: "labour_entry_corrected",
+        labourerName,
+        labourerPhone: phoneE164,
+        reportDateKey: labourCorrectionCommand.reportDateKey,
+        correctedHours: labourCorrectionCommand.hours,
+        labourEntryId: targetEntry.id || null,
+      },
+    };
+  }
+
   const hoursBalanceQuery = shortAssistantFollowUp ? null : parseLabourHoursBalanceQuery(userMessageForAI);
   if (hoursBalanceQuery) {
     const labourer = await findActiveLabourerByPhone(db, phoneE164);
@@ -3230,6 +3420,7 @@ module.exports = {
   isExplicitLabourEntryText,
   isExplicitLabourBalanceText,
   parseTodoReportRequest,
+  parseLabourCorrectionCommand,
   isAffirmativeCorrectionFollowUp,
   looksLikeAssistantFollowUpAnswer,
   looksLikeCorrectionPrompt,

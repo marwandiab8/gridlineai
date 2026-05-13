@@ -18,6 +18,7 @@ const {
   looksLikeNarrativeSaveCandidate,
   parseNotificationRequest,
   parseHomeTodoCommand,
+  parseLabourCorrectionCommand,
   parseTodoReportRequest,
   parseStartTimerCommand,
   sanitizeIntentPayload,
@@ -112,6 +113,29 @@ test("explicit labour helpers stay narrow", () => {
   assert.equal(isExplicitLabourEntryText("Worked on home activities and errands today"), false);
   assert.equal(isExplicitLabourBalanceText("how many hours this week"), true);
   assert.equal(isExplicitLabourBalanceText("today's activities were groceries and cleanup"), false);
+});
+
+test("parseLabourCorrectionCommand handles same-day labour corrections", () => {
+  const parsed = parseLabourCorrectionCommand(
+    "I made a mistake please correct the hours total to be 11.5",
+    new Date("2026-05-13T15:00:00.000Z")
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.reportDateKey, "2026-05-13");
+  assert.equal(parsed.hours, 11.5);
+  assert.equal(parsed.workOn, null);
+});
+
+test("parseLabourCorrectionCommand handles named-date corrections", () => {
+  const parsed = parseLabourCorrectionCommand(
+    "I made a mistake on May 11 and the hours should be 9 hours",
+    new Date("2026-05-13T15:00:00.000Z")
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.reportDateKey, "2026-05-11");
+  assert.equal(parsed.hours, 9);
 });
 
 test("assistant follow-up helpers recognize short context replies", () => {
