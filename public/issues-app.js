@@ -35,7 +35,7 @@ import {
   httpsCallable,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
-const firebaseConfig = {
+const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
   authDomain: "gridlineai.firebaseapp.com",
   projectId: "gridlineai",
@@ -43,6 +43,19 @@ const firebaseConfig = {
   messagingSenderId: "118761010772",
   appId: "1:118761010772:web:6eee28ee3c09953de0dfc1",
 };
+
+function resolveFirebaseWebConfig(defaultConfig) {
+  const runtime =
+    window.FIREBASE_WEB_CONFIG && typeof window.FIREBASE_WEB_CONFIG === "object"
+      ? window.FIREBASE_WEB_CONFIG
+      : {};
+  return {
+    ...defaultConfig,
+    ...runtime,
+  };
+}
+
+const firebaseConfig = resolveFirebaseWebConfig(DEFAULT_FIREBASE_CONFIG);
 
 const COLLECTION_BY_TYPE = {
   safety: "safetyIssues",

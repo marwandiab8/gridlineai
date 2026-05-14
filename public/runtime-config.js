@@ -1,3 +1,8 @@
+window.FIREBASE_WEB_CONFIG =
+  window.FIREBASE_WEB_CONFIG && typeof window.FIREBASE_WEB_CONFIG === "object"
+    ? window.FIREBASE_WEB_CONFIG
+    : {};
+
 window.FIREBASE_APPCHECK_PROVIDER =
   window.FIREBASE_APPCHECK_PROVIDER || "enterprise";
 

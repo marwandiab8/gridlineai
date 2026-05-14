@@ -29,7 +29,7 @@ import {
   uploadBytes,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-const firebaseConfig = {
+const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
   authDomain: "gridlineai.firebaseapp.com",
   projectId: "gridlineai",
@@ -37,6 +37,19 @@ const firebaseConfig = {
   messagingSenderId: "118761010772",
   appId: "1:118761010772:web:6eee28ee3c09953de0dfc1",
 };
+
+function resolveFirebaseWebConfig(defaultConfig) {
+  const runtime =
+    window.FIREBASE_WEB_CONFIG && typeof window.FIREBASE_WEB_CONFIG === "object"
+      ? window.FIREBASE_WEB_CONFIG
+      : {};
+  return {
+    ...defaultConfig,
+    ...runtime,
+  };
+}
+
+const firebaseConfig = resolveFirebaseWebConfig(DEFAULT_FIREBASE_CONFIG);
 
 const app = initializeApp(firebaseConfig);
 function resolveAppCheckSiteKey() {
@@ -1918,12 +1931,11 @@ function renderLabourReportsList() {
         report.projectSlug || "All projects",
         report.startKey && report.endKey ? `${report.startKey} to ${report.endKey}` : report.startKey || report.endKey || "",
       ].filter(Boolean);
-      const link =
-        report.downloadURL && String(report.downloadURL).trim()
+      const link = report.storagePath
+        ? `<a href="#" class="daily-report-pdf-pending" data-storage-path="${esc(report.storagePath)}" onclick="return false">Resolving PDF link...</a>`
+        : report.downloadURL && String(report.downloadURL).trim()
           ? `<a href="${esc(report.downloadURL)}" target="_blank" rel="noopener">Open PDF</a>`
-          : report.storagePath
-            ? `<a href="#" class="daily-report-pdf-pending" data-storage-path="${esc(report.storagePath)}" onclick="return false">Resolving PDF link...</a>`
-            : "";
+          : "";
       return `
         <div class="row-item">
           <div class="mono">${fmtTime(report.createdAt)}</div>
@@ -2119,20 +2131,20 @@ function renderMessageRow(msg, options = {}) {
   const photoUrls = Array.isArray(msg.photoPreviewUrls) ? msg.photoPreviewUrls.filter(Boolean) : [];
   const photoPaths = Array.isArray(msg.photoStoragePaths) ? msg.photoStoragePaths.filter(Boolean) : [];
   const photoStrip =
-    showPhotoStrip && photoUrls.length
-      ? `<div class="message-photo-strip">${photoUrls
-          .map(
-            (url) =>
-              `<a href="${esc(url)}" target="_blank" rel="noopener" title="Full size"><img class="media-thumb" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></a>`
-          )
-          .join("")}</div>`
-      : showPhotoStrip && photoPaths.length
+    showPhotoStrip && photoPaths.length
         ? `<div class="message-photo-strip">${photoPaths
             .map(
               (storagePath) =>
                 `<a href="#" class="media-thumb-link" rel="noopener" onclick="return false" title="Loading..."><img class="media-thumb media-thumb-pending" data-storage-path="${esc(storagePath)}" src="${TRANSPARENT_PIXEL}" alt="" loading="lazy" /></a>`
             )
             .join("")}</div>`
+        : showPhotoStrip && photoUrls.length
+      ? `<div class="message-photo-strip">${photoUrls
+          .map(
+            (url) =>
+              `<a href="${esc(url)}" target="_blank" rel="noopener" title="Full size"><img class="media-thumb" src="${esc(url)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></a>`
+          )
+          .join("")}</div>`
         : "";
   const transcript = String(msg?.audioTranscription?.transcript || "").trim();
   const duration = String(msg?.recordingDuration || "").trim();
@@ -2141,11 +2153,11 @@ function renderMessageRow(msg, options = {}) {
         .map((media) => {
           const directUrl = media?.downloadURL ? String(media.downloadURL).trim() : "";
           const storagePath = media?.storagePath ? String(media.storagePath).trim() : "";
-          if (directUrl) {
-            return `<a href="${esc(directUrl)}" target="_blank" rel="noopener">Open recording</a>`;
-          }
           if (storagePath) {
             return `<a href="#" class="storage-link-pending" data-storage-path="${esc(storagePath)}" data-ready-label="Open recording" target="_blank" rel="noopener" onclick="return false">Resolving recording...</a>`;
+          }
+          if (directUrl) {
+            return `<a href="${esc(directUrl)}" target="_blank" rel="noopener">Open recording</a>`;
           }
           return `<span class="muted small">Recording saved without a file link yet.</span>`;
         })
@@ -2219,10 +2231,10 @@ function renderVoiceRecordings() {
     .map((media) => {
       const directUrl = media.downloadURL && String(media.downloadURL).trim();
       const storagePath = media.storagePath && String(media.storagePath).trim();
-      const link = directUrl
-        ? `<a href="${esc(directUrl)}" target="_blank" rel="noopener">Open recording</a>`
-        : storagePath
-          ? `<a href="#" class="storage-link-pending" data-storage-path="${esc(storagePath)}" data-ready-label="Open recording" target="_blank" rel="noopener" onclick="return false">Resolving recording...</a>`
+      const link = storagePath
+        ? `<a href="#" class="storage-link-pending" data-storage-path="${esc(storagePath)}" data-ready-label="Open recording" target="_blank" rel="noopener" onclick="return false">Resolving recording...</a>`
+        : directUrl
+          ? `<a href="${esc(directUrl)}" target="_blank" rel="noopener">Open recording</a>`
           : '<span class="muted small">No file link available yet.</span>';
       return `
         <div class="row-item">
@@ -2301,17 +2313,17 @@ function mediaThumbOrFallback(media) {
   const asImage = mediaLooksLikeImage(media, contentType);
   const mediaId = String(media.id || "");
 
-  if (directUrl && asImage) {
-    return `<div class="media-thumb-cell"><a href="#" class="media-thumb-link" data-media-id="${esc(mediaId)}" data-media-url="${esc(directUrl)}" onclick="return false"><img class="media-thumb" src="${esc(directUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" title="View image" /></a></div>`;
-  }
-  if (directUrl) {
-    return `<div class="media-thumb-cell"><div class="media-thumb-fallback"><a href="${esc(directUrl)}" target="_blank" rel="noopener">Open file</a><br /><span class="muted small">${esc(contentType || "file")}</span></div></div>`;
-  }
   if (storagePath && asImage) {
     return `<div class="media-thumb-cell"><a href="#" class="media-thumb-link" data-media-id="${esc(mediaId)}" rel="noopener" onclick="return false" title="Loading from Storage..."><img class="media-thumb media-thumb-pending" data-storage-path="${esc(storagePath)}" src="${TRANSPARENT_PIXEL}" alt="" loading="lazy" /></a></div>`;
   }
   if (storagePath) {
     return `<div class="media-thumb-cell"><div class="media-thumb-fallback muted small"><span data-storage-path="${esc(storagePath)}" class="media-file-pending">Resolving file link...</span></div></div>`;
+  }
+  if (directUrl && asImage) {
+    return `<div class="media-thumb-cell"><a href="#" class="media-thumb-link" data-media-id="${esc(mediaId)}" data-media-url="${esc(directUrl)}" onclick="return false"><img class="media-thumb" src="${esc(directUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer" title="View image" /></a></div>`;
+  }
+  if (directUrl) {
+    return `<div class="media-thumb-cell"><div class="media-thumb-fallback"><a href="${esc(directUrl)}" target="_blank" rel="noopener">Open file</a><br /><span class="muted small">${esc(contentType || "file")}</span></div></div>`;
   }
   return `<div class="media-thumb-cell"><div class="media-thumb-fallback media-thumb-fallback-detail">${esc(String(media.downloadError || media.uploadError || "No image URL or storagePath."))}</div></div>`;
 }
@@ -2431,11 +2443,11 @@ async function hydrateAllMediaThumbs() {
 }
 
 async function resolveMediaDisplayUrl(media) {
+  const storagePath = media?.storagePath ? String(media.storagePath).trim() : "";
+  if (storagePath) return getCachedStorageDownloadURL(storagePath);
   const directUrl = media?.downloadURL ? String(media.downloadURL).trim() : "";
   if (directUrl) return directUrl;
-  const storagePath = media?.storagePath ? String(media.storagePath).trim() : "";
-  if (!storagePath) return null;
-  return getCachedStorageDownloadURL(storagePath);
+  return null;
 }
 
 function syncMediaViewerButtons() {
@@ -2658,10 +2670,10 @@ function startAdminListeners() {
       .map((report) => {
         const storagePath = report.storagePath && String(report.storagePath).trim();
         let link = "";
-        if (report.downloadURL && String(report.downloadURL).trim()) {
-          link = `<a href="${esc(report.downloadURL)}" target="_blank" rel="noopener">Open PDF</a>`;
-        } else if (storagePath) {
+        if (storagePath) {
           link = `<div class="daily-report-pdf-row"><a href="#" class="daily-report-pdf-pending" data-storage-path="${esc(storagePath)}" target="_blank" rel="noopener" onclick="return false">Resolving PDF link...</a></div>`;
+        } else if (report.downloadURL && String(report.downloadURL).trim()) {
+          link = `<a href="${esc(report.downloadURL)}" target="_blank" rel="noopener">Open PDF</a>`;
         }
         const err =
           report.downloadUrlError && !report.downloadURL
