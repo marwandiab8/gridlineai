@@ -932,6 +932,49 @@
                       Save report logo
                     </button>
                   </div>
+                  <div class="assistant-schedule-block">
+                    <div class="card-head">
+                      <div>
+                        <h3>Auto PDF push</h3>
+                        <p class="muted small">
+                          Apply scheduled PDF generation and texting to the selected active project.
+                        </p>
+                      </div>
+                    </div>
+                    <div class="form-grid project-create-grid">
+                      <div class="form-row">
+                        <label for="projectPdfPushEnabled">Auto push</label>
+                        <select id="projectPdfPushEnabled">
+                          <option value="true">Enabled</option>
+                          <option value="false">Disabled</option>
+                        </select>
+                      </div>
+                      <div class="form-row">
+                        <label for="projectPdfPushReportType">PDF type</label>
+                        <select id="projectPdfPushReportType">
+                          <option value="journal">Journal</option>
+                          <option value="dailySiteLog">Daily Site Log</option>
+                        </select>
+                      </div>
+                      <div class="form-row">
+                        <label for="projectPdfPushTime">Generate and push at</label>
+                        <input type="time" id="projectPdfPushTime" value="21:00" />
+                      </div>
+                      <div class="form-row">
+                        <label for="projectPdfPushAudience">Push to</label>
+                        <select id="projectPdfPushAudience">
+                          <option value="management">Management</option>
+                          <option value="project_users">Project users</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="project-manager-actions">
+                      <button type="button" class="btn-secondary" id="projectSavePdfPushBtn" disabled>
+                        Save auto PDF push
+                      </button>
+                    </div>
+                    <div id="projectPdfPushResult" class="project-manager-result muted small" aria-live="polite"></div>
+                  </div>
                   <div class="project-owned-list muted small" id="projectOwnedList">
                     Select a phone to view its projects.
                   </div>

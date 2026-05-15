@@ -28,6 +28,7 @@ const {
   fetchDailyWeatherSnapshot,
   DEFAULT_WEATHER_LOCATION_LINE,
 } = require("./dailyReportWeather");
+const { buildReportAppUrl } = require("./reportPushConfig");
 
 /** PDF cover — fixed values (Docksteader); no “default” wording on cover. */
 const COVER_LOCATION_DOCKSTEADER = "6 Docksteader Rd, Brampton, ON L6R 3Y2";
@@ -273,7 +274,9 @@ function mediaMatchesExactDateKey(m, dateKey) {
 }
 
 function mediaContentTypeLooksImage(value) {
-  return String(value || "").trim().toLowerCase().startsWith("image/");
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return true;
+  return raw.startsWith("image/");
 }
 
 function mediaCreatedAtMs(media) {
@@ -508,6 +511,7 @@ async function generateDailyReportPdf(opts) {
     reportDateKey: reportDateKeyIn,
     reportType: reportTypeIn,
     includeAllManagementEntries = false,
+    appBaseUrl = "",
   } = opts;
 
   const reportType = normalizeReportType(reportTypeIn);
@@ -959,6 +963,21 @@ async function generateDailyReportPdf(opts) {
     createdAt: FieldValue.serverTimestamp(),
   });
 
+  const appURL =
+    buildReportAppUrl({
+      baseUrl: appBaseUrl,
+      reportId: reportRef.id,
+      openPdf: true,
+    }) || null;
+  if (appURL) {
+    await reportRef.set(
+      {
+        appURL,
+      },
+      { merge: true }
+    );
+  }
+
   return {
     reportId: reportRef.id,
     reportDateKey: dk,
@@ -968,6 +987,7 @@ async function generateDailyReportPdf(opts) {
     downloadURL,
     downloadUrlError,
     storagePath,
+    appURL,
   };
 }
 

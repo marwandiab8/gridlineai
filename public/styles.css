@@ -430,6 +430,11 @@ code {
   max-width: 420px;
 }
 
+.report-row-highlight {
+  border-color: #6aa9ff !important;
+  box-shadow: 0 0 0 1px rgba(106, 169, 255, 0.35);
+}
+
 .project-manager-label {
   font-size: 0.8rem;
   color: #9aa0a6;

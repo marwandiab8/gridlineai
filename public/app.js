@@ -535,6 +535,7 @@ let showCompletedHomeTodos = false;
 let homeTodoSearchQuery = "";
 let pendingNewTodoReminders = [];
 let activeTodoReplyComposerKeys = new Set();
+let pendingReportLink = currentRequestedReportLink();
 
 function setStatusOk(detail = "") {
   if (statusEl) statusEl.textContent = "Connected";
@@ -568,6 +569,51 @@ function normalizeProjectSlugClient(value) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
+}
+
+function normalizeProjectPdfPushSettingsClient(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  return {
+    enabled: source.enabled !== false,
+    reportType: String(source.reportType || "").trim() === "dailySiteLog" ? "dailySiteLog" : "journal",
+    scheduleTimeLocal:
+      /^\d{2}:\d{2}$/.test(String(source.scheduleTimeLocal || "").trim())
+        ? String(source.scheduleTimeLocal || "").trim()
+        : "21:00",
+    audience: String(source.audience || "").trim() === "project_users" ? "project_users" : "management",
+  };
+}
+
+function currentRequestedReportLink() {
+  const params = new URLSearchParams(window.location.search || "");
+  const reportId = String(params.get("reportId") || "").trim();
+  if (!reportId) return null;
+  return {
+    reportId,
+    openPdf: params.get("openPdf") === "1",
+  };
+}
+
+function currentRequestedView() {
+  const params = new URLSearchParams(window.location.search || "");
+  const requestedQueryView = String(params.get("view") || "").trim().toLowerCase();
+  const requestedHashView = String(window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
+  const requested = requestedHashView || requestedQueryView;
+  const allowed = new Set([
+    "dashboard",
+    "assistant",
+    "todo",
+    "lookahead",
+    "voice",
+    "messages",
+    "reports",
+    "approvals",
+    "labour",
+    "projects",
+    "team",
+    "tools",
+  ]);
+  return allowed.has(requested) ? requested : "dashboard";
 }
 
 function normalizeRoleClient(value) {
@@ -723,6 +769,37 @@ function refreshDailyPdfProjectOptions(user) {
     option.label = `${project.name || slug} (${slug})`;
     list.appendChild(option);
   }
+}
+
+async function maybeOpenPendingReportLink() {
+  if (!pendingReportLink || !dailyReportsEl) return;
+  const report = dailyReportsCache.find((item) => item.id === pendingReportLink.reportId);
+  if (!report) return;
+  applyView("reports");
+  if (appPanelEl) appPanelEl.dataset.activeView = "reports";
+  const rows = Array.from(dailyReportsEl.querySelectorAll("[data-report-id]"));
+  for (const row of rows) row.classList.remove("report-row-highlight");
+  const row = rows.find((item) => item.getAttribute("data-report-id") === pendingReportLink.reportId);
+  if (row) {
+    row.classList.add("report-row-highlight");
+    row.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+  if (pendingReportLink.openPdf) {
+    try {
+      const url =
+        report.downloadURL && String(report.downloadURL).trim()
+          ? String(report.downloadURL).trim()
+          : report.storagePath
+            ? await getCachedStorageDownloadURL(String(report.storagePath).trim())
+            : "";
+      if (url) {
+        pendingReportLink = null;
+        window.location.assign(url);
+        return;
+      }
+    } catch (_) {}
+  }
+  pendingReportLink = null;
 }
 
 function placeholderMiniList(message) {
@@ -1595,7 +1672,12 @@ function renderProjectManager() {
   const setButton = document.getElementById("projectSetActiveBtn");
   const saveLogoButton = document.getElementById("projectSaveLogoBtn");
   const uploadLogoButton = document.getElementById("projectUploadLogoBtn");
+  const savePdfPushButton = document.getElementById("projectSavePdfPushBtn");
   const logoInput = document.getElementById("projectLogoStoragePath");
+  const pdfPushEnabledInput = document.getElementById("projectPdfPushEnabled");
+  const pdfPushReportTypeInput = document.getElementById("projectPdfPushReportType");
+  const pdfPushTimeInput = document.getElementById("projectPdfPushTime");
+  const pdfPushAudienceInput = document.getElementById("projectPdfPushAudience");
   const createButton = document.getElementById("projectCreateBtn");
   const ownedList = document.getElementById("projectOwnedList");
   if (!phoneSelect || !activeSelect || !setButton || !createButton || !ownedList) return;
@@ -1610,7 +1692,12 @@ function renderProjectManager() {
     setButton.disabled = true;
     if (saveLogoButton) saveLogoButton.disabled = true;
     if (uploadLogoButton) uploadLogoButton.disabled = true;
+    if (savePdfPushButton) savePdfPushButton.disabled = true;
     if (logoInput) logoInput.value = "";
+    if (pdfPushEnabledInput) pdfPushEnabledInput.value = "true";
+    if (pdfPushReportTypeInput) pdfPushReportTypeInput.value = "journal";
+    if (pdfPushTimeInput) pdfPushTimeInput.value = "21:00";
+    if (pdfPushAudienceInput) pdfPushAudienceInput.value = "management";
     ownedList.textContent = "Select a phone to view its projects.";
     return;
   }
@@ -1622,7 +1709,12 @@ function renderProjectManager() {
     setButton.disabled = true;
     if (saveLogoButton) saveLogoButton.disabled = true;
     if (uploadLogoButton) uploadLogoButton.disabled = true;
+    if (savePdfPushButton) savePdfPushButton.disabled = true;
     if (logoInput) logoInput.value = "";
+    if (pdfPushEnabledInput) pdfPushEnabledInput.value = "true";
+    if (pdfPushReportTypeInput) pdfPushReportTypeInput.value = "journal";
+    if (pdfPushTimeInput) pdfPushTimeInput.value = "21:00";
+    if (pdfPushAudienceInput) pdfPushAudienceInput.value = "management";
     ownedList.textContent = "No projects assigned yet. Create the first one below.";
     refreshDailyPdfProjectOptions(user);
     return;
@@ -1643,15 +1735,21 @@ function renderProjectManager() {
   setButton.disabled = false;
   if (saveLogoButton) saveLogoButton.disabled = false;
   if (uploadLogoButton) uploadLogoButton.disabled = false;
+  if (savePdfPushButton) savePdfPushButton.disabled = false;
+  const selectedProject = projects.find(
+    (project) => normalizeProjectSlugClient(project.slug || project.id) === activeSelect.value
+  );
   if (logoInput) {
-    const selectedProject = projects.find(
-      (project) => normalizeProjectSlugClient(project.slug || project.id) === activeSelect.value
-    );
     logoInput.value =
       selectedProject && selectedProject.reportLogoStoragePath
         ? String(selectedProject.reportLogoStoragePath)
         : "";
   }
+  const pdfPushSettings = normalizeProjectPdfPushSettingsClient(selectedProject && selectedProject.pdfPushSettings);
+  if (pdfPushEnabledInput) pdfPushEnabledInput.value = pdfPushSettings.enabled ? "true" : "false";
+  if (pdfPushReportTypeInput) pdfPushReportTypeInput.value = pdfPushSettings.reportType;
+  if (pdfPushTimeInput) pdfPushTimeInput.value = pdfPushSettings.scheduleTimeLocal;
+  if (pdfPushAudienceInput) pdfPushAudienceInput.value = pdfPushSettings.audience;
 
   ownedList.innerHTML = projects
     .map((project) => {
@@ -1664,12 +1762,17 @@ function renderProjectManager() {
       const logo = project.reportLogoStoragePath
         ? `<div class="project-owned-meta muted small">Logo: ${esc(project.reportLogoStoragePath)}</div>`
         : "";
+      const push = normalizeProjectPdfPushSettingsClient(project.pdfPushSettings);
+      const pushSummary = push.enabled
+        ? `Auto PDF: ${push.reportType} at ${push.scheduleTimeLocal} to ${push.audience === "project_users" ? "project users" : "management"}`
+        : "Auto PDF: disabled";
       return `
-        <div class="project-owned-item">
+        <div class="project-owned-item${slug === activeSelect.value ? " report-row-highlight" : ""}">
           <div class="project-owned-name">${esc(project.name || slug)} ${activePill}</div>
           <div class="project-owned-meta muted small mono">${esc(slug)} · ${esc(ownerLabel)}</div>
           ${location}
           ${logo}
+          <div class="project-owned-meta muted small">${esc(pushSummary)}</div>
         </div>`;
     })
     .join("");
@@ -2675,6 +2778,10 @@ function startAdminListeners() {
         } else if (report.downloadURL && String(report.downloadURL).trim()) {
           link = `<a href="${esc(report.downloadURL)}" target="_blank" rel="noopener">Open PDF</a>`;
         }
+        const appLink =
+          report.appURL && String(report.appURL).trim()
+            ? `<div class="muted small"><a href="${esc(String(report.appURL).trim())}" rel="noopener">Open in app</a></div>`
+            : "";
         const err =
           report.downloadUrlError && !report.downloadURL
             ? `<div class="muted small">Signed URL error: ${esc(String(report.downloadUrlError).slice(0, 200))}</div>`
@@ -2682,10 +2789,11 @@ function startAdminListeners() {
         const projectLabel =
           report.projectName || report.projectId || (report.reportType === "journal" ? "personal journal" : "-");
         return `
-          <div class="row-item">
+          <div class="row-item" data-report-id="${esc(report.id)}">
             <div class="mono">${fmtTime(report.createdAt)}</div>
             <div class="muted small">${esc(report.phoneE164 || "-")} · ${esc(report.reportType || "dailySiteLog")} · ${esc(projectLabel)} · ${esc(report.dateKey || report.dateRangeStartKey || "")}</div>
             <div>${link}</div>
+            ${appLink}
             ${err}
           </div>`;
       })
@@ -3333,6 +3441,7 @@ function startAdminListeners() {
           renderDashboard();
           scheduleHydrateMediaThumbs();
           refreshDailyReportTitleEditor();
+          void maybeOpenPendingReportLink();
         },
         "dailyReports"
       )
@@ -3348,6 +3457,7 @@ function startAdminListeners() {
       scheduleHydrateMediaThumbs();
       refreshDailyReportTitleEditor();
       syncDailyPdfPhoneFromAccess();
+      void maybeOpenPendingReportLink();
     };
     for (const projectSlug of projectSlugs) {
       const reportsByProjectIdQuery = query(
@@ -3419,25 +3529,6 @@ function startAdminListeners() {
   }
 }
 
-function currentViewFromHash() {
-  const requested = String(window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
-  const allowed = new Set([
-    "dashboard",
-    "assistant",
-    "todo",
-    "lookahead",
-    "voice",
-    "messages",
-    "reports",
-    "approvals",
-    "labour",
-    "projects",
-    "team",
-    "tools",
-  ]);
-  return allowed.has(requested) ? requested : "dashboard";
-}
-
 function viewAllowedForCurrentRole(viewName) {
   const panel = pagePanels.find((item) => item.getAttribute("data-view-panel") === viewName);
   const minimumRole = panel ? panel.getAttribute("data-min-role") : "";
@@ -3477,9 +3568,9 @@ function applyView(viewName) {
 
 function initNavigation() {
   syncAccessControlledUi();
-  applyView(currentViewFromHash());
+  applyView(currentRequestedView());
   window.addEventListener("hashchange", () => {
-    applyView(currentViewFromHash());
+    applyView(currentRequestedView());
   });
   for (const button of quickViewButtons) {
     button.addEventListener("click", () => {
@@ -3642,6 +3733,7 @@ function initDailyPdfFromDashboard() {
     try {
       const result = await callDashboardFunction("generateDailyReportPdfCallable", payload);
       const lines = [`${payload.reportType} report created for ${payload.reportDateKey}.`];
+      if (result.appURL) lines.push(`Open in app: ${result.appURL}`);
       if (result.downloadURL) lines.push(`Download: ${result.downloadURL}`);
       if (result.downloadUrlError) lines.push(`Signed URL failed: ${result.downloadUrlError}`);
       if (!result.downloadURL && result.storagePath) lines.push(`Storage path: ${result.storagePath}`);
@@ -3663,11 +3755,17 @@ function initProjectManager() {
   const setButton = document.getElementById("projectSetActiveBtn");
   const saveLogoButton = document.getElementById("projectSaveLogoBtn");
   const uploadLogoButton = document.getElementById("projectUploadLogoBtn");
+  const savePdfPushButton = document.getElementById("projectSavePdfPushBtn");
   const slugInput = document.getElementById("projectCreateSlug");
   const nameInput = document.getElementById("projectCreateName");
   const locationInput = document.getElementById("projectCreateLocation");
   const logoInput = document.getElementById("projectLogoStoragePath");
   const logoFileInput = document.getElementById("projectLogoUpload");
+  const pdfPushEnabledInput = document.getElementById("projectPdfPushEnabled");
+  const pdfPushReportTypeInput = document.getElementById("projectPdfPushReportType");
+  const pdfPushTimeInput = document.getElementById("projectPdfPushTime");
+  const pdfPushAudienceInput = document.getElementById("projectPdfPushAudience");
+  const pdfPushResult = document.getElementById("projectPdfPushResult");
   const tokenInput = document.getElementById("projectActionToken");
   const createButton = document.getElementById("projectCreateBtn");
   const result = document.getElementById("projectManagerResult");
@@ -3851,6 +3949,55 @@ function initProjectManager() {
       } catch (err) {
         result.textContent = `Failed: ${err?.message || err}`;
         result.className = "project-manager-result err";
+      } finally {
+        renderProjectManager();
+      }
+    });
+  }
+
+  if (savePdfPushButton && pdfPushEnabledInput && pdfPushReportTypeInput && pdfPushTimeInput && pdfPushAudienceInput) {
+    savePdfPushButton.addEventListener("click", async () => {
+      const phoneE164 = String(phoneSelect.value || "").trim();
+      const projectSlug = normalizeProjectSlugClient(activeSelect.value);
+      if (!phoneE164 || !projectSlug) {
+        if (pdfPushResult) {
+          pdfPushResult.textContent = "Select a phone and project first.";
+          pdfPushResult.className = "project-manager-result err";
+        }
+        return;
+      }
+
+      savePdfPushButton.disabled = true;
+      if (pdfPushResult) {
+        pdfPushResult.textContent = "Saving auto PDF push settings...";
+        pdfPushResult.className = "project-manager-result muted small";
+      }
+      try {
+        const payload = {
+          phoneE164,
+          projectSlug,
+          pdfPushSettings: {
+            enabled: pdfPushEnabledInput.value !== "false",
+            reportType: pdfPushReportTypeInput.value || "journal",
+            scheduleTimeLocal: String(pdfPushTimeInput.value || "21:00").trim() || "21:00",
+            audience: pdfPushAudienceInput.value || "management",
+          },
+        };
+        const token = tokenInput.value.trim();
+        if (token) payload.token = token;
+        const data = await callDashboardFunction("updateProjectPdfPushSettingsCallable", payload);
+        const saved = normalizeProjectPdfPushSettingsClient(data.pdfPushSettings);
+        if (pdfPushResult) {
+          pdfPushResult.textContent = saved.enabled
+            ? `Saved auto PDF push for ${data.projectName || data.projectSlug}: ${saved.reportType} at ${saved.scheduleTimeLocal} to ${saved.audience === "project_users" ? "project users" : "management"}.`
+            : `Disabled auto PDF push for ${data.projectName || data.projectSlug}.`;
+          pdfPushResult.className = "project-manager-result ok";
+        }
+      } catch (err) {
+        if (pdfPushResult) {
+          pdfPushResult.textContent = `Failed: ${err?.message || err}`;
+          pdfPushResult.className = "project-manager-result err";
+        }
       } finally {
         renderProjectManager();
       }
@@ -5326,7 +5473,7 @@ function showSignedOutState() {
   if (appPanelEl) appPanelEl.classList.add("hidden");
   if (adminUserLabelEl) adminUserLabelEl.textContent = "-";
   setStatusInfo("Sign in required", "Admin data stays locked until you authenticate.");
-  applyView(currentViewFromHash());
+  applyView(currentRequestedView());
 }
 
 async function showSignedInState(user) {
@@ -5337,7 +5484,7 @@ async function showSignedInState(user) {
   currentAppAccess = await callDashboardFunction("getDashboardAccessCallable", {});
   syncDailyPdfPhoneFromAccess();
   syncAccessControlledUi();
-  applyView(currentViewFromHash());
+  applyView(currentRequestedView());
   const roleLabel = currentAppAccess && currentAppAccess.role ? String(currentAppAccess.role) : "user";
   setStatusInfo("Connecting...", `Access level: ${roleLabel}. Starting secure Firestore subscriptions.`);
   startAdminListeners();

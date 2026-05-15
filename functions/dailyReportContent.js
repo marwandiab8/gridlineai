@@ -31,7 +31,9 @@ function lineText(e) {
 }
 
 function mediaContentTypeLooksImage(value) {
-  return String(value || "").trim().toLowerCase().startsWith("image/");
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return true;
+  return raw.startsWith("image/");
 }
 
 function isPhoneLikeAuthorLabel(value) {

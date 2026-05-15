@@ -21,7 +21,9 @@ function normSlug(s) {
 }
 
 function mediaContentTypeLooksImage(value) {
-  return String(value || "").trim().toLowerCase().startsWith("image/");
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return true;
+  return raw.startsWith("image/");
 }
 
 /** Reduces false positives when broad “show photos” / UI patterns overlap real field notes. */

@@ -84,6 +84,10 @@ const {
   saveLookaheadSnapshot,
   loadPreviousLookaheadSnapshot,
 } = require("./lookaheadScheduleRepository");
+const {
+  normalizePdfPushSettings,
+  resolveAppBaseUrl,
+} = require("./reportPushConfig");
 
 const COL_APP_MEMBERS = "appMembers";
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
@@ -109,6 +113,10 @@ const OPENAI_MODEL_PRIMARY = defineString("OPENAI_MODEL_PRIMARY", {
 
 /** Optional. If set, dashboard PDF button must send the same `token` (see public app). */
 const DAILY_PDF_DASHBOARD_TOKEN = defineString("DAILY_PDF_DASHBOARD_TOKEN", {
+  default: "",
+});
+
+const APP_BASE_URL = defineString("APP_BASE_URL", {
   default: "",
 });
 
@@ -832,15 +840,47 @@ const MAX_DAILY_PDF_SMS_ATTEMPTS = 3;
 const MAX_LABOUR_PDF_SMS_ATTEMPTS = 3;
 const MAX_TODO_REPORT_SMS_ATTEMPTS = 3;
 
+function currentEasternTimeKey(date = new Date()) {
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "America/New_York",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch (_) {
+    return String(date.toISOString().slice(11, 16));
+  }
+}
+
+function resolveConfiguredAppBaseUrl() {
+  return resolveAppBaseUrl(admin.app().options.projectId || "", APP_BASE_URL.value());
+}
+
+function buildReportPushMessage({ pdfResult, projectName, projectSlug, reportDateKey, reportType }) {
+  const label = reportType === "dailySiteLog" ? "Daily Site Log PDF" : "Journal PDF";
+  const scopeBits = [];
+  if (projectName || projectSlug) scopeBits.push(projectName || projectSlug);
+  if (reportDateKey) scopeBits.push(reportDateKey);
+  const scopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
+  const parts = [`${label}${scopeText}`];
+  if (pdfResult && pdfResult.appURL) parts.push(`Open in app: ${pdfResult.appURL}`);
+  if (pdfResult && pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
+  else if (pdfResult && pdfResult.storagePath) parts.push(`Stored at: ${pdfResult.storagePath}`);
+  return parts.join(" | ").slice(0, 640);
+}
+
 function buildDailyPdfSmsReplyBody({ pdfResult, projectName, projectSlug }) {
   const label = pdfResult.reportType === "journal" ? "Journal PDF" : "Daily PDF report";
   const scopeBits = [];
   if (projectName || projectSlug) scopeBits.push(projectName || projectSlug);
   if (pdfResult.reportDateKey) scopeBits.push(pdfResult.reportDateKey);
   const smsScopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
-  return pdfResult.downloadURL
-    ? `${label}${smsScopeText}: ${pdfResult.downloadURL}`
-    : `${label}${smsScopeText} was generated, but no download link could be created. Stored at: ${pdfResult.storagePath}`;
+  const parts = [`${label}${smsScopeText}`];
+  if (pdfResult.appURL) parts.push(`Open in app: ${pdfResult.appURL}`);
+  if (pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
+  else parts.push(`Stored at: ${pdfResult.storagePath}`);
+  return parts.join(" | ").slice(0, 640);
 }
 
 function elevateProjectAccessForApprovedPhone(projectAccess, memberAccess) {
@@ -979,6 +1019,7 @@ async function processAssistantMessage({
         modelsOverride: {
           primary: OPENAI_MODEL_PRIMARY.value(),
         },
+        appBaseUrl: resolveConfiguredAppBaseUrl(),
       });
       safeReply = buildDailyPdfSmsReplyBody({
         pdfResult,
@@ -2070,6 +2111,7 @@ async function deliverDailyPdfSmsViaTwilio({
     modelsOverride: {
       primary: modelsPrimary,
     },
+    appBaseUrl: resolveConfiguredAppBaseUrl(),
   });
   const smsClient = twilio(accountSid, authToken);
   const label = pdfResult.reportType === "journal" ? "Journal PDF" : "Daily PDF report";
@@ -3389,19 +3431,23 @@ exports.queueDueTodoReminders = onSchedule(
 
 exports.queueDailyManagementJournalPush = onSchedule(
   {
-    schedule: "0 21 * * *",
+    schedule: "every 1 minutes",
     region: "northamerica-northeast1",
     timeZone: "America/New_York",
     timeoutSeconds: 300,
     memory: "256MiB",
   },
   async () => {
-    const reportDateKey = dateKeyEastern(new Date());
-    const runId = `mgmt-journal-push-${reportDateKey}`;
+    const now = new Date();
+    const reportDateKey = dateKeyEastern(now);
+    const reportTimeKey = currentEasternTimeKey(now);
+    const runId = `mgmt-journal-push-${reportDateKey}-${reportTimeKey.replace(":", "")}`;
     const projectsSnap = await db.collection("projects").limit(500).get();
     let queuedCount = 0;
     let existingCount = 0;
     let skippedInactiveCount = 0;
+    let skippedDisabledCount = 0;
+    let skippedScheduleCount = 0;
 
     for (const projectSnap of projectsSnap.docs) {
       const projectData = projectSnap.data() || {};
@@ -3411,15 +3457,31 @@ exports.queueDailyManagementJournalPush = onSchedule(
       }
       const projectSlug = normalizeProjectSlug(projectSnap.id);
       if (!projectSlug) continue;
-      const queueDocId = `${reportDateKey}__${projectSlug}`;
+      const pushSettings = normalizePdfPushSettings(projectData.pdfPushSettings);
+      if (!pushSettings.enabled) {
+        skippedDisabledCount += 1;
+        continue;
+      }
+      if (pushSettings.scheduleTimeLocal !== reportTimeKey) {
+        skippedScheduleCount += 1;
+        continue;
+      }
+      const queueDocId = [
+        reportDateKey,
+        projectSlug,
+        pushSettings.reportType,
+        pushSettings.audience,
+      ].join("__");
       try {
         await db.collection(COL_MANAGEMENT_JOURNAL_PUSH_QUEUE).doc(queueDocId).create({
           status: "queued",
           projectSlug,
           projectName: String(projectData.name || projectSlug).trim() || projectSlug,
           reportDateKey,
-          reportType: "journal",
-          includeAllManagementEntries: true,
+          reportType: pushSettings.reportType,
+          audience: pushSettings.audience,
+          includeAllManagementEntries: pushSettings.reportType === "journal",
+          scheduleTimeLocal: pushSettings.scheduleTimeLocal,
           runId,
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
@@ -3434,10 +3496,13 @@ exports.queueDailyManagementJournalPush = onSchedule(
     logger.info("queueDailyManagementJournalPush: queued", {
       runId,
       reportDateKey,
+      reportTimeKey,
       scannedProjects: projectsSnap.size,
       queuedCount,
       existingCount,
       skippedInactiveCount,
+      skippedDisabledCount,
+      skippedScheduleCount,
     });
   }
 );
@@ -3479,6 +3544,8 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
     const reportDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(d.reportDateKey || "").trim())
       ? String(d.reportDateKey || "").trim()
       : dateKeyEastern(new Date());
+    const reportType = String(d.reportType || "").trim() === "dailySiteLog" ? "dailySiteLog" : "journal";
+    const audience = String(d.audience || "").trim() === "project_users" ? "project_users" : "management";
     const runId = String(d.runId || `mgmt-journal-delivery-${snap.id}`).trim();
     const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
     const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
@@ -3508,12 +3575,12 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       lastError: null,
     }).catch(() => {});
 
-    const recipients = await resolveNotificationRecipients(db, { audience: "management" });
+    const recipients = await resolveNotificationRecipients(db, { audience, projectSlug });
     if (!recipients.length) {
       await markQueue({
         status: "skipped",
         skippedAt: FieldValue.serverTimestamp(),
-        lastError: "no_management_recipients",
+        lastError: `no_${audience}_recipients`,
       }).catch(() => {});
       return;
     }
@@ -3525,19 +3592,24 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       projectSlug,
       projectName,
       reportDateKey,
-      reportType: "journal",
-      includeAllManagementEntries: true,
+      reportType,
+      includeAllManagementEntries: reportType === "journal",
       openaiApiKey: openaiKey || null,
       logger,
       runId,
       modelsOverride: {
         primary: OPENAI_MODEL_PRIMARY.value(),
       },
+      appBaseUrl: resolveConfiguredAppBaseUrl(),
     });
 
-    const messageBody = pdfResult.downloadURL
-      ? `Journal PDF for ${projectName || projectSlug} on ${reportDateKey}: ${pdfResult.downloadURL}`
-      : `Journal PDF for ${projectName || projectSlug} on ${reportDateKey} was generated. Stored at: ${pdfResult.storagePath}`;
+    const messageBody = buildReportPushMessage({
+      pdfResult,
+      projectName,
+      projectSlug,
+      reportDateKey,
+      reportType,
+    });
 
     const fanout = await sendSmsNotificationFanout({
       db,
@@ -3546,7 +3618,7 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       fromPhone: configuredFrom,
       messagingServiceSid: null,
       requestedByPhone: configuredFrom,
-      requestedByName: "Daily journal auto-send",
+      requestedByName: reportType === "dailySiteLog" ? "Daily site log auto-send" : "Daily journal auto-send",
       requestedByEmail: null,
       projectSlug,
       messageBody,
@@ -3561,6 +3633,9 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       reportId: pdfResult.reportId || null,
       downloadURL: pdfResult.downloadURL || null,
       storagePath: pdfResult.storagePath || null,
+      appURL: pdfResult.appURL || null,
+      audience,
+      reportType,
       recipientCount: fanout.attemptedCount || 0,
       sentCount: fanout.sentCount || 0,
       failedCount: fanout.failedCount || 0,
@@ -7307,6 +7382,71 @@ exports.updateProjectReportLogoCallable = onCall(
   }
 );
 
+exports.updateProjectPdfPushSettingsCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 120,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    assertManagementAccess(access);
+    assertDashboardToken(request);
+
+    const phoneE164 = normalizePhoneE164(String(request.data?.phoneE164 || "").trim());
+    const projectSlug = normalizeProjectSlug(request.data?.projectSlug || "");
+    const pdfPushSettings = normalizePdfPushSettings(request.data?.pdfPushSettings || {});
+
+    if (!phoneE164) {
+      throw new HttpsError("invalid-argument", "phoneE164 is required.");
+    }
+    if (!projectSlug) {
+      throw new HttpsError("invalid-argument", "projectSlug is required.");
+    }
+
+    const userAccess = await getUserProjectAccess(db, phoneE164);
+    if (!userAccess.exists) {
+      throw new HttpsError(
+        "not-found",
+        "No smsUsers document for this phone. Text the Twilio number once first."
+      );
+    }
+
+    const projectAccess = await getAccessibleProjectForUser(
+      db,
+      phoneE164,
+      projectSlug,
+      userAccess
+    );
+    if (!projectAccess.exists) {
+      throw new HttpsError("not-found", `Project "${projectSlug}" does not exist.`);
+    }
+    if (!projectAccess.allowed) {
+      throw new HttpsError(
+        "permission-denied",
+        `Project "${projectSlug}" is not assigned to this phone number.`
+      );
+    }
+
+    await db.collection("projects").doc(projectSlug).set(
+      {
+        pdfPushSettings,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      ok: true,
+      phoneE164,
+      projectSlug,
+      projectName: projectAccess.projectData.name || projectSlug,
+      pdfPushSettings,
+    };
+  }
+);
+
 exports.setActiveProjectCallable = onCall(
   {
     region: "northamerica-northeast1",
@@ -7510,6 +7650,7 @@ exports.generateDailyReportPdfCallable = onCall(
         modelsOverride: {
           primary: OPENAI_MODEL_PRIMARY.value(),
         },
+        appBaseUrl: resolveConfiguredAppBaseUrl(),
       });
     } catch (err) {
       logger.error("generateDailyReportPdfCallable: failed", {
@@ -7529,6 +7670,7 @@ exports.generateDailyReportPdfCallable = onCall(
       reportDateKey: pdfResult.reportDateKey || reportDateKey || null,
       reportType: pdfResult.reportType || reportType,
       includeAllManagementEntries,
+      appURL: pdfResult.appURL || null,
       downloadURL: pdfResult.downloadURL || null,
       downloadUrlError: pdfResult.downloadUrlError || null,
       storagePath: pdfResult.storagePath,
