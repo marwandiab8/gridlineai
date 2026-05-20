@@ -8,6 +8,7 @@ const {
   inferJournalTags,
   decideFallbackRouting,
   applyManpowerCorrectionToEntry,
+  applyNarrativeCorrectionToEntry,
   isExplicitLabourBalanceText,
   isExplicitLabourEntryText,
   isAffirmativeCorrectionFollowUp,
@@ -16,14 +17,22 @@ const {
   looksLikeAssistantFollowUpAnswer,
   looksLikeExplicitAiChatRequest,
   looksLikeNarrativeSaveCandidate,
+  buildRecentCorrectionDateKeys,
+  parseLookaheadActivitiesQuery,
   parseNotificationRequest,
+  parseNarrativeCorrectionCommand,
   parseHomeTodoCommand,
-  parseLabourCorrectionCommand,
   parseTodoReportRequest,
   parseStartTimerCommand,
+  isExplicitProjectSetRequest,
+  sanitizeAssistantActionPlan,
   sanitizeIntentPayload,
   sanitizeRoutePayload,
   shouldTrackAssistantFollowUp,
+  taskMatchesTradeQuery,
+  taskIntersectsLookaheadWindow,
+  getDateKeyWindowForLookaheadRange,
+  formatLookaheadActivitiesReply,
 } = require("./assistant");
 
 test("inferInboundLogType defaults plain updates to construction", () => {
@@ -70,6 +79,25 @@ test("sanitizeRoutePayload falls back to construction and preserves all photos",
   assert.ok(routed.tags.includes("construction"));
 });
 
+test("sanitizeRoutePayload preserves emojis and icons from the user's original text", () => {
+  const routed = sanitizeRoutePayload(
+    {
+      title: "West corridor update",
+      description: "West corridor ready for inspection tomorrow.",
+      tags: ["progress"],
+      requiresFollowUp: false,
+    },
+    "West corridor ready ✅ for inspection tomorrow. Crane access ⚠️ stays tight.",
+    0
+  );
+
+  assert.equal(
+    routed.description,
+    "West corridor ready ✅ for inspection tomorrow. Crane access ⚠️ stays tight."
+  );
+  assert.match(routed.title, /✅/);
+});
+
 test("fallbackInboundIntent treats journal follow-ups as requests", () => {
   assert.equal(fallbackInboundIntent("continue"), "request");
   assert.equal(fallbackInboundIntent("show me the journal input"), "request");
@@ -82,12 +110,73 @@ test("sanitizeIntentPayload falls back safely when AI output is missing", () => 
   assert.ok(payload.confidence > 0);
 });
 
+test("sanitizeAssistantActionPlan constrains AI action routing output", () => {
+  const payload = sanitizeAssistantActionPlan({
+    action: "lookahead_trade_query",
+    confidence: 1.2,
+    reason: "clear weekly trade query",
+    tradeQuery: "ALC  ",
+    range: "next_week",
+    timerLabel: "ignored here",
+    todoText: "follow up west wall patch",
+    todoDueWindow: "next_week",
+    notifyAudience: "management",
+    notifyMessage: "crane moved to 10am",
+    proposedNotes: "Latest notes",
+    deficiency: {
+      title: "Lobby tile cracked",
+      description: "Replace cracked tile at lobby entry.",
+    },
+  });
+  assert.equal(payload.action, "lookahead_trade_query");
+  assert.equal(payload.confidence, 1);
+  assert.equal(payload.tradeQuery, "ALC");
+  assert.equal(payload.range, "next_week");
+  assert.equal(payload.todoText, "follow up west wall patch");
+  assert.equal(payload.todoDueWindow, "next_week");
+  assert.equal(payload.notifyAudience, "management");
+  assert.equal(payload.notifyMessage, "crane moved to 10am");
+  assert.equal(payload.proposedNotes, "Latest notes");
+  assert.equal(payload.deficiency.title, "Lobby tile cracked");
+
+  const fallback = sanitizeAssistantActionPlan({
+    action: "delete_everything",
+    confidence: -4,
+    range: "forever",
+    notifyAudience: "everyone",
+    todoDueWindow: "tomorrow",
+  });
+  assert.equal(fallback.action, "none");
+  assert.equal(fallback.confidence, 0);
+  assert.equal(fallback.range, "");
+  assert.equal(fallback.notifyAudience, "");
+  assert.equal(fallback.todoDueWindow, "");
+});
+
 test("timer command parsing handles start and stop texts", () => {
   assert.deepEqual(parseStartTimerCommand("start timer for concrete pour"), { label: "concrete pour" });
   assert.deepEqual(parseStartTimerCommand("start timer"), { label: "general task" });
   assert.equal(isStopTimerCommand("stop timer"), true);
   assert.equal(isStopTimerCommand("stop timer now"), true);
   assert.equal(isStopTimerCommand("timer stop"), false);
+});
+
+test("project switch guard only allows explicit project-set wording", () => {
+  assert.equal(isExplicitProjectSetRequest("project docksteader", "docksteader"), true);
+  assert.equal(isExplicitProjectSetRequest("switch project to docksteader", "docksteader"), true);
+  assert.equal(isExplicitProjectSetRequest("docksteader project", "docksteader"), true);
+  assert.equal(isExplicitProjectSetRequest("SteelCon foreman Gord", "docksteader"), false);
+  assert.equal(isExplicitProjectSetRequest("ALC foreman Matheson", "docksteader"), false);
+});
+
+test("recent correction search falls back across prior days when no date is given", () => {
+  assert.deepEqual(buildRecentCorrectionDateKeys("2026-05-19", "2026-05-21", 7), ["2026-05-19"]);
+  assert.deepEqual(buildRecentCorrectionDateKeys(null, "2026-05-21", 4), [
+    "2026-05-21",
+    "2026-05-20",
+    "2026-05-19",
+    "2026-05-18",
+  ]);
 });
 
 test("formatDurationFromMs renders SMS-friendly duration", () => {
@@ -115,27 +204,80 @@ test("explicit labour helpers stay narrow", () => {
   assert.equal(isExplicitLabourBalanceText("today's activities were groceries and cleanup"), false);
 });
 
-test("parseLabourCorrectionCommand handles same-day labour corrections", () => {
-  const parsed = parseLabourCorrectionCommand(
-    "I made a mistake please correct the hours total to be 11.5",
-    new Date("2026-05-13T15:00:00.000Z")
-  );
-
-  assert.ok(parsed);
-  assert.equal(parsed.reportDateKey, "2026-05-13");
-  assert.equal(parsed.hours, 11.5);
-  assert.equal(parsed.workOn, null);
+test("parseLookaheadActivitiesQuery reads trade and week windows", () => {
+  assert.deepEqual(parseLookaheadActivitiesQuery("show me the activities for ALC for this week"), {
+    tradeQuery: "ALC",
+    range: "this_week",
+  });
+  assert.deepEqual(parseLookaheadActivitiesQuery("ALC activities next week"), {
+    tradeQuery: "ALC",
+    range: "next_week",
+  });
+  assert.deepEqual(parseLookaheadActivitiesQuery("show me the activities for this week"), {
+    tradeQuery: "",
+    range: "this_week",
+  });
+  assert.equal(parseLookaheadActivitiesQuery("how many hours this week"), null);
 });
 
-test("parseLabourCorrectionCommand handles named-date corrections", () => {
-  const parsed = parseLabourCorrectionCommand(
-    "I made a mistake on May 11 and the hours should be 9 hours",
-    new Date("2026-05-13T15:00:00.000Z")
-  );
+test("lookahead helpers filter tasks by week and trade", () => {
+  const range = getDateKeyWindowForLookaheadRange("this_week", new Date("2026-05-19T16:00:00Z"));
+  assert.deepEqual(range, {
+    startKey: "2026-05-18",
+    endKey: "2026-05-24",
+    label: "this week",
+  });
 
-  assert.ok(parsed);
-  assert.equal(parsed.reportDateKey, "2026-05-11");
-  assert.equal(parsed.hours, 9);
+  const alcTask = {
+    activity: "Install framing at level 2 west corridor",
+    actionBy: "ALC",
+    scheduledDateKeys: ["2026-05-19", "2026-05-20"],
+    startDate: "2026-05-19",
+    finishDate: "2026-05-20",
+  };
+  const otherTask = {
+    activity: "Roof curb layout",
+    actionBy: "Roofing",
+    scheduledDateKeys: ["2026-05-21"],
+    startDate: "2026-05-21",
+    finishDate: "2026-05-21",
+  };
+
+  assert.equal(taskIntersectsLookaheadWindow(alcTask, range.startKey, range.endKey), true);
+  assert.equal(taskMatchesTradeQuery(alcTask, "ALC"), true);
+  assert.equal(taskMatchesTradeQuery({ actionBy: "ALC Interiors" }, "ALC"), true);
+  assert.equal(taskMatchesTradeQuery(otherTask, "ALC"), false);
+});
+
+test("formatLookaheadActivitiesReply summarizes matching weekly tasks", () => {
+  const text = formatLookaheadActivitiesReply({
+    projectName: "Docksteader",
+    tradeQuery: "ALC",
+    rangeLabel: "this week",
+    startKey: "2026-05-18",
+    endKey: "2026-05-24",
+    tasks: [
+      {
+        activity: "Install framing at level 2 west corridor",
+        actionBy: "ALC",
+        scheduledDateKeys: ["2026-05-19", "2026-05-20"],
+        startDate: "2026-05-19",
+        finishDate: "2026-05-20",
+      },
+      {
+        activity: "Complete shaft backing",
+        actionBy: "ALC",
+        scheduledDateKeys: ["2026-05-22"],
+        startDate: "2026-05-22",
+        finishDate: "2026-05-22",
+      },
+    ],
+  });
+
+  assert.match(text, /Docksteader/);
+  assert.match(text, /ALC activities for this week/);
+  assert.match(text, /Install framing at level 2 west corridor/);
+  assert.match(text, /Complete shaft backing/);
 });
 
 test("assistant follow-up helpers recognize short context replies", () => {
@@ -156,6 +298,24 @@ test("correction follow-up helpers detect correction prompts and affirmative rep
   assert.equal(isAffirmativeCorrectionFollowUp("yes"), false);
 });
 
+test("narrative correction parser reads common correction phrasing", () => {
+  assert.deepEqual(parseNarrativeCorrectionCommand("SteelCon not SteelmCon"), {
+    target: "SteelmCon",
+    replacement: "SteelCon",
+    rawText: "SteelCon not SteelmCon",
+  });
+  assert.deepEqual(parseNarrativeCorrectionCommand("replace Gord with Gordie"), {
+    target: "Gord",
+    replacement: "Gordie",
+    rawText: "replace Gord with Gordie",
+  });
+  assert.deepEqual(parseNarrativeCorrectionCommand("change SteelmCon to SteelCon"), {
+    target: "SteelmCon",
+    replacement: "SteelCon",
+    rawText: "change SteelmCon to SteelCon",
+  });
+});
+
 test("applyManpowerCorrectionToEntry rewrites the matching manpower count", () => {
   const updated = applyManpowerCorrectionToEntry(
     {
@@ -172,6 +332,23 @@ test("applyManpowerCorrectionToEntry rewrites the matching manpower count", () =
   assert.match(updated.normalizedText, /\bALC 17\b/);
   assert.ok(updated.tags.includes("manpower"));
   assert.ok(updated.dailySummarySections.includes("dayLog"));
+});
+
+test("applyNarrativeCorrectionToEntry rewrites the matching text in a saved log entry", () => {
+  const updated = applyNarrativeCorrectionToEntry(
+    {
+      rawText: "SteelmCon erected the big truss.",
+      normalizedText: "SteelmCon erected the big truss.",
+    },
+    {
+      target: "SteelmCon",
+      replacement: "SteelCon",
+    }
+  );
+
+  assert.ok(updated);
+  assert.equal(updated.rawText, "SteelCon erected the big truss.");
+  assert.equal(updated.normalizedText, "SteelCon erected the big truss.");
 });
 
 test("safe fallback routing saves narrative text on low-confidence request classifications", () => {

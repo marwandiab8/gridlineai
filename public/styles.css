@@ -395,6 +395,10 @@ code {
   border-top: 1px solid #2d323c;
 }
 
+.project-pdf-push-summary {
+  margin-bottom: 12px;
+}
+
 .assistant-schedule-output {
   margin-top: 12px;
   padding: 12px 14px;

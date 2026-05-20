@@ -28,6 +28,7 @@ const {
   isSummaryStyleRequest,
   startOfEasternDay,
   dateKeyEastern,
+  addCalendarDaysToDateKey,
 } = require("./logClassifier");
 const {
   writeLogEntry,
@@ -70,7 +71,9 @@ const {
   buildLabourRollup,
   dayMultiplierFromDateKey,
   labourMinutesFromHours,
+  startOfWeekFromDateKey,
 } = require("./labourRepository");
+const { loadLatestLookaheadSnapshot } = require("./lookaheadScheduleRepository");
 
 const ADMIN_DOC_ID = "company";
 const MAX_SMS_CHARS = 480;
@@ -79,6 +82,7 @@ const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 40;
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
 const HOME_TODO_PROJECT_SLUG = "home";
+const CORRECTION_LOOKBACK_DAYS = 7;
 
 const rateBuckets = new Map();
 
@@ -168,6 +172,68 @@ Return JSON only:
   "reason": "short explanation"
 }`;
 
+const ACTION_ROUTING_SYSTEM = `You decide whether an inbound SMS should trigger one backend action immediately.
+
+Choose exactly one action from this list:
+- none
+- project_set
+- daily_pdf_request
+- day_rollup
+- lookahead_trade_query
+- lookahead_activities_report
+- lookahead_closeout_report
+- labour_balance
+- start_timer
+- stop_timer
+- deficiency_intake
+- todo_create
+- notify_request
+- project_notes_update
+
+Pick an action only when the user is clearly asking the assistant to do it now. If the user is asking for advice, explanation, brainstorming, or anything ambiguous, return action "none".
+
+Return JSON only:
+{
+  "action": "none | project_set | daily_pdf_request | day_rollup | lookahead_trade_query | lookahead_activities_report | lookahead_closeout_report | labour_balance | start_timer | stop_timer | deficiency_intake | todo_create | notify_request | project_notes_update",
+  "confidence": 0.0,
+  "reason": "short explanation",
+  "projectSlug": "only for project_set",
+  "reportDateKey": "YYYY-MM-DD when explicitly requested, else empty",
+  "reportType": "dailySiteLog | journal | empty",
+  "preferAiNarrative": true,
+  "tradeQuery": "trade / contractor name for lookahead queries, else empty",
+  "range": "today | week | pay | month | this_week | next_week | empty",
+  "timerLabel": "only for start_timer",
+  "todoText": "task text for todo_create",
+  "todoDueWindow": "next_week | next_month | empty",
+  "notifyAudience": "management | project_users | empty",
+  "notifyMessage": "message body for notify_request",
+  "proposedNotes": "replacement project notes for project_notes_update",
+  "deficiency": {
+    "title": "",
+    "description": "",
+    "location": "",
+    "area": "",
+    "trade": "",
+    "reference": "",
+    "requestedAction": ""
+  }
+}
+
+Rules:
+- Use action "none" for general questions, strategy questions, and any request that is not clearly one of the supported actions.
+- For daily summaries or daily log lookups, use action "day_rollup".
+- For PDF requests, use action "daily_pdf_request".
+- For lookahead trade requests, use action "lookahead_trade_query" and set range to this_week or next_week.
+- For "create / generate the activities report" from lookahead, use action "lookahead_activities_report".
+- For "create / generate the closeout report" from lookahead, use action "lookahead_closeout_report".
+- For labour totals, use action "labour_balance" and set range to today, week, pay, or month.
+- For deficiencies described in natural language, use action "deficiency_intake" and fill as many deficiency fields as the message clearly provides.
+- For todo creation requests, use action "todo_create" with concise task text and optional due window.
+- For notifications or broadcasts, use action "notify_request" with audience and message body.
+- For project notes edits, use action "project_notes_update" with full replacement notes text.
+- Never invent a project slug or date.`;
+
 const SAFETY_LOG_RE =
   /\b(safety|safety issue|unsafe|hazard|incident|near\s*miss|missing protection|unguarded|injury risk|fall hazard|no ppe|without ppe|electrocution)\b/i;
 const DEFICIENCY_LOG_RE =
@@ -179,6 +245,191 @@ function truncateSms(text) {
   const t = (text || "").trim();
   if (t.length <= MAX_SMS_CHARS) return t;
   return t.slice(0, MAX_SMS_CHARS - 3) + "...";
+}
+
+function parseDateKeyUtc(value) {
+  const raw = String(value || "").trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function shiftDateKeyUtc(dateKey, deltaDays) {
+  const date = parseDateKeyUtc(dateKey);
+  if (!date || !Number.isFinite(deltaDays)) return "";
+  date.setUTCDate(date.getUTCDate() + Number(deltaDays));
+  return date.toISOString().slice(0, 10);
+}
+
+function formatShortDateKey(dateKey) {
+  const date = parseDateKeyUtc(dateKey);
+  if (!date) return String(dateKey || "").trim();
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function formatShortDateRange(startKey, endKey) {
+  const start = String(startKey || "").trim();
+  const end = String(endKey || startKey || "").trim();
+  if (!start) return "date TBD";
+  if (!end || end === start) return formatShortDateKey(start);
+  const startDate = parseDateKeyUtc(start);
+  const endDate = parseDateKeyUtc(end);
+  if (!startDate || !endDate) return `${start || "?"} to ${end || "?"}`;
+  const sameMonth = start.slice(0, 7) === end.slice(0, 7);
+  if (sameMonth) {
+    return `${formatShortDateKey(start)}-${new Intl.DateTimeFormat("en-US", {
+      day: "numeric",
+      timeZone: "UTC",
+    }).format(endDate)}`;
+  }
+  return `${formatShortDateKey(start)}-${formatShortDateKey(end)}`;
+}
+
+function normalizeLooseToken(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeLookaheadActivityLabel(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\s*[-:]\s*$/, "")
+    .slice(0, 160);
+}
+
+function parseLookaheadActivitiesQuery(text) {
+  const raw = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return null;
+  if (!/\b(activities?|lookahead|schedule)\b/i.test(raw)) return null;
+
+  const rangeMatch = raw.match(/\b(this|next)\s+week\b/i);
+  if (!rangeMatch) return null;
+  const range = String(rangeMatch[1] || "").toLowerCase() === "next" ? "next_week" : "this_week";
+  const beforeRange = raw.slice(0, rangeMatch.index).trim().replace(/[,:-]+$/, "").trim();
+  let tradeQuery = "";
+
+  const patterns = [
+    /\b(?:show|tell|give|list)\s+me\s+(?:the\s+)?(?:activities?|lookahead|schedule)\s+for\s+(.+)$/i,
+    /\b(?:what(?:'s|s| is)\s+)?(?:the\s+)?(?:activities?|lookahead|schedule)\s+for\s+(.+)$/i,
+    /\b(?:activities?|lookahead|schedule)\s+for\s+(.+)$/i,
+    /^(.+?)\s+(?:activities?|lookahead|schedule)$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = beforeRange.match(pattern);
+    if (!match) continue;
+    tradeQuery = String(match[1] || "").trim();
+    break;
+  }
+
+  tradeQuery = tradeQuery
+    .replace(/^(?:for|on)\s+/i, "")
+    .replace(/^(?:the\s+)?trade\s+/i, "")
+    .replace(/\s+for$/i, "")
+    .replace(/^["']|["']$/g, "")
+    .trim();
+
+  if (/^(?:all|everything|everyone|this project|the project)$/i.test(tradeQuery)) {
+    tradeQuery = "";
+  }
+
+  return {
+    tradeQuery,
+    range,
+  };
+}
+
+function getDateKeyWindowForLookaheadRange(range, now = new Date()) {
+  const todayKey = dateKeyEastern(now);
+  const thisWeekStart = startOfWeekFromDateKey(todayKey) || todayKey;
+  if (range === "next_week") {
+    const startKey = shiftDateKeyUtc(thisWeekStart, 7) || thisWeekStart;
+    const endKey = shiftDateKeyUtc(startKey, 6) || startKey;
+    return { startKey, endKey, label: "next week" };
+  }
+  const endKey = shiftDateKeyUtc(thisWeekStart, 6) || thisWeekStart;
+  return { startKey: thisWeekStart, endKey, label: "this week" };
+}
+
+function taskIntersectsLookaheadWindow(task, startKey, endKey) {
+  const scheduled = Array.isArray(task && task.scheduledDateKeys)
+    ? task.scheduledDateKeys.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim()))
+    : [];
+  if (scheduled.some((dateKey) => dateKey >= startKey && dateKey <= endKey)) return true;
+
+  const startDate = String(task && task.startDate || "").trim();
+  const finishDate = String(task && task.finishDate || task && task.startDate || "").trim();
+  if (!startDate && !finishDate) return false;
+  const effectiveStart = startDate || finishDate;
+  const effectiveFinish = finishDate || startDate;
+  return effectiveStart <= endKey && effectiveFinish >= startKey;
+}
+
+function taskMatchesTradeQuery(task, tradeQuery) {
+  const queryNorm = normalizeLooseToken(tradeQuery);
+  if (!queryNorm) return true;
+  const tradeNorm = normalizeLooseToken(task && task.actionBy);
+  if (!tradeNorm) return false;
+  return tradeNorm === queryNorm || tradeNorm.includes(queryNorm) || queryNorm.includes(tradeNorm);
+}
+
+function taskRelevantDateRange(task, startKey, endKey) {
+  const scheduled = Array.isArray(task && task.scheduledDateKeys)
+    ? [...new Set(task.scheduledDateKeys.filter((dateKey) => dateKey >= startKey && dateKey <= endKey))].sort()
+    : [];
+  if (scheduled.length) {
+    return {
+      startKey: scheduled[0],
+      endKey: scheduled[scheduled.length - 1],
+    };
+  }
+  const taskStart = String(task && task.startDate || "").trim();
+  const taskFinish = String(task && task.finishDate || task && task.startDate || "").trim();
+  if (!taskStart && !taskFinish) return { startKey, endKey };
+  const effectiveStart = taskStart && taskStart > startKey ? taskStart : startKey;
+  const effectiveEnd = taskFinish && taskFinish < endKey ? taskFinish : endKey;
+  return {
+    startKey: effectiveStart || startKey,
+    endKey: effectiveEnd || effectiveStart || endKey,
+  };
+}
+
+function formatLookaheadTaskLine(task, startKey, endKey) {
+  const label = normalizeLookaheadActivityLabel(task && task.activity) || "Untitled activity";
+  const relevantRange = taskRelevantDateRange(task, startKey, endKey);
+  return `${formatShortDateRange(relevantRange.startKey, relevantRange.endKey)}: ${label}`;
+}
+
+function formatLookaheadActivitiesReply({
+  projectName,
+  tradeQuery,
+  rangeLabel,
+  startKey,
+  endKey,
+  tasks,
+}) {
+  const scopeLabel = tradeQuery ? `${tradeQuery} activities` : "Activities";
+  const prefix = `${projectName || "Project"} — ${scopeLabel} for ${rangeLabel} (${startKey} to ${endKey})`;
+  if (!Array.isArray(tasks) || !tasks.length) {
+    return `${prefix}: none found in the latest 3-week lookahead.`;
+  }
+  const lines = tasks.map((task) => formatLookaheadTaskLine(task, startKey, endKey));
+  const maxItems = 6;
+  const shown = lines.slice(0, maxItems);
+  const more = lines.length - shown.length;
+  return `${prefix}: ${shown.join("; ")}${more > 0 ? `; +${more} more.` : "."}`;
 }
 
 function inferInboundLogType(text) {
@@ -208,6 +459,26 @@ function sanitizeRouteTags(tags, fallback = []) {
   return out.slice(0, 10);
 }
 
+function containsDecorativeUnicode(text) {
+  return /[\p{Extended_Pictographic}\p{Emoji_Presentation}\u2600-\u27BF]/u.test(
+    String(text || "")
+  );
+}
+
+function preserveUserUnicodeText(originalText, cleanedText) {
+  const original = String(originalText || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 4000);
+  const cleaned = String(cleanedText || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 4000);
+  if (!original) return cleaned;
+  if (!cleaned) return original;
+  return containsDecorativeUnicode(original) ? original : cleaned;
+}
+
 function sanitizeRoutePayload(raw, fallbackText, numMedia) {
   const fallbackType = inferInboundLogType(fallbackText);
   const fallbackDescription = String(fallbackText || "").trim();
@@ -217,14 +488,16 @@ function sanitizeRoutePayload(raw, fallbackText, numMedia) {
   const logType = ["construction", "journal", "safety", "deficiency"].includes(candidateType)
     ? candidateType
     : fallbackType;
-  const description = String(raw && raw.description ? raw.description : fallbackDescription)
+  const aiDescription = String(raw && raw.description ? raw.description : "");
+  const description = preserveUserUnicodeText(fallbackDescription, aiDescription) || "Field update";
+  const aiTitle = String(raw && raw.title ? raw.title : "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 4000) || fallbackDescription || "Field update";
-  const title = String(raw && raw.title ? raw.title : "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160) || makeTitleFromBody(description, 120);
+    .slice(0, 160);
+  const title =
+    containsDecorativeUnicode(description) && !containsDecorativeUnicode(aiTitle)
+      ? makeTitleFromBody(description, 120)
+      : aiTitle || makeTitleFromBody(description, 120);
   const tags = sanitizeRouteTags(raw && raw.tags, [
     logType === "construction" ? "construction" : logType,
   ]);
@@ -290,6 +563,90 @@ function sanitizeIntentPayload(raw, fallbackText) {
     .slice(0, 240);
   const source = raw && typeof raw === "object" && Object.keys(raw).length ? "ai" : "fallback";
   return { intent, confidence, reason, source };
+}
+
+function sanitizeAssistantActionPlan(raw) {
+  const allowedActions = new Set([
+    "none",
+    "project_set",
+    "daily_pdf_request",
+    "day_rollup",
+    "lookahead_trade_query",
+    "lookahead_activities_report",
+    "lookahead_closeout_report",
+    "labour_balance",
+    "start_timer",
+    "stop_timer",
+    "deficiency_intake",
+    "todo_create",
+    "notify_request",
+    "project_notes_update",
+  ]);
+  const allowedReportTypes = new Set(["", "dailySiteLog", "journal"]);
+  const allowedRanges = new Set(["", "today", "week", "pay", "month", "this_week", "next_week"]);
+  const allowedTodoDueWindows = new Set(["", "next_week", "next_month"]);
+  const allowedNotifyAudiences = new Set(["", "management", "project_users"]);
+  const action = String(raw && raw.action ? raw.action : "")
+    .trim()
+    .toLowerCase();
+  const normalizedAction = allowedActions.has(action) ? action : "none";
+  const confidence = Number(raw && raw.confidence);
+  return {
+    action: normalizedAction,
+    confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0,
+    reason: String(raw && raw.reason ? raw.reason : "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 240),
+    projectSlug: normalizeProjectSlug(raw && raw.projectSlug ? raw.projectSlug : "") || null,
+    reportDateKey: /^\d{4}-\d{2}-\d{2}$/.test(String(raw && raw.reportDateKey ? raw.reportDateKey : "").trim())
+      ? String(raw.reportDateKey).trim()
+      : null,
+    reportType: allowedReportTypes.has(String(raw && raw.reportType ? raw.reportType : "").trim())
+      ? String(raw && raw.reportType ? raw.reportType : "").trim()
+      : "",
+    preferAiNarrative: raw && typeof raw.preferAiNarrative === "boolean" ? raw.preferAiNarrative : false,
+    tradeQuery: String(raw && raw.tradeQuery ? raw.tradeQuery : "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80),
+    range: allowedRanges.has(String(raw && raw.range ? raw.range : "").trim())
+      ? String(raw && raw.range ? raw.range : "").trim()
+      : "",
+    timerLabel: String(raw && raw.timerLabel ? raw.timerLabel : "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120),
+    todoText: String(raw && raw.todoText ? raw.todoText : "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 500),
+    todoDueWindow: allowedTodoDueWindows.has(String(raw && raw.todoDueWindow ? raw.todoDueWindow : "").trim())
+      ? String(raw && raw.todoDueWindow ? raw.todoDueWindow : "").trim()
+      : "",
+    notifyAudience: allowedNotifyAudiences.has(String(raw && raw.notifyAudience ? raw.notifyAudience : "").trim())
+      ? String(raw && raw.notifyAudience ? raw.notifyAudience : "").trim()
+      : "",
+    notifyMessage: String(raw && raw.notifyMessage ? raw.notifyMessage : "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 480),
+    proposedNotes: String(raw && raw.proposedNotes ? raw.proposedNotes : "")
+      .replace(/\r\n/g, "\n")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, 8000),
+    deficiency: {
+      title: String(raw && raw.deficiency && raw.deficiency.title ? raw.deficiency.title : "").replace(/\s+/g, " ").trim().slice(0, 160),
+      description: String(raw && raw.deficiency && raw.deficiency.description ? raw.deficiency.description : "").replace(/\s+/g, " ").trim().slice(0, 4000),
+      location: String(raw && raw.deficiency && raw.deficiency.location ? raw.deficiency.location : "").replace(/\s+/g, " ").trim().slice(0, 240),
+      area: String(raw && raw.deficiency && raw.deficiency.area ? raw.deficiency.area : "").replace(/\s+/g, " ").trim().slice(0, 240),
+      trade: String(raw && raw.deficiency && raw.deficiency.trade ? raw.deficiency.trade : "").replace(/\s+/g, " ").trim().slice(0, 120),
+      reference: String(raw && raw.deficiency && raw.deficiency.reference ? raw.deficiency.reference : "").replace(/\s+/g, " ").trim().slice(0, 160),
+      requestedAction: String(raw && raw.deficiency && raw.deficiency.requestedAction ? raw.deficiency.requestedAction : "").replace(/\s+/g, " ").trim().slice(0, 500),
+    },
+  };
 }
 
 function looksLikeExplicitAiChatRequest(text) {
@@ -437,121 +794,6 @@ function isExplicitLabourBalanceText(text) {
   return false;
 }
 
-function formatLabourHoursShort(value) {
-  const n = Math.round((Number(value) || 0) * 100) / 100;
-  if (!Number.isFinite(n)) return "0";
-  return n % 1 === 0 ? String(n) : n.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function parseNamedMonthDateKey(text, now = new Date()) {
-  const raw = String(text || "");
-  const match = raw.match(
-    /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(\d{4}))?\b/i
-  );
-  if (!match) return null;
-  const months = {
-    jan: 1,
-    january: 1,
-    feb: 2,
-    february: 2,
-    mar: 3,
-    march: 3,
-    apr: 4,
-    april: 4,
-    may: 5,
-    jun: 6,
-    june: 6,
-    jul: 7,
-    july: 7,
-    aug: 8,
-    august: 8,
-    sep: 9,
-    sept: 9,
-    september: 9,
-    oct: 10,
-    october: 10,
-    nov: 11,
-    november: 11,
-    dec: 12,
-    december: 12,
-  };
-  const month = months[String(match[1] || "").toLowerCase()];
-  const day = Number(match[2]);
-  const fallbackYear = Number(String(dateKeyEastern(now)).slice(0, 4));
-  const year = Number(match[3] || fallbackYear);
-  if (!Number.isInteger(month) || !Number.isInteger(day) || !Number.isInteger(year)) return null;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (Number.isNaN(date.getTime())) return null;
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function resolveLabourCorrectionDateKey(text, now = new Date()) {
-  const raw = String(text || "").replace(/\s+/g, " ").trim();
-  if (!raw) return null;
-  const explicit = extractExplicitReportDate(raw).reportDateKey;
-  if (explicit) return explicit;
-  const named = parseNamedMonthDateKey(raw, now);
-  if (named) return named;
-  if (/\byesterday\b/i.test(raw)) {
-    return dateKeyEastern(new Date(startOfEasternDay(now).getTime() - 86400000));
-  }
-  if (/\btoday\b/i.test(raw)) return dateKeyEastern(now);
-  return null;
-}
-
-function sanitizeLabourCorrectionText(text) {
-  return String(text || "")
-    .replace(/\b(?:i\s+made\s+a\s+mistake|made\s+a\s+mistake)\b/gi, " ")
-    .replace(/\b(?:please|pls|kindly)\b/gi, " ")
-    .replace(/\b(?:can\s+you|could\s+you|would\s+you)\b/gi, " ")
-    .replace(/\b(?:correct|correction|change|fix|update|wrong)\b/gi, " ")
-    .replace(/\b(?:today|yesterday)\b/gi, " ")
-    .replace(
-      /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?\b/gi,
-      " "
-    )
-    .replace(/\(\s*\d{4}-\d{2}(?:-?\d{2,3})\s*\)/gi, " ")
-    .replace(/\b(?:for|on|dated|date)\s+\d{4}-\d{2}(?:-?\d{2,3})\b/gi, " ")
-    .replace(/\b\d{4}-\d{2}(?:-?\d{2,3})\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function parseLabourCorrectionCommand(text, now = new Date()) {
-  const raw = String(text || "").replace(/\s+/g, " ").trim();
-  if (!raw) return null;
-  const hasCorrectionCue =
-    /\b(?:made\s+a\s+mistake|mistake|wrong|correct|correction|change|fix|update)\b/i.test(raw);
-  if (!hasCorrectionCue) return null;
-
-  const reportDateKey = resolveLabourCorrectionDateKey(raw, now) || dateKeyEastern(now);
-  const cleaned = sanitizeLabourCorrectionText(raw);
-  const replacementEntry = parseLabourHoursCommand(cleaned);
-
-  const targetHoursPatterns = [
-    /\b(?:should\s+be|should've\s+been|should\s+have\s+been|should\s+of\s+been|total\s+to|hours?\s+to|to|is|be|make\s+it)\s+(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)?\b/i,
-    /\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s*$/i,
-  ];
-  let hours = replacementEntry && Number.isFinite(replacementEntry.hours) ? replacementEntry.hours : null;
-  for (const re of targetHoursPatterns) {
-    const match = raw.match(re);
-    if (!match) continue;
-    const parsed = Number(match[1]);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      hours = parsed;
-    }
-  }
-
-  if (!Number.isFinite(hours) || hours <= 0) return null;
-  return {
-    hours: Math.round(hours * 100) / 100,
-    reportDateKey,
-    workOn: replacementEntry && replacementEntry.workOn ? replacementEntry.workOn : null,
-    rawText: raw,
-  };
-}
-
 function normalizePendingAssistantFollowUp(raw) {
   if (!raw || typeof raw !== "object") return null;
   const prompt = String(raw.prompt || "").replace(/\s+/g, " ").trim().slice(0, 500);
@@ -594,6 +836,83 @@ function looksLikeCorrectionPrompt(prompt) {
   return /\b(correct|correction|fix|change|update)\b/i.test(raw);
 }
 
+function buildRecentCorrectionDateKeys(reportDateKey = null, todayKey = dateKeyEastern(new Date()), lookbackDays = CORRECTION_LOOKBACK_DAYS) {
+  if (reportDateKey) return [reportDateKey];
+  const days = Math.max(1, Math.min(31, Number(lookbackDays) || CORRECTION_LOOKBACK_DAYS));
+  const out = [];
+  for (let offset = 0; offset < days; offset += 1) {
+    out.push(addCalendarDaysToDateKey(todayKey, -offset));
+  }
+  return out;
+}
+
+function escapeReplacementText(value) {
+  return String(value || "").replace(/\$/g, "$$$$");
+}
+
+function parseNarrativeCorrectionCommand(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+
+  const patterns = [
+    {
+      re: /^(?:correct|change|fix|update)\s+(.+?)\s+not\s+(.+)$/i,
+      map: (m) => ({ replacement: m[1], target: m[2] }),
+    },
+    {
+      re: /^(.+?)\s+not\s+(.+)$/i,
+      map: (m) => ({ replacement: m[1], target: m[2] }),
+    },
+    {
+      re: /^(?:replace)\s+(.+?)\s+(?:with|to)\s+(.+)$/i,
+      map: (m) => ({ target: m[1], replacement: m[2] }),
+    },
+    {
+      re: /^(?:change|correct|update|fix)\s+(.+?)\s+(?:with|to)\s+(.+)$/i,
+      map: (m) => ({ target: m[1], replacement: m[2] }),
+    },
+  ];
+
+  for (const candidate of patterns) {
+    const match = raw.match(candidate.re);
+    if (!match) continue;
+    const mapped = candidate.map(match);
+    const replacement = String(mapped.replacement || "").trim().replace(/^["']|["']$/g, "");
+    const target = String(mapped.target || "").trim().replace(/^["']|["']$/g, "");
+    if (!replacement || !target) continue;
+    if (replacement.toLowerCase() === target.toLowerCase()) continue;
+    return {
+      target,
+      replacement,
+      rawText: raw.slice(0, 500),
+    };
+  }
+  return null;
+}
+
+function applyNarrativeCorrectionToEntry(entry, correction) {
+  if (!entry || !correction) return null;
+  const target = String(correction.target || "").trim();
+  const replacement = String(correction.replacement || "").trim();
+  if (!target || !replacement) return null;
+  const targetRe = new RegExp(`\\b${escapeRegExp(target)}\\b`, "i");
+  const replaceRe = new RegExp(`\\b${escapeRegExp(target)}\\b`, "gi");
+  const rawText = String(entry.rawText || "");
+  const normalizedText = String(entry.normalizedText || rawText || "");
+  if (!targetRe.test(rawText) && !targetRe.test(normalizedText)) return null;
+
+  const nextRaw = rawText.replace(replaceRe, escapeReplacementText(replacement));
+  const nextNormalized = normalizedText.replace(replaceRe, escapeReplacementText(replacement));
+  if (nextRaw === rawText && nextNormalized === normalizedText) return null;
+
+  return {
+    rawText: nextRaw,
+    normalizedText: nextNormalized,
+    target,
+    replacement,
+  };
+}
+
 function applyManpowerCorrectionToEntry(entry, correction) {
   if (!entry || !correction) return null;
   const nextRaw = replaceManpowerTradeCount(entry.rawText || "", correction.trade, correction.workers);
@@ -622,56 +941,128 @@ async function applyLatestManpowerCorrectionForSenderProject({
   reportDateKey,
   correction,
 }) {
-  const rows = await loadLogEntriesForDayForProject(db, phoneE164, reportDateKey, projectSlug);
   const tradeRe = new RegExp(`\\b${escapeRegExp(String(correction.trade || "").trim())}\\b\\s+\\d{1,3}\\b`, "i");
-  const candidates = rows.filter((entry) => {
-    const tags = Array.isArray(entry.tags) ? entry.tags : [];
-    const text = `${entry.rawText || ""}\n${entry.normalizedText || ""}`;
-    return (
-      tags.includes("manpower") ||
-      entry.logCategory === "manpower" ||
-      /\bmanpower\b/i.test(text)
-    ) && tradeRe.test(text);
-  });
-  const target = candidates.length ? candidates[candidates.length - 1] : null;
-  if (!target || !target.id) return null;
+  const dateKeys = buildRecentCorrectionDateKeys(reportDateKey);
+  for (const dateKey of dateKeys) {
+    const rows = await loadLogEntriesForDayForProject(db, phoneE164, dateKey, projectSlug);
+    const candidates = rows.filter((entry) => {
+      const tags = Array.isArray(entry.tags) ? entry.tags : [];
+      const text = `${entry.rawText || ""}\n${entry.normalizedText || ""}`;
+      return (
+        tags.includes("manpower") ||
+        entry.logCategory === "manpower" ||
+        /\bmanpower\b/i.test(text)
+      ) && tradeRe.test(text);
+    });
+    const target = candidates.length ? candidates[candidates.length - 1] : null;
+    if (!target || !target.id) continue;
 
-  const updated = applyManpowerCorrectionToEntry(target, correction);
-  if (!updated) return null;
+    const updated = applyManpowerCorrectionToEntry(target, correction);
+    if (!updated) continue;
 
-  await db.collection("logEntries").doc(target.id).set(
-    {
-      rawText: updated.rawText,
-      normalizedText: updated.normalizedText,
-      tags: updated.tags,
-      dailySummarySections: updated.dailySummarySections,
-      aiEnhanced: false,
-      aiError: null,
-      aiReportExtract: null,
-      summaryText: null,
-      updatedAt: FieldValue.serverTimestamp(),
-      editedAt: FieldValue.serverTimestamp(),
-      editedByPhone: phoneE164,
-    },
-    { merge: true }
-  );
+    await db.collection("logEntries").doc(target.id).set(
+      {
+        rawText: updated.rawText,
+        normalizedText: updated.normalizedText,
+        tags: updated.tags,
+        dailySummarySections: updated.dailySummarySections,
+        aiEnhanced: false,
+        aiError: null,
+        aiReportExtract: null,
+        summaryText: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        editedAt: FieldValue.serverTimestamp(),
+        editedByPhone: phoneE164,
+      },
+      { merge: true }
+    );
 
-  if (target.issueCollection && target.canonicalIssueId) {
-    await updateSmsIssueBody(db, FieldValue, {
-      issueCollection: target.issueCollection,
-      issueId: target.canonicalIssueId,
-      changedBy: phoneE164,
-      title: makeTitleFromBody(updated.normalizedText),
-      description: updated.normalizedText,
-      tags: updated.tags,
-    }).catch(() => null);
+    if (target.issueCollection && target.canonicalIssueId) {
+      await updateSmsIssueBody(db, FieldValue, {
+        issueCollection: target.issueCollection,
+        issueId: target.canonicalIssueId,
+        changedBy: phoneE164,
+        title: makeTitleFromBody(updated.normalizedText),
+        description: updated.normalizedText,
+        tags: updated.tags,
+      }).catch(() => null);
+    }
+
+    return {
+      logEntryId: target.id,
+      reportDateKey: String(target.reportDateKey || dateKey || reportDateKey || "").trim() || null,
+      updatedText: updated.normalizedText,
+    };
   }
+  return null;
+}
 
-  return {
-    logEntryId: target.id,
-    reportDateKey: String(target.reportDateKey || reportDateKey || "").trim() || null,
-    updatedText: updated.normalizedText,
-  };
+async function applyLatestNarrativeCorrectionForSenderProject({
+  db,
+  FieldValue,
+  phoneE164,
+  projectSlug,
+  reportDateKey,
+  correction,
+}) {
+  const dateKeys = buildRecentCorrectionDateKeys(reportDateKey);
+  for (const dateKey of dateKeys) {
+    const rows = await loadLogEntriesForDayForProject(db, phoneE164, dateKey, projectSlug);
+    const candidates = rows.filter((entry) => {
+      if (!entry || !entry.id) return false;
+      const tags = Array.isArray(entry.tags) ? entry.tags : [];
+      if (tags.includes("manpower")) return false;
+      if (String(entry.subtype || "").trim() === "timer") return false;
+      const text = `${entry.rawText || ""}\n${entry.normalizedText || ""}`;
+      return new RegExp(`\\b${escapeRegExp(String(correction.target || "").trim())}\\b`, "i").test(text);
+    });
+    const target = candidates.length ? candidates[candidates.length - 1] : null;
+    if (!target || !target.id) continue;
+
+    const updated = applyNarrativeCorrectionToEntry(target, correction);
+    if (!updated) continue;
+
+    await db.collection("logEntries").doc(target.id).set(
+      {
+        rawText: updated.rawText,
+        normalizedText: updated.normalizedText,
+        aiEnhanced: false,
+        aiError: null,
+        aiReportExtract: null,
+        summaryText: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        editedAt: FieldValue.serverTimestamp(),
+        editedByPhone: phoneE164,
+        lastCorrection: {
+          target: updated.target,
+          replacement: updated.replacement,
+          correctedByPhone: phoneE164,
+          correctedAt: FieldValue.serverTimestamp(),
+        },
+      },
+      { merge: true }
+    );
+
+    if (target.issueCollection && target.canonicalIssueId) {
+      await updateSmsIssueBody(db, FieldValue, {
+        issueCollection: target.issueCollection,
+        issueId: target.canonicalIssueId,
+        changedBy: phoneE164,
+        title: makeTitleFromBody(updated.normalizedText),
+        description: updated.normalizedText,
+        tags: Array.isArray(target.tags) ? target.tags : [],
+      }).catch(() => null);
+    }
+
+    return {
+      logEntryId: target.id,
+      reportDateKey: String(target.reportDateKey || dateKey || reportDateKey || "").trim() || null,
+      updatedText: updated.normalizedText,
+      target: updated.target,
+      replacement: updated.replacement,
+    };
+  }
+  return null;
 }
 
 async function savePendingAssistantFollowUp(db, phoneE164, prompt, projectSlug) {
@@ -800,6 +1191,67 @@ function parseTodoReportRequest(text) {
 
 function parseLabourEntryCommand(text) {
   return parseLabourHoursCommand(text);
+}
+
+function formatLabourHoursShort(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function resolveLabourCorrectionDateKey(text, now = new Date()) {
+  const resolved = extractExplicitReportDate(text, now);
+  return resolved && resolved.reportDateKey ? resolved.reportDateKey : null;
+}
+
+function sanitizeLabourCorrectionText(text) {
+  return String(text || "")
+    .replace(/\b(?:i\s+made\s+a\s+mistake|made\s+a\s+mistake)\b/gi, " ")
+    .replace(/\b(?:please|pls|kindly)\b/gi, " ")
+    .replace(/\b(?:can\s+you|could\s+you|would\s+you)\b/gi, " ")
+    .replace(/\b(?:correct|correction|change|fix|update|wrong)\b/gi, " ")
+    .replace(/\b(?:today|yesterday)\b/gi, " ")
+    .replace(
+      /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?\b/gi,
+      " "
+    )
+    .replace(/\(\s*\d{4}-\d{2}(?:-?\d{2,3})\s*\)/gi, " ")
+    .replace(/\b(?:for|on|dated|date)\s+\d{4}-\d{2}(?:-?\d{2,3})\b/gi, " ")
+    .replace(/\b\d{4}-\d{2}(?:-?\d{2,3})\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseLabourCorrectionCommand(text, now = new Date()) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  const hasCorrectionCue =
+    /\b(?:made\s+a\s+mistake|mistake|wrong|correct|correction|change|fix|update)\b/i.test(raw);
+  if (!hasCorrectionCue) return null;
+
+  const reportDateKey = resolveLabourCorrectionDateKey(raw, now) || dateKeyEastern(now);
+  const cleaned = sanitizeLabourCorrectionText(raw);
+  const replacementEntry = parseLabourHoursCommand(cleaned);
+
+  const targetHoursPatterns = [
+    /\b(?:should\s+be|should've\s+been|should\s+have\s+been|should\s+of\s+been|total\s+to|hours?\s+to|to|is|be|make\s+it)\s+(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)?\b/i,
+    /\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s*$/i,
+  ];
+  let hours = replacementEntry && Number.isFinite(replacementEntry.hours) ? replacementEntry.hours : null;
+  for (const re of targetHoursPatterns) {
+    const match = raw.match(re);
+    if (!match) continue;
+    const parsed = Number(match[1]);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      hours = parsed;
+    }
+  }
+
+  if (!Number.isFinite(hours) || hours <= 0) return null;
+  return {
+    hours: Math.round(hours * 100) / 100,
+    reportDateKey,
+    workOn: replacementEntry && replacementEntry.workOn ? replacementEntry.workOn : null,
+    rawText: raw,
+  };
 }
 
 function parseStartTimerCommand(text) {
@@ -1037,6 +1489,30 @@ const HELP_TEXT =
 function parseProjectCommand(text) {
   const m = text.trim().match(/^project\s+(\S+)/i);
   return m ? m[1].toLowerCase() : null;
+}
+
+function isExplicitProjectSetRequest(text, projectSlug = "") {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return false;
+  const slug = normalizeProjectSlug(projectSlug);
+  if (/^project\s+\S+$/i.test(raw)) return true;
+  if (/^(?:switch|change|set|use|select)\s+(?:the\s+)?project\b/i.test(raw)) {
+    return !slug || new RegExp(`\\b${escapeRegExp(slug)}\\b`, "i").test(raw);
+  }
+  if (slug) {
+    if (new RegExp(`^(?:project\\s+${escapeRegExp(slug)}|${escapeRegExp(slug)}\\s+project)$`, "i").test(raw)) {
+      return true;
+    }
+    if (
+      new RegExp(
+        `^(?:switch|change|set|use|select)(?:\\s+(?:the\\s+)?)?project(?:\\s+(?:to|as))?\\s+${escapeRegExp(slug)}$`,
+        "i"
+      ).test(raw)
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 const DEFICIENCY_NONE_RE = /^(?:n\/a|na|none|no reference|unknown|not sure|skip)$/i;
@@ -1558,6 +2034,50 @@ async function classifyGenericInboundIntent({
   return sanitizeIntentPayload(classified, trimmedBody);
 }
 
+async function planAssistantAction({
+  openaiApiKey,
+  logger,
+  runId,
+  historyMessages,
+  trimmedBody,
+  effectiveProjectSlug,
+  effectiveProjectName,
+  modelsOverride,
+}) {
+  if (!openaiApiKey) return sanitizeAssistantActionPlan(null);
+  try {
+    const client = new OpenAI({ apiKey: openaiApiKey });
+    const completion = await chatCompletionWithFallback(
+      client,
+      {
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: ACTION_ROUTING_SYSTEM },
+          ...historyMessages.slice(-6),
+          {
+            role: "user",
+            content:
+              `Current project: ${effectiveProjectName || effectiveProjectSlug || "none"}\n` +
+              `Latest message: ${trimmedBody}`,
+          },
+        ],
+        max_completion_tokens: 260,
+        temperature: 0.1,
+      },
+      logger,
+      runId,
+      modelsOverride
+    );
+    return sanitizeAssistantActionPlan(JSON.parse(completionText(completion) || "{}"));
+  } catch (err) {
+    logger.warn("assistant: action planner ai failed", {
+      runId,
+      message: err.message,
+    });
+    return sanitizeAssistantActionPlan(null);
+  }
+}
+
 async function handleDeficiencyIntakeTurn({
   db,
   logger,
@@ -2037,6 +2557,8 @@ async function buildReply({
     labourReportEndKey: null,
     todoReportRequested: false,
     todoReportFormat: null,
+    lookaheadReportRequested: false,
+    lookaheadReportKind: null,
     routingDecision: null,
   };
 
@@ -2303,13 +2825,13 @@ async function buildReply({
     parseManpowerCorrectionCommand(userMessageForAI, { allowBarePair: correctionPromptActive }) ||
     (shortAssistantFollowUp && correctionPromptActive ? parseBareManpowerPair(userMessageForAI) : null);
   if (manpowerCorrection) {
-    const correctionDateKey = extractExplicitReportDate(userMessageForAI).reportDateKey || dateKeyEastern(new Date());
+    const explicitCorrectionDateKey = extractExplicitReportDate(userMessageForAI).reportDateKey || null;
     const corrected = await applyLatestManpowerCorrectionForSenderProject({
       db,
       FieldValue,
       phoneE164,
       projectSlug: effectiveProjectSlug,
-      reportDateKey: correctionDateKey,
+      reportDateKey: explicitCorrectionDateKey,
       correction: manpowerCorrection,
     });
     if (corrected) {
@@ -2341,10 +2863,67 @@ async function buildReply({
     return {
       replyText: truncateSms(
         `Could not find a manpower entry for ${manpowerCorrection.trade} to correct${
-          correctionDateKey ? ` on ${correctionDateKey}` : ""
+          explicitCorrectionDateKey ? ` on ${explicitCorrectionDateKey}` : ""
         }. Send the full manpower line again if needed.`
       ),
-      outboundMeta: { ...outboundMeta, command: "manpower_correction_not_found", reportDateKey: correctionDateKey },
+      outboundMeta: {
+        ...outboundMeta,
+        command: "manpower_correction_not_found",
+        reportDateKey: explicitCorrectionDateKey,
+      },
+    };
+  }
+
+  const narrativeCorrection = parseNarrativeCorrectionCommand(userMessageForAI);
+  if (narrativeCorrection) {
+    const explicitCorrectionDateKey = extractExplicitReportDate(userMessageForAI).reportDateKey || null;
+    const corrected = await applyLatestNarrativeCorrectionForSenderProject({
+      db,
+      FieldValue,
+      phoneE164,
+      projectSlug: effectiveProjectSlug,
+      reportDateKey: explicitCorrectionDateKey,
+      correction: narrativeCorrection,
+    });
+    if (corrected) {
+      if (pendingAssistantFollowUp) {
+        await clearPendingAssistantFollowUp(db, phoneE164);
+      }
+      return {
+        replyText: truncateSms(
+          `Corrected saved log${corrected.reportDateKey ? ` for ${corrected.reportDateKey}` : ""}: ${corrected.updatedText}`
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, {
+            stage: "deterministic",
+            action: "edit_log",
+            confidence: 0.99,
+            reason: "Matched narrative correction command.",
+            source: "deterministic",
+            matchedBy: "parseNarrativeCorrectionCommand",
+          }),
+          command: "narrative_correction_applied",
+          projectSlug: effectiveProjectSlug || null,
+          logEntryId: corrected.logEntryId,
+          logCategory: "note",
+          reportDateKey: corrected.reportDateKey,
+          correctionTarget: corrected.target,
+          correctionReplacement: corrected.replacement,
+        },
+      };
+    }
+    return {
+      replyText: truncateSms(
+        `Could not find a saved log entry to correct from "${narrativeCorrection.target}" to "${narrativeCorrection.replacement}"${
+          explicitCorrectionDateKey ? ` on ${explicitCorrectionDateKey}` : ""
+        }. Re-send the full corrected log if needed.`
+      ),
+      outboundMeta: {
+        ...outboundMeta,
+        command: "narrative_correction_not_found",
+        projectSlug: effectiveProjectSlug || null,
+        reportDateKey: explicitCorrectionDateKey,
+      },
     };
   }
 
@@ -2716,6 +3295,138 @@ async function buildReply({
     };
   }
 
+  const lookaheadActivitiesQuery = shortAssistantFollowUp
+    ? null
+    : parseLookaheadActivitiesQuery(userMessageForAI);
+  if (lookaheadActivitiesQuery) {
+    if (!effectiveProjectSlug) {
+      return {
+        replyText: "Set a project first, then ask for activities by trade for this week or next week.",
+        outboundMeta: { ...outboundMeta, command: "lookahead_query_missing_project" },
+      };
+    }
+    const snapshot = await loadLatestLookaheadSnapshot({
+      db,
+      projectSlug: effectiveProjectSlug,
+    });
+    if (!snapshot || !Array.isArray(snapshot.tasks) || !snapshot.tasks.length) {
+      return {
+        replyText: `No saved lookahead schedule was found for ${effectiveProjectName || effectiveProjectSlug} yet.`,
+        outboundMeta: {
+          ...outboundMeta,
+          command: "lookahead_query_no_snapshot",
+          projectSlug: effectiveProjectSlug,
+        },
+      };
+    }
+
+    const range = getDateKeyWindowForLookaheadRange(lookaheadActivitiesQuery.range, new Date());
+    const matchingTasks = snapshot.tasks
+      .filter((task) => taskIntersectsLookaheadWindow(task, range.startKey, range.endKey))
+      .filter((task) => taskMatchesTradeQuery(task, lookaheadActivitiesQuery.tradeQuery))
+      .sort((a, b) => {
+        const aRange = taskRelevantDateRange(a, range.startKey, range.endKey);
+        const bRange = taskRelevantDateRange(b, range.startKey, range.endKey);
+        if (aRange.startKey !== bRange.startKey) return aRange.startKey.localeCompare(bRange.startKey);
+        return normalizeLookaheadActivityLabel(a.activity).localeCompare(
+          normalizeLookaheadActivityLabel(b.activity)
+        );
+      });
+
+    return {
+      replyText: truncateSms(
+        formatLookaheadActivitiesReply({
+          projectName: effectiveProjectName || effectiveProjectSlug,
+          tradeQuery: lookaheadActivitiesQuery.tradeQuery,
+          rangeLabel: range.label,
+          startKey: range.startKey,
+          endKey: range.endKey,
+          tasks: matchingTasks,
+        })
+      ),
+      outboundMeta: {
+        ...withRoutingDecision(outboundMeta, {
+          stage: "deterministic",
+          action: "lookahead_trade_query",
+          confidence: 0.99,
+          reason: "Matched lookahead activities query.",
+          source: "deterministic",
+          matchedBy: "parseLookaheadActivitiesQuery",
+        }),
+        command: "lookahead_trade_query",
+        projectSlug: effectiveProjectSlug,
+        reportStartKey: range.startKey,
+        reportEndKey: range.endKey,
+        range: lookaheadActivitiesQuery.range,
+        trade: lookaheadActivitiesQuery.tradeQuery || null,
+        taskCount: matchingTasks.length,
+        lookaheadSnapshotId: snapshot.id || null,
+      },
+    };
+  }
+
+  const hoursBalanceQuery = shortAssistantFollowUp ? null : parseLabourHoursBalanceQuery(userMessageForAI);
+  if (hoursBalanceQuery) {
+    const labourer = await findActiveLabourerByPhone(db, phoneE164);
+    if (!labourer) {
+      if (isExplicitLabourBalanceText(userMessageForAI)) {
+        return {
+          replyText:
+            "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
+          outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
+        };
+      }
+    } else {
+      const range = getDateKeyRangeForBalanceQuery(hoursBalanceQuery.range);
+      if (!range || !range.startKey || !range.endKey) {
+        return {
+          replyText: "Could not look up that hours range. Try: how many hours today, this week, or this pay period.",
+          outboundMeta: { ...outboundMeta, command: "labour_hours_balance_error" },
+        };
+      }
+      const entries = await loadLabourEntries(db, {
+        startKey: range.startKey,
+        endKey: range.endKey,
+        labourerPhone: phoneE164,
+      });
+      const summary = buildLabourRollup(entries);
+      const labourerName =
+        labourer.displayName ||
+        String((labourer.labourerData && labourer.labourerData.name) || "").trim() ||
+        phoneE164;
+      return {
+        replyText: truncateSms(
+          formatLabourBalanceReply({
+            labourerName,
+            rangeLabel: range.label,
+            startKey: range.startKey,
+            endKey: range.endKey,
+            totalHours: summary.totalHours,
+            totalPaidHours: summary.totalPaidHours,
+            totalEntries: summary.totalEntries,
+          })
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, {
+            stage: "deterministic",
+            action: "labour_balance",
+            confidence: 0.99,
+            reason: "Matched labour balance query.",
+            source: "deterministic",
+            matchedBy: "parseLabourHoursBalanceQuery",
+          }),
+          command: "labour_hours_balance",
+          reportStartKey: range.startKey,
+          reportEndKey: range.endKey,
+          range: hoursBalanceQuery.range,
+          totalEntries: summary.totalEntries,
+          totalHours: summary.totalHours,
+          totalPaidHours: summary.totalPaidHours,
+        },
+      };
+    }
+  }
+
   const labourCorrectionCommand = shortAssistantFollowUp ? null : parseLabourCorrectionCommand(userMessageForAI);
   if (labourCorrectionCommand) {
     const labourer = await findActiveLabourerByPhone(db, phoneE164);
@@ -2788,68 +3499,6 @@ async function buildReply({
         labourEntryId: targetEntry.id || null,
       },
     };
-  }
-
-  const hoursBalanceQuery = shortAssistantFollowUp ? null : parseLabourHoursBalanceQuery(userMessageForAI);
-  if (hoursBalanceQuery) {
-    const labourer = await findActiveLabourerByPhone(db, phoneE164);
-    if (!labourer) {
-      if (isExplicitLabourBalanceText(userMessageForAI)) {
-        return {
-          replyText:
-            "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
-          outboundMeta: { ...outboundMeta, command: "labourer_phone_unregistered" },
-        };
-      }
-    } else {
-      const range = getDateKeyRangeForBalanceQuery(hoursBalanceQuery.range);
-      if (!range || !range.startKey || !range.endKey) {
-        return {
-          replyText: "Could not look up that hours range. Try: how many hours today, this week, or this pay period.",
-          outboundMeta: { ...outboundMeta, command: "labour_hours_balance_error" },
-        };
-      }
-      const entries = await loadLabourEntries(db, {
-        startKey: range.startKey,
-        endKey: range.endKey,
-        labourerPhone: phoneE164,
-      });
-      const summary = buildLabourRollup(entries);
-      const labourerName =
-        labourer.displayName ||
-        String((labourer.labourerData && labourer.labourerData.name) || "").trim() ||
-        phoneE164;
-      return {
-        replyText: truncateSms(
-          formatLabourBalanceReply({
-            labourerName,
-            rangeLabel: range.label,
-            startKey: range.startKey,
-            endKey: range.endKey,
-            totalHours: summary.totalHours,
-            totalPaidHours: summary.totalPaidHours,
-            totalEntries: summary.totalEntries,
-          })
-        ),
-        outboundMeta: {
-          ...withRoutingDecision(outboundMeta, {
-            stage: "deterministic",
-            action: "labour_balance",
-            confidence: 0.99,
-            reason: "Matched labour balance query.",
-            source: "deterministic",
-            matchedBy: "parseLabourHoursBalanceQuery",
-          }),
-          command: "labour_hours_balance",
-          reportStartKey: range.startKey,
-          reportEndKey: range.endKey,
-          range: hoursBalanceQuery.range,
-          totalEntries: summary.totalEntries,
-          totalHours: summary.totalHours,
-          totalPaidHours: summary.totalPaidHours,
-        },
-      };
-    }
   }
 
   const labourEntryCommand = shortAssistantFollowUp ? null : parseLabourEntryCommand(userMessageForAI);
@@ -3131,9 +3780,13 @@ async function buildReply({
     });
     const savedAsLabel =
       structured.logParsedType === "manpower" ? "manpower" : structured.category;
+    const savedPrefix =
+      structured.logParsedType === "manpower"
+        ? "Saved as manpower log."
+        : `Saved as ${savedAsLabel}.`;
     return {
       replyText: truncateSms(
-        `Saved as ${savedAsLabel}. ${
+        `${savedPrefix} ${
           structuredReportDateKey ? `(${structuredReportDateKey}) ` : ""
         }${logBody}`
       ),
@@ -3214,6 +3867,660 @@ async function buildReply({
     }
   }
   const historyMessages = rowsToOpenAIMessages(historyRows);
+  const aiActionPlan =
+    shortAssistantFollowUp
+      ? sanitizeAssistantActionPlan(null)
+      : await planAssistantAction({
+          openaiApiKey,
+          logger,
+          runId,
+          historyMessages,
+          trimmedBody: userMessageForAI,
+          effectiveProjectSlug,
+          effectiveProjectName,
+          modelsOverride,
+        });
+  if (aiActionPlan.action !== "none" && aiActionPlan.confidence >= 0.84) {
+    const plannerDecision = buildRoutingDecision({
+      stage: "ai_action_router",
+      action: aiActionPlan.action,
+      confidence: aiActionPlan.confidence,
+      reason: aiActionPlan.reason || "AI action router selected a supported backend action.",
+      source: "ai",
+      matchedBy: "planAssistantAction",
+    });
+
+    if (aiActionPlan.action === "project_set" && aiActionPlan.projectSlug) {
+      if (!isExplicitProjectSetRequest(trimmedBody, aiActionPlan.projectSlug)) {
+        logger.warn("assistant: rejected ai project_set without explicit switch wording", {
+          runId,
+          phoneE164,
+          projectSlug: aiActionPlan.projectSlug,
+          bodyPreview: String(trimmedBody || "").slice(0, 160),
+        });
+      } else {
+      const projectAccess = await getAssistantProjectAccess(db, phoneE164, aiActionPlan.projectSlug, user);
+      if (!projectAccess.exists) {
+        return {
+          replyText: `Project "${aiActionPlan.projectSlug}" does not exist. Use one of your assigned project slugs.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_missing",
+            projectSlug: null,
+          },
+        };
+      }
+      if (!projectAccess.allowed) {
+        return {
+          replyText: `Project "${aiActionPlan.projectSlug}" is not assigned to this phone number.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_forbidden",
+            projectSlug: null,
+          },
+        };
+      }
+      const slug = projectAccess.projectSlug || aiActionPlan.projectSlug;
+      const patch = buildUserProjectPatch(user, slug, {
+        activeProjectSlug: slug,
+      });
+      await db.collection(COL_USERS).doc(phoneE164).set(
+        {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return {
+        replyText: `Active project set to: ${(projectAccess.projectData && projectAccess.projectData.name) || slug} (${slug}).`,
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "project_set",
+          projectSlug: slug,
+        },
+      };
+      }
+    }
+
+    if (aiActionPlan.action === "daily_pdf_request") {
+      const requestDateKey = aiActionPlan.reportDateKey || null;
+      const requestType = aiActionPlan.reportType || "dailySiteLog";
+      const scopeBits = [];
+      if (effectiveProjectSlug) scopeBits.push(effectiveProjectName || effectiveProjectSlug);
+      if (requestDateKey) scopeBits.push(requestDateKey);
+      if (requestType === "journal") scopeBits.push("journal");
+      const scopeText = scopeBits.length ? ` (${scopeBits.join(" · ")})` : "";
+      return {
+        replyText: `Building your daily PDF report${scopeText}. You'll get another text with the download link in a minute.`,
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "daily_pdf_request",
+          dailyPdfRequested: true,
+          projectSlug: effectiveProjectSlug,
+          reportDateKey: requestDateKey,
+          reportType: requestType,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "day_rollup") {
+      const preferAi = aiActionPlan.preferAiNarrative === true;
+      const sum = await buildDayRollup(
+        db,
+        openaiApiKey,
+        phoneE164,
+        effectiveProjectSlug,
+        aiActionPlan.reportDateKey || null,
+        logger,
+        runId,
+        modelsOverride,
+        preferAi
+      );
+      await db.collection(COL_SUMMARIES).add({
+        phoneE164,
+        projectSlug: effectiveProjectSlug,
+        summaryText: sum.text,
+        period: "day",
+        source: preferAi ? "sms_day_rollup_ai_action" : "sms_day_rollup_action",
+        meta: sum.summaryMeta || {},
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        replyText: sum.text,
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          summarySaved: true,
+          command: preferAi ? "daily_summary" : "daily_log_view",
+          aiUsed: Boolean(sum.summaryMeta && sum.summaryMeta.ai),
+          reportDateKey:
+            (sum.summaryMeta && sum.summaryMeta.reportDateKey) || aiActionPlan.reportDateKey || null,
+          projectSlug: effectiveProjectSlug,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "lookahead_trade_query") {
+      if (!effectiveProjectSlug) {
+        return {
+          replyText: "Set a project first, then ask for activities by trade for this week or next week.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "lookahead_query_missing_project",
+          },
+        };
+      }
+      const snapshot = await loadLatestLookaheadSnapshot({
+        db,
+        projectSlug: effectiveProjectSlug,
+      });
+      if (!snapshot || !Array.isArray(snapshot.tasks) || !snapshot.tasks.length) {
+        return {
+          replyText: `No saved lookahead schedule was found for ${effectiveProjectName || effectiveProjectSlug} yet.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "lookahead_query_no_snapshot",
+            projectSlug: effectiveProjectSlug,
+          },
+        };
+      }
+      const range = getDateKeyWindowForLookaheadRange(
+        aiActionPlan.range === "next_week" ? "next_week" : "this_week",
+        new Date()
+      );
+      const matchingTasks = snapshot.tasks
+        .filter((task) => taskIntersectsLookaheadWindow(task, range.startKey, range.endKey))
+        .filter((task) => taskMatchesTradeQuery(task, aiActionPlan.tradeQuery))
+        .sort((a, b) => {
+          const aRange = taskRelevantDateRange(a, range.startKey, range.endKey);
+          const bRange = taskRelevantDateRange(b, range.startKey, range.endKey);
+          if (aRange.startKey !== bRange.startKey) return aRange.startKey.localeCompare(bRange.startKey);
+          return normalizeLookaheadActivityLabel(a.activity).localeCompare(
+            normalizeLookaheadActivityLabel(b.activity)
+          );
+        });
+      return {
+        replyText: truncateSms(
+          formatLookaheadActivitiesReply({
+            projectName: effectiveProjectName || effectiveProjectSlug,
+            tradeQuery: aiActionPlan.tradeQuery,
+            rangeLabel: range.label,
+            startKey: range.startKey,
+            endKey: range.endKey,
+            tasks: matchingTasks,
+          })
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "lookahead_trade_query",
+          projectSlug: effectiveProjectSlug,
+          reportStartKey: range.startKey,
+          reportEndKey: range.endKey,
+          range: aiActionPlan.range || "this_week",
+          trade: aiActionPlan.tradeQuery || null,
+          taskCount: matchingTasks.length,
+          lookaheadSnapshotId: snapshot.id || null,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "lookahead_activities_report") {
+      if (!effectiveProjectSlug) {
+        return {
+          replyText: "Set a project first, then ask for the lookahead activities report.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "lookahead_report_missing_project",
+          },
+        };
+      }
+      return {
+        replyText: `Generating the lookahead activities report for ${effectiveProjectName || effectiveProjectSlug}. You'll get a download link shortly.`,
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "lookahead_activities_report_request",
+          projectSlug: effectiveProjectSlug,
+          lookaheadReportRequested: true,
+          lookaheadReportKind: "activities",
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "lookahead_closeout_report") {
+      if (!effectiveProjectSlug) {
+        return {
+          replyText: "Set a project first, then ask for the lookahead closeout report.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "lookahead_report_missing_project",
+          },
+        };
+      }
+      return {
+        replyText: `Generating the lookahead closeout report for ${effectiveProjectName || effectiveProjectSlug}. You'll get a download link shortly.`,
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "lookahead_closeout_report_request",
+          projectSlug: effectiveProjectSlug,
+          lookaheadReportRequested: true,
+          lookaheadReportKind: "closeout",
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "labour_balance" && aiActionPlan.range) {
+      const labourer = await findActiveLabourerByPhone(db, phoneE164);
+      if (!labourer) {
+        return {
+          replyText:
+            "This phone is not registered as a labourer yet. Ask the office to add your name and phone on the Labour page.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "labourer_phone_unregistered",
+          },
+        };
+      }
+      const range = getDateKeyRangeForBalanceQuery(aiActionPlan.range);
+      if (!range || !range.startKey || !range.endKey) {
+        return {
+          replyText: "Could not look up that hours range. Try: how many hours today, this week, or this pay period.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "labour_hours_balance_error",
+          },
+        };
+      }
+      const entries = await loadLabourEntries(db, {
+        startKey: range.startKey,
+        endKey: range.endKey,
+        labourerPhone: phoneE164,
+      });
+      const summary = buildLabourRollup(entries);
+      const labourerName =
+        labourer.displayName ||
+        String((labourer.labourerData && labourer.labourerData.name) || "").trim() ||
+        phoneE164;
+      return {
+        replyText: truncateSms(
+          formatLabourBalanceReply({
+            labourerName,
+            rangeLabel: range.label,
+            startKey: range.startKey,
+            endKey: range.endKey,
+            totalHours: summary.totalHours,
+            totalPaidHours: summary.totalPaidHours,
+            totalEntries: summary.totalEntries,
+          })
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "labour_hours_balance",
+          reportStartKey: range.startKey,
+          reportEndKey: range.endKey,
+          range: aiActionPlan.range,
+          totalEntries: summary.totalEntries,
+          totalHours: summary.totalHours,
+          totalPaidHours: summary.totalPaidHours,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "deficiency_intake") {
+      const deficiencyRequest = {
+        projectSlug: aiActionPlan.projectSlug || effectiveProjectSlug || null,
+        fields: {
+          title: aiActionPlan.deficiency.title,
+          description: aiActionPlan.deficiency.description,
+          location: aiActionPlan.deficiency.location,
+          area: aiActionPlan.deficiency.area,
+          trade: aiActionPlan.deficiency.trade,
+          reference: aiActionPlan.deficiency.reference,
+          requestedAction: aiActionPlan.deficiency.requestedAction,
+        },
+        freeText: trimmedBody,
+        normalizedText: trimmedBody,
+      };
+      return handleDeficiencyIntakeTurn({
+        db,
+        logger,
+        runId,
+        phoneE164,
+        user,
+        trimmedBody,
+        lower,
+        relatedMessageId,
+        numMedia,
+        effectiveProjectSlug,
+        effectiveProjectName,
+        logAuthorFields,
+        deficiencyRequest,
+        outboundMeta: withRoutingDecision(outboundMeta, plannerDecision),
+      });
+    }
+
+    if (aiActionPlan.action === "todo_create" && aiActionPlan.todoText) {
+      const todoProjectSlug = effectiveProjectSlug || HOME_TODO_PROJECT_SLUG;
+      if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+        return {
+          replyText:
+            "Only admin or management phones can add todo items. Ask admin to approve this phone in Team.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "todo_create_forbidden",
+            projectSlug: todoProjectSlug,
+          },
+        };
+      }
+      if (!canAccessProject(currentMemberAccess, todoProjectSlug)) {
+        return {
+          replyText: `This phone can’t add todo items for ${todoProjectSlug}.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "todo_create_project_forbidden",
+            projectSlug: todoProjectSlug,
+          },
+        };
+      }
+      let dueLabel = null;
+      let dueByIso = null;
+      if (aiActionPlan.todoDueWindow) {
+        const dueDate = new Date();
+        if (aiActionPlan.todoDueWindow === "next_week") {
+          dueDate.setDate(dueDate.getDate() + 7);
+          dueLabel = "next week";
+        } else if (aiActionPlan.todoDueWindow === "next_month") {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+          dueLabel = "next month";
+        }
+        dueDate.setHours(17, 0, 0, 0);
+        dueByIso = dueDate.toISOString();
+      }
+      const todoRef = db.collection(COL_PROJECT_TODOS).doc();
+      await todoRef.set({
+        projectSlug: todoProjectSlug,
+        scope: "project",
+        visibility: "management",
+        status: "open",
+        taskText: aiActionPlan.todoText,
+        sourceText: trimmedBody,
+        dueWindow: aiActionPlan.todoDueWindow || null,
+        dueLabel: dueLabel || null,
+        dueBy: dueByIso || null,
+        startedAt: null,
+        finishedAt: null,
+        priority: null,
+        recurrence: { mode: "none", customText: "" },
+        labels: [],
+        tags: [],
+        reminders: [],
+        dependencies: [],
+        comments: [],
+        subTodos: [],
+        createdByPhone: phoneE164,
+        createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
+        createdByName:
+          String(currentMemberAccess.memberData?.displayName || logAuthorFields.authorName || phoneE164).trim() ||
+          phoneE164,
+        source: "sms_ai_action",
+        sourceMessageId: relatedMessageId || null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        replyText: truncateSms(
+          `Saved todo${todoProjectSlug ? ` for ${todoProjectSlug}` : ""}: ${aiActionPlan.todoText}${
+            dueLabel ? ` (${dueLabel})` : ""
+          }.`
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "todo_created",
+          projectSlug: todoProjectSlug,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "notify_request" && aiActionPlan.notifyAudience && aiActionPlan.notifyMessage) {
+      if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+        return {
+          replyText:
+            "Only management can send broadcast notifications. Ask admin to approve your phone in Team.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "notify_forbidden",
+          },
+        };
+      }
+      const notifyProjectSlug =
+        aiActionPlan.notifyAudience === "project_users"
+          ? normalizeProjectSlug(aiActionPlan.projectSlug || effectiveProjectSlug || "")
+          : null;
+      if (aiActionPlan.notifyAudience === "project_users" && !notifyProjectSlug) {
+        return {
+          replyText: "Set a project first, or specify which project users should receive the notice.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "notify_missing_project",
+          },
+        };
+      }
+      if (
+        aiActionPlan.notifyAudience === "project_users" &&
+        !canAccessProject(currentMemberAccess, notifyProjectSlug)
+      ) {
+        return {
+          replyText: `You cannot notify project ${notifyProjectSlug} because it is not assigned to your account.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "notify_project_forbidden",
+            projectSlug: notifyProjectSlug,
+          },
+        };
+      }
+      return {
+        replyText: truncateSms(
+          aiActionPlan.notifyAudience === "management"
+            ? `Sending your update to management: ${aiActionPlan.notifyMessage}`
+            : `Sending your update to all users on ${notifyProjectSlug}: ${aiActionPlan.notifyMessage}`
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: aiActionPlan.notifyAudience === "management" ? "notify_management" : "notify_project_users",
+          projectSlug: notifyProjectSlug || outboundMeta.projectSlug || null,
+          notifyRequest: {
+            audience: aiActionPlan.notifyAudience,
+            projectSlug: notifyProjectSlug || null,
+            messageBody: aiActionPlan.notifyMessage,
+            requestedByPhone: phoneE164,
+            requestedByName: logAuthorFields.authorName || null,
+            requestedByEmail: logAuthorFields.authorEmail || null,
+          },
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "project_notes_update" && aiActionPlan.proposedNotes) {
+      if (!effectiveProjectSlug) {
+        return {
+          replyText: "Set a project first, then ask me to update the project notes.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_notes_missing_project",
+          },
+        };
+      }
+      const notesUpdate = { proposedNotes: aiActionPlan.proposedNotes };
+      const memberAccess = await findActiveAppMemberByApprovedPhone(db, phoneE164);
+      if (!memberAccess) {
+        return {
+          replyText: "This phone is not approved for SMS project note updates. Ask admin to approve this number on your app member.",
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_notes_phone_unapproved",
+          },
+        };
+      }
+      if (!canAccessProject(memberAccess, effectiveProjectSlug)) {
+        return {
+          replyText: `This phone can’t update notes for ${effectiveProjectSlug}. Switch to one of your assigned projects first.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_notes_forbidden",
+            projectSlug: effectiveProjectSlug,
+          },
+        };
+      }
+      const projectRef = db.collection(COL_PROJECTS).doc(effectiveProjectSlug);
+      const projectSnap = await projectRef.get();
+      if (!projectSnap.exists) {
+        return {
+          replyText: `Project "${effectiveProjectSlug}" was not found.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_missing",
+            projectSlug: null,
+          },
+        };
+      }
+      const projectData = projectSnap.data() || {};
+      const currentNotes = String(projectData.notes || "")
+        .replace(/\r\n/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim()
+        .slice(0, 8000);
+      if (canApproveProjectNoteRequests(memberAccess)) {
+        await projectRef.set(
+          {
+            notes: notesUpdate.proposedNotes,
+            updatedAt: FieldValue.serverTimestamp(),
+            notesUpdatedAt: FieldValue.serverTimestamp(),
+            notesUpdatedByEmail: memberAccess.email,
+            notesUpdatedByPhone: phoneE164,
+          },
+          { merge: true }
+        );
+        return {
+          replyText: `Project notes updated for ${projectData.name || effectiveProjectSlug}.`,
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "project_notes_updated",
+            projectSlug: effectiveProjectSlug,
+          },
+        };
+      }
+      const requestRef = db.collection(COL_PROJECT_NOTE_EDIT_REQUESTS).doc();
+      await requestRef.set({
+        type: "projectNotes",
+        status: "pending",
+        source: "sms_ai_action",
+        projectSlug: effectiveProjectSlug,
+        projectName: projectData.name || effectiveProjectSlug,
+        currentNotes,
+        proposedNotes: notesUpdate.proposedNotes,
+        requesterComment: "Submitted by SMS AI action",
+        requestedByEmail: memberAccess.email,
+        requestedByName: String(memberAccess.memberData?.displayName || memberAccess.email || "").trim(),
+        requestedByRole: memberAccess.role,
+        requestedByPhone: phoneE164,
+        reportId: null,
+        reportTitle: null,
+        reportDateKey: null,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      return {
+        replyText: `Project note update submitted for ${projectData.name || effectiveProjectSlug}. Request ${requestRef.id} is pending approval.`,
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "project_notes_request_submitted",
+          projectSlug: effectiveProjectSlug,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "start_timer") {
+      const startedAtMs = Date.now();
+      const label = aiActionPlan.timerLabel || "general task";
+      const timerPayload = {
+        label,
+        startedAtMs,
+        startedAtIso: new Date(startedAtMs).toISOString(),
+        projectSlug: effectiveProjectSlug || null,
+        projectName: effectiveProjectName || null,
+      };
+      await db.collection(COL_USERS).doc(phoneE164).set(
+        {
+          pendingTimer: timerPayload,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return {
+        replyText: truncateSms(
+          `Timer started for ${label}.${effectiveProjectSlug ? ` Project ${effectiveProjectSlug}.` : ""} Text "stop timer" when done.`
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "timer_started",
+          projectSlug: effectiveProjectSlug || null,
+        },
+      };
+    }
+
+    if (aiActionPlan.action === "stop_timer") {
+      const activeTimer = user.pendingTimer && Number(user.pendingTimer.startedAtMs) > 0
+        ? user.pendingTimer
+        : null;
+      if (!activeTimer) {
+        return {
+          replyText: 'No active timer. Text "start timer for <task>" first.',
+          outboundMeta: {
+            ...withRoutingDecision(outboundMeta, plannerDecision),
+            command: "timer_stop_without_active",
+            projectSlug: effectiveProjectSlug || null,
+          },
+        };
+      }
+      const stopAtMs = Date.now();
+      const durationMs = Math.max(0, stopAtMs - Number(activeTimer.startedAtMs || 0));
+      const durationMinutes = Math.round(durationMs / 60000);
+      const timerProjectSlug = normalizeProjectSlug(activeTimer.projectSlug) || effectiveProjectSlug || null;
+      const timerLabel = String(activeTimer.label || "general task").trim() || "general task";
+      const timerLogText = `Timer: ${timerLabel} · Start ${String(activeTimer.startedAtIso || "-")} · Stop ${new Date(stopAtMs).toISOString()} · Duration ${formatDurationFromMs(durationMs)} (${durationMinutes}m).`;
+      const timerLog = await writeLogEntry(db, FieldValue, {
+        phoneE164,
+        ...logAuthorFields,
+        projectSlug: timerProjectSlug,
+        reportDateKey: dateKeyEastern(new Date(stopAtMs)),
+        rawText: timerLogText,
+        normalizedText: timerLogText,
+        category: "note",
+        subtype: "timer",
+        tags: ["timer", "time_tracking"],
+        sourceMessageId: relatedMessageId || null,
+        status: "closed",
+      });
+      await db.collection(COL_USERS).doc(phoneE164).set(
+        {
+          pendingTimer: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      return {
+        replyText: truncateSms(
+          `Timer stopped for ${timerLabel}. Duration: ${formatDurationFromMs(durationMs)} (${durationMinutes}m). Logged to daily notes.`
+        ),
+        outboundMeta: {
+          ...withRoutingDecision(outboundMeta, plannerDecision),
+          command: "timer_stopped",
+          projectSlug: timerProjectSlug,
+          logEntryId: timerLog.logEntryId,
+          logCategory: "note",
+        },
+      };
+    }
+  }
   const explicitAiRequest = shortAssistantFollowUp || looksLikeExplicitAiChatRequest(userMessageForAI);
   if (!explicitAiRequest) {
     const channelNorm = String(channel || "").trim().toLowerCase();
@@ -3416,19 +4723,28 @@ module.exports = {
   isStopTimerCommand,
   formatDurationFromMs,
   parseNotificationRequest,
+  parseLookaheadActivitiesQuery,
+  parseNarrativeCorrectionCommand,
+  sanitizeAssistantActionPlan,
   looksLikeExplicitAiChatRequest,
   isExplicitLabourEntryText,
   isExplicitLabourBalanceText,
   parseTodoReportRequest,
-  parseLabourCorrectionCommand,
   isAffirmativeCorrectionFollowUp,
+  buildRecentCorrectionDateKeys,
   looksLikeAssistantFollowUpAnswer,
   looksLikeCorrectionPrompt,
   shouldTrackAssistantFollowUp,
   applyManpowerCorrectionToEntry,
+  applyNarrativeCorrectionToEntry,
   looksLikeNarrativeSaveCandidate,
+  taskMatchesTradeQuery,
+  taskIntersectsLookaheadWindow,
+  getDateKeyWindowForLookaheadRange,
+  formatLookaheadActivitiesReply,
   decideFallbackRouting,
   inferJournalTags,
+  isExplicitProjectSetRequest,
   RATE_MAX,
   RATE_WINDOW_MS,
   MAX_SMS_CHARS,

@@ -1322,11 +1322,6 @@ async function renderJournalPdf(opts) {
     drawParagraph(overview, 10, false, C.body);
   }
 
-  if (shouldRenderProjectNotes(projectNotes)) {
-    drawSectionTitle("Project Notes");
-    drawParagraph(projectNotes, 10, false, C.body);
-  }
-
   const renderedPhotoIds = new Set();
   const timelineRows = Array.isArray(model.timeline) ? model.timeline : [];
   if (timelineRows.length) {

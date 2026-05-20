@@ -941,7 +941,9 @@ async function generateDailyReportPdf(opts) {
         ? {
             provider: weatherSnapshot.provider,
             dateKey: weatherSnapshot.dateKey,
+            timeZone: weatherSnapshot.timeZone,
             usedFallbackLocation: !!weatherSnapshot.usedFallbackLocation,
+            siteAddressUnresolved: !!weatherSnapshot.siteAddressUnresolved,
             locationQuery: weatherSnapshot.locationQuery,
             resolvedLabel: weatherSnapshot.resolvedLabel,
             latitude: weatherSnapshot.latitude,
@@ -952,6 +954,7 @@ async function generateDailyReportPdf(opts) {
             precipInches: weatherSnapshot.precipInches,
             windMphMax: weatherSnapshot.windMphMax,
             conditions: weatherSnapshot.conditions,
+            rawDaily: weatherSnapshot.rawDaily || null,
           }
         : {
             ok: false,

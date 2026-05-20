@@ -357,6 +357,35 @@ function formatUiError(err) {
   return code ? `${code}: ${message}` : message;
 }
 
+function formatReportWeatherDebug(weatherSnapshot) {
+  if (!weatherSnapshot || typeof weatherSnapshot !== "object") return "";
+  if (weatherSnapshot.ok === false) {
+    const reason = String(weatherSnapshot.reason || "lookup_failed").trim();
+    const message = String(weatherSnapshot.message || "").trim();
+    return `Weather debug: ${reason}${message ? ` - ${message}` : ""}`;
+  }
+  const rawDaily = weatherSnapshot.rawDaily && typeof weatherSnapshot.rawDaily === "object"
+    ? weatherSnapshot.rawDaily
+    : null;
+  const rawBits = [];
+  if (rawDaily) {
+    if (rawDaily.weathercode != null) rawBits.push(`code=${rawDaily.weathercode}`);
+    if (rawDaily.temperature_2m_max != null) rawBits.push(`tmax=${rawDaily.temperature_2m_max}C`);
+    if (rawDaily.temperature_2m_min != null) rawBits.push(`tmin=${rawDaily.temperature_2m_min}C`);
+    if (rawDaily.precipitation_sum != null) rawBits.push(`precip=${rawDaily.precipitation_sum}mm`);
+    if (rawDaily.windspeed_10m_max != null) rawBits.push(`wind=${rawDaily.windspeed_10m_max}km/h`);
+  }
+  const summary = String(weatherSnapshot.summaryLine || "").trim();
+  const location = String(weatherSnapshot.resolvedLabel || weatherSnapshot.locationQuery || "").trim();
+  return [
+    summary ? `Weather: ${summary}` : "",
+    rawBits.length ? `Raw: ${rawBits.join(" · ")}` : "",
+    location ? `Location: ${location}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
+
 async function readImageBitmapForUpload(file) {
   if (typeof createImageBitmap === "function") {
     return createImageBitmap(file);
@@ -582,6 +611,14 @@ function normalizeProjectPdfPushSettingsClient(raw) {
         : "21:00",
     audience: String(source.audience || "").trim() === "project_users" ? "project_users" : "management",
   };
+}
+
+function describeProjectPdfPushSettingsClient(raw) {
+  const settings = normalizeProjectPdfPushSettingsClient(raw);
+  if (!settings.enabled) return "Nightly report push is disabled for this project.";
+  const reportLabel = settings.reportType === "dailySiteLog" ? "daily site log" : "journal";
+  const audienceLabel = settings.audience === "project_users" ? "all project users" : "management";
+  return `This project will send the ${reportLabel} every day at ${settings.scheduleTimeLocal} to ${audienceLabel}.`;
 }
 
 function currentRequestedReportLink() {
@@ -1673,11 +1710,13 @@ function renderProjectManager() {
   const saveLogoButton = document.getElementById("projectSaveLogoBtn");
   const uploadLogoButton = document.getElementById("projectUploadLogoBtn");
   const savePdfPushButton = document.getElementById("projectSavePdfPushBtn");
+  const pdfPushPresetButton = document.getElementById("projectPdfPushPresetBtn");
   const logoInput = document.getElementById("projectLogoStoragePath");
   const pdfPushEnabledInput = document.getElementById("projectPdfPushEnabled");
   const pdfPushReportTypeInput = document.getElementById("projectPdfPushReportType");
   const pdfPushTimeInput = document.getElementById("projectPdfPushTime");
   const pdfPushAudienceInput = document.getElementById("projectPdfPushAudience");
+  const pdfPushSummary = document.getElementById("projectPdfPushSummary");
   const createButton = document.getElementById("projectCreateBtn");
   const ownedList = document.getElementById("projectOwnedList");
   if (!phoneSelect || !activeSelect || !setButton || !createButton || !ownedList) return;
@@ -1693,11 +1732,15 @@ function renderProjectManager() {
     if (saveLogoButton) saveLogoButton.disabled = true;
     if (uploadLogoButton) uploadLogoButton.disabled = true;
     if (savePdfPushButton) savePdfPushButton.disabled = true;
+    if (pdfPushPresetButton) pdfPushPresetButton.disabled = true;
     if (logoInput) logoInput.value = "";
     if (pdfPushEnabledInput) pdfPushEnabledInput.value = "true";
     if (pdfPushReportTypeInput) pdfPushReportTypeInput.value = "journal";
     if (pdfPushTimeInput) pdfPushTimeInput.value = "21:00";
     if (pdfPushAudienceInput) pdfPushAudienceInput.value = "management";
+    if (pdfPushSummary) {
+      pdfPushSummary.textContent = "Select a project to review its nightly report push settings.";
+    }
     ownedList.textContent = "Select a phone to view its projects.";
     return;
   }
@@ -1710,11 +1753,15 @@ function renderProjectManager() {
     if (saveLogoButton) saveLogoButton.disabled = true;
     if (uploadLogoButton) uploadLogoButton.disabled = true;
     if (savePdfPushButton) savePdfPushButton.disabled = true;
+    if (pdfPushPresetButton) pdfPushPresetButton.disabled = true;
     if (logoInput) logoInput.value = "";
     if (pdfPushEnabledInput) pdfPushEnabledInput.value = "true";
     if (pdfPushReportTypeInput) pdfPushReportTypeInput.value = "journal";
     if (pdfPushTimeInput) pdfPushTimeInput.value = "21:00";
     if (pdfPushAudienceInput) pdfPushAudienceInput.value = "management";
+    if (pdfPushSummary) {
+      pdfPushSummary.textContent = "Select a project to review its nightly report push settings.";
+    }
     ownedList.textContent = "No projects assigned yet. Create the first one below.";
     refreshDailyPdfProjectOptions(user);
     return;
@@ -1736,6 +1783,7 @@ function renderProjectManager() {
   if (saveLogoButton) saveLogoButton.disabled = false;
   if (uploadLogoButton) uploadLogoButton.disabled = false;
   if (savePdfPushButton) savePdfPushButton.disabled = false;
+  if (pdfPushPresetButton) pdfPushPresetButton.disabled = false;
   const selectedProject = projects.find(
     (project) => normalizeProjectSlugClient(project.slug || project.id) === activeSelect.value
   );
@@ -1750,6 +1798,9 @@ function renderProjectManager() {
   if (pdfPushReportTypeInput) pdfPushReportTypeInput.value = pdfPushSettings.reportType;
   if (pdfPushTimeInput) pdfPushTimeInput.value = pdfPushSettings.scheduleTimeLocal;
   if (pdfPushAudienceInput) pdfPushAudienceInput.value = pdfPushSettings.audience;
+  if (pdfPushSummary) {
+    pdfPushSummary.textContent = describeProjectPdfPushSettingsClient(selectedProject && selectedProject.pdfPushSettings);
+  }
 
   ownedList.innerHTML = projects
     .map((project) => {
@@ -2786,6 +2837,9 @@ function startAdminListeners() {
           report.downloadUrlError && !report.downloadURL
             ? `<div class="muted small">Signed URL error: ${esc(String(report.downloadUrlError).slice(0, 200))}</div>`
             : "";
+        const weatherDebug = report.weatherSnapshot
+          ? `<div class="muted small">${esc(formatReportWeatherDebug(report.weatherSnapshot))}</div>`
+          : "";
         const projectLabel =
           report.projectName || report.projectId || (report.reportType === "journal" ? "personal journal" : "-");
         return `
@@ -2795,6 +2849,7 @@ function startAdminListeners() {
             <div>${link}</div>
             ${appLink}
             ${err}
+            ${weatherDebug}
           </div>`;
       })
       .join("");
@@ -3766,6 +3821,7 @@ function initProjectManager() {
   const pdfPushTimeInput = document.getElementById("projectPdfPushTime");
   const pdfPushAudienceInput = document.getElementById("projectPdfPushAudience");
   const pdfPushResult = document.getElementById("projectPdfPushResult");
+  const pdfPushPresetButton = document.getElementById("projectPdfPushPresetBtn");
   const tokenInput = document.getElementById("projectActionToken");
   const createButton = document.getElementById("projectCreateBtn");
   const result = document.getElementById("projectManagerResult");
@@ -3787,6 +3843,18 @@ function initProjectManager() {
     renderProjectManager();
   });
   if (logoFileInput) logoFileInput.addEventListener("change", () => renderProjectManager());
+  if (pdfPushPresetButton && pdfPushEnabledInput && pdfPushReportTypeInput && pdfPushTimeInput && pdfPushAudienceInput) {
+    pdfPushPresetButton.addEventListener("click", () => {
+      pdfPushEnabledInput.value = "true";
+      pdfPushReportTypeInput.value = "journal";
+      pdfPushTimeInput.value = "21:00";
+      pdfPushAudienceInput.value = "management";
+      if (pdfPushResult) {
+        pdfPushResult.textContent = "Preset loaded: nightly journal at 21:00 to management. Click save to apply it.";
+        pdfPushResult.className = "project-manager-result muted small";
+      }
+    });
+  }
 
   setButton.addEventListener("click", async () => {
     const phoneE164 = String(phoneSelect.value || "").trim();

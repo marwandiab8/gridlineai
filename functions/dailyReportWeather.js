@@ -76,14 +76,20 @@ function kmhToMph(kmh) {
 function weatherCodeSummary(code) {
   const c = Number(code);
   if (c === 0) return "Clear";
-  if (c <= 3) return "Partly cloudy";
-  if (c <= 48) return "Fog / low cloud";
-  if (c <= 57) return "Drizzle / freezing drizzle";
-  if (c <= 67) return "Rain";
-  if (c <= 77) return "Snow / ice pellets";
-  if (c <= 82) return "Rain showers";
-  if (c <= 86) return "Snow showers";
-  if (c <= 99) return "Thunderstorm";
+  if (c === 1) return "Mainly clear";
+  if (c === 2) return "Partly cloudy";
+  if (c === 3) return "Overcast";
+  if (c === 45 || c === 48) return "Fog / low cloud";
+  if (c === 51 || c === 53 || c === 55) return "Drizzle";
+  if (c === 56 || c === 57) return "Freezing drizzle";
+  if (c === 61 || c === 63 || c === 65) return "Rain";
+  if (c === 66 || c === 67) return "Freezing rain";
+  if (c === 71 || c === 73 || c === 75) return "Snow";
+  if (c === 77) return "Snow grains / ice pellets";
+  if (c === 80 || c === 81 || c === 82) return "Rain showers";
+  if (c === 85 || c === 86) return "Snow showers";
+  if (c === 95) return "Thunderstorm";
+  if (c === 96 || c === 99) return "Thunderstorm with hail";
   return "Mixed conditions";
 }
 
@@ -568,6 +574,7 @@ module.exports = {
   fetchWeatherRangeSummary,
   summarizeWeeklyWeather,
   buildWeeklySummaryItems,
+  weatherCodeSummary,
   geocodeAddressLine,
   isDisplayOnlyDefaultLocation,
   DEFAULT_WEATHER_LOCATION_LINE,

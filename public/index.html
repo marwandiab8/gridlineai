@@ -935,11 +935,14 @@
                   <div class="assistant-schedule-block">
                     <div class="card-head">
                       <div>
-                        <h3>Auto PDF push</h3>
+                        <h3>Nightly Journal Push</h3>
                         <p class="muted small">
-                          Apply scheduled PDF generation and texting to the selected active project.
+                          Schedule the selected project to text management or project users a journal or daily site log automatically.
                         </p>
                       </div>
+                    </div>
+                    <div id="projectPdfPushSummary" class="project-owned-list project-pdf-push-summary muted small">
+                      Select a project to review its nightly report push settings.
                     </div>
                     <div class="form-grid project-create-grid">
                       <div class="form-row">
@@ -968,7 +971,13 @@
                         </select>
                       </div>
                     </div>
+                    <div class="muted small">
+                      Recommended for nightly management delivery: <strong>Enabled</strong>, <strong>Journal</strong>, <strong>21:00</strong>, <strong>Management</strong>.
+                    </div>
                     <div class="project-manager-actions">
+                      <button type="button" class="btn-secondary" id="projectPdfPushPresetBtn" disabled>
+                        Use nightly journal preset
+                      </button>
                       <button type="button" class="btn-secondary" id="projectSavePdfPushBtn" disabled>
                         Save auto PDF push
                       </button>

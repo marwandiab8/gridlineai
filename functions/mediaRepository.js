@@ -70,6 +70,18 @@ function dedupeMedia(rows) {
   return out;
 }
 
+function hasMeaningfulCaption(text) {
+  return Boolean(String(text || "").trim());
+}
+
+function getTimestampMs(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 async function optimizeImageForStorage(buffer, contentType) {
   return { buffer, contentType };
 }
@@ -539,6 +551,93 @@ async function registerUploadedMedia({
   return uploaded;
 }
 
+async function loadRecentUncaptionedMediaGroups({
+  db,
+  senderPhone,
+  withinMs = 3 * 60 * 1000,
+  limit = 20,
+}) {
+  const phone = String(senderPhone || "").trim();
+  if (!phone) return [];
+  const snap = await db
+    .collection(COL)
+    .where("senderPhone", "==", phone)
+    .orderBy("createdAt", "desc")
+    .limit(Math.max(1, Number(limit) || 20))
+    .get()
+    .catch(() => null);
+  if (!snap || snap.empty) return [];
+
+  const cutoffMs = Date.now() - Math.max(5 * 1000, Number(withinMs) || 0);
+  const grouped = new Map();
+  for (const doc of snap.docs) {
+    const row = doc.data() || {};
+    const sourceMessageId = String(row.sourceMessageId || "").trim();
+    if (!sourceMessageId || hasMeaningfulCaption(row.captionText)) continue;
+    const createdAtMs = getTimestampMs(row.createdAt);
+    if (!createdAtMs || createdAtMs < cutoffMs) continue;
+    const current = grouped.get(sourceMessageId) || {
+      sourceMessageId,
+      mediaIds: [],
+      mediaCount: 0,
+      linkedLogEntryIds: new Set(),
+      latestCreatedAtMs: createdAtMs,
+    };
+    current.mediaIds.push(doc.id);
+    current.mediaCount += 1;
+    if (row.linkedLogEntryId) current.linkedLogEntryIds.add(String(row.linkedLogEntryId));
+    current.latestCreatedAtMs = Math.max(current.latestCreatedAtMs, createdAtMs);
+    grouped.set(sourceMessageId, current);
+  }
+
+  return [...grouped.values()]
+    .map((group) => ({
+      sourceMessageId: group.sourceMessageId,
+      mediaIds: group.mediaIds,
+      mediaCount: group.mediaCount,
+      linkedLogEntryIds: [...group.linkedLogEntryIds],
+      latestCreatedAtMs: group.latestCreatedAtMs,
+    }))
+    .sort((a, b) => b.latestCreatedAtMs - a.latestCreatedAtMs);
+}
+
+async function applyCaptionToSourceMessageMedia({
+  db,
+  FieldValue,
+  sourceMessageId,
+  captionText,
+  captionSourceMessageId = null,
+}) {
+  const targetSourceMessageId = String(sourceMessageId || "").trim();
+  const nextCaption = String(captionText || "").trim();
+  if (!targetSourceMessageId || !nextCaption) return { updatedCount: 0, mediaIds: [] };
+
+  const snap = await db
+    .collection(COL)
+    .where("sourceMessageId", "==", targetSourceMessageId)
+    .get()
+    .catch(() => null);
+  if (!snap || snap.empty) return { updatedCount: 0, mediaIds: [] };
+
+  const updates = [];
+  const mediaIds = [];
+  for (const doc of snap.docs) {
+    mediaIds.push(doc.id);
+    updates.push(
+      doc.ref.update({
+        captionText: nextCaption,
+        captionSourceMessageId: String(captionSourceMessageId || "").trim() || null,
+        captionUpdatedAt: FieldValue.serverTimestamp(),
+      })
+    );
+  }
+  await Promise.all(updates);
+  return {
+    updatedCount: updates.length,
+    mediaIds,
+  };
+}
+
 async function attachExistingMediaToIssueBySourceMessages({
   db,
   FieldValue,
@@ -648,6 +747,8 @@ module.exports = {
   saveOneInboundMedia,
   loadMediaForDailyReport,
   loadMediaForProjectDailyReport,
+  loadRecentUncaptionedMediaGroups,
+  applyCaptionToSourceMessageMedia,
   attachExistingMediaToIssueBySourceMessages,
   getMediaEffectiveDateKey,
   registerUploadedMedia,

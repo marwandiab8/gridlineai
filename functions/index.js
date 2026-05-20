@@ -40,7 +40,12 @@ const {
   summarizeTodos,
 } = require("./todoReport");
 const { maybeCaptionFirstMmsPhoto } = require("./mmsVisionCaption");
-const { registerUploadedMedia, saveOneInboundMedia } = require("./mediaRepository");
+const {
+  registerUploadedMedia,
+  saveOneInboundMedia,
+  loadRecentUncaptionedMediaGroups,
+  applyCaptionToSourceMessageMedia,
+} = require("./mediaRepository");
 const {
   maybeEnhanceLogEntry,
   appendLinkedMediaIds,
@@ -864,8 +869,8 @@ function buildReportPushMessage({ pdfResult, projectName, projectSlug, reportDat
   if (reportDateKey) scopeBits.push(reportDateKey);
   const scopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
   const parts = [`${label}${scopeText}`];
-  if (pdfResult && pdfResult.appURL) parts.push(`Open in app: ${pdfResult.appURL}`);
-  if (pdfResult && pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
+  if (pdfResult && pdfResult.appURL) parts.push(`Open report: ${pdfResult.appURL}`);
+  else if (pdfResult && pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
   else if (pdfResult && pdfResult.storagePath) parts.push(`Stored at: ${pdfResult.storagePath}`);
   return parts.join(" | ").slice(0, 640);
 }
@@ -877,8 +882,8 @@ function buildDailyPdfSmsReplyBody({ pdfResult, projectName, projectSlug }) {
   if (pdfResult.reportDateKey) scopeBits.push(pdfResult.reportDateKey);
   const smsScopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
   const parts = [`${label}${smsScopeText}`];
-  if (pdfResult.appURL) parts.push(`Open in app: ${pdfResult.appURL}`);
-  if (pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
+  if (pdfResult.appURL) parts.push(`Open report: ${pdfResult.appURL}`);
+  else if (pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
   else parts.push(`Stored at: ${pdfResult.storagePath}`);
   return parts.join(" | ").slice(0, 640);
 }
@@ -1329,6 +1334,161 @@ function normalizePendingAudioReview(raw) {
     model: String(raw.model || "").trim() || null,
     createdAtMs: Number(raw.createdAtMs || 0) || 0,
   };
+}
+
+const PHOTO_CAPTION_LINK_WINDOW_MS = 3 * 60 * 1000;
+const PHOTO_CAPTION_PROMPT_EXPIRY_MS = 10 * 60 * 1000;
+
+function normalizeRecentTextForPhotoCaption(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const messageId = String(raw.messageId || "").trim();
+  const text = String(raw.text || "").trim();
+  const createdAtMs = Number(raw.createdAtMs || 0) || 0;
+  if (!messageId || !text || !createdAtMs) return null;
+  return { messageId, text, createdAtMs };
+}
+
+function normalizeRecentUncaptionedMedia(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const sourceMessageId = String(raw.sourceMessageId || "").trim();
+  const mediaCount = Math.max(0, Number(raw.mediaCount || 0) || 0);
+  const createdAtMs = Number(raw.createdAtMs || 0) || 0;
+  if (!sourceMessageId || mediaCount <= 0 || !createdAtMs) return null;
+  return { sourceMessageId, mediaCount, createdAtMs };
+}
+
+function normalizePendingPhotoCaptionConfirmation(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const targetSourceMessageId = String(raw.targetSourceMessageId || "").trim();
+  const candidateText = String(raw.candidateText || "").trim();
+  const targetMediaCount = Math.max(0, Number(raw.targetMediaCount || 0) || 0);
+  const promptMode = String(raw.promptMode || "").trim();
+  const candidateMessageId = String(raw.candidateMessageId || "").trim() || null;
+  const createdAtMs = Number(raw.createdAtMs || 0) || 0;
+  if (!targetSourceMessageId || !candidateText || targetMediaCount <= 0 || !createdAtMs) return null;
+  if (promptMode !== "media_after_text" && promptMode !== "text_after_media") return null;
+  return {
+    targetSourceMessageId,
+    candidateText,
+    targetMediaCount,
+    promptMode,
+    candidateMessageId,
+    createdAtMs,
+  };
+}
+
+function isFreshCaptionState(createdAtMs, withinMs) {
+  return Number(createdAtMs || 0) >= Date.now() - withinMs;
+}
+
+function isLikelyCaptionCandidateText(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw || raw.length > 220) return false;
+  if (/[?]$/.test(raw)) return false;
+  if (/^(yes|y|no|n|ok|okay|sure)\b/i.test(raw)) return false;
+  if (
+    /^(help|commands|status|reset|contact|project\b|daily\b|journal\b|report\b|todo\b|notify\b|start timer\b|stop timer\b|labou?r\b|hours?\b|lookahead\b|ai\b|question\b)/i.test(
+      raw
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isAffirmativeShortReply(text) {
+  return /^(yes|y|yeah|yep|sure|ok|okay|use it|do it|go ahead)\b/i.test(String(text || "").trim());
+}
+
+function isNegativeShortReply(text) {
+  return /^(no|n|nope|nah|don'?t|do not|skip)\b/i.test(String(text || "").trim());
+}
+
+function buildPhotoCaptionPrompt({ candidateText, mediaCount, mode }) {
+  const countLabel = `${Math.max(1, Number(mediaCount) || 1)} photo${Number(mediaCount) === 1 ? "" : "s"}`;
+  if (mode === "media_after_text") {
+    return `I received ${countLabel}. Use your last note as the caption for those ${countLabel}? Reply yes or no.`;
+  }
+  return `Use this note as the caption for the ${countLabel} you just sent?\n"${String(candidateText || "").trim().slice(0, 140)}"\nReply yes or no.`;
+}
+
+async function saveRecentTextForPhotoCaption(phoneE164, messageId, text) {
+  const normalizedText = String(text || "").trim();
+  const normalizedMessageId = String(messageId || "").trim();
+  if (!phoneE164 || !normalizedText || !normalizedMessageId) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      recentTextForPhotoCaption: {
+        messageId: normalizedMessageId,
+        text: normalizedText.slice(0, 500),
+        createdAtMs: Date.now(),
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function clearRecentTextForPhotoCaption(phoneE164) {
+  if (!phoneE164) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      recentTextForPhotoCaption: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function saveRecentUncaptionedMedia(phoneE164, sourceMessageId, mediaCount) {
+  const normalizedSourceMessageId = String(sourceMessageId || "").trim();
+  const normalizedMediaCount = Math.max(0, Number(mediaCount) || 0);
+  if (!phoneE164 || !normalizedSourceMessageId || normalizedMediaCount <= 0) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      recentUncaptionedMedia: {
+        sourceMessageId: normalizedSourceMessageId,
+        mediaCount: normalizedMediaCount,
+        createdAtMs: Date.now(),
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function clearRecentUncaptionedMedia(phoneE164) {
+  if (!phoneE164) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      recentUncaptionedMedia: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function savePendingPhotoCaptionConfirmation(phoneE164, payload) {
+  const normalized = normalizePendingPhotoCaptionConfirmation(payload);
+  if (!phoneE164 || !normalized) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      pendingPhotoCaptionConfirmation: normalized,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function clearPendingPhotoCaptionConfirmation(phoneE164) {
+  if (!phoneE164) return;
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      pendingPhotoCaptionConfirmation: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
 }
 
 async function savePendingAudioReview(phoneE164, review) {
@@ -4330,10 +4490,119 @@ exports.inboundSms = onRequest(
         createdAt: FieldValue.serverTimestamp(),
       });
 
+      const captionStateSnap = await db.collection(COL_USERS).doc(from).get().catch(() => null);
+      const pendingPhotoCaptionConfirmation = normalizePendingPhotoCaptionConfirmation(
+        captionStateSnap && captionStateSnap.exists
+          ? captionStateSnap.get("pendingPhotoCaptionConfirmation")
+          : null
+      );
+      const recentTextForPhotoCaption = normalizeRecentTextForPhotoCaption(
+        captionStateSnap && captionStateSnap.exists
+          ? captionStateSnap.get("recentTextForPhotoCaption")
+          : null
+      );
+      const recentUncaptionedMedia = normalizeRecentUncaptionedMedia(
+        captionStateSnap && captionStateSnap.exists
+          ? captionStateSnap.get("recentUncaptionedMedia")
+          : null
+      );
+
       let replyText;
       let outboundMeta = {};
+      let deferredCaptionDecision = null;
+
+      const normalizedInboundText = String(body || "").trim();
+      const isTextOnlyInbound = mediaCountEffective === 0 && Boolean(normalizedInboundText);
+      if (
+        isTextOnlyInbound &&
+        pendingPhotoCaptionConfirmation &&
+        isFreshCaptionState(pendingPhotoCaptionConfirmation.createdAtMs, PHOTO_CAPTION_PROMPT_EXPIRY_MS)
+      ) {
+        if (isAffirmativeShortReply(normalizedInboundText)) {
+          const applied = await applyCaptionToSourceMessageMedia({
+            db,
+            FieldValue,
+            sourceMessageId: pendingPhotoCaptionConfirmation.targetSourceMessageId,
+            captionText: pendingPhotoCaptionConfirmation.candidateText,
+            captionSourceMessageId: pendingPhotoCaptionConfirmation.candidateMessageId || inboundRef.id,
+          });
+          await clearPendingPhotoCaptionConfirmation(from);
+          await clearRecentUncaptionedMedia(from);
+          await clearRecentTextForPhotoCaption(from);
+          deferredCaptionDecision = {
+            handled: true,
+            replyText:
+              applied.updatedCount > 0
+                ? `Applied that caption to ${applied.updatedCount} photo${applied.updatedCount === 1 ? "" : "s"}.`
+                : "I could not find those photos to caption. Please resend the note with the pictures.",
+            outboundMeta: {
+              aiUsed: false,
+              command: "photo_caption_confirmed",
+            },
+          };
+        } else if (isNegativeShortReply(normalizedInboundText)) {
+          await clearPendingPhotoCaptionConfirmation(from);
+          await clearRecentUncaptionedMedia(from);
+          if (pendingPhotoCaptionConfirmation.promptMode === "media_after_text") {
+            deferredCaptionDecision = {
+              handled: true,
+              replyText: "OK. I left your earlier note as a normal entry and did not use it as the photo caption.",
+              outboundMeta: {
+                aiUsed: false,
+                command: "photo_caption_declined",
+              },
+            };
+          } else {
+            body = pendingPhotoCaptionConfirmation.candidateText;
+          }
+        }
+      }
+
+      if (
+        !deferredCaptionDecision &&
+        isTextOnlyInbound &&
+        recentUncaptionedMedia &&
+        isFreshCaptionState(recentUncaptionedMedia.createdAtMs, PHOTO_CAPTION_LINK_WINDOW_MS) &&
+        isLikelyCaptionCandidateText(normalizedInboundText)
+      ) {
+        const freshGroups = await loadRecentUncaptionedMediaGroups({
+          db,
+          senderPhone: from,
+          withinMs: PHOTO_CAPTION_LINK_WINDOW_MS,
+        });
+        const targetGroup = freshGroups.find(
+          (group) => group.sourceMessageId === recentUncaptionedMedia.sourceMessageId
+        );
+        if (targetGroup) {
+          await savePendingPhotoCaptionConfirmation(from, {
+            targetSourceMessageId: targetGroup.sourceMessageId,
+            targetMediaCount: targetGroup.mediaCount,
+            candidateText: normalizedInboundText,
+            candidateMessageId: inboundRef.id,
+            promptMode: "text_after_media",
+            createdAtMs: Date.now(),
+          });
+          await clearRecentUncaptionedMedia(from);
+          deferredCaptionDecision = {
+            handled: true,
+            replyText: buildPhotoCaptionPrompt({
+              candidateText: normalizedInboundText,
+              mediaCount: targetGroup.mediaCount,
+              mode: "text_after_media",
+            }),
+            outboundMeta: {
+              aiUsed: false,
+              command: "photo_caption_confirmation_requested",
+            },
+          };
+        }
+      }
 
       try {
+        if (deferredCaptionDecision && deferredCaptionDecision.handled) {
+          replyText = deferredCaptionDecision.replyText;
+          outboundMeta = deferredCaptionDecision.outboundMeta || {};
+        } else {
         const out = await Promise.race([
           buildReply({
             db,
@@ -4369,6 +4638,7 @@ exports.inboundSms = onRequest(
             matchedBy: outboundMeta.routingDecision.matchedBy || null,
             safeFallbackUsed: outboundMeta.routingDecision.safeFallbackUsed === true,
           });
+        }
         }
       } catch (handlerErr) {
         if (handlerErr && handlerErr.message === "__BUILD_REPLY_TIMEOUT__") {
@@ -4510,6 +4780,65 @@ exports.inboundSms = onRequest(
         }
       }
 
+      if (outboundMeta.lookaheadReportRequested) {
+        try {
+          lookaheadReportQueueRef = await db.collection("lookaheadReportDeliveryQueue").add({
+            phoneE164: from,
+            projectSlug: outboundMeta.projectSlug || null,
+            reportKind: outboundMeta.lookaheadReportKind || "activities",
+            replyToNumber: to || null,
+            replyMessagingServiceSid: messagingServiceSid || null,
+            replyAccountSid: inboundAccountSid || null,
+            runId,
+            replyToInboundDocId: inboundRef.id,
+            status: "queued",
+            attemptCount: 0,
+            lastError: null,
+            createdAt: FieldValue.serverTimestamp(),
+          });
+          logger.info("inboundSms: lookahead report queued for SMS delivery", {
+            runId,
+            queueDocId: lookaheadReportQueueRef.id,
+          });
+        } catch (queueErr) {
+          logger.error("inboundSms: lookahead report queue failed", {
+            runId,
+            message: queueErr.message,
+            stack: queueErr.stack,
+          });
+          safeReply = "Could not queue your lookahead report. Try again in a minute.";
+          outboundMeta = {
+            ...outboundMeta,
+            lookaheadReportRequested: false,
+            aiError: String(queueErr.message || queueErr),
+            command: "lookahead_report_queue_failed",
+          };
+        }
+      }
+
+      const shouldPromptForPriorTextCaption =
+        mediaCountEffective > 0 &&
+        !normalizedInboundText &&
+        recentTextForPhotoCaption &&
+        isFreshCaptionState(recentTextForPhotoCaption.createdAtMs, PHOTO_CAPTION_LINK_WINDOW_MS) &&
+        isLikelyCaptionCandidateText(recentTextForPhotoCaption.text) &&
+        !(
+          pendingPhotoCaptionConfirmation &&
+          isFreshCaptionState(pendingPhotoCaptionConfirmation.createdAtMs, PHOTO_CAPTION_PROMPT_EXPIRY_MS)
+        );
+      if (shouldPromptForPriorTextCaption) {
+        safeReply = buildPhotoCaptionPrompt({
+          candidateText: recentTextForPhotoCaption.text,
+          mediaCount: mediaCountEffective,
+          mode: "media_after_text",
+        });
+        outboundMeta = {
+          ...outboundMeta,
+          aiUsed: false,
+          command: "photo_caption_confirmation_requested",
+        };
+      }
+
       // Twilio waits ~15s for this HTTP response — reply must be sent before that.
       sendTwiml(res, safeReply);
 
@@ -4527,6 +4856,9 @@ exports.inboundSms = onRequest(
           dailyPdfQueueDocId: dailyPdfQueueRef ? dailyPdfQueueRef.id : null,
           labourPdfRequested: Boolean(outboundMeta.labourPdfRequested),
           labourPdfQueueDocId: labourPdfQueueRef ? labourPdfQueueRef.id : null,
+          lookaheadReportRequested: Boolean(outboundMeta.lookaheadReportRequested),
+          lookaheadReportKind: outboundMeta.lookaheadReportKind || null,
+          lookaheadReportQueueDocId: lookaheadReportQueueRef ? lookaheadReportQueueRef.id : null,
           todoReportRequested: Boolean(outboundMeta.todoReportRequested),
           todoReportFormat: outboundMeta.todoReportFormat || null,
           todoReportQueueDocId: todoReportQueueRef ? todoReportQueueRef.id : null,
@@ -4554,6 +4886,10 @@ exports.inboundSms = onRequest(
             outboundMeta.routingDecision ? outboundMeta.routingDecision.safeFallbackUsed === true : false,
         });
 
+        if (!deferredCaptionDecision && mediaCountEffective === 0 && isLikelyCaptionCandidateText(normalizedInboundText)) {
+          await saveRecentTextForPhotoCaption(from, inboundRef.id, normalizedInboundText);
+        }
+
         const outboundRef = await db.collection("messages").add({
           direction: "outbound",
           from: configuredFrom,
@@ -4578,6 +4914,9 @@ exports.inboundSms = onRequest(
           classification: outboundMeta.classification || null,
           dailyPdfRequested: Boolean(outboundMeta.dailyPdfRequested),
           dailyPdfQueueDocId: dailyPdfQueueRef ? dailyPdfQueueRef.id : null,
+          lookaheadReportRequested: Boolean(outboundMeta.lookaheadReportRequested),
+          lookaheadReportKind: outboundMeta.lookaheadReportKind || null,
+          lookaheadReportQueueDocId: lookaheadReportQueueRef ? lookaheadReportQueueRef.id : null,
           todoReportRequested: Boolean(outboundMeta.todoReportRequested),
           todoReportFormat: outboundMeta.todoReportFormat || null,
           todoReportQueueDocId: todoReportQueueRef ? todoReportQueueRef.id : null,
@@ -4800,6 +5139,24 @@ exports.inboundSms = onRequest(
                 primary: OPENAI_MODEL_PRIMARY.value(),
               },
             });
+          }
+
+          const inboundCaptionText = String(params.Body || body || "").trim();
+          if (!inboundCaptionText && (attachResult?.attached || 0) > 0) {
+            await saveRecentUncaptionedMedia(from, inboundRef.id, attachResult.attached || mediaCountEffective);
+            if (shouldPromptForPriorTextCaption && recentTextForPhotoCaption) {
+              await savePendingPhotoCaptionConfirmation(from, {
+                targetSourceMessageId: inboundRef.id,
+                targetMediaCount: attachResult.attached || mediaCountEffective,
+                candidateText: recentTextForPhotoCaption.text,
+                candidateMessageId: recentTextForPhotoCaption.messageId,
+                promptMode: "media_after_text",
+                createdAtMs: Date.now(),
+              });
+              await clearRecentTextForPhotoCaption(from);
+            }
+          } else {
+            await clearRecentUncaptionedMedia(from);
           }
         }
 

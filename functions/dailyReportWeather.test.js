@@ -1,7 +1,19 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { summarizeWeeklyWeather, buildWeeklySummaryItems } = require("./dailyReportWeather");
+const {
+  summarizeWeeklyWeather,
+  buildWeeklySummaryItems,
+  weatherCodeSummary,
+} = require("./dailyReportWeather");
+
+test("weatherCodeSummary distinguishes drizzle from freezing drizzle", () => {
+  assert.equal(weatherCodeSummary(51), "Drizzle");
+  assert.equal(weatherCodeSummary(53), "Drizzle");
+  assert.equal(weatherCodeSummary(56), "Freezing drizzle");
+  assert.equal(weatherCodeSummary(57), "Freezing drizzle");
+  assert.equal(weatherCodeSummary(61), "Rain");
+});
 
 test("summarizeWeeklyWeather highlights dry weeks and cold snaps", () => {
   const summary = summarizeWeeklyWeather([

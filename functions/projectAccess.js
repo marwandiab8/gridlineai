@@ -1,5 +1,6 @@
 const COL_USERS = "smsUsers";
 const COL_PROJECTS = "projects";
+const { hasProjectMembership } = require("./projectMembership");
 
 function normalizeProjectSlug(value) {
   const normalized = String(value || "")
@@ -122,11 +123,12 @@ function userCanAccessProject(phoneE164, userData, projectData, projectSlug) {
     typeof projectData.ownerPhoneE164 === "string"
       ? String(projectData.ownerPhoneE164).trim()
       : "";
+  const legacyAssigned = getUserProjectSlugs(userData).includes(slug);
   if (ownerPhoneE164) {
-    return ownerPhoneE164 === String(phoneE164 || "").trim();
+    return ownerPhoneE164 === String(phoneE164 || "").trim() || legacyAssigned;
   }
 
-  return getUserProjectSlugs(userData).includes(slug);
+  return legacyAssigned;
 }
 
 async function getAccessibleProjectForUser(db, phoneE164, projectSlug, userAccessIn) {
@@ -153,12 +155,26 @@ async function getAccessibleProjectForUser(db, phoneE164, projectSlug, userAcces
     };
   }
 
-  const allowed = userCanAccessProject(
+  const legacyAllowed = userCanAccessProject(
     phoneE164,
     userAccess.userData,
     projectRecord.projectData,
     slug
   );
+  const membershipAllowed = legacyAllowed
+    ? false
+    : await hasProjectMembership(
+        db,
+        {
+          phoneE164,
+          email:
+            userAccess.userData && userAccess.userData.approvedMemberEmail
+              ? String(userAccess.userData.approvedMemberEmail).trim().toLowerCase()
+              : "",
+        },
+        slug
+      );
+  const allowed = legacyAllowed || membershipAllowed;
   return {
     allowed,
     reason: allowed

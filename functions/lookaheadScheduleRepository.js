@@ -100,8 +100,30 @@ async function loadPreviousLookaheadSnapshot({
   return null;
 }
 
+async function loadLatestLookaheadSnapshot({
+  db,
+  projectSlug,
+}) {
+  const scope = normalizeProjectScope(projectSlug);
+  const snap = await db
+    .collection("projects")
+    .doc(scope)
+    .collection("lookaheadSchedules")
+    .orderBy("updatedAt", "desc")
+    .limit(1)
+    .get();
+
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  return {
+    id: doc.id,
+    ...(doc.data() || {}),
+  };
+}
+
 module.exports = {
   saveLookaheadSnapshot,
   loadPreviousLookaheadSnapshot,
+  loadLatestLookaheadSnapshot,
   normalizeProjectScope,
 };
