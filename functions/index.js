@@ -2843,7 +2843,7 @@ exports.deliverDailyPdfSms = onDocumentCreated(
     const replyToNumber = normalizePhoneE164(d.replyToNumber || "");
     const replyMessagingServiceSid = normalizeTwilioSecret(d.replyMessagingServiceSid || "");
     const replyAccountSid = normalizeAccountSid(d.replyAccountSid || "");
-    const runtimeAccountSid = replyAccountSid || accountSid;
+    const runtimeAccountSid = accountSid;
 
     if (
       !runtimeAccountSid ||
@@ -2941,6 +2941,8 @@ exports.deliverDailyPdfSms = onDocumentCreated(
     } catch (pdfErr) {
       logger.error("deliverDailyPdfSms: daily PDF failed", {
         runId,
+        configuredAccountSid: runtimeAccountSid ? `${runtimeAccountSid.slice(0, 6)}...${runtimeAccountSid.slice(-4)}` : null,
+        replyAccountSid: replyAccountSid ? `${replyAccountSid.slice(0, 6)}...${replyAccountSid.slice(-4)}` : null,
         message: pdfErr.message,
         stack: pdfErr.stack,
       });
