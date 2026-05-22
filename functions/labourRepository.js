@@ -514,6 +514,33 @@ function parseLabourHoursBalanceQuery(text) {
   return null;
 }
 
+function parseManagementLabourTotalsQuery(text) {
+  const raw = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return null;
+  if (parseLabourHoursCommand(text)) return null;
+
+  const lower = raw.toLowerCase();
+  const wantsAllLabourers =
+    /\ball\s+labou?rers?\b/i.test(lower) ||
+    /\bfor\s+all\s+labou?rers?\b/i.test(lower) ||
+    /\b(entire|whole)\s+crew\b/i.test(lower) ||
+    /\bevery(?:one|body)\b.*\b(hours?|time)\b/i.test(lower);
+  if (!wantsAllLabourers) return null;
+
+  const wantsHours =
+    /\b(total\s+)?hours?\b/i.test(lower) ||
+    /\btime\b/i.test(lower) ||
+    /\bpay\s*period\b/i.test(lower) ||
+    /\bpayroll\b/i.test(lower);
+  if (!wantsHours) return null;
+
+  const range = parseLabourHoursBalanceQuery(raw);
+  if (!range || !range.range) return null;
+  return { range: range.range };
+}
+
 function getDateKeyRangeForBalanceQuery(range, now = new Date()) {
   const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
   const todayKey = dateKeyEastern(d);
@@ -746,6 +773,7 @@ module.exports = {
   normalizeLabourerPhone,
   parseLabourHoursCommand,
   parseLabourHoursBalanceQuery,
+  parseManagementLabourTotalsQuery,
   getDateKeyRangeForBalanceQuery,
   formatLabourBalanceReply,
   buildLabourEntryDoc,

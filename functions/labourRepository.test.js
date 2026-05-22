@@ -12,6 +12,7 @@ const {
   labourMinutesFromHours,
   monthKeyFromDateKey,
   normalizeLoadedLabourEntry,
+  parseManagementLabourTotalsQuery,
   parseLabourHoursBalanceQuery,
   parseLabourHoursCommand,
   sumHours,
@@ -165,6 +166,19 @@ test("parseLabourHoursBalanceQuery distinguishes questions from hour submissions
   assert.equal(parseLabourHoursBalanceQuery("labour 8.0 framing"), null);
   assert.equal(parseLabourHoursBalanceQuery("worked 6 hours on drywall"), null);
   assert.equal(parseLabourHoursBalanceQuery("total 9 h pumping water"), null);
+});
+
+test("parseManagementLabourTotalsQuery detects cross-project management totals", () => {
+  assert.equal(
+    parseManagementLabourTotalsQuery("show me the total hours for today for all labourers")?.range,
+    "today"
+  );
+  assert.equal(
+    parseManagementLabourTotalsQuery("show me total hours for all labourers for this pay period")?.range,
+    "pay"
+  );
+  assert.equal(parseManagementLabourTotalsQuery("show me my hours for this pay period"), null);
+  assert.equal(parseManagementLabourTotalsQuery("labour 8.0 framing cleanup"), null);
 });
 
 test("getDateKeyRangeForBalanceQuery matches Eastern calendar for a fixed now", () => {

@@ -64,6 +64,7 @@ const {
 const {
   parseLabourHoursCommand,
   parseLabourHoursBalanceQuery,
+  parseManagementLabourTotalsQuery,
   getDateKeyRangeForBalanceQuery,
   formatLabourBalanceReply,
   writeLabourEntry,
@@ -430,6 +431,39 @@ function formatLookaheadActivitiesReply({
   const shown = lines.slice(0, maxItems);
   const more = lines.length - shown.length;
   return `${prefix}: ${shown.join("; ")}${more > 0 ? `; +${more} more.` : "."}`;
+}
+
+function formatManagementLabourTotalsReply({
+  rangeLabel,
+  startKey,
+  endKey,
+  totalHours,
+  totalEntries,
+  labourerCount,
+  projectCount,
+  projectTotals,
+}) {
+  const hours = Math.round((Number(totalHours) || 0) * 100) / 100;
+  const rangeBits =
+    startKey && endKey
+      ? startKey === endKey
+        ? startKey
+        : `${startKey} to ${endKey}`
+      : "";
+  if (!Number(totalEntries) || totalEntries < 1) {
+    return `All labourers — ${rangeLabel} (${rangeBits}): no hours logged yet.`;
+  }
+  const topProjects = Array.isArray(projectTotals) ? projectTotals.slice(0, 3) : [];
+  const topSummary = topProjects.length
+    ? ` Top: ${topProjects
+        .map((item) => {
+          const slug = String(item && item.projectSlug ? item.projectSlug : "unassigned").trim() || "unassigned";
+          const itemHours = Math.round((Number(item && item.totalHours) || 0) * 100) / 100;
+          return `${slug} ${itemHours}h`;
+        })
+        .join(" · ")}.`
+    : "";
+  return `All labourers — ${rangeLabel} (${rangeBits}): ${hours}h across ${totalEntries} entries, ${labourerCount} labourers, ${projectCount} projects.${topSummary}`;
 }
 
 function inferInboundLogType(text) {
@@ -4262,6 +4296,79 @@ async function buildReply({
         trade: lookaheadActivitiesQuery.tradeQuery || null,
         taskCount: matchingTasks.length,
         lookaheadSnapshotId: snapshot.id || null,
+      },
+    };
+  }
+
+  const managementLabourTotalsQuery = shortAssistantFollowUp
+    ? null
+    : parseManagementLabourTotalsQuery(userMessageForAI);
+  if (managementLabourTotalsQuery) {
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can view labour totals for all labourers. Ask admin to approve this phone in Team.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_totals_forbidden",
+        },
+      };
+    }
+    const range = getDateKeyRangeForBalanceQuery(managementLabourTotalsQuery.range);
+    if (!range || !range.startKey || !range.endKey) {
+      return {
+        replyText: "Could not look up that hours range. Try: total hours for all labourers today or this pay period.",
+        outboundMeta: { ...outboundMeta, command: "labour_totals_error" },
+      };
+    }
+    const entries = await loadLabourEntries(db, {
+      startKey: range.startKey,
+      endKey: range.endKey,
+    });
+    const scopedEntries = entries.filter((entry) => {
+      const projectSlug = String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase();
+      return currentMemberAccess.allProjects === true || canAccessProject(currentMemberAccess, projectSlug);
+    });
+    const summary = buildLabourRollup(scopedEntries);
+    const byProject = new Map();
+    for (const entry of scopedEntries) {
+      const projectSlug =
+        String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase() || "unassigned";
+      const entryHours = Number(entry && entry.hours);
+      byProject.set(projectSlug, (byProject.get(projectSlug) || 0) + (Number.isFinite(entryHours) ? entryHours : 0));
+    }
+    const projectTotals = [...byProject.entries()]
+      .map(([projectSlug, totalHours]) => ({
+        projectSlug,
+        totalHours: Math.round(Number(totalHours || 0) * 100) / 100,
+      }))
+      .sort((a, b) => {
+        if (b.totalHours !== a.totalHours) return b.totalHours - a.totalHours;
+        return a.projectSlug.localeCompare(b.projectSlug);
+      });
+    return {
+      replyText: truncateSms(
+        formatManagementLabourTotalsReply({
+          rangeLabel: range.label,
+          startKey: range.startKey,
+          endKey: range.endKey,
+          totalHours: summary.totalHours,
+          totalEntries: summary.totalEntries,
+          labourerCount: summary.labourerTotals.length,
+          projectCount: projectTotals.length,
+          projectTotals,
+        })
+      ),
+      outboundMeta: {
+        ...outboundMeta,
+        command: "management_labour_totals",
+        reportStartKey: range.startKey,
+        reportEndKey: range.endKey,
+        range: managementLabourTotalsQuery.range,
+        totalEntries: summary.totalEntries,
+        totalHours: summary.totalHours,
+        labourerCount: summary.labourerTotals.length,
+        projectCount: projectTotals.length,
       },
     };
   }
