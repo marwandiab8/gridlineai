@@ -2194,6 +2194,7 @@ function shouldBypassPendingTodo(trimmedBody, lower) {
     return true;
   }
   if (parseProjectCommand(trimmedBody)) return true;
+  if (parseTodoMutationRequest(trimmedBody)) return true;
   if (isDailyReportPdfRequest(trimmedBody) || isAnyDayRollupRequest(trimmedBody)) return true;
   return false;
 }
@@ -5586,6 +5587,7 @@ module.exports = {
   parseTodoDateTimeInput,
   normalizePendingTodoDraft,
   getNextMissingTodoField,
+  shouldBypassPendingTodo,
   isStopTimerCommand,
   formatDurationFromMs,
   parseNotificationRequest,
