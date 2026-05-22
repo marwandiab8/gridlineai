@@ -208,6 +208,7 @@ test("explicit labour helpers stay narrow", () => {
   assert.equal(isExplicitLabourEntryText("8 hours framing cleanup"), true);
   assert.equal(isExplicitLabourEntryText("Worked on home activities and errands today"), false);
   assert.equal(isExplicitLabourBalanceText("how many hours this week"), true);
+  assert.equal(isExplicitLabourBalanceText("show me total hours for docksteader"), true);
   assert.equal(isExplicitLabourBalanceText("today's activities were groceries and cleanup"), false);
 });
 
@@ -669,6 +670,7 @@ test("pending todo flow bypasses explicit todo mutation commands", () => {
   assert.equal(shouldBypassPendingTodo("edit todo fix gate latch to replace latch", "edit todo fix gate latch to replace latch"), true);
   assert.equal(shouldBypassPendingTodo("show me all open todo's", "show me all open todo's"), true);
   assert.equal(shouldBypassPendingTodo("todo report pdf", "todo report pdf"), true);
+  assert.equal(shouldBypassPendingTodo("show me total hours for docksteader", "show me total hours for docksteader"), true);
   assert.equal(shouldBypassPendingTodo("installed guard at stair 2", "installed guard at stair 2", "sms_audio_note_reviewed"), true);
   assert.equal(shouldBypassPendingTodo("2026-05-30", "2026-05-30"), false);
 });

@@ -522,12 +522,13 @@ function parseManagementLabourTotalsQuery(text) {
   if (parseLabourHoursCommand(text)) return null;
 
   const lower = raw.toLowerCase();
+  const projectScope = extractManagementLabourProjectScope(raw);
   const wantsAllLabourers =
     /\ball\s+labou?rers?\b/i.test(lower) ||
     /\bfor\s+all\s+labou?rers?\b/i.test(lower) ||
     /\b(entire|whole)\s+crew\b/i.test(lower) ||
     /\bevery(?:one|body)\b.*\b(hours?|time)\b/i.test(lower);
-  if (!wantsAllLabourers) return null;
+  if (!wantsAllLabourers && !projectScope) return null;
 
   const wantsHours =
     /\b(total\s+)?hours?\b/i.test(lower) ||
@@ -537,8 +538,9 @@ function parseManagementLabourTotalsQuery(text) {
   if (!wantsHours) return null;
 
   const range = parseLabourHoursBalanceQuery(raw);
-  if (!range || !range.range) return null;
-  return { range: range.range };
+  const resolvedRange = range && range.range ? range.range : projectScope ? "pay" : "";
+  if (!resolvedRange) return null;
+  return { range: resolvedRange, projectScope };
 }
 
 function parseManagementLabourBreakdownQuery(text) {
@@ -555,9 +557,11 @@ function parseManagementLabourBreakdownQuery(text) {
     /\bpay\s*period\b/i.test(lower) ||
     /\bpayroll\b/i.test(lower);
   if (!wantsHours) return null;
+  const projectScope = extractManagementLabourProjectScope(text);
   const range = parseLabourHoursBalanceQuery(text);
-  if (!range || !range.range) return null;
-  return { range: range.range, groupBy };
+  const resolvedRange = range && range.range ? range.range : projectScope ? "pay" : "";
+  if (!resolvedRange) return null;
+  return { range: resolvedRange, groupBy, projectScope };
 }
 
 function parseManagementLabourPdfRequest(text) {
@@ -579,6 +583,34 @@ function parseManagementLabourPdfRequest(text) {
   const range = parseLabourHoursBalanceQuery(raw);
   if (!range || !range.range) return null;
   return { range: range.range };
+}
+
+function extractManagementLabourProjectScope(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  const explicitThisProject = lower.match(/\bfor\s+this\s+project\b/);
+  if (explicitThisProject) return "this_project";
+  const match = lower.match(/\bfor\s+([a-z0-9][a-z0-9-]{1,79})\b/);
+  if (!match) return "";
+  const candidate = normalizeProjectSlug(match[1]);
+  if (!candidate) return "";
+  const reserved = new Set([
+    "today",
+    "this",
+    "the",
+    "week",
+    "month",
+    "pay",
+    "period",
+    "labourers",
+    "all",
+    "labourer",
+    "worker",
+    "workers",
+  ]);
+  if (reserved.has(candidate)) return "";
+  return candidate;
 }
 
 function getDateKeyRangeForBalanceQuery(range, now = new Date()) {

@@ -179,6 +179,10 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
     parseManagementLabourTotalsQuery("show me total hours for all labourers for this pay period")?.range,
     "pay"
   );
+  assert.deepEqual(parseManagementLabourTotalsQuery("show me total hours for docksteader"), {
+    range: "pay",
+    projectScope: "docksteader",
+  });
   assert.equal(parseManagementLabourTotalsQuery("show me my hours for this pay period"), null);
   assert.equal(parseManagementLabourTotalsQuery("labour 8.0 framing cleanup"), null);
 });
@@ -186,11 +190,11 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
 test("parseManagementLabourBreakdownQuery detects grouped management totals", () => {
   assert.deepEqual(
     parseManagementLabourBreakdownQuery("show me total hours by project for this pay period"),
-    { range: "pay", groupBy: "project" }
+    { range: "pay", groupBy: "project", projectScope: "" }
   );
   assert.deepEqual(
     parseManagementLabourBreakdownQuery("show me total hours by labourer for today"),
-    { range: "today", groupBy: "labourer" }
+    { range: "today", groupBy: "labourer", projectScope: "" }
   );
   assert.equal(parseManagementLabourBreakdownQuery("show me total hours for all labourers today"), null);
 });

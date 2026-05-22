@@ -2251,6 +2251,10 @@ function shouldBypassPendingTodo(trimmedBody, lower, channel = "") {
     return true;
   }
   if (parseProjectCommand(trimmedBody)) return true;
+  if (parseManagementLabourTotalsQuery(trimmedBody)) return true;
+  if (parseManagementLabourBreakdownQuery(trimmedBody)) return true;
+  if (parseManagementLabourPdfRequest(trimmedBody)) return true;
+  if (parseLabourHoursBalanceQuery(trimmedBody)) return true;
   if (parseTodoListRequest(trimmedBody)) return true;
   if (parseTodoReportRequest(trimmedBody)) return true;
   if (parseTodoMutationRequest(trimmedBody)) return true;
@@ -3416,13 +3420,18 @@ async function buildReply({
     return false;
   };
 
-  const buildScopedManagementLabourEntries = async (range) => {
+  const buildScopedManagementLabourEntries = async (range, projectScope = "") => {
     const entries = await loadLabourEntries(db, {
       startKey: range.startKey,
       endKey: range.endKey,
     });
+    const explicitProjectSlug =
+      projectScope === "this_project"
+        ? normalizeProjectSlug(effectiveProjectSlug)
+        : normalizeProjectSlug(projectScope);
     return entries.filter((entry) => {
       const projectSlug = String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase();
+      if (explicitProjectSlug && projectSlug !== explicitProjectSlug) return false;
       return currentMemberAccess.allProjects === true || canAccessProject(currentMemberAccess, projectSlug);
     });
   };
@@ -4384,7 +4393,20 @@ async function buildReply({
         outboundMeta: { ...outboundMeta, command: "labour_totals_error" },
       };
     }
-    const scopedEntries = await buildScopedManagementLabourEntries(range);
+    const requestedProjectSlug =
+      managementLabourBreakdownQuery.projectScope === "this_project"
+        ? normalizeProjectSlug(effectiveProjectSlug)
+        : normalizeProjectSlug(managementLabourBreakdownQuery.projectScope);
+    if (requestedProjectSlug && !canAccessProject(currentMemberAccess, requestedProjectSlug)) {
+      return {
+        replyText: `This phone can’t view labour totals for ${requestedProjectSlug}.`,
+        outboundMeta: { ...outboundMeta, command: "labour_totals_project_forbidden", projectSlug: requestedProjectSlug },
+      };
+    }
+    const scopedEntries = await buildScopedManagementLabourEntries(
+      range,
+      managementLabourBreakdownQuery.projectScope
+    );
     const keyFn =
       managementLabourBreakdownQuery.groupBy === "project"
         ? (entry) => String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase() || "unassigned"
@@ -4425,6 +4447,7 @@ async function buildReply({
         reportEndKey: range.endKey,
         range: managementLabourBreakdownQuery.range,
         groupBy: managementLabourBreakdownQuery.groupBy,
+        projectSlug: requestedProjectSlug || null,
       },
     };
   }
@@ -4446,7 +4469,20 @@ async function buildReply({
         outboundMeta: { ...outboundMeta, command: "labour_totals_error" },
       };
     }
-    const scopedEntries = await buildScopedManagementLabourEntries(range);
+    const requestedProjectSlug =
+      managementLabourTotalsQuery.projectScope === "this_project"
+        ? normalizeProjectSlug(effectiveProjectSlug)
+        : normalizeProjectSlug(managementLabourTotalsQuery.projectScope);
+    if (requestedProjectSlug && !canAccessProject(currentMemberAccess, requestedProjectSlug)) {
+      return {
+        replyText: `This phone can’t view labour totals for ${requestedProjectSlug}.`,
+        outboundMeta: { ...outboundMeta, command: "labour_totals_project_forbidden", projectSlug: requestedProjectSlug },
+      };
+    }
+    const scopedEntries = await buildScopedManagementLabourEntries(
+      range,
+      managementLabourTotalsQuery.projectScope
+    );
     const summary = buildLabourRollup(scopedEntries);
     const byProject = new Map();
     for (const entry of scopedEntries) {
@@ -4487,6 +4523,7 @@ async function buildReply({
         totalHours: summary.totalHours,
         labourerCount: summary.labourerTotals.length,
         projectCount: projectTotals.length,
+        projectSlug: requestedProjectSlug || null,
       },
     };
   }
