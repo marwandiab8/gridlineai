@@ -669,6 +669,7 @@ test("pending todo flow bypasses explicit todo mutation commands", () => {
   assert.equal(shouldBypassPendingTodo("edit todo fix gate latch to replace latch", "edit todo fix gate latch to replace latch"), true);
   assert.equal(shouldBypassPendingTodo("show me all open todo's", "show me all open todo's"), true);
   assert.equal(shouldBypassPendingTodo("todo report pdf", "todo report pdf"), true);
+  assert.equal(shouldBypassPendingTodo("installed guard at stair 2", "installed guard at stair 2", "sms_audio_note_reviewed"), true);
   assert.equal(shouldBypassPendingTodo("2026-05-30", "2026-05-30"), false);
 });
 

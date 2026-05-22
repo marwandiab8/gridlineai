@@ -2180,7 +2180,11 @@ function shouldBypassPendingDeficiency(trimmedBody, lower, pendingDraft) {
   return false;
 }
 
-function shouldBypassPendingTodo(trimmedBody, lower) {
+function shouldBypassPendingTodo(trimmedBody, lower, channel = "") {
+  const channelNorm = String(channel || "").trim().toLowerCase();
+  if (channelNorm.startsWith("voice") || channelNorm === "sms_audio_note" || channelNorm === "sms_audio_note_reviewed") {
+    return true;
+  }
   if (
     lower === "help" ||
     lower === "commands" ||
@@ -3606,7 +3610,7 @@ async function buildReply({
 
   if (
     pendingTodoDraft &&
-    !shouldBypassPendingTodo(trimmedBody, lower)
+    !shouldBypassPendingTodo(trimmedBody, lower, channel)
   ) {
     return handlePendingTodoTurn({
       db,
