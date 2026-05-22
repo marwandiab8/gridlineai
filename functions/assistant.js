@@ -1220,7 +1220,7 @@ function parseTodoListRequest(text, fallbackProjectSlug = null) {
   }
 
   const looksLikeListRequest =
-    /^(?:(?:please\s+)?(?:show|list|read|give|text|send)\s+me|what(?:'s|\s+are)?|which|my\b|all\b|open\b|completed\b|done\b|in[\s-]?progress\b)/i.test(
+    /^(?:(?:please\s+)?(?:showm?|shwo|list|read|give|text|send)\s+me|what(?:'s|\s+are)?|which|my\b|all\b|open\b|completed\b|done\b|in[\s-]?progress\b)/i.test(
       raw
     );
   if (!looksLikeListRequest) return null;

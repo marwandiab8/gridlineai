@@ -605,6 +605,13 @@ test("parseTodoListRequest recognizes open and tagged todo list commands", () =>
     tags: [],
     mineOnly: true,
   });
+  assert.deepEqual(parseTodoListRequest("showm me all open todo's"), {
+    projectSlug: null,
+    status: "open",
+    priority: "",
+    tags: [],
+    mineOnly: true,
+  });
   assert.deepEqual(parseTodoListRequest("show me my completed p1 todos for docksteader"), {
     projectSlug: "docksteader",
     status: "completed",
