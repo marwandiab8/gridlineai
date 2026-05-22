@@ -22,6 +22,7 @@ const {
   parseNotificationRequest,
   parseNarrativeCorrectionCommand,
   parseHomeTodoCommand,
+  parseTodoMutationRequest,
   parseTodoListRequest,
   parseTodoDateTimeInput,
   parseTodoReportRequest,
@@ -619,6 +620,40 @@ test("parseTodoListRequest recognizes open and tagged todo list commands", () =>
   });
   assert.equal(parseTodoListRequest("todo report pdf"), null);
   assert.equal(parseTodoListRequest("todo fix garage door"), null);
+});
+
+test("parseTodoMutationRequest recognizes close, reopen, progress, and edit commands", () => {
+  assert.deepEqual(parseTodoMutationRequest("close todo fix garage door"), {
+    action: "completed",
+    targetText: "fix garage door",
+    nextTaskText: "",
+    projectSlug: null,
+  });
+  assert.deepEqual(parseTodoMutationRequest("reopen todo fix garage door"), {
+    action: "open",
+    targetText: "fix garage door",
+    nextTaskText: "",
+    projectSlug: null,
+  });
+  assert.deepEqual(parseTodoMutationRequest("mark todo fix garage door as in progress"), {
+    action: "inprogress",
+    targetText: "fix garage door",
+    nextTaskText: "",
+    projectSlug: null,
+  });
+  assert.deepEqual(parseTodoMutationRequest('edit todo "fix garage door" to "fix garage door and paint trim"'), {
+    action: "edit",
+    targetText: '"fix garage door"',
+    nextTaskText: '"fix garage door and paint trim"',
+    projectSlug: null,
+  });
+  assert.deepEqual(parseTodoMutationRequest("close todo fix garage door for this project", "home"), {
+    action: "completed",
+    targetText: "fix garage door for this project",
+    nextTaskText: "",
+    projectSlug: "home",
+  });
+  assert.equal(parseTodoMutationRequest("show me my todos"), null);
 });
 
 test("elevateProjectAccessWithApprovedMember honors app-member project access for SMS", () => {

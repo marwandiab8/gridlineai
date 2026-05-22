@@ -1252,6 +1252,88 @@ function parseTodoListRequest(text, fallbackProjectSlug = null) {
   };
 }
 
+function parseTodoMutationRequest(text, fallbackProjectSlug = null) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+
+  const closeMatch = raw.match(/^(?:close|complete|finish|done)\s+todo\s+(.+)$/i);
+  if (closeMatch) {
+    return {
+      action: "completed",
+      targetText: String(closeMatch[1] || "").trim(),
+      nextTaskText: "",
+      projectSlug: extractTodoMutationProjectSlug(raw, fallbackProjectSlug),
+    };
+  }
+
+  const reopenMatch = raw.match(/^(?:reopen|open)\s+todo\s+(.+)$/i);
+  if (reopenMatch) {
+    return {
+      action: "open",
+      targetText: String(reopenMatch[1] || "").trim(),
+      nextTaskText: "",
+      projectSlug: extractTodoMutationProjectSlug(raw, fallbackProjectSlug),
+    };
+  }
+
+  const progressMatch = raw.match(/^(?:start|resume)\s+todo\s+(.+)$/i);
+  if (progressMatch) {
+    return {
+      action: "inprogress",
+      targetText: String(progressMatch[1] || "").trim(),
+      nextTaskText: "",
+      projectSlug: extractTodoMutationProjectSlug(raw, fallbackProjectSlug),
+    };
+  }
+
+  const markMatch = raw.match(
+    /^mark\s+todo\s+(.+?)\s+(?:as\s+)?(open|reopen(?:ed)?|in[\s-]?progress|start(?:ed)?|resume(?:d)?|complete(?:d)?|closed?|done|finish(?:ed)?)$/i
+  );
+  if (markMatch) {
+    const rawStatus = String(markMatch[2] || "").trim().toLowerCase();
+    const action =
+      /open|reopen/.test(rawStatus)
+        ? "open"
+        : /progress|start|resume/.test(rawStatus)
+          ? "inprogress"
+          : "completed";
+    return {
+      action,
+      targetText: String(markMatch[1] || "").trim(),
+      nextTaskText: "",
+      projectSlug: extractTodoMutationProjectSlug(raw, fallbackProjectSlug),
+    };
+  }
+
+  const editMatch = raw.match(/^(?:edit|rename|change|update)\s+todo\s+(.+?)\s+(?:to|as)\s+(.+)$/i);
+  if (editMatch) {
+    return {
+      action: "edit",
+      targetText: String(editMatch[1] || "").trim(),
+      nextTaskText: String(editMatch[2] || "").trim(),
+      projectSlug: extractTodoMutationProjectSlug(raw, fallbackProjectSlug),
+    };
+  }
+
+  return null;
+}
+
+function extractTodoMutationProjectSlug(text, fallbackProjectSlug = null) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  const projectMatch = raw.match(/\b(?:for|on)\s+(this project|[a-z0-9][a-z0-9-_]{1,79})\s*$/i);
+  if (!projectMatch) return null;
+  const requestedProject = String(projectMatch[1] || "").trim().toLowerCase();
+  return requestedProject === "this project"
+    ? normalizeProjectSlug(fallbackProjectSlug)
+    : normalizeProjectSlug(requestedProject);
+}
+
+function stripTrailingTodoProjectPhrase(text) {
+  return String(text || "")
+    .replace(/\s+\b(?:for|on)\s+(?:this project|[a-z0-9][a-z0-9-_]{1,79})\s*$/i, "")
+    .trim();
+}
+
 const TODO_NONE_RE = /^(?:n\/a|na|none|no|skip|nope|nil)$/i;
 const TODO_YES_RE = /^(?:y|yes|yeah|yep|sure|ok|okay)$/i;
 const TODO_NO_RE = /^(?:n|no|nope|nah|skip|none)$/i;
@@ -1430,6 +1512,55 @@ function formatTodoListReply({ todos, request }) {
     text += `; +${safeTodos.length - shown} more`;
   }
   return text;
+}
+
+function normalizeTodoMatchText(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function scoreTodoMatch(todo, targetText) {
+  const task = normalizeTodoMatchText(todo?.taskText);
+  const target = normalizeTodoMatchText(stripTrailingTodoProjectPhrase(targetText));
+  if (!task || !target) return 0;
+  if (task === target) return 100;
+  if (task.startsWith(target)) return 80;
+  if (task.includes(target)) return 60;
+  if (target.includes(task) && task.length >= 8) return 50;
+  return 0;
+}
+
+function findBestTodoMatches(todos, targetText, maxResults = 3) {
+  const scored = (Array.isArray(todos) ? todos : [])
+    .map((todo) => ({ todo, score: scoreTodoMatch(todo, targetText) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return compareTodoListItems(a.todo, b.todo);
+    });
+  const best = scored[0] || null;
+  const topScore = best ? best.score : 0;
+  const tiedBest = scored.filter((entry) => entry.score === topScore).map((entry) => entry.todo);
+  return {
+    best: tiedBest.length === 1 ? tiedBest[0] : null,
+    ambiguous: tiedBest.length > 1 ? tiedBest.slice(0, maxResults) : [],
+    suggestions: scored.slice(0, maxResults).map((entry) => entry.todo),
+  };
+}
+
+function formatTodoMutationAmbiguousReply(targetText, suggestions) {
+  const safe = (Array.isArray(suggestions) ? suggestions : []).slice(0, 3);
+  if (!safe.length) {
+    return `Could not find a todo matching "${stripTrailingTodoProjectPhrase(targetText)}".`;
+  }
+  return truncateSms(
+    `More than one todo matches "${stripTrailingTodoProjectPhrase(targetText)}". Try again with more detail: ${safe
+      .map((todo) => `"${String(todo.taskText || "").trim()}"`)
+      .join("; ")}`
+  );
 }
 
 function normalizePendingTodoDraft(raw) {
@@ -2167,6 +2298,88 @@ async function loadTodoListForPhone(db, phoneE164, request) {
     .sort(compareTodoListItems);
 
   return todos;
+}
+
+async function applyTodoMutationForPhone({
+  db,
+  FieldValue,
+  phoneE164,
+  currentMemberAccess,
+  mutation,
+}) {
+  const statusFilter =
+    mutation.action === "completed"
+      ? "active"
+      : mutation.action === "open"
+        ? "completed"
+        : mutation.action === "inprogress"
+          ? "active"
+          : "all";
+  const todos = await loadTodoListForPhone(db, phoneE164, {
+    projectSlug: mutation.projectSlug || null,
+    status: statusFilter,
+    priority: "",
+    tags: [],
+  });
+  const pool =
+    statusFilter === "all"
+      ? todos
+      : todos.filter((todo) =>
+          mutation.action === "open"
+            ? normalizeTodoStatusForList(todo.status) === "completed"
+            : normalizeTodoStatusForList(todo.status) !== "completed"
+        );
+  const match = findBestTodoMatches(pool, mutation.targetText);
+  if (match.ambiguous.length) {
+    return { ok: false, reason: "ambiguous", suggestions: match.ambiguous };
+  }
+  if (!match.best) {
+    return { ok: false, reason: "not_found", suggestions: match.suggestions };
+  }
+
+  const todo = match.best;
+  const todoRef = db.collection(COL_PROJECT_TODOS).doc(todo.id);
+  const updates = {
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedByEmail: currentMemberAccess.email || null,
+  };
+
+  if (mutation.action === "edit") {
+    updates.taskText = normalizeTodoTextValue(mutation.nextTaskText, 500);
+  } else if (mutation.action === "completed") {
+    updates.status = "completed";
+    updates.finishedAt = todo.finishedAt || new Date().toISOString();
+    updates.completedAt = FieldValue.serverTimestamp();
+    updates.completedByEmail = currentMemberAccess.email || null;
+  } else if (mutation.action === "open") {
+    updates.status = "open";
+    updates.finishedAt = null;
+    updates.completedAt = FieldValue.delete();
+    updates.completedByEmail = FieldValue.delete();
+  } else if (mutation.action === "inprogress") {
+    updates.status = "inprogress";
+    updates.startedAt = todo.startedAt || new Date().toISOString();
+    updates.finishedAt = null;
+    updates.completedAt = FieldValue.delete();
+    updates.completedByEmail = FieldValue.delete();
+  }
+
+  await todoRef.set(updates, { merge: true });
+  return {
+    ok: true,
+    todoId: todo.id,
+    projectSlug: normalizeProjectSlug(todo.projectSlug) || null,
+    previousTaskText: String(todo.taskText || "").trim(),
+    nextTaskText: mutation.action === "edit" ? updates.taskText : String(todo.taskText || "").trim(),
+    status:
+      mutation.action === "edit"
+        ? normalizeTodoStatusForList(todo.status)
+        : mutation.action === "completed"
+          ? "completed"
+          : mutation.action === "open"
+            ? "open"
+            : "inprogress",
+  };
 }
 
 async function handlePendingTodoTurn({
@@ -3403,6 +3616,77 @@ async function buildReply({
       logAuthorFields,
       outboundMeta,
     });
+  }
+
+  const todoMutation = parseTodoMutationRequest(userMessageForAI, effectiveProjectSlug);
+  if (todoMutation) {
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can update todo items here. Ask admin to approve this phone in Team.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "todo_update_forbidden",
+          projectSlug: todoMutation.projectSlug || null,
+        },
+      };
+    }
+    if (todoMutation.projectSlug && !canAccessProject(currentMemberAccess, todoMutation.projectSlug)) {
+      return {
+        replyText: `This phone can’t update todo items for ${todoMutation.projectSlug}.`,
+        outboundMeta: {
+          ...outboundMeta,
+          command: "todo_update_project_forbidden",
+          projectSlug: todoMutation.projectSlug,
+        },
+      };
+    }
+    const updated = await applyTodoMutationForPhone({
+      db,
+      FieldValue,
+      phoneE164,
+      currentMemberAccess,
+      mutation: todoMutation,
+    });
+    if (!updated.ok) {
+      return {
+        replyText:
+          updated.reason === "ambiguous"
+            ? formatTodoMutationAmbiguousReply(todoMutation.targetText, updated.suggestions)
+            : truncateSms(
+                `Could not find a todo matching "${stripTrailingTodoProjectPhrase(todoMutation.targetText)}".`
+              ),
+        outboundMeta: {
+          ...outboundMeta,
+          command: updated.reason === "ambiguous" ? "todo_update_ambiguous" : "todo_update_not_found",
+          projectSlug: todoMutation.projectSlug || null,
+        },
+      };
+    }
+    const replyText =
+      todoMutation.action === "edit"
+        ? `Updated todo: ${updated.previousTaskText} -> ${updated.nextTaskText}`
+        : todoMutation.action === "completed"
+          ? `Closed todo: ${updated.nextTaskText}`
+          : todoMutation.action === "open"
+            ? `Reopened todo: ${updated.nextTaskText}`
+            : `Marked todo in progress: ${updated.nextTaskText}`;
+    return {
+      replyText: truncateSms(replyText),
+      outboundMeta: {
+        ...outboundMeta,
+        command:
+          todoMutation.action === "edit"
+            ? "todo_edited"
+            : todoMutation.action === "completed"
+              ? "todo_closed"
+              : todoMutation.action === "open"
+                ? "todo_reopened"
+                : "todo_inprogress",
+        projectSlug: updated.projectSlug || todoMutation.projectSlug || null,
+        todoId: updated.todoId,
+      },
+    };
   }
 
   const manpowerCorrection =
@@ -5298,6 +5582,7 @@ module.exports = {
   sanitizeRoutePayload,
   parseStartTimerCommand,
   parseHomeTodoCommand,
+  parseTodoMutationRequest,
   parseTodoDateTimeInput,
   normalizePendingTodoDraft,
   getNextMissingTodoField,
