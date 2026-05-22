@@ -12,6 +12,8 @@ const {
   labourMinutesFromHours,
   monthKeyFromDateKey,
   normalizeLoadedLabourEntry,
+  parseManagementLabourBreakdownQuery,
+  parseManagementLabourPdfRequest,
   parseManagementLabourTotalsQuery,
   parseLabourHoursBalanceQuery,
   parseLabourHoursCommand,
@@ -179,6 +181,26 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
   );
   assert.equal(parseManagementLabourTotalsQuery("show me my hours for this pay period"), null);
   assert.equal(parseManagementLabourTotalsQuery("labour 8.0 framing cleanup"), null);
+});
+
+test("parseManagementLabourBreakdownQuery detects grouped management totals", () => {
+  assert.deepEqual(
+    parseManagementLabourBreakdownQuery("show me total hours by project for this pay period"),
+    { range: "pay", groupBy: "project" }
+  );
+  assert.deepEqual(
+    parseManagementLabourBreakdownQuery("show me total hours by labourer for today"),
+    { range: "today", groupBy: "labourer" }
+  );
+  assert.equal(parseManagementLabourBreakdownQuery("show me total hours for all labourers today"), null);
+});
+
+test("parseManagementLabourPdfRequest detects all-labourers pdf requests", () => {
+  assert.deepEqual(
+    parseManagementLabourPdfRequest("send me the labour hours pdf for all labourers this pay period"),
+    { range: "pay" }
+  );
+  assert.equal(parseManagementLabourPdfRequest("labour report"), null);
 });
 
 test("getDateKeyRangeForBalanceQuery matches Eastern calendar for a fixed now", () => {

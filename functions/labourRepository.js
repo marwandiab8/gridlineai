@@ -541,6 +541,46 @@ function parseManagementLabourTotalsQuery(text) {
   return { range: range.range };
 }
 
+function parseManagementLabourBreakdownQuery(text) {
+  const lower = String(text || "").toLowerCase();
+  const groupBy = /\bby\s+project\b/i.test(lower)
+    ? "project"
+    : /\bby\s+labou?r(?:er)?\b/i.test(lower) || /\bby\s+worker\b/i.test(lower)
+      ? "labourer"
+      : "";
+  if (!groupBy) return null;
+  const wantsHours =
+    /\b(total\s+)?hours?\b/i.test(lower) ||
+    /\btime\b/i.test(lower) ||
+    /\bpay\s*period\b/i.test(lower) ||
+    /\bpayroll\b/i.test(lower);
+  if (!wantsHours) return null;
+  const range = parseLabourHoursBalanceQuery(text);
+  if (!range || !range.range) return null;
+  return { range: range.range, groupBy };
+}
+
+function parseManagementLabourPdfRequest(text) {
+  const raw = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return null;
+  if (parseLabourHoursCommand(text)) return null;
+  const lower = raw.toLowerCase();
+  const wantsPdf =
+    /\bpdf\b/i.test(lower) ||
+    /\breport\b/i.test(lower) ||
+    /\bsend\s+me\b/i.test(lower);
+  const wantsAllLabourers =
+    /\ball\s+labou?rers?\b/i.test(lower) ||
+    /\bfor\s+all\s+labou?rers?\b/i.test(lower) ||
+    /\b(entire|whole)\s+crew\b/i.test(lower);
+  if (!wantsPdf || !wantsAllLabourers) return null;
+  const range = parseLabourHoursBalanceQuery(raw);
+  if (!range || !range.range) return null;
+  return { range: range.range };
+}
+
 function getDateKeyRangeForBalanceQuery(range, now = new Date()) {
   const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
   const todayKey = dateKeyEastern(d);
@@ -774,6 +814,8 @@ module.exports = {
   parseLabourHoursCommand,
   parseLabourHoursBalanceQuery,
   parseManagementLabourTotalsQuery,
+  parseManagementLabourBreakdownQuery,
+  parseManagementLabourPdfRequest,
   getDateKeyRangeForBalanceQuery,
   formatLabourBalanceReply,
   buildLabourEntryDoc,

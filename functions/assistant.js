@@ -64,6 +64,8 @@ const {
 const {
   parseLabourHoursCommand,
   parseLabourHoursBalanceQuery,
+  parseManagementLabourBreakdownQuery,
+  parseManagementLabourPdfRequest,
   parseManagementLabourTotalsQuery,
   getDateKeyRangeForBalanceQuery,
   formatLabourBalanceReply,
@@ -464,6 +466,23 @@ function formatManagementLabourTotalsReply({
         .join(" · ")}.`
     : "";
   return `All labourers — ${rangeLabel} (${rangeBits}): ${hours}h across ${totalEntries} entries, ${labourerCount} labourers, ${projectCount} projects.${topSummary}`;
+}
+
+function formatManagementLabourBreakdownReply({ groupBy, rangeLabel, startKey, endKey, items }) {
+  const rangeBits =
+    startKey && endKey
+      ? startKey === endKey
+        ? startKey
+        : `${startKey} to ${endKey}`
+      : "";
+  const label = groupBy === "project" ? "Hours by project" : "Hours by labourer";
+  const rows = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!rows.length) {
+    return `${label} — ${rangeLabel} (${rangeBits}): no hours logged yet.`;
+  }
+  const shown = rows.slice(0, 6).map((item) => `${item.label} ${item.totalHours}h`);
+  const more = rows.length - shown.length;
+  return `${label} — ${rangeLabel} (${rangeBits}): ${shown.join("; ")}${more > 0 ? `; +${more} more.` : "."}`;
 }
 
 function inferInboundLogType(text) {
@@ -3375,6 +3394,7 @@ async function buildReply({
     labourPdfRequested: false,
     labourReportStartKey: null,
     labourReportEndKey: null,
+    labourReportAllLabourers: false,
     todoReportRequested: false,
     todoReportFormat: null,
     lookaheadReportRequested: false,
@@ -3394,6 +3414,17 @@ async function buildReply({
     if (raw === "labour pay period report") return true;
     if (raw === "labor pay period report") return true;
     return false;
+  };
+
+  const buildScopedManagementLabourEntries = async (range) => {
+    const entries = await loadLabourEntries(db, {
+      startKey: range.startKey,
+      endKey: range.endKey,
+    });
+    return entries.filter((entry) => {
+      const projectSlug = String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase();
+      return currentMemberAccess.allProjects === true || canAccessProject(currentMemberAccess, projectSlug);
+    });
   };
 
   // ---- Commands (deterministic) ----
@@ -3473,6 +3504,35 @@ async function buildReply({
       };
     }
     // Fall through for non-labourers (e.g. daily report "report" command).
+  }
+
+  const managementLabourPdfRequest = parseManagementLabourPdfRequest(trimmedBody);
+  if (managementLabourPdfRequest) {
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can generate labour PDFs for all labourers. Ask admin to approve this phone in Team.",
+        outboundMeta: { ...outboundMeta, command: "labour_report_forbidden" },
+      };
+    }
+    const range = getDateKeyRangeForBalanceQuery(managementLabourPdfRequest.range);
+    if (!range || !range.startKey || !range.endKey) {
+      return {
+        replyText: "Could not determine that labour report range. Try again in a minute.",
+        outboundMeta: { ...outboundMeta, command: "labour_report_range_failed" },
+      };
+    }
+    return {
+      replyText: "OK. Generating your labour PDF for all labourers now. You will get a download link shortly.",
+      outboundMeta: {
+        ...outboundMeta,
+        command: "labour_report_pdf_all_labourers",
+        labourPdfRequested: true,
+        labourReportStartKey: range.startKey,
+        labourReportEndKey: range.endKey,
+        labourReportAllLabourers: true,
+      },
+    };
   }
 
   const pendingDeficiencyDraft = normalizePendingDeficiencyDraft(user.pendingDeficiencyIntake);
@@ -4303,6 +4363,71 @@ async function buildReply({
   const managementLabourTotalsQuery = shortAssistantFollowUp
     ? null
     : parseManagementLabourTotalsQuery(userMessageForAI);
+  const managementLabourBreakdownQuery = shortAssistantFollowUp
+    ? null
+    : parseManagementLabourBreakdownQuery(userMessageForAI);
+  if (managementLabourBreakdownQuery) {
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can view labour breakdowns here. Ask admin to approve this phone in Team.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_totals_forbidden",
+        },
+      };
+    }
+    const range = getDateKeyRangeForBalanceQuery(managementLabourBreakdownQuery.range);
+    if (!range || !range.startKey || !range.endKey) {
+      return {
+        replyText: "Could not look up that hours range. Try: total hours by project this pay period.",
+        outboundMeta: { ...outboundMeta, command: "labour_totals_error" },
+      };
+    }
+    const scopedEntries = await buildScopedManagementLabourEntries(range);
+    const keyFn =
+      managementLabourBreakdownQuery.groupBy === "project"
+        ? (entry) => String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase() || "unassigned"
+        : (entry) =>
+            String(entry && (entry.labourerName || entry.labourerPhone) ? entry.labourerName || entry.labourerPhone : "")
+              .trim() || "Unknown";
+    const totals = new Map();
+    for (const entry of scopedEntries) {
+      const key = keyFn(entry);
+      totals.set(key, (totals.get(key) || 0) + Number(entry.hours || 0));
+    }
+    const items = [...totals.entries()]
+      .map(([label, totalHours]) => ({
+        label,
+        totalHours: Math.round(Number(totalHours || 0) * 100) / 100,
+      }))
+      .sort((a, b) => {
+        if (b.totalHours !== a.totalHours) return b.totalHours - a.totalHours;
+        return a.label.localeCompare(b.label);
+      });
+    return {
+      replyText: truncateSms(
+        formatManagementLabourBreakdownReply({
+          groupBy: managementLabourBreakdownQuery.groupBy,
+          rangeLabel: range.label,
+          startKey: range.startKey,
+          endKey: range.endKey,
+          items,
+        })
+      ),
+      outboundMeta: {
+        ...outboundMeta,
+        command:
+          managementLabourBreakdownQuery.groupBy === "project"
+            ? "management_labour_totals_by_project"
+            : "management_labour_totals_by_labourer",
+        reportStartKey: range.startKey,
+        reportEndKey: range.endKey,
+        range: managementLabourBreakdownQuery.range,
+        groupBy: managementLabourBreakdownQuery.groupBy,
+      },
+    };
+  }
   if (managementLabourTotalsQuery) {
     if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
       return {
@@ -4321,14 +4446,7 @@ async function buildReply({
         outboundMeta: { ...outboundMeta, command: "labour_totals_error" },
       };
     }
-    const entries = await loadLabourEntries(db, {
-      startKey: range.startKey,
-      endKey: range.endKey,
-    });
-    const scopedEntries = entries.filter((entry) => {
-      const projectSlug = String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase();
-      return currentMemberAccess.allProjects === true || canAccessProject(currentMemberAccess, projectSlug);
-    });
+    const scopedEntries = await buildScopedManagementLabourEntries(range);
     const summary = buildLabourRollup(scopedEntries);
     const byProject = new Map();
     for (const entry of scopedEntries) {

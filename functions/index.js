@@ -3107,6 +3107,7 @@ exports.deliverLabourPdfSms = onDocumentCreated(
     const attemptNumber = priorAttemptCount + 1;
     const startKey = String(d.startKey || "").trim();
     const endKey = String(d.endKey || "").trim();
+    const allLabourers = d.allLabourers === true;
     const replyToNumber = String(d.replyToNumber || "").trim();
     const replyMessagingServiceSid = normalizeTwilioSecret(d.replyMessagingServiceSid || "") || null;
     const inboundDocId = d.replyToInboundDocId || null;
@@ -3151,26 +3152,46 @@ exports.deliverLabourPdfSms = onDocumentCreated(
     }).catch(() => {});
 
     try {
-      const entries = await loadLabourEntries(db, {
+      let entries = await loadLabourEntries(db, {
         startKey: normalizedStart,
         endKey: normalizedEnd,
-        labourerPhone: phoneE164,
+        labourerPhone: allLabourers ? null : phoneE164,
       });
+      let labourer = null;
+      let scopeLabel = "";
+      let scopeSequenceKey = "";
+      if (allLabourers) {
+        const access = await findActiveAppMemberByApprovedPhone(db, phoneE164).catch(() => null);
+        if (!access || !roleAtLeast(access.role, "management")) {
+          throw new Error("management access required for all-labourers labour report");
+        }
+        entries = entries.filter((entry) => {
+          const projectSlug = String(entry && entry.projectSlug ? entry.projectSlug : "").trim().toLowerCase();
+          return access.allProjects === true || canAccessProject(access, projectSlug);
+        });
+        scopeLabel = `All labourers · ${normalizedStart === normalizedEnd ? normalizedStart : `${normalizedStart} to ${normalizedEnd}`}`;
+        scopeSequenceKey = [
+          "labourHours",
+          normalizePhoneE164(phoneE164) || "",
+          "all-labourers",
+          "",
+        ].join("|");
+      } else {
+        labourer = await findActiveLabourerByPhone(db, phoneE164).catch(() => null);
+        const scopeBits = [
+          labourer ? labourer.displayName || labourer.phoneE164 : phoneE164,
+          normalizedStart === normalizedEnd ? normalizedStart : `${normalizedStart} to ${normalizedEnd}`,
+        ].filter(Boolean);
+        scopeLabel = scopeBits.join(" · ");
+        scopeSequenceKey = [
+          "labourHours",
+          normalizePhoneE164(phoneE164) || "",
+          "",
+          "",
+        ].join("|");
+      }
       const summary = buildLabourRollup(entries);
-      const labourer = await findActiveLabourerByPhone(db, phoneE164).catch(() => null);
-
       const reportTitle = "Labour Hours Report";
-      const scopeBits = [
-        labourer ? labourer.displayName || labourer.phoneE164 : phoneE164,
-        normalizedStart === normalizedEnd ? normalizedStart : `${normalizedStart} to ${normalizedEnd}`,
-      ].filter(Boolean);
-      const scopeLabel = scopeBits.join(" · ");
-      const scopeSequenceKey = [
-        "labourHours",
-        normalizePhoneE164(phoneE164) || "",
-        "",
-        "",
-      ].join("|");
       const sameScopeReportsSnap = await db
         .collection("labourReports")
         .where("type", "==", "labourHours")
@@ -3199,8 +3220,8 @@ exports.deliverLabourPdfSms = onDocumentCreated(
       await db.collection("labourReports").add({
         type: "labourHours",
         reportTitle,
-        labourerPhone: phoneE164 || null,
-        labourerName: labourer ? labourer.displayName || null : null,
+        labourerPhone: allLabourers ? null : phoneE164 || null,
+        labourerName: allLabourers ? null : labourer ? labourer.displayName || null : null,
         projectSlug: null,
         startKey: normalizedStart,
         endKey: normalizedEnd,
@@ -3219,8 +3240,8 @@ exports.deliverLabourPdfSms = onDocumentCreated(
       }).catch(() => {});
 
       const smsBody = pdfResult.downloadURL
-        ? `Labour report (${normalizedStart} to ${normalizedEnd}): ${pdfResult.downloadURL}`
-        : `Labour report (${normalizedStart} to ${normalizedEnd}) generated. Stored at: ${pdfResult.storagePath}`;
+        ? `${allLabourers ? "All labourers labour report" : "Labour report"} (${normalizedStart} to ${normalizedEnd}): ${pdfResult.downloadURL}`
+        : `${allLabourers ? "All labourers labour report" : "Labour report"} (${normalizedStart} to ${normalizedEnd}) generated. Stored at: ${pdfResult.storagePath}`;
 
       const smsClient = twilio(runtimeAccountSid, authToken);
       const payload = { to: phoneE164, body: smsBody };
@@ -4734,6 +4755,7 @@ exports.inboundSms = onRequest(
             phoneE164: from,
             startKey: outboundMeta.labourReportStartKey || null,
             endKey: outboundMeta.labourReportEndKey || null,
+            allLabourers: outboundMeta.labourReportAllLabourers === true,
             replyToNumber: to || null,
             replyMessagingServiceSid: messagingServiceSid || null,
             replyAccountSid: inboundAccountSid || null,
