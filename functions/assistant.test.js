@@ -33,6 +33,7 @@ const {
   sanitizeRoutePayload,
   normalizePendingTodoDraft,
   getNextMissingTodoField,
+  looksLikePendingTodoAnswer,
   shouldBypassPendingTodo,
   shouldTrackAssistantFollowUp,
   taskMatchesTradeQuery,
@@ -673,6 +674,40 @@ test("pending todo flow bypasses explicit todo mutation commands", () => {
   assert.equal(shouldBypassPendingTodo("show me total hours for docksteader", "show me total hours for docksteader"), true);
   assert.equal(shouldBypassPendingTodo("installed guard at stair 2", "installed guard at stair 2", "sms_audio_note_reviewed"), true);
   assert.equal(shouldBypassPendingTodo("2026-05-30", "2026-05-30"), false);
+});
+
+test("pending todo answer detection keeps normal prose out of todo intake", () => {
+  const dueDraft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "follow up supplier",
+    sourceText: "xxx follow up supplier",
+    dueBy: null,
+    dueDateCaptured: false,
+    reminderRequested: null,
+    secondReminderWanted: null,
+    reminders: [],
+    priority: null,
+    priorityCaptured: false,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(looksLikePendingTodoAnswer(dueDraft, "2026-05-30"), true);
+  assert.equal(looksLikePendingTodoAnswer(dueDraft, "tomorrow 4 pm"), true);
+  assert.equal(looksLikePendingTodoAnswer(dueDraft, "I am still at work m, it is 4 pm already"), false);
+
+  const priorityDraft = normalizePendingTodoDraft({
+    ...dueDraft,
+    dueBy: "2026-05-30T17:00:00.000Z",
+    dueDateCaptured: true,
+    reminderRequested: false,
+    secondReminderWanted: false,
+    reminders: [],
+    priority: null,
+    priorityCaptured: false,
+  });
+  assert.equal(looksLikePendingTodoAnswer(priorityDraft, "p1"), true);
+  assert.equal(looksLikePendingTodoAnswer(priorityDraft, "none"), true);
+  assert.equal(looksLikePendingTodoAnswer(priorityDraft, "still on site"), false);
 });
 
 test("elevateProjectAccessWithApprovedMember honors app-member project access for SMS", () => {

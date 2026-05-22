@@ -1643,6 +1643,37 @@ function normalizePendingTodoDraft(raw) {
   };
 }
 
+function looksLikeTodoDateAnswer(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return false;
+  if (parseTodoDateTimeInput(raw) !== "") return true;
+  const wordCount = raw.split(/\s+/).filter(Boolean).length;
+  if (wordCount > 4) return false;
+  return /\b(today|tomorrow|tmrw|next|monday|tuesday|wednesday|thursday|friday|saturday|sunday|am|pm)\b/i.test(raw);
+}
+
+function looksLikePendingTodoAnswer(draft, trimmedBody) {
+  const body = String(trimmedBody || "").trim();
+  if (!body) return false;
+  if (body.toLowerCase() === "cancel" || body.toLowerCase() === "cancel todo") return true;
+  if (body.toLowerCase() === "status" || body.toLowerCase() === "todo status") return true;
+  const nextMissing = getNextMissingTodoField(draft);
+  if (!nextMissing) return false;
+  if (nextMissing === "dueBy" || nextMissing === "firstReminder" || nextMissing === "secondReminder") {
+    return looksLikeTodoDateAnswer(body);
+  }
+  if (nextMissing === "reminderRequested" || nextMissing === "secondReminderWanted") {
+    return TODO_YES_RE.test(body) || TODO_NO_RE.test(body);
+  }
+  if (nextMissing === "priority") {
+    return TODO_PRIORITY_RE.test(body);
+  }
+  if (nextMissing === "tags") {
+    return TODO_NONE_RE.test(body) || /@/.test(body) || /^[a-z0-9._-]+(?:[,\s]+[a-z0-9._-]+){0,5}$/i.test(body);
+  }
+  return false;
+}
+
 function getNextMissingTodoField(draft) {
   if (!draft.taskText) return "taskText";
   if (!draft.dueDateCaptured || draft.dueBy === "") return "dueBy";
@@ -3713,7 +3744,8 @@ async function buildReply({
 
   if (
     pendingTodoDraft &&
-    !shouldBypassPendingTodo(trimmedBody, lower, channel)
+    !shouldBypassPendingTodo(trimmedBody, lower, channel) &&
+    looksLikePendingTodoAnswer(pendingTodoDraft, trimmedBody)
   ) {
     return handlePendingTodoTurn({
       db,
@@ -5855,6 +5887,7 @@ module.exports = {
   parseTodoDateTimeInput,
   normalizePendingTodoDraft,
   getNextMissingTodoField,
+  looksLikePendingTodoAnswer,
   shouldBypassPendingTodo,
   isStopTimerCommand,
   formatDurationFromMs,
