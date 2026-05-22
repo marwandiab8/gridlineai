@@ -2194,6 +2194,8 @@ function shouldBypassPendingTodo(trimmedBody, lower) {
     return true;
   }
   if (parseProjectCommand(trimmedBody)) return true;
+  if (parseTodoListRequest(trimmedBody)) return true;
+  if (parseTodoReportRequest(trimmedBody)) return true;
   if (parseTodoMutationRequest(trimmedBody)) return true;
   if (isDailyReportPdfRequest(trimmedBody) || isAnyDayRollupRequest(trimmedBody)) return true;
   return false;
