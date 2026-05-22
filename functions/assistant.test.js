@@ -22,12 +22,16 @@ const {
   parseNotificationRequest,
   parseNarrativeCorrectionCommand,
   parseHomeTodoCommand,
+  parseTodoListRequest,
+  parseTodoDateTimeInput,
   parseTodoReportRequest,
   parseStartTimerCommand,
   isExplicitProjectSetRequest,
   sanitizeAssistantActionPlan,
   sanitizeIntentPayload,
   sanitizeRoutePayload,
+  normalizePendingTodoDraft,
+  getNextMissingTodoField,
   shouldTrackAssistantFollowUp,
   taskMatchesTradeQuery,
   taskIntersectsLookaheadWindow,
@@ -188,6 +192,7 @@ test("formatDurationFromMs renders SMS-friendly duration", () => {
 test("journal auto-save heuristic distinguishes questions from diary updates", () => {
   assert.equal(looksLikeExplicitAiChatRequest("How should I structure my day?"), true);
   assert.equal(looksLikeExplicitAiChatRequest("Today I feel tired and plan to slow down a bit"), false);
+  assert.equal(looksLikeExplicitAiChatRequest("What I ate for lunch"), false);
 });
 
 test("single-word field prompts stay on the AI request path", () => {
@@ -218,6 +223,129 @@ test("parseLookaheadActivitiesQuery reads trade and week windows", () => {
     range: "this_week",
   });
   assert.equal(parseLookaheadActivitiesQuery("how many hours this week"), null);
+});
+
+test("parseTodoDateTimeInput accepts explicit sms todo datetime formats", () => {
+  assert.match(parseTodoDateTimeInput("2026-05-30"), /^2026-05-30T/);
+  assert.match(parseTodoDateTimeInput("2026-05-30 09:15"), /^2026-05-30T/);
+  assert.match(parseTodoDateTimeInput("2026-05-30 9am"), /^2026-05-30T/);
+  assert.equal(
+    parseTodoDateTimeInput("2026-05-30T13:15:00.000Z"),
+    "2026-05-30T13:15:00.000Z"
+  );
+  assert.equal(parseTodoDateTimeInput("none"), null);
+  assert.equal(parseTodoDateTimeInput("next friday"), "");
+});
+
+test("pending todo draft advances after none due date and none priority", () => {
+  const draft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "follow up supplier",
+    sourceText: "xxx follow up supplier",
+    dueBy: null,
+    dueDateCaptured: true,
+    reminderRequested: false,
+    secondReminderWanted: false,
+    reminders: [],
+    priority: null,
+    priorityCaptured: true,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(getNextMissingTodoField(draft), "tags");
+});
+
+test("pending todo draft preserves unanswered reminder state", () => {
+  const draft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "follow up supplier",
+    sourceText: "xxx follow up supplier",
+    dueBy: "2026-05-30 17:00",
+    dueDateCaptured: true,
+    reminderRequested: null,
+    secondReminderWanted: null,
+    reminders: [],
+    priority: null,
+    priorityCaptured: false,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(draft.reminderRequested, null);
+  assert.equal(getNextMissingTodoField(draft), "reminderRequested");
+});
+
+test("pending todo draft asks for second reminder choice after first reminder is set", () => {
+  const draft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "book inspection",
+    sourceText: "xxx book inspection",
+    dueBy: "2026-05-30 17:00",
+    dueDateCaptured: true,
+    reminderRequested: true,
+    secondReminderWanted: null,
+    reminders: ["2026-05-29 09:00"],
+    priority: null,
+    priorityCaptured: false,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(getNextMissingTodoField(draft), "secondReminderWanted");
+});
+
+test("pending todo draft asks for second reminder datetime after yes", () => {
+  const draft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "book inspection",
+    sourceText: "xxx book inspection",
+    dueBy: "2026-05-30 17:00",
+    dueDateCaptured: true,
+    reminderRequested: true,
+    secondReminderWanted: true,
+    reminders: ["2026-05-29 09:00"],
+    priority: null,
+    priorityCaptured: false,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(getNextMissingTodoField(draft), "secondReminder");
+});
+
+test("pending todo draft reaches tags after second reminder and priority", () => {
+  const draft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "book inspection",
+    sourceText: "xxx book inspection",
+    dueBy: "2026-05-30 17:00",
+    dueDateCaptured: true,
+    reminderRequested: true,
+    secondReminderWanted: true,
+    reminders: ["2026-05-29 09:00", "2026-05-30 07:30"],
+    priority: "p1",
+    priorityCaptured: true,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(getNextMissingTodoField(draft), "tags");
+});
+
+test("pending todo draft preserves stored ISO due date and reminders", () => {
+  const draft = normalizePendingTodoDraft({
+    projectSlug: "home",
+    taskText: "book inspection",
+    sourceText: "xxx book inspection",
+    dueBy: "2026-05-30T17:00:00.000Z",
+    dueDateCaptured: true,
+    reminderRequested: true,
+    secondReminderWanted: true,
+    reminders: ["2026-05-29T09:00:00.000Z", "2026-05-30T07:30:00.000Z"],
+    priority: "p1",
+    priorityCaptured: true,
+    tags: [],
+    tagsCaptured: false,
+  });
+  assert.equal(draft.dueBy, "2026-05-30T17:00:00.000Z");
+  assert.deepEqual(draft.reminders, ["2026-05-29T09:00:00.000Z", "2026-05-30T07:30:00.000Z"]);
+  assert.equal(getNextMissingTodoField(draft), "tags");
 });
 
 test("lookahead helpers filter tasks by week and trade", () => {
@@ -299,11 +427,15 @@ test("correction follow-up helpers detect correction prompts and affirmative rep
 });
 
 test("narrative correction parser reads common correction phrasing", () => {
-  assert.deepEqual(parseNarrativeCorrectionCommand("SteelCon not SteelmCon"), {
-    target: "SteelmCon",
-    replacement: "SteelCon",
-    rawText: "SteelCon not SteelmCon",
-  });
+  assert.equal(parseNarrativeCorrectionCommand("SteelCon not SteelmCon"), null);
+  assert.deepEqual(
+    parseNarrativeCorrectionCommand("SteelCon not SteelmCon", { allowShortNotForm: true }),
+    {
+      target: "SteelmCon",
+      replacement: "SteelCon",
+      rawText: "SteelCon not SteelmCon",
+    }
+  );
   assert.deepEqual(parseNarrativeCorrectionCommand("replace Gord with Gordie"), {
     target: "Gord",
     replacement: "Gordie",
@@ -314,6 +446,12 @@ test("narrative correction parser reads common correction phrasing", () => {
     replacement: "SteelCon",
     rawText: "change SteelmCon to SteelCon",
   });
+  assert.equal(
+    parseNarrativeCorrectionCommand("I worked on the kitchen sink not the bathroom vanity", {
+      allowShortNotForm: true,
+    }),
+    null
+  );
 });
 
 test("applyManpowerCorrectionToEntry rewrites the matching manpower count", () => {
@@ -441,6 +579,46 @@ test("parseTodoReportRequest recognizes todo PDF and Excel export commands", () 
     format: "xlsx",
   });
   assert.equal(parseTodoReportRequest("todo fix the garage door"), null);
+});
+
+test("parseTodoListRequest recognizes open and tagged todo list commands", () => {
+  assert.deepEqual(parseTodoListRequest("show me all open todo's"), {
+    projectSlug: null,
+    status: "open",
+    priority: "",
+    tags: [],
+    mineOnly: true,
+  });
+  assert.deepEqual(parseTodoListRequest('show me the todo "@home"'), {
+    projectSlug: null,
+    status: "active",
+    priority: "",
+    tags: ["home"],
+    mineOnly: true,
+  });
+  assert.deepEqual(parseTodoListRequest("show me my todos"), {
+    projectSlug: null,
+    status: "active",
+    priority: "",
+    tags: [],
+    mineOnly: true,
+  });
+  assert.deepEqual(parseTodoListRequest("show me my completed p1 todos for docksteader"), {
+    projectSlug: "docksteader",
+    status: "completed",
+    priority: "p1",
+    tags: [],
+    mineOnly: true,
+  });
+  assert.deepEqual(parseTodoListRequest("show me my in progress todos for this project", "home"), {
+    projectSlug: "home",
+    status: "inprogress",
+    priority: "",
+    tags: [],
+    mineOnly: true,
+  });
+  assert.equal(parseTodoListRequest("todo report pdf"), null);
+  assert.equal(parseTodoListRequest("todo fix garage door"), null);
 });
 
 test("elevateProjectAccessWithApprovedMember honors app-member project access for SMS", () => {

@@ -654,6 +654,9 @@ function looksLikeExplicitAiChatRequest(text) {
   if (!raw) return false;
   const lower = raw.toLowerCase();
   if (raw.endsWith("?")) return true;
+  if (/^what\s+i\s+(?:ate|had|did|bought|cooked|made|worked|saw|sent|took|wore|used|spent)\b/i.test(raw)) {
+    return false;
+  }
   if (
     /^(help|commands|ai check|openai check|status|contact|contacts|reset|reset context)$/i.test(raw)
   ) {
@@ -850,17 +853,14 @@ function escapeReplacementText(value) {
   return String(value || "").replace(/\$/g, "$$$$");
 }
 
-function parseNarrativeCorrectionCommand(text) {
+function parseNarrativeCorrectionCommand(text, options = {}) {
   const raw = String(text || "").replace(/\s+/g, " ").trim();
   if (!raw) return null;
+  const allowShortNotForm = options.allowShortNotForm === true;
 
   const patterns = [
     {
       re: /^(?:correct|change|fix|update)\s+(.+?)\s+not\s+(.+)$/i,
-      map: (m) => ({ replacement: m[1], target: m[2] }),
-    },
-    {
-      re: /^(.+?)\s+not\s+(.+)$/i,
       map: (m) => ({ replacement: m[1], target: m[2] }),
     },
     {
@@ -886,6 +886,27 @@ function parseNarrativeCorrectionCommand(text) {
       replacement,
       rawText: raw.slice(0, 500),
     };
+  }
+
+  if (allowShortNotForm) {
+    const shortNotMatch = raw.match(/^(.+?)\s+not\s+(.+)$/i);
+    if (shortNotMatch) {
+      const replacement = String(shortNotMatch[1] || "").trim().replace(/^["']|["']$/g, "");
+      const target = String(shortNotMatch[2] || "").trim().replace(/^["']|["']$/g, "");
+      if (
+        replacement &&
+        target &&
+        replacement.toLowerCase() !== target.toLowerCase() &&
+        replacement.split(/\s+/).length <= 4 &&
+        target.split(/\s+/).length <= 4
+      ) {
+        return {
+          target,
+          replacement,
+          rawText: raw.slice(0, 500),
+        };
+      }
+    }
   }
   return null;
 }
@@ -1189,6 +1210,296 @@ function parseTodoReportRequest(text) {
   };
 }
 
+function parseTodoListRequest(text, fallbackProjectSlug = null) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+  if (!/\btodo(?:'s|s)?\b/i.test(raw)) return null;
+  if (/^(?:xxx|todo|add\s+todo|create\s+todo)\b/i.test(raw)) return null;
+  if (/^(?:(?:please|can\s+you|could\s+you|i\s+need|i\s+want|get\s+me|send\s+me|text\s+me)\s+)?todo\s+report\b/i.test(raw)) {
+    return null;
+  }
+
+  const looksLikeListRequest =
+    /^(?:(?:please\s+)?(?:show|list|read|give|text|send)\s+me|what(?:'s|\s+are)?|which|my\b|all\b|open\b|completed\b|done\b|in[\s-]?progress\b)/i.test(
+      raw
+    );
+  if (!looksLikeListRequest) return null;
+
+  const tagMatches = [...raw.matchAll(/(?:^|\s|["'])@([a-z0-9][a-z0-9._-]{0,39})\b/gi)];
+  const tags = normalizeTodoTagsValue(tagMatches.map((match) => match[1]));
+  let status = "active";
+  if (/\b(?:completed|done|finished|closed)\b/i.test(raw)) status = "completed";
+  else if (/\bin[\s-]?progress\b/i.test(raw)) status = "inprogress";
+  else if (/\bopen\b/i.test(raw)) status = "open";
+  const priorityMatch = raw.match(/\b(p[1-4])\b/i);
+  const priority = priorityMatch ? String(priorityMatch[1] || "").trim().toLowerCase() : "";
+  let projectSlug = null;
+  const projectMatch = raw.match(/\b(?:for|on)\s+(this project|[a-z0-9][a-z0-9-_]{1,79})\b/i);
+  if (projectMatch) {
+    const requestedProject = String(projectMatch[1] || "").trim().toLowerCase();
+    projectSlug =
+      requestedProject === "this project"
+        ? normalizeProjectSlug(fallbackProjectSlug)
+        : normalizeProjectSlug(requestedProject);
+  }
+
+  return {
+    projectSlug: projectSlug || null,
+    status,
+    priority,
+    tags,
+    mineOnly: true,
+  };
+}
+
+const TODO_NONE_RE = /^(?:n\/a|na|none|no|skip|nope|nil)$/i;
+const TODO_YES_RE = /^(?:y|yes|yeah|yep|sure|ok|okay)$/i;
+const TODO_NO_RE = /^(?:n|no|nope|nah|skip|none)$/i;
+const TODO_PRIORITY_RE = /^(?:p[1-4]|none)$/i;
+
+function normalizeTodoTextValue(value, maxLength = 500) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function normalizeTodoPriorityValue(value) {
+  if (value == null || value === "") return null;
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "none") return null;
+  return /^p[1-4]$/.test(raw) ? raw : "";
+}
+
+function normalizeTodoTagsValue(value) {
+  const source = Array.isArray(value)
+    ? value
+    : String(value || "")
+        .split(/[,\s]+/);
+  const out = [];
+  for (const item of source) {
+    const clean = String(item || "")
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    if (clean && !out.includes(clean)) out.push(clean);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
+function parseTodoDateTimeInput(value) {
+  if (value == null || value === "") return "";
+  const raw = String(value || "").trim();
+  if (TODO_NONE_RE.test(raw)) return null;
+  if (/^\d{4}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}(?:\.\d{3})?z$/i.test(raw)) {
+    const iso = new Date(raw).toISOString();
+    return Number.isFinite(new Date(iso).getTime()) ? iso : "";
+  }
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?$/i);
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  let hour = match[4] != null ? Number(match[4]) : 17;
+  const minute = match[5] != null ? Number(match[5]) : 0;
+  const meridiem = String(match[6] || "").trim().toLowerCase();
+  if (meridiem === "pm" && hour < 12) hour += 12;
+  if (meridiem === "am" && hour === 12) hour = 0;
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    !Number.isInteger(hour) ||
+    hour < 0 ||
+    hour > 23 ||
+    !Number.isInteger(minute) ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return "";
+  }
+  const iso = new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
+  return Number.isFinite(new Date(iso).getTime()) ? iso : "";
+}
+
+function coerceAssistantDate(value) {
+  if (!value) return null;
+  try {
+    if (typeof value.toDate === "function") return value.toDate();
+    if (value.seconds) return new Date(value.seconds * 1000);
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date;
+  } catch (_) {}
+  return null;
+}
+
+function normalizeTodoStatusForList(value) {
+  const raw = String(value || "open").trim().toLowerCase();
+  if (raw === "completed") return "completed";
+  if (raw === "inprogress") return "inprogress";
+  return "open";
+}
+
+function matchesTodoListStatus(todo, statusFilter) {
+  const status = normalizeTodoStatusForList(todo.status);
+  if (statusFilter === "completed") return status === "completed";
+  if (statusFilter === "inprogress") return status === "inprogress";
+  if (statusFilter === "open") return status === "open";
+  return status !== "completed";
+}
+
+function compareTodoListPriority(a, b) {
+  const rank = { p1: 1, p2: 2, p3: 3, p4: 4 };
+  const left = rank[String(a || "").trim().toLowerCase()] || 99;
+  const right = rank[String(b || "").trim().toLowerCase()] || 99;
+  return left - right;
+}
+
+function compareTodoListItems(a, b) {
+  const priorityOrder = compareTodoListPriority(a.priority, b.priority);
+  if (priorityOrder !== 0) return priorityOrder;
+  const dueA = coerceAssistantDate(a.dueBy);
+  const dueB = coerceAssistantDate(b.dueBy);
+  if (dueA && dueB && dueA.getTime() !== dueB.getTime()) return dueA.getTime() - dueB.getTime();
+  if (dueA && !dueB) return -1;
+  if (!dueA && dueB) return 1;
+  const updatedA = coerceAssistantDate(a.updatedAt) || coerceAssistantDate(a.createdAt);
+  const updatedB = coerceAssistantDate(b.updatedAt) || coerceAssistantDate(b.createdAt);
+  if (updatedA && updatedB && updatedA.getTime() !== updatedB.getTime()) return updatedB.getTime() - updatedA.getTime();
+  return String(a.taskText || "").localeCompare(String(b.taskText || ""));
+}
+
+function formatTodoListDate(value) {
+  const date = coerceAssistantDate(value);
+  if (!date) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function formatTodoListReply({ todos, request }) {
+  const safeTodos = Array.isArray(todos) ? todos : [];
+  const tagText = Array.isArray(request?.tags) && request.tags.length
+    ? ` with ${request.tags.map((tag) => `@${tag}`).join(" ")}`
+    : "";
+  const projectText = request?.projectSlug ? ` for ${request.projectSlug}` : "";
+  const priorityText = request?.priority ? ` at ${String(request.priority).toUpperCase()}` : "";
+  const scopeLabel =
+    request?.status === "completed"
+      ? "completed"
+      : request?.status === "inprogress"
+        ? "in-progress"
+        : request?.status === "open"
+          ? "open"
+          : "active";
+
+  if (!safeTodos.length) {
+    return `No ${scopeLabel} todos found for you${projectText}${tagText}${priorityText}.`;
+  }
+
+  const prefix = `Your ${scopeLabel} todos${projectText}${tagText}${priorityText} (${safeTodos.length}): `;
+  let text = prefix;
+  let shown = 0;
+  for (let index = 0; index < safeTodos.length; index += 1) {
+    const todo = safeTodos[index] || {};
+    const parts = [`${shown + 1}) ${String(todo.taskText || "").trim()}`];
+    const status = normalizeTodoStatusForList(todo.status);
+    if (status === "inprogress") parts.push("[in progress]");
+    if (todo.priority) parts.push(`[${String(todo.priority).toLowerCase()}]`);
+    const tags = normalizeTodoTagsValue(todo.tags || []);
+    if (tags.length) parts.push(tags.map((tag) => `@${tag}`).join(" "));
+    if (!request?.projectSlug && todo.projectSlug) parts.push(`(${todo.projectSlug})`);
+    const dueText = formatTodoListDate(todo.dueBy);
+    if (dueText) parts.push(`due ${dueText}`);
+    const itemText = parts.join(" ");
+    const candidate = shown === 0 ? `${text}${itemText}` : `${text}; ${itemText}`;
+    const remaining = safeTodos.length - (shown + 1);
+    const suffix = remaining > 0 ? `; +${remaining} more` : "";
+    if (candidate.length + suffix.length > MAX_SMS_CHARS) break;
+    text = candidate;
+    shown += 1;
+  }
+
+  if (shown < safeTodos.length) {
+    text += `; +${safeTodos.length - shown} more`;
+  }
+  return text;
+}
+
+function normalizePendingTodoDraft(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const normalizedDueBy =
+    raw.dueBy === null && raw.dueDateCaptured === true
+      ? null
+      : parseTodoDateTimeInput(raw.dueBy);
+  const reminders = Array.isArray(raw.reminders)
+    ? raw.reminders.map((value) => parseTodoDateTimeInput(value)).filter((value) => typeof value === "string" && value)
+    : [];
+  return {
+    projectSlug: normalizeProjectSlug(raw.projectSlug) || HOME_TODO_PROJECT_SLUG,
+    projectName: normalizeTodoTextValue(raw.projectName, 120),
+    taskText: normalizeTodoTextValue(raw.taskText, 500),
+    sourceText: normalizeTodoTextValue(raw.sourceText, 1000),
+    dueBy: normalizedDueBy,
+    dueDateCaptured: raw.dueDateCaptured === true,
+    reminderRequested: raw.reminderRequested === true ? true : raw.reminderRequested === false ? false : null,
+    secondReminderWanted: raw.secondReminderWanted === true ? true : raw.secondReminderWanted === false ? false : null,
+    reminders,
+    priority: normalizeTodoPriorityValue(raw.priority),
+    priorityCaptured: raw.priorityCaptured === true,
+    tags: normalizeTodoTagsValue(raw.tags),
+    tagsCaptured: raw.tagsCaptured === true,
+    sourceMessageId: String(raw.sourceMessageId || "").trim() || null,
+  };
+}
+
+function getNextMissingTodoField(draft) {
+  if (!draft.taskText) return "taskText";
+  if (!draft.dueDateCaptured || draft.dueBy === "") return "dueBy";
+  if (typeof draft.reminderRequested !== "boolean") return "reminderRequested";
+  if (draft.reminderRequested && draft.reminders.length < 1) return "firstReminder";
+  if (draft.reminderRequested && draft.secondReminderWanted === true && draft.reminders.length < 2) {
+    return "secondReminder";
+  }
+  if (draft.reminderRequested && draft.reminders.length === 1 && draft.secondReminderWanted !== false) {
+    return "secondReminderWanted";
+  }
+  if (!draft.priorityCaptured || draft.priority === "") return "priority";
+  if (!draft.tagsCaptured || !Array.isArray(draft.tags)) return "tags";
+  return null;
+}
+
+function todoFieldPrompt(field, draft) {
+  if (field === "dueBy") {
+    return `Todo noted${draft.taskText ? `: ${draft.taskText}.` : "."} What is the due date? Reply YYYY-MM-DD or YYYY-MM-DD HH:MM. Reply none if no due date.`;
+  }
+  if (field === "reminderRequested") {
+    return "Do you need a reminder? Reply yes or no.";
+  }
+  if (field === "firstReminder") {
+    return "When should I send the first reminder? Reply YYYY-MM-DD HH:MM.";
+  }
+  if (field === "secondReminderWanted") {
+    return "Do you want a second reminder? Reply yes or no.";
+  }
+  if (field === "secondReminder") {
+    return "When should I send the second reminder? Reply YYYY-MM-DD HH:MM.";
+  }
+  if (field === "priority") {
+    return "What priority should I use? Reply p1, p2, p3, p4, or none.";
+  }
+  if (field === "tags") {
+    return 'Any tags? Reply like "@home @calls" or reply none.';
+  }
+  return "Send the next todo detail.";
+}
+
 function parseLabourEntryCommand(text) {
   return parseLabourHoursCommand(text);
 }
@@ -1364,6 +1675,7 @@ async function getOrCreateUser(db, phoneE164) {
       projectSlugs: [],
       contextResetAt: null,
       pendingDeficiencyIntake: null,
+      pendingTodoIntake: null,
       pendingAssistantFollowUp: null,
       pendingTimer: null,
     };
@@ -1383,6 +1695,7 @@ async function getOrCreateUser(db, phoneE164) {
     projectSlugs: getUserProjectSlugs(d),
     contextResetAt: d.contextResetAt || null,
     pendingDeficiencyIntake: d.pendingDeficiencyIntake || null,
+    pendingTodoIntake: d.pendingTodoIntake || null,
     pendingAssistantFollowUp: normalizePendingAssistantFollowUp(d.pendingAssistantFollowUp),
     pendingTimer: d.pendingTimer || null,
   };
@@ -1690,6 +2003,26 @@ async function clearPendingDeficiencyDraft(db, phoneE164) {
   );
 }
 
+async function savePendingTodoDraft(db, phoneE164, draft) {
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      pendingTodoIntake: draft,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+async function clearPendingTodoDraft(db, phoneE164) {
+  await db.collection(COL_USERS).doc(phoneE164).set(
+    {
+      pendingTodoIntake: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
 function shouldBypassPendingDeficiency(trimmedBody, lower, pendingDraft) {
   if (!pendingDraft) return true;
   const nextMissing = getNextMissingDeficiencyField(pendingDraft);
@@ -1713,6 +2046,24 @@ function shouldBypassPendingDeficiency(trimmedBody, lower, pendingDraft) {
   if (isDailyReportPdfRequest(trimmedBody) || isAnyDayRollupRequest(trimmedBody)) {
     return true;
   }
+  return false;
+}
+
+function shouldBypassPendingTodo(trimmedBody, lower) {
+  if (
+    lower === "help" ||
+    lower === "commands" ||
+    lower === "?" ||
+    lower === "contact" ||
+    lower === "contacts" ||
+    lower === "reset" ||
+    lower === "reset conversation" ||
+    lower === "reset context"
+  ) {
+    return true;
+  }
+  if (parseProjectCommand(trimmedBody)) return true;
+  if (isDailyReportPdfRequest(trimmedBody) || isAnyDayRollupRequest(trimmedBody)) return true;
   return false;
 }
 
@@ -1743,6 +2094,221 @@ async function resolveDeficiencyProject({
     ok: true,
     projectSlug: projectAccess.projectSlug || slug,
     projectName: (projectAccess.projectData && projectAccess.projectData.name) || slug,
+  };
+}
+
+async function createTodoFromDraft({
+  db,
+  phoneE164,
+  currentMemberAccess,
+  logAuthorFields,
+  relatedMessageId,
+  draft,
+  source = "sms_todo_intake",
+}) {
+  const todoRef = db.collection(COL_PROJECT_TODOS).doc();
+  await todoRef.set({
+    projectSlug: draft.projectSlug || HOME_TODO_PROJECT_SLUG,
+    scope: "project",
+    visibility: "management",
+    status: "open",
+    taskText: draft.taskText,
+    sourceText: draft.sourceText || draft.taskText,
+    dueWindow: null,
+    dueLabel: null,
+    dueBy: draft.dueBy || null,
+    startedAt: null,
+    finishedAt: null,
+    priority: draft.priority || null,
+    recurrence: { mode: "none", customText: "" },
+    labels: [],
+    tags: Array.isArray(draft.tags) ? draft.tags : [],
+    reminders: Array.isArray(draft.reminders) ? draft.reminders : [],
+    dependencies: [],
+    comments: [],
+    subTodos: [],
+    createdByPhone: phoneE164,
+    createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
+    createdByName:
+      String(currentMemberAccess.memberData?.displayName || logAuthorFields.authorName || phoneE164).trim() ||
+      phoneE164,
+    source,
+    sourceMessageId: relatedMessageId || draft.sourceMessageId || null,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return todoRef.id;
+}
+
+async function loadTodoListForPhone(db, phoneE164, request) {
+  const snap = await db
+    .collection(COL_PROJECT_TODOS)
+    .where("createdByPhone", "==", phoneE164)
+    .limit(100)
+    .get();
+
+  const requestedTags = normalizeTodoTagsValue(request?.tags || []);
+  const todos = snap.docs
+    .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+    .filter((todo) => {
+      if (!request?.projectSlug) return true;
+      return normalizeProjectSlug(todo.projectSlug) === normalizeProjectSlug(request.projectSlug);
+    })
+    .filter((todo) => matchesTodoListStatus(todo, request?.status || "active"))
+    .filter((todo) => {
+      if (!request?.priority) return true;
+      return String(todo.priority || "").trim().toLowerCase() === String(request.priority || "").trim().toLowerCase();
+    })
+    .filter((todo) => {
+      if (!requestedTags.length) return true;
+      const todoTags = normalizeTodoTagsValue(todo.tags || []);
+      return requestedTags.every((tag) => todoTags.includes(tag));
+    })
+    .sort(compareTodoListItems);
+
+  return todos;
+}
+
+async function handlePendingTodoTurn({
+  db,
+  phoneE164,
+  user,
+  currentMemberAccess,
+  trimmedBody,
+  lower,
+  relatedMessageId,
+  logAuthorFields,
+  outboundMeta,
+}) {
+  let draft = normalizePendingTodoDraft(user.pendingTodoIntake) || null;
+  if (!draft || !draft.taskText) {
+    await clearPendingTodoDraft(db, phoneE164);
+    return {
+      replyText: "That todo draft expired. Send xxx or todo: plus the task again.",
+      outboundMeta: { ...outboundMeta, command: "todo_intake_missing" },
+    };
+  }
+
+  if (lower === "cancel" || lower === "cancel todo") {
+    await clearPendingTodoDraft(db, phoneE164);
+    return {
+      replyText: "Todo intake cancelled.",
+      outboundMeta: { ...outboundMeta, command: "todo_intake_cancelled" },
+    };
+  }
+
+  if (lower === "status" || lower === "todo status") {
+    await savePendingTodoDraft(db, phoneE164, draft);
+    return {
+      replyText: truncateSms(todoFieldPrompt(getNextMissingTodoField(draft) || "tags", draft)),
+      outboundMeta: { ...outboundMeta, command: "todo_intake_status", projectSlug: draft.projectSlug || null },
+    };
+  }
+
+  const nextMissing = getNextMissingTodoField(draft);
+  if (nextMissing === "dueBy") {
+    const parsed = parseTodoDateTimeInput(trimmedBody);
+    if (parsed === "") {
+      await savePendingTodoDraft(db, phoneE164, draft);
+      return {
+        replyText: "Use YYYY-MM-DD or YYYY-MM-DD HH:MM for the due date. Reply none if there is no due date.",
+        outboundMeta: { ...outboundMeta, command: "todo_intake_due_invalid", projectSlug: draft.projectSlug },
+      };
+    }
+    draft.dueBy = parsed;
+    draft.dueDateCaptured = true;
+  } else if (nextMissing === "reminderRequested") {
+    if (TODO_YES_RE.test(trimmedBody)) draft.reminderRequested = true;
+    else if (TODO_NO_RE.test(trimmedBody)) {
+      draft.reminderRequested = false;
+      draft.secondReminderWanted = false;
+      draft.reminders = [];
+    } else {
+      await savePendingTodoDraft(db, phoneE164, draft);
+      return {
+        replyText: "Reply yes or no. Do you need a reminder?",
+        outboundMeta: { ...outboundMeta, command: "todo_intake_reminder_prompt", projectSlug: draft.projectSlug },
+      };
+    }
+  } else if (nextMissing === "firstReminder") {
+    const parsed = parseTodoDateTimeInput(trimmedBody);
+    if (!parsed) {
+      await savePendingTodoDraft(db, phoneE164, draft);
+      return {
+        replyText: "Use YYYY-MM-DD HH:MM for the first reminder.",
+        outboundMeta: { ...outboundMeta, command: "todo_intake_first_reminder_invalid", projectSlug: draft.projectSlug },
+      };
+    }
+    draft.reminders = [parsed];
+  } else if (nextMissing === "secondReminderWanted") {
+    if (TODO_YES_RE.test(trimmedBody)) draft.secondReminderWanted = true;
+    else if (TODO_NO_RE.test(trimmedBody)) draft.secondReminderWanted = false;
+    else {
+      await savePendingTodoDraft(db, phoneE164, draft);
+      return {
+        replyText: "Reply yes or no. Do you want a second reminder?",
+        outboundMeta: { ...outboundMeta, command: "todo_intake_second_reminder_prompt", projectSlug: draft.projectSlug },
+      };
+    }
+  } else if (nextMissing === "secondReminder") {
+    const parsed = parseTodoDateTimeInput(trimmedBody);
+    if (!parsed) {
+      await savePendingTodoDraft(db, phoneE164, draft);
+      return {
+        replyText: "Use YYYY-MM-DD HH:MM for the second reminder.",
+        outboundMeta: { ...outboundMeta, command: "todo_intake_second_reminder_invalid", projectSlug: draft.projectSlug },
+      };
+    }
+    draft.reminders = [...draft.reminders.slice(0, 1), parsed];
+  } else if (nextMissing === "priority") {
+    const parsed = normalizeTodoPriorityValue(trimmedBody);
+    if (parsed === "") {
+      await savePendingTodoDraft(db, phoneE164, draft);
+      return {
+        replyText: "Reply p1, p2, p3, p4, or none for priority.",
+        outboundMeta: { ...outboundMeta, command: "todo_intake_priority_invalid", projectSlug: draft.projectSlug },
+      };
+    }
+    draft.priority = parsed;
+    draft.priorityCaptured = true;
+  } else if (nextMissing === "tags") {
+    draft.tags = TODO_NONE_RE.test(trimmedBody) ? [] : normalizeTodoTagsValue(trimmedBody);
+    draft.tagsCaptured = true;
+  }
+
+  const remaining = getNextMissingTodoField(draft);
+  if (remaining) {
+    await savePendingTodoDraft(db, phoneE164, draft);
+    return {
+      replyText: truncateSms(todoFieldPrompt(remaining, draft)),
+      outboundMeta: {
+        ...outboundMeta,
+        command: "todo_intake",
+        projectSlug: draft.projectSlug || null,
+      },
+    };
+  }
+
+  const todoId = await createTodoFromDraft({
+    db,
+    phoneE164,
+    currentMemberAccess,
+    logAuthorFields,
+    relatedMessageId,
+    draft,
+  });
+  await clearPendingTodoDraft(db, phoneE164);
+  return {
+    replyText: truncateSms(
+      `Saved todo: ${draft.taskText}.${draft.dueBy ? " Due date set." : ""}${draft.reminders.length ? ` ${draft.reminders.length} reminder${draft.reminders.length > 1 ? "s" : ""} set.` : ""}${draft.priority ? ` Priority ${draft.priority}.` : ""}${draft.tags.length ? ` Tags: ${draft.tags.map((tag) => `@${tag}`).join(" ")}.` : ""}`
+    ),
+    outboundMeta: {
+      ...outboundMeta,
+      command: "todo_created",
+      projectSlug: draft.projectSlug || null,
+      pendingTodoIntake: false,
+      todoId,
+    },
   };
 }
 
@@ -2656,6 +3222,7 @@ async function buildReply({
   }
 
   const pendingDeficiencyDraft = normalizePendingDeficiencyDraft(user.pendingDeficiencyIntake);
+  const pendingTodoDraft = normalizePendingTodoDraft(user.pendingTodoIntake);
   const deficiencyRequest = parseDeficiencyIntakeRequest(trimmedBody);
   if (
     pendingDeficiencyDraft &&
@@ -2821,6 +3388,23 @@ async function buildReply({
     };
   }
 
+  if (
+    pendingTodoDraft &&
+    !shouldBypassPendingTodo(trimmedBody, lower)
+  ) {
+    return handlePendingTodoTurn({
+      db,
+      phoneE164,
+      user,
+      currentMemberAccess,
+      trimmedBody,
+      lower,
+      relatedMessageId,
+      logAuthorFields,
+      outboundMeta,
+    });
+  }
+
   const manpowerCorrection =
     parseManpowerCorrectionCommand(userMessageForAI, { allowBarePair: correctionPromptActive }) ||
     (shortAssistantFollowUp && correctionPromptActive ? parseBareManpowerPair(userMessageForAI) : null);
@@ -2874,7 +3458,9 @@ async function buildReply({
     };
   }
 
-  const narrativeCorrection = parseNarrativeCorrectionCommand(userMessageForAI);
+  const narrativeCorrection = parseNarrativeCorrectionCommand(userMessageForAI, {
+    allowShortNotForm: correctionPromptActive,
+  });
   if (narrativeCorrection) {
     const explicitCorrectionDateKey = extractExplicitReportDate(userMessageForAI).reportDateKey || null;
     const corrected = await applyLatestNarrativeCorrectionForSenderProject({
@@ -3005,6 +3591,7 @@ async function buildReply({
     await db.collection(COL_USERS).doc(phoneE164).update({
       contextResetAt: FieldValue.serverTimestamp(),
       pendingDeficiencyIntake: FieldValue.delete(),
+      pendingTodoIntake: FieldValue.delete(),
       pendingAssistantFollowUp: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -3125,6 +3712,47 @@ async function buildReply({
     };
   }
 
+  const todoListRequest = parseTodoListRequest(userMessageForAI, effectiveProjectSlug);
+  if (todoListRequest) {
+    if (!currentMemberAccess || !roleAtLeast(currentMemberAccess.role, "management")) {
+      return {
+        replyText:
+          "Only admin or management phones can view todo items here. Ask admin to approve this phone in Team.",
+        outboundMeta: {
+          ...outboundMeta,
+          command: "todo_list_forbidden",
+          projectSlug: todoListRequest.projectSlug || null,
+        },
+      };
+    }
+    if (
+      todoListRequest.projectSlug &&
+      !canAccessProject(currentMemberAccess, todoListRequest.projectSlug)
+    ) {
+      return {
+        replyText: `This phone can’t view todo items for ${todoListRequest.projectSlug}.`,
+        outboundMeta: {
+          ...outboundMeta,
+          command: "todo_list_project_forbidden",
+          projectSlug: todoListRequest.projectSlug,
+        },
+      };
+    }
+    const todos = await loadTodoListForPhone(db, phoneE164, todoListRequest);
+    return {
+      replyText: truncateSms(formatTodoListReply({ todos, request: todoListRequest })),
+      outboundMeta: {
+        ...outboundMeta,
+        command: "todo_list_view",
+        projectSlug: todoListRequest.projectSlug || null,
+        todoListStatus: todoListRequest.status,
+        todoListPriority: todoListRequest.priority || null,
+        todoListTags: todoListRequest.tags,
+        todoListCount: todos.length,
+      },
+    };
+  }
+
   const homeTodoCommand = parseHomeTodoCommand(userMessageForAI);
   if (homeTodoCommand) {
     if (homeTodoCommand.error) {
@@ -3154,48 +3782,30 @@ async function buildReply({
         },
       };
     }
-    const todoRef = db.collection(COL_PROJECT_TODOS).doc();
-    await todoRef.set({
+    await savePendingTodoDraft(db, phoneE164, {
       projectSlug: HOME_TODO_PROJECT_SLUG,
-      scope: "project",
-      visibility: "management",
-      status: "open",
+      projectName: "home",
       taskText: homeTodoCommand.taskText,
       sourceText: homeTodoCommand.rawText,
-      dueWindow: homeTodoCommand.dueWindow || null,
-      dueLabel: homeTodoCommand.dueLabel || null,
-      dueBy: homeTodoCommand.dueByIso || null,
-      startedAt: null,
-      finishedAt: null,
-      priority: null,
-      recurrence: { mode: "none", customText: "" },
-      labels: [],
-      tags: homeTodoCommand.tags || [],
+      dueBy: null,
+      dueDateCaptured: false,
+      reminderRequested: null,
+      secondReminderWanted: null,
       reminders: [],
-      dependencies: [],
-      comments: [],
-      subTodos: [],
-      createdByPhone: phoneE164,
-      createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
-      createdByName:
-        String(currentMemberAccess.memberData?.displayName || logAuthorFields.authorName || phoneE164).trim() ||
-        phoneE164,
-      source: "sms",
+      priority: null,
+      priorityCaptured: false,
+      tags: homeTodoCommand.tags || [],
+      tagsCaptured: false,
       sourceMessageId: relatedMessageId || null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
     return {
-      replyText: truncateSms(
-        `Saved home todo: ${homeTodoCommand.taskText}${
-          homeTodoCommand.dueLabel ? ` (${homeTodoCommand.dueLabel})` : ""
-        }.`
-      ),
+      replyText: truncateSms(todoFieldPrompt("dueBy", { taskText: homeTodoCommand.taskText })),
       outboundMeta: withRoutingDecision(
         {
           ...outboundMeta,
-          command: "home_todo_saved",
+          command: "todo_intake_started",
           projectSlug: HOME_TODO_PROJECT_SLUG,
+          pendingTodoIntake: true,
         },
         {
           stage: "deterministic",
@@ -4220,61 +4830,29 @@ async function buildReply({
           },
         };
       }
-      let dueLabel = null;
-      let dueByIso = null;
-      if (aiActionPlan.todoDueWindow) {
-        const dueDate = new Date();
-        if (aiActionPlan.todoDueWindow === "next_week") {
-          dueDate.setDate(dueDate.getDate() + 7);
-          dueLabel = "next week";
-        } else if (aiActionPlan.todoDueWindow === "next_month") {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-          dueLabel = "next month";
-        }
-        dueDate.setHours(17, 0, 0, 0);
-        dueByIso = dueDate.toISOString();
-      }
-      const todoRef = db.collection(COL_PROJECT_TODOS).doc();
-      await todoRef.set({
+      await savePendingTodoDraft(db, phoneE164, {
         projectSlug: todoProjectSlug,
-        scope: "project",
-        visibility: "management",
-        status: "open",
+        projectName: effectiveProjectName || todoProjectSlug,
         taskText: aiActionPlan.todoText,
         sourceText: trimmedBody,
-        dueWindow: aiActionPlan.todoDueWindow || null,
-        dueLabel: dueLabel || null,
-        dueBy: dueByIso || null,
-        startedAt: null,
-        finishedAt: null,
-        priority: null,
-        recurrence: { mode: "none", customText: "" },
-        labels: [],
-        tags: [],
+        dueBy: null,
+        dueDateCaptured: false,
+        reminderRequested: null,
+        secondReminderWanted: null,
         reminders: [],
-        dependencies: [],
-        comments: [],
-        subTodos: [],
-        createdByPhone: phoneE164,
-        createdByEmail: currentMemberAccess.email || logAuthorFields.authorEmail || null,
-        createdByName:
-          String(currentMemberAccess.memberData?.displayName || logAuthorFields.authorName || phoneE164).trim() ||
-          phoneE164,
-        source: "sms_ai_action",
+        priority: null,
+        priorityCaptured: false,
+        tags: [],
+        tagsCaptured: false,
         sourceMessageId: relatedMessageId || null,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
       });
       return {
-        replyText: truncateSms(
-          `Saved todo${todoProjectSlug ? ` for ${todoProjectSlug}` : ""}: ${aiActionPlan.todoText}${
-            dueLabel ? ` (${dueLabel})` : ""
-          }.`
-        ),
+        replyText: truncateSms(todoFieldPrompt("dueBy", { taskText: aiActionPlan.todoText })),
         outboundMeta: {
           ...withRoutingDecision(outboundMeta, plannerDecision),
-          command: "todo_created",
+          command: "todo_intake_started",
           projectSlug: todoProjectSlug,
+          pendingTodoIntake: true,
         },
       };
     }
@@ -4720,6 +5298,9 @@ module.exports = {
   sanitizeRoutePayload,
   parseStartTimerCommand,
   parseHomeTodoCommand,
+  parseTodoDateTimeInput,
+  normalizePendingTodoDraft,
+  getNextMissingTodoField,
   isStopTimerCommand,
   formatDurationFromMs,
   parseNotificationRequest,
@@ -4729,6 +5310,7 @@ module.exports = {
   looksLikeExplicitAiChatRequest,
   isExplicitLabourEntryText,
   isExplicitLabourBalanceText,
+  parseTodoListRequest,
   parseTodoReportRequest,
   isAffirmativeCorrectionFollowUp,
   buildRecentCorrectionDateKeys,

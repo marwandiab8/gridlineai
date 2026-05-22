@@ -862,17 +862,35 @@ function resolveConfiguredAppBaseUrl() {
   return resolveAppBaseUrl(admin.app().options.projectId || "", APP_BASE_URL.value());
 }
 
+function getPublicFunctionBaseUrl(exportName) {
+  const projectId =
+    String(process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "").trim() || null;
+  if (!projectId) return "";
+  return `https://northamerica-northeast1-${projectId}.cloudfunctions.net/${exportName}`;
+}
+
+function buildDailyReportSmsUrl(pdfResult) {
+  if (!pdfResult || typeof pdfResult !== "object") return "";
+  const reportId = String(pdfResult.reportId || "").trim();
+  if (reportId) {
+    const base = getPublicFunctionBaseUrl("dailyReportDownload");
+    if (base) return `${base}?r=${encodeURIComponent(reportId)}`;
+  }
+  const appURL = String(pdfResult.appURL || "").trim();
+  if (appURL) return appURL;
+  return String(pdfResult.downloadURL || "").trim();
+}
+
 function buildReportPushMessage({ pdfResult, projectName, projectSlug, reportDateKey, reportType }) {
   const label = reportType === "dailySiteLog" ? "Daily Site Log PDF" : "Journal PDF";
   const scopeBits = [];
   if (projectName || projectSlug) scopeBits.push(projectName || projectSlug);
   if (reportDateKey) scopeBits.push(reportDateKey);
   const scopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
-  const parts = [`${label}${scopeText}`];
-  if (pdfResult && pdfResult.appURL) parts.push(`Open report: ${pdfResult.appURL}`);
-  else if (pdfResult && pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
-  else if (pdfResult && pdfResult.storagePath) parts.push(`Stored at: ${pdfResult.storagePath}`);
-  return parts.join(" | ").slice(0, 640);
+  const smsUrl = buildDailyReportSmsUrl(pdfResult);
+  return smsUrl
+    ? `${label}${scopeText}: ${smsUrl}`.slice(0, 640)
+    : `${label}${scopeText} | Stored at: ${pdfResult && pdfResult.storagePath ? pdfResult.storagePath : "-"}`.slice(0, 640);
 }
 
 function buildDailyPdfSmsReplyBody({ pdfResult, projectName, projectSlug }) {
@@ -881,11 +899,10 @@ function buildDailyPdfSmsReplyBody({ pdfResult, projectName, projectSlug }) {
   if (projectName || projectSlug) scopeBits.push(projectName || projectSlug);
   if (pdfResult.reportDateKey) scopeBits.push(pdfResult.reportDateKey);
   const smsScopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
-  const parts = [`${label}${smsScopeText}`];
-  if (pdfResult.appURL) parts.push(`Open report: ${pdfResult.appURL}`);
-  else if (pdfResult.downloadURL) parts.push(`PDF: ${pdfResult.downloadURL}`);
-  else parts.push(`Stored at: ${pdfResult.storagePath}`);
-  return parts.join(" | ").slice(0, 640);
+  const smsUrl = buildDailyReportSmsUrl(pdfResult);
+  return smsUrl
+    ? `${label}${smsScopeText}: ${smsUrl}`.slice(0, 640)
+    : `${label}${smsScopeText} | Stored at: ${pdfResult.storagePath}`.slice(0, 640);
 }
 
 function elevateProjectAccessForApprovedPhone(projectAccess, memberAccess) {
@@ -4668,10 +4685,11 @@ exports.inboundSms = onRequest(
         }
       }
 
-      let safeReply = String(replyText || "").trim() || "OK.";
-      let dailyPdfQueueRef = null;
-      let labourPdfQueueRef = null;
-      let todoReportQueueRef = null;
+	      let safeReply = String(replyText || "").trim() || "OK.";
+	      let dailyPdfQueueRef = null;
+	      let labourPdfQueueRef = null;
+	      let todoReportQueueRef = null;
+	      let lookaheadReportQueueRef = null;
 
       if (outboundMeta.dailyPdfRequested) {
         try {
@@ -5850,6 +5868,52 @@ exports.transcribeAssistantAudioCallable = onCall(
       model: transcript && transcript.model ? transcript.model : null,
       contentType: resolvedMime,
     };
+  }
+);
+
+exports.dailyReportDownload = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (req, res) => {
+    if (req.method !== "GET") {
+      res.status(405).set("Allow", "GET").send("Method Not Allowed");
+      return;
+    }
+
+    const reportId = String(req.query && req.query.r ? req.query.r : "").trim();
+    if (!reportId) {
+      res.status(400).type("text/plain").send("Missing report id.");
+      return;
+    }
+
+    try {
+      const reportSnap = await db.collection("dailyReports").doc(reportId).get();
+      if (!reportSnap.exists) {
+        res.status(404).type("text/plain").send("Report not found.");
+        return;
+      }
+
+      const report = reportSnap.data() || {};
+      const downloadURL = String(report.downloadURL || "").trim();
+      if (!downloadURL) {
+        res.status(404).type("text/plain").send("Report download link is not available.");
+        return;
+      }
+
+      res.set("Cache-Control", "private, max-age=300");
+      res.redirect(302, downloadURL);
+    } catch (err) {
+      logger.error("dailyReportDownload: failed", {
+        reportId,
+        message: err.message,
+        stack: err.stack,
+      });
+      res.status(500).type("text/plain").send("Could not open the report.");
+    }
   }
 );
 
