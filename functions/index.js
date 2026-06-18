@@ -2,6 +2,7 @@ const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https")
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
+const { createHash, randomUUID, randomBytes } = require("crypto");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const { FieldValue } = require("firebase-admin/firestore");
@@ -90,6 +91,7 @@ const {
   loadPreviousLookaheadSnapshot,
 } = require("./lookaheadScheduleRepository");
 const {
+  canReceiveProjectReport,
   normalizePdfPushSettings,
   resolveAppBaseUrl,
 } = require("./reportPushConfig");
@@ -435,7 +437,7 @@ async function generateStoredTodoReport({
     fileName,
     fileSequence: sequence,
     storagePath: reportResult.storagePath,
-    downloadURL: reportResult.downloadURL,
+    downloadURL: null,
     createdAt: FieldValue.serverTimestamp(),
     createdByEmail: createdByEmail || null,
     createdByPhone: createdByPhone || null,
@@ -501,6 +503,121 @@ function assertDashboardTokenValue(token) {
   }
 }
 
+function normalizeDemoText(value, maxLength) {
+  return String(value || "")
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function normalizeDemoEmail(value) {
+  return normalizeDemoText(value, 160).toLowerCase();
+}
+
+function assertNoDemoLinkSpam(value, fieldName) {
+  const text = String(value || "");
+  if (/(?:https?:\/\/|www\.|\.ru\b|\.cn\b|\.zip\b|\.top\b)/i.test(text)) {
+    throw new HttpsError("invalid-argument", `${fieldName} cannot include links.`);
+  }
+}
+
+function getDemoRequestIpHash(request) {
+  const raw =
+    String(request.rawRequest?.headers?.["fastly-client-ip"] || "").trim() ||
+    String(request.rawRequest?.headers?.["x-forwarded-for"] || "").split(",")[0].trim() ||
+    String(request.rawRequest?.ip || "").trim() ||
+    "unknown";
+  return createHash("sha256")
+    .update(`${raw}|gridlineai-demo-request`)
+    .digest("hex")
+    .slice(0, 40);
+}
+
+function getDemoRequestUserAgent(request) {
+  return normalizeDemoText(request.rawRequest?.headers?.["user-agent"] || "", 220);
+}
+
+async function assertDemoRequestRateLimit({ ipHash, email }) {
+  const key = createHash("sha256")
+    .update(`${ipHash}|${email || "no-email"}`)
+    .digest("hex")
+    .slice(0, 48);
+  const ref = db.collection(COL_DEMO_REQUEST_RATE_LIMITS).doc(key);
+  const nowMs = Date.now();
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? snap.data() || {} : {};
+    const windowStartedAtMs = Number(data.windowStartedAtMs || 0);
+    const currentCount =
+      windowStartedAtMs && nowMs - windowStartedAtMs < DEMO_REQUEST_RATE_WINDOW_MS
+        ? Number(data.count || 0)
+        : 0;
+    if (currentCount >= DEMO_REQUEST_MAX_PER_WINDOW) {
+      throw new HttpsError("resource-exhausted", "Too many demo requests. Try again later.");
+    }
+    tx.set(
+      ref,
+      {
+        ipHash,
+        emailHash: email
+          ? createHash("sha256").update(email).digest("hex").slice(0, 40)
+          : null,
+        windowStartedAtMs: currentCount ? windowStartedAtMs : nowMs,
+        count: currentCount + 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+}
+
+function normalizeDemoRequestPayload(data) {
+  const loadedAt = Number(data?.loadedAt || 0);
+  const elapsedMs = loadedAt ? Date.now() - loadedAt : 0;
+  const payload = {
+    name: normalizeDemoText(data?.name, 120),
+    email: normalizeDemoEmail(data?.email),
+    company: normalizeDemoText(data?.company, 140),
+    phone: normalizeDemoText(data?.phone, 40),
+    role: normalizeDemoText(data?.role, 80),
+    teamSize: normalizeDemoText(data?.teamSize, 40),
+    message: normalizeDemoText(data?.message, 1200),
+    consent: data?.consent === true,
+    website: normalizeDemoText(data?.website, 200),
+    pagePath: normalizeDemoText(data?.pagePath, 120),
+    loadedAtMs: loadedAt || null,
+    elapsedMs,
+  };
+
+  if (payload.website) {
+    throw new HttpsError("permission-denied", "Request rejected.");
+  }
+  if (!payload.name) throw new HttpsError("invalid-argument", "Name is required.");
+  if (!payload.company) throw new HttpsError("invalid-argument", "Company is required.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
+    throw new HttpsError("invalid-argument", "A valid work email is required.");
+  }
+  if (!payload.consent) {
+    throw new HttpsError("invalid-argument", "Consent is required.");
+  }
+  if (
+    !elapsedMs ||
+    elapsedMs < DEMO_REQUEST_MIN_ELAPSED_MS ||
+    elapsedMs > DEMO_REQUEST_MAX_ELAPSED_MS
+  ) {
+    throw new HttpsError("permission-denied", "Request rejected.");
+  }
+
+  assertNoDemoLinkSpam(payload.name, "Name");
+  assertNoDemoLinkSpam(payload.company, "Company");
+  assertNoDemoLinkSpam(payload.role, "Role");
+  assertNoDemoLinkSpam(payload.message, "Message");
+
+  return payload;
+}
+
 async function assertIssueWriteProjectAccess(operator, projectSlugRaw) {
   if (roleAtLeast(operator.role, "management") || operator.allProjects === true) {
     return;
@@ -564,9 +681,139 @@ function chunkArray(values, size) {
 }
 
 const MAX_NOTIFY_RECIPIENTS = 80;
+const COL_REPORT_ACCESS_GRANTS = "reportAccessGrants";
+const REPORT_COLLECTION_DAILY = "dailyReports";
+const REPORT_COLLECTION_LABOUR = "labourReports";
+const REPORT_COLLECTION_TODO = "todoReports";
+const REPORT_COLLECTIONS = new Set([
+  REPORT_COLLECTION_DAILY,
+  REPORT_COLLECTION_LABOUR,
+  REPORT_COLLECTION_TODO,
+]);
+const COL_DEMO_REQUESTS = "demoRequests";
+const COL_DEMO_REQUEST_RATE_LIMITS = "demoRequestRateLimits";
+const DEMO_REQUEST_MIN_ELAPSED_MS = 2500;
+const DEMO_REQUEST_MAX_ELAPSED_MS = 2 * 60 * 60 * 1000;
+const DEMO_REQUEST_RATE_WINDOW_MS = 60 * 60 * 1000;
+const DEMO_REQUEST_MAX_PER_WINDOW = 4;
+const REPORT_ACCESS_GRANT_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const REPORT_ACCESS_GRANT_UI_TTL_MS = 1000 * 60 * 30;
+
+function makeOpaqueAccessToken() {
+  if (typeof randomUUID === "function") return randomUUID().replace(/-/g, "");
+  return randomBytes(16).toString("hex");
+}
+
+function normalizeReportCollectionName(value) {
+  const raw = String(value || "").trim();
+  return REPORT_COLLECTIONS.has(raw) ? raw : "";
+}
+
+function buildReportDownloadUrl({ collectionName, reportId, grantToken = "" }) {
+  const collection = normalizeReportCollectionName(collectionName);
+  const id = String(reportId || "").trim();
+  const token = String(grantToken || "").trim();
+  const base = getPublicFunctionBaseUrl("dailyReportDownload");
+  if (!base || !collection || !id) return "";
+  const params = new URLSearchParams();
+  params.set("r", id);
+  if (collection !== REPORT_COLLECTION_DAILY) params.set("c", collection);
+  if (token) params.set("g", token);
+  return `${base}?${params.toString()}`;
+}
+
+async function createReportAccessGrant({
+  collectionName,
+  reportId,
+  storagePath,
+  expiresInMs = REPORT_ACCESS_GRANT_TTL_MS,
+  grantType = "sms",
+  recipientPhoneE164 = null,
+  requestedByEmail = null,
+  requestedByName = null,
+}) {
+  const collection = normalizeReportCollectionName(collectionName);
+  const id = String(reportId || "").trim();
+  const path = String(storagePath || "").trim();
+  if (!collection || !id || !path) return null;
+  const token = makeOpaqueAccessToken();
+  const expiresAtMs = Date.now() + Math.max(60 * 1000, Number(expiresInMs) || REPORT_ACCESS_GRANT_TTL_MS);
+  await db.collection(COL_REPORT_ACCESS_GRANTS).doc(token).set({
+    collectionName: collection,
+    reportId: id,
+    storagePath: path,
+    grantType: String(grantType || "sms").trim(),
+    recipientPhoneE164: recipientPhoneE164 || null,
+    requestedByEmail: requestedByEmail || null,
+    requestedByName: requestedByName || null,
+    expiresAt: admin.firestore.Timestamp.fromMillis(expiresAtMs),
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return buildReportDownloadUrl({ collectionName: collection, reportId: id, grantToken: token });
+}
+
+async function createTemporaryReportAccessUrl({
+  collectionName,
+  reportId,
+  storagePath,
+  access,
+}) {
+  return createReportAccessGrant({
+    collectionName,
+    reportId,
+    storagePath,
+    expiresInMs: REPORT_ACCESS_GRANT_UI_TTL_MS,
+    grantType: "ui",
+    requestedByEmail: access && access.email ? access.email : null,
+    requestedByName:
+      access && access.memberData && access.memberData.displayName
+        ? String(access.memberData.displayName).trim()
+        : access && access.email
+          ? access.email
+          : null,
+  });
+}
+
+async function createShortLivedStorageRedirect(storagePath, fileName = "") {
+  const file = admin.storage().bucket().file(String(storagePath || "").trim());
+  const [url] = await file.getSignedUrl({
+    action: "read",
+    expires: Date.now() + 1000 * 60 * 5,
+    ...(fileName ? { responseDisposition: `attachment; filename="${String(fileName).replace(/"/g, "")}"` } : {}),
+  });
+  return url || "";
+}
+
+function canAccessProjectlessDailyReport(access, reportData) {
+  if (!access || !reportData || typeof reportData !== "object") return false;
+  if (roleAtLeast(access.role, "admin") || access.allProjects === true) return true;
+  const approvedPhone = normalizePhoneE164(String(access.approvedPhoneE164 || access.memberData?.approvedPhoneE164 || "").trim());
+  const reportPhone = normalizePhoneE164(String(reportData.phoneE164 || "").trim());
+  return Boolean(approvedPhone && reportPhone && approvedPhone === reportPhone);
+}
+
+function canAccessStoredReport(access, collectionName, reportData) {
+  const collection = normalizeReportCollectionName(collectionName);
+  if (!collection || !access || !reportData || typeof reportData !== "object") return false;
+  if (collection === REPORT_COLLECTION_DAILY) {
+    const projectSlug = normalizeProjectSlug(String(reportData.projectId || "").trim());
+    return projectSlug ? canAccessProject(access, projectSlug) : canAccessProjectlessDailyReport(access, reportData);
+  }
+  if (collection === REPORT_COLLECTION_TODO) {
+    const projectSlug = normalizeProjectSlug(String(reportData.projectSlug || "").trim()) || "home";
+    return canAccessProject(access, projectSlug);
+  }
+  if (collection === REPORT_COLLECTION_LABOUR) {
+    const projectSlug = normalizeProjectSlug(String(reportData.projectSlug || "").trim());
+    if (projectSlug) return canAccessProject(access, projectSlug);
+    return roleAtLeast(access.role, "management");
+  }
+  return false;
+}
 
 async function resolveNotificationRecipients(db, request = {}) {
   const audience = String(request.audience || "").trim();
+  const projectSlug = normalizeProjectSlug(String(request.projectSlug || "").trim());
   if (audience === "management") {
     const snap = await db
       .collection(COL_APP_MEMBERS)
@@ -577,6 +824,7 @@ async function resolveNotificationRecipients(db, request = {}) {
     for (const docSnap of snap.docs) {
       const row = docSnap.data() || {};
       if (!roleAtLeast(row.role, "management")) continue;
+      if (!canReceiveProjectReport(row, projectSlug)) continue;
       const phone = normalizePhoneE164(String(row.approvedPhoneE164 || "").trim());
       if (!phone) continue;
       recipients.push({
@@ -589,7 +837,6 @@ async function resolveNotificationRecipients(db, request = {}) {
   }
 
   if (audience === "project_users") {
-    const projectSlug = normalizeProjectSlug(String(request.projectSlug || "").trim());
     if (!projectSlug) return [];
     const byPhone = new Map();
     const [activeSnap, listedSnap] = await Promise.all([
@@ -633,6 +880,7 @@ async function sendSmsNotificationFanout({
   requestedByEmail,
   projectSlug,
   messageBody,
+  buildRecipientMessageBody = null,
   recipients,
   runId,
 }) {
@@ -653,9 +901,13 @@ async function sendSmsNotificationFanout({
   const senderLabel = String(requestedByName || requestedByEmail || requestedByPhone || "Site update")
     .trim()
     .slice(0, 60);
-  const smsBody = `${prefix}Message from ${senderLabel}: ${String(messageBody || "").trim()}`.slice(0, 640);
 
   for (const recipient of deduped) {
+    const resolvedMessage =
+      typeof buildRecipientMessageBody === "function"
+        ? await buildRecipientMessageBody(recipient)
+        : messageBody;
+    const smsBody = `${prefix}Message from ${senderLabel}: ${String(resolvedMessage || "").trim()}`.slice(0, 640);
     const payload = { to: recipient.phoneE164, body: smsBody };
     if (messagingServiceSid) payload.messagingServiceSid = messagingServiceSid;
     else payload.from = fromPhone;
@@ -871,11 +1123,8 @@ function getPublicFunctionBaseUrl(exportName) {
 
 function buildDailyReportSmsUrl(pdfResult) {
   if (!pdfResult || typeof pdfResult !== "object") return "";
-  const reportId = String(pdfResult.reportId || "").trim();
-  if (reportId) {
-    const base = getPublicFunctionBaseUrl("dailyReportDownload");
-    if (base) return `${base}?r=${encodeURIComponent(reportId)}`;
-  }
+  const accessURL = String(pdfResult.accessURL || "").trim();
+  if (accessURL) return accessURL;
   const appURL = String(pdfResult.appURL || "").trim();
   if (appURL) return appURL;
   return String(pdfResult.downloadURL || "").trim();
@@ -1674,9 +1923,21 @@ async function processPendingAudioReviewReply({
         createdByPhone: phoneE164,
         runId,
       });
-      safeReply = pdfResult.downloadURL
-        ? `Todo report (${todoFormat === "pdf" ? "PDF" : "Excel"}): ${pdfResult.downloadURL}`
+      const accessURL = await createReportAccessGrant({
+        collectionName: REPORT_COLLECTION_TODO,
+        reportId: pdfResult.reportId,
+        storagePath: pdfResult.storagePath,
+        recipientPhoneE164: phoneE164,
+        grantType: "sms",
+      });
+      safeReply = accessURL
+        ? `Todo report (${todoFormat === "pdf" ? "PDF" : "Excel"}): ${accessURL}`
         : `Todo report generated, but no download link could be created. Stored at: ${pdfResult.storagePath}`;
+      pdfResult = {
+        ...pdfResult,
+        downloadURL: accessURL || null,
+        accessURL: accessURL || null,
+      };
       outboundMeta = {
         ...outboundMeta,
         todoReportRequested: false,
@@ -2290,21 +2551,28 @@ async function deliverDailyPdfSmsViaTwilio({
     },
     appBaseUrl: resolveConfiguredAppBaseUrl(),
   });
+  const accessURL = await createReportAccessGrant({
+    collectionName: REPORT_COLLECTION_DAILY,
+    reportId: pdfResult.reportId,
+    storagePath: pdfResult.storagePath,
+    recipientPhoneE164: phoneE164,
+    grantType: "sms",
+  });
   const smsClient = twilio(accountSid, authToken);
   const label = pdfResult.reportType === "journal" ? "Journal PDF" : "Daily PDF report";
   const scopeBits = [];
   if (projectName || slug) scopeBits.push(projectName || slug);
   if (pdfResult.reportDateKey) scopeBits.push(pdfResult.reportDateKey);
   const scopeText = scopeBits.length ? ` (${scopeBits.join(" · ")})` : "";
-  const pdfBody = pdfResult.downloadURL
-    ? `Daily PDF report (download): ${pdfResult.downloadURL}`
+  const pdfBody = accessURL
+    ? `Daily PDF report (download): ${accessURL}`
     : `Daily PDF report saved (${slug || "no project"}). Signed link unavailable—open Storage or the dashboard. Path: ${pdfResult.storagePath}`;
   const smsScopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
-  const smsReplyBody = pdfResult.downloadURL
-    ? `${label}${smsScopeText}: ${pdfResult.downloadURL}`
+  const smsReplyBody = accessURL
+    ? `${label}${smsScopeText}: ${accessURL}`
     : `${label}${smsScopeText} was generated, but no download link could be created. Stored at: ${pdfResult.storagePath}`;
   const renderedSmsReplyBody = buildDailyPdfSmsReplyBody({
-    pdfResult,
+    pdfResult: { ...pdfResult, accessURL },
     projectName,
     projectSlug: slug,
   });
@@ -2337,7 +2605,10 @@ async function deliverDailyPdfSmsViaTwilio({
     senderPhoneE164,
     messagingServiceSid,
     messageBody: renderedSmsReplyBody,
-    pdfResult,
+    pdfResult: {
+      ...pdfResult,
+      accessURL,
+    },
   };
 }
 
@@ -2367,12 +2638,23 @@ async function deliverTodoReportSmsViaTwilio({
       createdByPhone: phoneE164,
       runId,
     }));
+  const accessURL = await createReportAccessGrant({
+    collectionName: REPORT_COLLECTION_TODO,
+    reportId: reportResult.reportId,
+    storagePath: reportResult.storagePath,
+    recipientPhoneE164: phoneE164,
+    grantType: "sms",
+  });
 
   const smsClient = twilio(accountSid, authToken);
   const senderPhoneE164 = normalizePhoneE164(replyToNumber || "") || configuredFrom || null;
   const messagingServiceSid = normalizeTwilioSecret(replyMessagingServiceSid || "") || null;
   const messageBody = buildTodoReportSmsReplyBody({
-    reportResult,
+    reportResult: {
+      ...reportResult,
+      downloadURL: accessURL || reportResult.downloadURL || null,
+      accessURL: accessURL || null,
+    },
     projectSlug: normalizedProjectSlug,
   });
   const messagePayload = {
@@ -2404,7 +2686,11 @@ async function deliverTodoReportSmsViaTwilio({
     senderPhoneE164,
     messagingServiceSid,
     messageBody,
-    reportResult,
+    reportResult: {
+      ...reportResult,
+      downloadURL: accessURL || reportResult.downloadURL || null,
+      accessURL: accessURL || null,
+    },
   };
 }
 
@@ -3217,7 +3503,7 @@ exports.deliverLabourPdfSms = onDocumentCreated(
         downloadToken,
       });
 
-      await db.collection("labourReports").add({
+      const reportRef = await db.collection("labourReports").add({
         type: "labourHours",
         reportTitle,
         labourerPhone: allLabourers ? null : phoneE164 || null,
@@ -3233,14 +3519,22 @@ exports.deliverLabourPdfSms = onDocumentCreated(
         fileSequence: Number(sequence),
         scopeSequenceKey,
         storagePath: pdfResult.storagePath,
-        downloadURL: pdfResult.downloadURL,
+        downloadURL: null,
         createdAt: FieldValue.serverTimestamp(),
         createdByPhone: phoneE164,
         runId,
-      }).catch(() => {});
+      });
 
-      const smsBody = pdfResult.downloadURL
-        ? `${allLabourers ? "All labourers labour report" : "Labour report"} (${normalizedStart} to ${normalizedEnd}): ${pdfResult.downloadURL}`
+      const accessURL = await createReportAccessGrant({
+        collectionName: REPORT_COLLECTION_LABOUR,
+        reportId: reportRef.id,
+        storagePath: pdfResult.storagePath,
+        recipientPhoneE164: phoneE164,
+        grantType: "sms",
+      });
+
+      const smsBody = accessURL
+        ? `${allLabourers ? "All labourers labour report" : "Labour report"} (${normalizedStart} to ${normalizedEnd}): ${accessURL}`
         : `${allLabourers ? "All labourers labour report" : "Labour report"} (${normalizedStart} to ${normalizedEnd}) generated. Stored at: ${pdfResult.storagePath}`;
 
       const smsClient = twilio(runtimeAccountSid, authToken);
@@ -3255,7 +3549,7 @@ exports.deliverLabourPdfSms = onDocumentCreated(
         status: "sent",
         sentAt: FieldValue.serverTimestamp(),
         twilioMessageSid: messageSid,
-        downloadURL: pdfResult.downloadURL || null,
+        downloadURL: accessURL || null,
         storagePath: pdfResult.storagePath || null,
         lastError: null,
       }).catch(() => {});
@@ -3803,14 +4097,6 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       appBaseUrl: resolveConfiguredAppBaseUrl(),
     });
 
-    const messageBody = buildReportPushMessage({
-      pdfResult,
-      projectName,
-      projectSlug,
-      reportDateKey,
-      reportType,
-    });
-
     const fanout = await sendSmsNotificationFanout({
       db,
       smsClient: twilio(accountSid, authToken),
@@ -3821,7 +4107,23 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       requestedByName: reportType === "dailySiteLog" ? "Daily site log auto-send" : "Daily journal auto-send",
       requestedByEmail: null,
       projectSlug,
-      messageBody,
+      messageBody: "",
+      buildRecipientMessageBody: async (recipient) => {
+        const accessURL = await createReportAccessGrant({
+          collectionName: REPORT_COLLECTION_DAILY,
+          reportId: pdfResult.reportId,
+          storagePath: pdfResult.storagePath,
+          recipientPhoneE164: recipient.phoneE164,
+          grantType: "push",
+        });
+        return buildReportPushMessage({
+          pdfResult: { ...pdfResult, accessURL },
+          projectName,
+          projectSlug,
+          reportDateKey,
+          reportType,
+        });
+      },
       recipients,
       runId,
     });
@@ -5893,6 +6195,51 @@ exports.transcribeAssistantAudioCallable = onCall(
   }
 );
 
+exports.createReportAccessUrlCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    const collectionName = normalizeReportCollectionName(request.data?.collectionName || request.data?.collection || REPORT_COLLECTION_DAILY);
+    const reportId = String(request.data?.reportId || "").trim();
+    if (!collectionName) {
+      throw new HttpsError("invalid-argument", "collectionName is invalid.");
+    }
+    if (!reportId) {
+      throw new HttpsError("invalid-argument", "reportId is required.");
+    }
+    const reportSnap = await db.collection(collectionName).doc(reportId).get();
+    if (!reportSnap.exists) {
+      throw new HttpsError("not-found", "Report not found.");
+    }
+    const reportData = reportSnap.data() || {};
+    if (!canAccessStoredReport(access, collectionName, reportData)) {
+      throw new HttpsError("permission-denied", "You cannot access this report.");
+    }
+    const storagePath = String(reportData.storagePath || "").trim();
+    if (!storagePath) {
+      throw new HttpsError("failed-precondition", "Report storage path is missing.");
+    }
+    const accessURL = await createTemporaryReportAccessUrl({
+      collectionName,
+      reportId,
+      storagePath,
+      access,
+    });
+    return {
+      ok: true,
+      collectionName,
+      reportId,
+      accessURL,
+      downloadURL: accessURL,
+    };
+  }
+);
+
 exports.dailyReportDownload = onRequest(
   {
     region: "northamerica-northeast1",
@@ -5907,29 +6254,76 @@ exports.dailyReportDownload = onRequest(
     }
 
     const reportId = String(req.query && req.query.r ? req.query.r : "").trim();
+    const collectionName = normalizeReportCollectionName(
+      req.query && req.query.c ? req.query.c : REPORT_COLLECTION_DAILY
+    ) || REPORT_COLLECTION_DAILY;
+    const grantToken = String(req.query && req.query.g ? req.query.g : "").trim();
     if (!reportId) {
       res.status(400).type("text/plain").send("Missing report id.");
       return;
     }
 
     try {
-      const reportSnap = await db.collection("dailyReports").doc(reportId).get();
+      const reportSnap = await db.collection(collectionName).doc(reportId).get();
       if (!reportSnap.exists) {
         res.status(404).type("text/plain").send("Report not found.");
         return;
       }
 
       const report = reportSnap.data() || {};
-      const downloadURL = String(report.downloadURL || "").trim();
-      if (!downloadURL) {
-        res.status(404).type("text/plain").send("Report download link is not available.");
+      const storagePath = String(report.storagePath || "").trim();
+      if (!storagePath) {
+        res.status(404).type("text/plain").send("Report file is not available.");
         return;
       }
 
+      if (grantToken) {
+        const grantSnap = await db.collection(COL_REPORT_ACCESS_GRANTS).doc(grantToken).get();
+        if (!grantSnap.exists) {
+          res.status(403).type("text/plain").send("Report access token is invalid.");
+          return;
+        }
+        const grant = grantSnap.data() || {};
+        const expiresAtMs =
+          grant.expiresAt && typeof grant.expiresAt.toMillis === "function"
+            ? grant.expiresAt.toMillis()
+            : 0;
+        if (
+          grant.collectionName !== collectionName ||
+          grant.reportId !== reportId ||
+          grant.storagePath !== storagePath ||
+          !expiresAtMs ||
+          expiresAtMs < Date.now()
+        ) {
+          res.status(403).type("text/plain").send("Report access token expired or does not match.");
+          return;
+        }
+      } else {
+        const authHeader = String(req.headers.authorization || "").trim();
+        if (!/^Bearer\s+/i.test(authHeader)) {
+          res.status(401).type("text/plain").send("Authorization is required.");
+          return;
+        }
+        const idToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+        const decoded = await admin.auth().verifyIdToken(idToken);
+        const access = await getAppAccess(db, {
+          auth: {
+            uid: decoded.uid || "report-download",
+            token: decoded,
+          },
+        });
+        if (!canAccessStoredReport(access, collectionName, report)) {
+          res.status(403).type("text/plain").send("You cannot access this report.");
+          return;
+        }
+      }
+
       res.set("Cache-Control", "private, max-age=300");
-      res.redirect(302, downloadURL);
+      const shortLivedUrl = await createShortLivedStorageRedirect(storagePath, report.reportFileName || "");
+      res.redirect(302, shortLivedUrl);
     } catch (err) {
       logger.error("dailyReportDownload: failed", {
+        collectionName,
         reportId,
         message: err.message,
         stack: err.stack,
@@ -6182,6 +6576,45 @@ exports.getDashboardAccessCallable = onCall(
       canApproveNotes: access.canApproveNotes === true,
       via: access.via || null,
     };
+  }
+);
+
+exports.submitDemoRequestCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    enforceAppCheck: true,
+  },
+  async (request) => {
+    if (!request.app) {
+      throw new HttpsError("permission-denied", "App verification is required.");
+    }
+
+    const payload = normalizeDemoRequestPayload(request.data || {});
+    const ipHash = getDemoRequestIpHash(request);
+    const userAgent = getDemoRequestUserAgent(request);
+
+    await assertDemoRequestRateLimit({ ipHash, email: payload.email });
+
+    const docRef = await db.collection(COL_DEMO_REQUESTS).add({
+      ...payload,
+      ipHash,
+      userAgent,
+      appId: request.app.appId || null,
+      status: "new",
+      source: "marketing_page",
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    logger.info("demo request received", {
+      requestId: docRef.id,
+      company: payload.company,
+      role: payload.role || null,
+      appId: request.app.appId || null,
+    });
+
+    return { ok: true, requestId: docRef.id };
   }
 );
 
@@ -7165,6 +7598,12 @@ exports.generateTodoReportCallable = onCall(
       createdByPhone: access.approvedPhoneE164 || null,
       runId,
     });
+    const accessURL = await createTemporaryReportAccessUrl({
+      collectionName: REPORT_COLLECTION_TODO,
+      reportId: result.reportId,
+      storagePath: result.storagePath,
+      access,
+    });
 
     return {
       ok: true,
@@ -7178,7 +7617,8 @@ exports.generateTodoReportCallable = onCall(
       completedTodos: result.summary.completedTodos,
       totalSubTodos: result.summary.totalSubTodos,
       totalComments: result.summary.totalComments,
-      downloadURL: result.downloadURL || null,
+      accessURL: accessURL || null,
+      downloadURL: accessURL || null,
       storagePath: result.storagePath || null,
       fileName: result.fileName || null,
     };
@@ -7281,19 +7721,25 @@ exports.generateLabourReportCallable = onCall(
 	      totalPaidHours: summary.totalPaidHours,
 	      totalPayUnits: summary.totalPayUnits || null,
 	      totalEntries: summary.totalEntries,
-          fileName,
-          fileSequence: Number(sequence),
-          scopeSequenceKey,
+	          fileName,
+	          fileSequence: Number(sequence),
+	          scopeSequenceKey,
 	      storagePath: pdfResult.storagePath,
-	      downloadURL: pdfResult.downloadURL,
+	      downloadURL: null,
 	      createdAt: FieldValue.serverTimestamp(),
 	      createdByEmail: access.email,
 	      runId,
 	    });
+      const accessURL = await createTemporaryReportAccessUrl({
+        collectionName: REPORT_COLLECTION_LABOUR,
+        reportId: reportRef.id,
+        storagePath: pdfResult.storagePath,
+        access,
+      });
 
-    return {
-      ok: true,
-      reportId: reportRef.id,
+	    return {
+	      ok: true,
+	      reportId: reportRef.id,
       reportTitle,
       startKey: normalizedStart,
       endKey: normalizedEnd,
@@ -7302,7 +7748,8 @@ exports.generateLabourReportCallable = onCall(
 	      totalPayUnits: summary.totalPayUnits || null,
 	      totalEntries: summary.totalEntries,
 	      paidPeriodTotals: summary.paidPeriodTotals,
-	      downloadURL: pdfResult.downloadURL,
+	      accessURL: accessURL || null,
+	      downloadURL: accessURL || null,
 	      storagePath: pdfResult.storagePath,
 	    };
   }
@@ -7899,9 +8346,9 @@ exports.setActiveProjectCallable = onCall(
     timeoutSeconds: 120,
     memory: "512MiB",
   },
-  async (request) => {
-    await getOperatorAccess(db, request);
-    assertDashboardToken(request);
+	  async (request) => {
+	    const access = await getOperatorAccess(db, request);
+	    assertDashboardToken(request);
 
     const phoneE164 = normalizePhoneE164(
       String(request.data?.phoneE164 || "").trim()
@@ -8078,9 +8525,9 @@ exports.generateDailyReportPdfCallable = onCall(
     const runId = `dash-pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const openaiKey = OPENAI_API_KEY.value();
 
-    let pdfResult;
-    try {
-      pdfResult = await generateDailyReportPdf({
+	    let pdfResult;
+	    try {
+	      pdfResult = await generateDailyReportPdf({
         db,
         bucket: admin.storage().bucket(),
         phoneE164,
@@ -8103,23 +8550,30 @@ exports.generateDailyReportPdfCallable = onCall(
         message: err.message,
         stack: err.stack,
       });
-      throw new HttpsError(
-        "internal",
-        err.message || "PDF generation failed."
-      );
-    }
+	      throw new HttpsError(
+	        "internal",
+	        err.message || "PDF generation failed."
+	      );
+	    }
+      const accessURL = await createTemporaryReportAccessUrl({
+        collectionName: REPORT_COLLECTION_DAILY,
+        reportId: pdfResult.reportId,
+        storagePath: pdfResult.storagePath,
+        access,
+      });
 
-    return {
-      ok: true,
+	    return {
+	      ok: true,
       reportId: pdfResult.reportId,
       reportDateKey: pdfResult.reportDateKey || reportDateKey || null,
-      reportType: pdfResult.reportType || reportType,
-      includeAllManagementEntries,
-      appURL: pdfResult.appURL || null,
-      downloadURL: pdfResult.downloadURL || null,
-      downloadUrlError: pdfResult.downloadUrlError || null,
-      storagePath: pdfResult.storagePath,
-    };
+	      reportType: pdfResult.reportType || reportType,
+	      includeAllManagementEntries,
+	      appURL: pdfResult.appURL || null,
+	      accessURL: accessURL || null,
+	      downloadURL: accessURL || null,
+	      downloadUrlError: pdfResult.downloadUrlError || null,
+	      storagePath: pdfResult.storagePath,
+	    };
   }
 );
 
@@ -8421,15 +8875,22 @@ exports.createLookaheadActivitiesReportCallable = onCall(
           );
     }
 
-    return {
-      ok: true,
-      reportId: report.reportId,
-      reportTitle: report.reportTitle,
-      storagePath: report.storagePath,
-      downloadURL: report.downloadURL,
-      downloadUrlError: report.downloadUrlError || null,
-      reportFileName: report.reportFileName,
-      taskCount: report.taskCount,
+        const accessURL = await createTemporaryReportAccessUrl({
+          collectionName: REPORT_COLLECTION_DAILY,
+          reportId: report.reportId,
+          storagePath: report.storagePath,
+          access,
+        });
+	    return {
+	      ok: true,
+	      reportId: report.reportId,
+	      reportTitle: report.reportTitle,
+	      storagePath: report.storagePath,
+          accessURL: accessURL || null,
+	      downloadURL: accessURL || null,
+	      downloadUrlError: report.downloadUrlError || null,
+	      reportFileName: report.reportFileName,
+	      taskCount: report.taskCount,
       window: report.window,
       weatherSummary: report.weatherSummary || null,
     };
@@ -8506,7 +8967,7 @@ exports.createLookaheadCloseoutReportCallable = onCall(
       throw new HttpsError("invalid-argument", err.message || "Could not parse the Excel file.");
     }
 
-    const report = await createLookaheadCloseoutReportPdf({
+	    const report = await createLookaheadCloseoutReportPdf({
       db,
       bucket: admin.storage().bucket(),
       phoneE164,
@@ -8526,14 +8987,23 @@ exports.createLookaheadCloseoutReportCallable = onCall(
       parsed,
     });
 
-    return {
-      ok: true,
-      reportId: report.reportId,
-      reportTitle: report.reportTitle,
-      storagePath: report.storagePath,
-      downloadURL: report.downloadURL || null,
-      reportFileName: report.reportFileName,
-      summary: report.summary,
-    };
+        const accessURL = await createTemporaryReportAccessUrl({
+          collectionName: REPORT_COLLECTION_DAILY,
+          reportId: report.reportId,
+          storagePath: report.storagePath,
+          access,
+        });
+	    return {
+	      ok: true,
+	      reportId: report.reportId,
+	      reportTitle: report.reportTitle,
+	      storagePath: report.storagePath,
+          accessURL: accessURL || null,
+	      downloadURL: accessURL || null,
+	      reportFileName: report.reportFileName,
+	      summary: report.summary,
+	    };
   }
 );
+
+Object.assign(exports, require("./timeLeftGridline/triggers"));

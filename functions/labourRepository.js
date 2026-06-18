@@ -7,6 +7,8 @@ const LABOUR_PAY_PERIOD_ANCHOR = "2026-04-25"; // Anchor date (start of a biweek
 const LABOUR_REGULAR_WEEKLY_HOURS = 44;
 const LABOUR_REGULAR_DAILY_HOURS = 12;
 const LABOUR_REGULAR_HOURS_PER_DAY = LABOUR_REGULAR_WEEKLY_HOURS / 5;
+const LABOUR_MAX_BACKDATE_DAYS = 45;
+const LABOUR_MAX_FUTURE_DAYS = 1;
 
 function normalizeLabourerName(value) {
   return String(value || "")
@@ -181,6 +183,46 @@ function shiftDateKey(dateKey, deltaDays) {
   if (!date || !Number.isFinite(deltaDays)) return "";
   date.setUTCDate(date.getUTCDate() + Number(deltaDays));
   return formatDateKey(date);
+}
+
+function diffDateKeysInDays(leftKey, rightKey) {
+  const left = parseDateKey(leftKey);
+  const right = parseDateKey(rightKey);
+  if (!left || !right) return null;
+  return Math.round((left.getTime() - right.getTime()) / 86400000);
+}
+
+function validateLabourReportDateKey(dateKey, now = new Date()) {
+  const key = String(dateKey || "").trim();
+  if (!key) return { ok: true, reportDateKey: null };
+  const date = parseDateKey(key);
+  if (!date || formatDateKey(date) !== key) {
+    return { ok: false, reportDateKey: key, reason: "invalid_format" };
+  }
+
+  const todayKey = dateKeyEastern(now);
+  const deltaDays = diffDateKeysInDays(key, todayKey);
+  if (deltaDays == null) return { ok: false, reportDateKey: key, reason: "invalid_format" };
+
+  if (deltaDays < -LABOUR_MAX_BACKDATE_DAYS || deltaDays > LABOUR_MAX_FUTURE_DAYS) {
+    const currentYear = Number(todayKey.slice(0, 4));
+    const sameMonthDayCurrentYear = `${currentYear}-${key.slice(5)}`;
+    const suggestedDelta = diffDateKeysInDays(sameMonthDayCurrentYear, todayKey);
+    const suggestedDateKey =
+      suggestedDelta != null &&
+      suggestedDelta >= -LABOUR_MAX_BACKDATE_DAYS &&
+      suggestedDelta <= LABOUR_MAX_FUTURE_DAYS
+        ? sameMonthDayCurrentYear
+        : "";
+    return {
+      ok: false,
+      reportDateKey: key,
+      reason: deltaDays > LABOUR_MAX_FUTURE_DAYS ? "too_far_future" : "too_far_past",
+      suggestedDateKey,
+    };
+  }
+
+  return { ok: true, reportDateKey: key };
 }
 
 function startOfWeekFromDateKey(dateKey) {
@@ -530,11 +572,14 @@ function parseManagementLabourTotalsQuery(text) {
     /\bevery(?:one|body)\b.*\b(hours?|time)\b/i.test(lower);
   if (!wantsAllLabourers && !projectScope) return null;
 
-  const wantsHours =
+  const wantsExplicitLabourTotals =
     /\b(total\s+)?hours?\b/i.test(lower) ||
-    /\btime\b/i.test(lower) ||
     /\bpay\s*period\b/i.test(lower) ||
-    /\bpayroll\b/i.test(lower);
+    /\bpayroll\b/i.test(lower) ||
+    /\blabou?r(?:ers?)?\b/i.test(lower) ||
+    /\bworkers?\b/i.test(lower) ||
+    /\bcrew\b/i.test(lower);
+  const wantsHours = wantsExplicitLabourTotals || (wantsAllLabourers && /\btime\b/i.test(lower));
   if (!wantsHours) return null;
 
   const range = parseLabourHoursBalanceQuery(raw);
@@ -677,6 +722,10 @@ function buildLabourEntryDoc(input) {
     throw new Error("workOn is required.");
   }
   const reportDateKey = String(input && input.reportDateKey || "").trim() || dateKeyEastern(new Date());
+  const dateValidation = validateLabourReportDateKey(reportDateKey);
+  if (!dateValidation.ok) {
+    throw new Error(`Invalid labour report date: ${reportDateKey}`);
+  }
   const labourerName = normalizeLabourerName(input && input.labourerName);
   const labourerPhone = normalizeLabourerPhone(input && input.labourerPhone);
   return {
@@ -844,6 +893,7 @@ module.exports = {
   normalizeLabourEntryText,
   normalizeLabourerPhone,
   parseLabourHoursCommand,
+  validateLabourReportDateKey,
   parseLabourHoursBalanceQuery,
   parseManagementLabourTotalsQuery,
   parseManagementLabourBreakdownQuery,

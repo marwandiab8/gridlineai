@@ -355,7 +355,7 @@ async function createLookaheadCloseoutReportPdf({
     dateRangeStartKey: model.previousWeekStart || null,
     dateRangeEndKey: model.previousWeekEnd || null,
     storagePath,
-    downloadURL,
+    downloadURL: null,
     logEntryCount: model.totalPlanned,
     createdAt: FieldValue.serverTimestamp(),
   });

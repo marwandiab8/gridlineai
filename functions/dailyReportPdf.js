@@ -929,7 +929,7 @@ async function generateDailyReportPdf(opts) {
     reportDate: Timestamp.fromDate(dayStart),
     dateKey: dk,
     storagePath,
-    downloadURL,
+    downloadURL: null,
     downloadUrlError,
     messageCount: messages.length,
     logEntryCount: curatedEntries.length,

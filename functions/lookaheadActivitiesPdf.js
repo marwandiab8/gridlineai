@@ -730,7 +730,7 @@ async function createLookaheadActivitiesReportPdf({
     dateRangeStartKey: startDateKey || null,
     dateRangeEndKey: endDateKey || null,
     storagePath,
-    downloadURL,
+    downloadURL: null,
     downloadUrlError: downloadUrlError || null,
     messageCount: 0,
     logEntryCount: Array.isArray(parsed && parsed.tasks) ? parsed.tasks.length : 0,

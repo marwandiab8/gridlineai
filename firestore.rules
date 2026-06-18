@@ -244,11 +244,23 @@ service cloud.firestore {
       allow write: if false;
     }
     match /labourReports/{reportId} {
-      allow read: if isManagementApp();
+      allow read: if isAdminFast() ||
+        (
+          resource.data.projectSlug is string &&
+          memberCanAccessSlugFast(resource.data.projectSlug)
+        ) ||
+        (
+          isManagementApp() &&
+          !(resource.data.projectSlug is string)
+        );
       allow write: if false;
     }
     match /projectTodos/{todoId} {
-      allow read: if isManagementApp();
+      allow read: if isAdminFast() ||
+        (
+          resource.data.projectSlug is string &&
+          memberCanAccessSlugFast(resource.data.projectSlug)
+        );
       allow write: if false;
     }
     match /media/{mediaId} {

@@ -452,6 +452,43 @@ async function callDashboardFunction(name, payload) {
   return res.data;
 }
 
+async function resolveProtectedReportUrl(collectionName, reportId) {
+  const data = await callDashboardFunction("createReportAccessUrlCallable", {
+    collectionName,
+    reportId,
+  });
+  return data && data.downloadURL ? String(data.downloadURL).trim() : "";
+}
+
+async function openProtectedReportAnchor(anchor, openMode = "new_tab") {
+  const collectionName = anchor && anchor.getAttribute ? String(anchor.getAttribute("data-report-collection") || "").trim() : "";
+  const reportId = anchor && anchor.getAttribute ? String(anchor.getAttribute("data-report-id") || "").trim() : "";
+  if (!collectionName || !reportId) return false;
+  const originalText = anchor.textContent;
+  anchor.textContent = "Resolving PDF link...";
+  anchor.setAttribute("aria-busy", "true");
+  try {
+    const url = await resolveProtectedReportUrl(collectionName, reportId);
+    if (!url) throw new Error("Protected report URL was empty.");
+    if (openMode === "same_tab") window.location.assign(url);
+    else window.open(url, "_blank", "noopener");
+  } catch (err) {
+    setStatusError(`reportAccess: ${err?.message || err}`);
+    anchor.textContent = "Open PDF failed";
+    anchor.classList.add("err");
+    return false;
+  } finally {
+    anchor.removeAttribute("aria-busy");
+    if (anchor.textContent === "Resolving PDF link...") anchor.textContent = originalText;
+  }
+  return false;
+}
+
+window.gridlineOpenProtectedReport = (anchor) => {
+  void openProtectedReportAnchor(anchor, "new_tab");
+  return false;
+};
+
 const storageUrlCache = new Map();
 const storageUrlInflight = new Map();
 const TRANSPARENT_PIXEL =
@@ -823,12 +860,7 @@ async function maybeOpenPendingReportLink() {
   }
   if (pendingReportLink.openPdf) {
     try {
-      const url =
-        report.downloadURL && String(report.downloadURL).trim()
-          ? String(report.downloadURL).trim()
-          : report.storagePath
-            ? await getCachedStorageDownloadURL(String(report.storagePath).trim())
-            : "";
+      const url = await resolveProtectedReportUrl("dailyReports", report.id);
       if (url) {
         pendingReportLink = null;
         window.location.assign(url);
@@ -1533,7 +1565,7 @@ function renderDashboard() {
               <div class="mini-item">
                 <div class="mini-item-title">${esc(report.reportType || "dailySiteLog")} · ${esc(projectLabel)}</div>
                 <div class="mini-item-meta">${fmtTime(report.createdAt)} · ${esc(report.dateKey || "")}</div>
-                <div class="mini-item-meta">${report.downloadURL ? "PDF ready" : "Waiting for link"}</div>
+                <div class="mini-item-meta">${report.storagePath ? "PDF ready" : "Waiting for link"}</div>
               </div>`;
           })
           .join("")
@@ -2085,11 +2117,9 @@ function renderLabourReportsList() {
         report.projectSlug || "All projects",
         report.startKey && report.endKey ? `${report.startKey} to ${report.endKey}` : report.startKey || report.endKey || "",
       ].filter(Boolean);
-      const link = report.storagePath
-        ? `<a href="#" class="daily-report-pdf-pending" data-storage-path="${esc(report.storagePath)}" onclick="return false">Resolving PDF link...</a>`
-        : report.downloadURL && String(report.downloadURL).trim()
-          ? `<a href="${esc(report.downloadURL)}" target="_blank" rel="noopener">Open PDF</a>`
-          : "";
+      const link = report.id
+        ? `<a href="#" data-report-collection="labourReports" data-report-id="${esc(report.id)}" onclick="return window.gridlineOpenProtectedReport(this)">Open PDF</a>`
+        : "";
       return `
         <div class="row-item">
           <div class="mono">${fmtTime(report.createdAt)}</div>
@@ -2822,19 +2852,16 @@ function startAdminListeners() {
     }
     return sorted
       .map((report) => {
-        const storagePath = report.storagePath && String(report.storagePath).trim();
         let link = "";
-        if (storagePath) {
-          link = `<div class="daily-report-pdf-row"><a href="#" class="daily-report-pdf-pending" data-storage-path="${esc(storagePath)}" target="_blank" rel="noopener" onclick="return false">Resolving PDF link...</a></div>`;
-        } else if (report.downloadURL && String(report.downloadURL).trim()) {
-          link = `<a href="${esc(report.downloadURL)}" target="_blank" rel="noopener">Open PDF</a>`;
+        if (report.id) {
+          link = `<div class="daily-report-pdf-row"><a href="#" data-report-collection="dailyReports" data-report-id="${esc(report.id)}" onclick="return window.gridlineOpenProtectedReport(this)">Open PDF</a></div>`;
         }
         const appLink =
           report.appURL && String(report.appURL).trim()
             ? `<div class="muted small"><a href="${esc(String(report.appURL).trim())}" rel="noopener">Open in app</a></div>`
             : "";
         const err =
-          report.downloadUrlError && !report.downloadURL
+          report.downloadUrlError
             ? `<div class="muted small">Signed URL error: ${esc(String(report.downloadUrlError).slice(0, 200))}</div>`
             : "";
         const weatherDebug = report.weatherSnapshot

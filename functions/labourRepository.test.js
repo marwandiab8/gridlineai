@@ -18,6 +18,7 @@ const {
   parseLabourHoursBalanceQuery,
   parseLabourHoursCommand,
   sumHours,
+  validateLabourReportDateKey,
   weeklyKeyFromDateKey,
 } = require("./labourRepository");
 
@@ -58,6 +59,33 @@ test("parseLabourHoursCommand accepts a leading bare ISO date for backdated labo
   assert.equal(parsed.reportDateKey, "2026-05-04");
   assert.ok(parsed.workOn.toLowerCase().includes("5h pumping water"));
   assert.ok(parsed.workOn.toLowerCase().includes("7h house keeping"));
+});
+
+test("validateLabourReportDateKey rejects fat-fingered labour years and suggests the current year", () => {
+  const now = new Date("2026-06-16T16:00:00.000Z");
+  const parsed = parseLabourHoursCommand("2926-06-15 8 hours forming");
+
+  assert.ok(parsed);
+  assert.equal(parsed.reportDateKey, "2926-06-15");
+  assert.deepEqual(validateLabourReportDateKey(parsed.reportDateKey, now), {
+    ok: false,
+    reportDateKey: "2926-06-15",
+    reason: "too_far_future",
+    suggestedDateKey: "2026-06-15",
+  });
+});
+
+test("buildLabourEntryDoc rejects invalid labour report dates", () => {
+  assert.throws(
+    () => buildLabourEntryDoc({
+      labourerName: "Kevin Ashdown",
+      labourerPhone: "+15555555555",
+      reportDateKey: "2926-06-15",
+      hours: 8,
+      workOn: "forming",
+    }),
+    /Invalid labour report date/
+  );
 });
 
 test("parseLabourHoursCommand parses total N H style field SMS", () => {
@@ -183,6 +211,18 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
     range: "pay",
     projectScope: "docksteader",
   });
+  assert.equal(
+    parseManagementLabourTotalsQuery(
+      "This morning was a bit of a rush. Myles did his insulin for breakfast. We left at 7:40 for school. It is supposed to rain around supper time."
+    ),
+    null
+  );
+  assert.equal(
+    parseManagementLabourTotalsQuery(
+      "This morning was a bit of a rush. Myles did his insulin at breakfast. We left at 7:40 for school. It is supposed to rain around supper time."
+    ),
+    null
+  );
   assert.equal(parseManagementLabourTotalsQuery("show me my hours for this pay period"), null);
   assert.equal(parseManagementLabourTotalsQuery("labour 8.0 framing cleanup"), null);
 });

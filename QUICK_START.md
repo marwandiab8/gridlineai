@@ -67,4 +67,6 @@ stop timer
 - If lookahead queries fail, upload and parse a lookahead schedule first.
 - If a report link fails, check the `Reports` page and debug text.
 
-For the full version, see [USER_MANUAL.md](/home/marwan/Documents/ChatBot/USER_MANUAL.md:1).
+For the detailed onboarding tutorial, see [docs/gridlineai-user-tutorial.md](/home/marwan/Documents/ChatBot/docs/gridlineai-user-tutorial.md:1).
+
+For the full reference manual, see [USER_MANUAL.md](/home/marwan/Documents/ChatBot/USER_MANUAL.md:1).

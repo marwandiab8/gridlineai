@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   DEFAULT_REPORT_PUSH_TIME,
   buildReportAppUrl,
+  canReceiveProjectReport,
   normalizePdfPushSettings,
   resolveAppBaseUrl,
 } = require("./reportPushConfig");
@@ -42,5 +43,36 @@ test("resolveAppBaseUrl and buildReportAppUrl create app deeplinks", () => {
       openPdf: true,
     }),
     "https://gridlineai.web.app/?view=reports&reportId=abc123&openPdf=1"
+  );
+});
+
+test("canReceiveProjectReport only allows assigned management scope", () => {
+  assert.equal(
+    canReceiveProjectReport(
+      { projectSlugs: ["home"], allProjects: false },
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    canReceiveProjectReport(
+      { projectSlugs: ["docksteader"], allProjects: false },
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    canReceiveProjectReport(
+      { projectSlugs: ["Docksteader"], allProjects: true },
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    canReceiveProjectReport(
+      { projectSlugs: ["home-renovation"], allProjects: false },
+      "home"
+    ),
+    false
   );
 });

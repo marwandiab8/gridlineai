@@ -1,5 +1,18 @@
 const DEFAULT_REPORT_PUSH_TIME = "21:00";
 
+function normalizeProjectSlugList(values) {
+  const out = [];
+  for (const value of Array.isArray(values) ? values : []) {
+    const slug = String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (slug && !out.includes(slug)) out.push(slug);
+  }
+  return out;
+}
+
 function normalizeReportPushTime(value) {
   const raw = String(value || "").trim();
   return /^\d{2}:\d{2}$/.test(raw) ? raw : DEFAULT_REPORT_PUSH_TIME;
@@ -21,6 +34,18 @@ function normalizePdfPushSettings(raw) {
     scheduleTimeLocal: normalizeReportPushTime(source.scheduleTimeLocal),
     audience: normalizeReportPushAudience(source.audience),
   };
+}
+
+function canReceiveProjectReport(member, projectSlug) {
+  const normalizedProjectSlug = String(projectSlug || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (!normalizedProjectSlug) return false;
+  if (!member || typeof member !== "object") return false;
+  if (member.allProjects === true) return true;
+  return normalizeProjectSlugList(member.projectSlugs).includes(normalizedProjectSlug);
 }
 
 function resolveAppBaseUrl(projectId, configuredBaseUrl) {
@@ -48,6 +73,7 @@ module.exports = {
   normalizeReportPushAudience,
   normalizeReportPushType,
   normalizePdfPushSettings,
+  canReceiveProjectReport,
   resolveAppBaseUrl,
   buildReportAppUrl,
 };

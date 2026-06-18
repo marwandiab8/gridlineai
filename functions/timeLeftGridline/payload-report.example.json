@@ -1,0 +1,23 @@
+{
+  "calendarId": "REPLACE_WITH_TIME_LEFT_CALENDAR_ID",
+  "connectionId": "REPLACE_WITH_TIME_LEFT_GRIDLINEAI_CONNECTION_ID",
+  "item": {
+    "dateId": "2028-07-25",
+    "sourceApp": "gridlineai",
+    "category": "projectReport",
+    "title": "Project Report",
+    "summary": "Short report summary",
+    "description": "Longer report body if available",
+    "sourceFirebaseProjectId": "gridlineai",
+    "sourceProjectName": "Project Name",
+    "sourceProjectId": "PROJECT_ID",
+    "sourceCollection": "dailyReports",
+    "sourceDocumentId": "REPORT_ID",
+    "sourceDocumentPath": "dailyReports/REPORT_ID",
+    "sourceStoragePath": "dailyReports/report.pdf",
+    "visibility": "ownerOnly",
+    "metadata": {
+      "source": "gridlineai"
+    }
+  }
+}

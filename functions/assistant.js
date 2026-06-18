@@ -74,6 +74,7 @@ const {
   buildLabourRollup,
   dayMultiplierFromDateKey,
   labourMinutesFromHours,
+  validateLabourReportDateKey,
   startOfWeekFromDateKey,
 } = require("./labourRepository");
 const { loadLatestLookaheadSnapshot } = require("./lookaheadScheduleRepository");
@@ -1721,6 +1722,15 @@ function parseLabourEntryCommand(text) {
 
 function formatLabourHoursShort(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function formatInvalidLabourDateReply(labourerName, validation) {
+  const who = String(labourerName || "Your hours").trim() || "Your hours";
+  const badDate = validation && validation.reportDateKey ? validation.reportDateKey : "that date";
+  const suggestion = validation && validation.suggestedDateKey
+    ? ` Did you mean ${validation.suggestedDateKey}? Reply with the corrected date and hours, for example: ${validation.suggestedDateKey} 8 hours forming.`
+    : " Reply with the corrected date as YYYY-MM-DD and your hours.";
+  return `${who}: I did not save the hours because ${badDate} does not look like a valid work date.${suggestion}`;
 }
 
 function resolveLabourCorrectionDateKey(text, now = new Date()) {
@@ -4636,6 +4646,21 @@ async function buildReply({
       labourer.displayName ||
       String(labourer.labourerData && labourer.labourerData.name ? labourer.labourerData.name : "").trim() ||
       phoneE164;
+    const correctionDateValidation = validateLabourReportDateKey(labourCorrectionCommand.reportDateKey, new Date());
+    if (!correctionDateValidation.ok) {
+      return {
+        replyText: truncateSms(formatInvalidLabourDateReply(labourerName, correctionDateValidation)),
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_entry_invalid_date",
+          labourerName,
+          labourerPhone: phoneE164,
+          reportDateKey: labourCorrectionCommand.reportDateKey,
+          suggestedDateKey: correctionDateValidation.suggestedDateKey || null,
+          reason: correctionDateValidation.reason || null,
+        },
+      };
+    }
     const existingForDate = await loadLabourEntries(db, {
       startKey: labourCorrectionCommand.reportDateKey,
       endKey: labourCorrectionCommand.reportDateKey,
@@ -4721,6 +4746,21 @@ async function buildReply({
         String(labourer.labourerData && labourer.labourerData.name ? labourer.labourerData.name : "").trim() ||
         phoneE164;
       const reportDateKey = labourEntryCommand.reportDateKey || dateKeyEastern(new Date());
+      const dateValidation = validateLabourReportDateKey(reportDateKey, new Date());
+      if (!dateValidation.ok) {
+        return {
+          replyText: truncateSms(formatInvalidLabourDateReply(labourerName, dateValidation)),
+          outboundMeta: {
+            ...outboundMeta,
+            command: "labour_entry_invalid_date",
+            labourerName,
+            labourerPhone: phoneE164,
+            reportDateKey,
+            suggestedDateKey: dateValidation.suggestedDateKey || null,
+            reason: dateValidation.reason || null,
+          },
+        };
+      }
       const existingForDate = await loadLabourEntries(db, {
         startKey: reportDateKey,
         endKey: reportDateKey,
