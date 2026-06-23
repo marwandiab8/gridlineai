@@ -4419,6 +4419,7 @@ exports.inboundSms = onRequest(
     invoker: "public",
     timeoutSeconds: 120,
     memory: "512MiB",
+    minInstances: 1,
     secrets: [
       TWILIO_ACCOUNT_SID,
       TWILIO_AUTH_TOKEN,
