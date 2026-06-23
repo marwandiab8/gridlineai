@@ -437,6 +437,7 @@ function formatLookaheadActivitiesReply({
 }
 
 function formatManagementLabourTotalsReply({
+  scopeLabel = "All labourers",
   rangeLabel,
   startKey,
   endKey,
@@ -454,7 +455,7 @@ function formatManagementLabourTotalsReply({
         : `${startKey} to ${endKey}`
       : "";
   if (!Number(totalEntries) || totalEntries < 1) {
-    return `All labourers — ${rangeLabel} (${rangeBits}): no hours logged yet.`;
+    return `${scopeLabel} — ${rangeLabel} (${rangeBits}): no hours logged yet.`;
   }
   const topProjects = Array.isArray(projectTotals) ? projectTotals.slice(0, 3) : [];
   const topSummary = topProjects.length
@@ -466,7 +467,7 @@ function formatManagementLabourTotalsReply({
         })
         .join(" · ")}.`
     : "";
-  return `All labourers — ${rangeLabel} (${rangeBits}): ${hours}h across ${totalEntries} entries, ${labourerCount} labourers, ${projectCount} projects.${topSummary}`;
+  return `${scopeLabel} — ${rangeLabel} (${rangeBits}): ${hours}h across ${totalEntries} entries, ${labourerCount} labourers, ${projectCount} projects.${topSummary}`;
 }
 
 function formatManagementLabourBreakdownReply({ groupBy, rangeLabel, startKey, endKey, items }) {
@@ -3477,6 +3478,23 @@ async function buildReply({
     });
   };
 
+  const filterLabourEntriesByLabourerQuery = (entries, labourerQuery = "") => {
+    const query = String(labourerQuery || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    if (!query) return entries;
+    const compactQuery = query.replace(/[^a-z0-9]+/g, "");
+    return (entries || []).filter((entry) => {
+      const label = String(entry && (entry.labourerName || entry.labourerPhone) ? entry.labourerName || entry.labourerPhone : "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+      const compactLabel = label.replace(/[^a-z0-9]+/g, "");
+      return label.includes(query) || compactLabel.includes(compactQuery);
+    });
+  };
+
   // ---- Commands (deterministic) ----
   if (!trimmedBody) {
     return {
@@ -4521,9 +4539,13 @@ async function buildReply({
         outboundMeta: { ...outboundMeta, command: "labour_totals_project_forbidden", projectSlug: requestedProjectSlug },
       };
     }
-    const scopedEntries = await buildScopedManagementLabourEntries(
+    const scopedEntriesRaw = await buildScopedManagementLabourEntries(
       range,
       managementLabourTotalsQuery.projectScope
+    );
+    const scopedEntries = filterLabourEntriesByLabourerQuery(
+      scopedEntriesRaw,
+      managementLabourTotalsQuery.labourerQuery
     );
     const summary = buildLabourRollup(scopedEntries);
     const byProject = new Map();
@@ -4545,6 +4567,9 @@ async function buildReply({
     return {
       replyText: truncateSms(
         formatManagementLabourTotalsReply({
+          scopeLabel: managementLabourTotalsQuery.labourerQuery
+            ? `Labourer ${managementLabourTotalsQuery.labourerQuery}`
+            : "All labourers",
           rangeLabel: range.label,
           startKey: range.startKey,
           endKey: range.endKey,
@@ -4566,6 +4591,7 @@ async function buildReply({
         labourerCount: summary.labourerTotals.length,
         projectCount: projectTotals.length,
         projectSlug: requestedProjectSlug || null,
+        labourerQuery: managementLabourTotalsQuery.labourerQuery || null,
       },
     };
   }

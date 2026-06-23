@@ -534,6 +534,12 @@ function parseLabourHoursBalanceQuery(text) {
     if (!/^(?:what|how|hours)/i.test(raw)) return null;
   }
 
+  const exactDate = raw.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (exactDate) return { range: exactDate[1] };
+  const pastWeeks = lower.match(/\b(?:past|last)\s+(2|two)\s+weeks?\b/i);
+  if (pastWeeks) return { range: "past_2_weeks" };
+  if (/\blast\s+week\b/i.test(lower)) return { range: "last_week" };
+  if (/\byesterday\b/i.test(lower)) return { range: "yesterday" };
   if (/\b(today|so\s*far\s*today|this\s*day|right\s*now|right\s*now\s*today)\b/i.test(lower)) {
     return { range: "today" };
   }
@@ -565,12 +571,18 @@ function parseManagementLabourTotalsQuery(text) {
 
   const lower = raw.toLowerCase();
   const projectScope = extractManagementLabourProjectScope(raw);
+  const labourerQuery = extractManagementLabourerScope(raw);
+  const wantsAllProjects =
+    /\bmy\s+all\s+projects?\b/i.test(lower) ||
+    /\ball\s+(?:my\s+)?projects?\b/i.test(lower) ||
+    /\bacross\s+(?:all\s+)?(?:my\s+)?projects?\b/i.test(lower) ||
+    /\bon\s+(?:my\s+)?all\s+projects?\b/i.test(lower);
   const wantsAllLabourers =
     /\ball\s+labou?rers?\b/i.test(lower) ||
     /\bfor\s+all\s+labou?rers?\b/i.test(lower) ||
     /\b(entire|whole)\s+crew\b/i.test(lower) ||
     /\bevery(?:one|body)\b.*\b(hours?|time)\b/i.test(lower);
-  if (!wantsAllLabourers && !projectScope) return null;
+  if (!wantsAllLabourers && !wantsAllProjects && !projectScope && !labourerQuery) return null;
 
   const wantsExplicitLabourTotals =
     /\b(total\s+)?hours?\b/i.test(lower) ||
@@ -579,13 +591,17 @@ function parseManagementLabourTotalsQuery(text) {
     /\blabou?r(?:ers?)?\b/i.test(lower) ||
     /\bworkers?\b/i.test(lower) ||
     /\bcrew\b/i.test(lower);
-  const wantsHours = wantsExplicitLabourTotals || (wantsAllLabourers && /\btime\b/i.test(lower));
+  const wantsHours = wantsExplicitLabourTotals || ((wantsAllLabourers || wantsAllProjects) && /\btime\b/i.test(lower));
   if (!wantsHours) return null;
 
   const range = parseLabourHoursBalanceQuery(raw);
-  const resolvedRange = range && range.range ? range.range : projectScope ? "pay" : "";
+  const resolvedRange = range && range.range ? range.range : projectScope || labourerQuery || wantsAllProjects ? "pay" : "";
   if (!resolvedRange) return null;
-  return { range: resolvedRange, projectScope };
+  return {
+    range: resolvedRange,
+    projectScope,
+    ...(labourerQuery ? { labourerQuery } : {}),
+  };
 }
 
 function parseManagementLabourBreakdownQuery(text) {
@@ -658,9 +674,45 @@ function extractManagementLabourProjectScope(text) {
   return candidate;
 }
 
+function extractManagementLabourerScope(text) {
+  const raw = String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return "";
+  const match = raw.match(
+    /\b(?:for|by)\s+(?:labou?rer|worker|employee|person)\s+([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,3})\b/i
+  );
+  if (!match) return "";
+  const name = String(match[1] || "")
+    .replace(/\b(?:today|yesterday|last|past|this|week|weeks|month|pay|period|project|projects|hours?|time)\b.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return name.length >= 2 ? name : "";
+}
+
 function getDateKeyRangeForBalanceQuery(range, now = new Date()) {
   const d = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date();
   const todayKey = dateKeyEastern(d);
+  const rangeKey = String(range || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(rangeKey)) {
+    return { startKey: rangeKey, endKey: rangeKey, label: rangeKey };
+  }
+  if (rangeKey === "yesterday") {
+    const yesterday = shiftDateKey(todayKey, -1) || todayKey;
+    return { startKey: yesterday, endKey: yesterday, label: "yesterday" };
+  }
+  if (rangeKey === "last_week") {
+    const currentWeekStart = startOfWeekFromDateKey(todayKey) || todayKey;
+    const start = shiftDateKey(currentWeekStart, -7) || currentWeekStart;
+    const end = shiftDateKey(currentWeekStart, -1) || start;
+    return { startKey: start, endKey: end, label: "last week" };
+  }
+  const pastWeeks = rangeKey.match(/^past_(\d+)_weeks$/);
+  if (pastWeeks) {
+    const weeks = Math.max(1, Math.min(12, Number(pastWeeks[1]) || 1));
+    const start = shiftDateKey(todayKey, -(weeks * 7 - 1)) || todayKey;
+    return { startKey: start, endKey: todayKey, label: `past ${weeks} weeks` };
+  }
   if (range === "today") {
     return { startKey: todayKey, endKey: todayKey, label: "today" };
   }
@@ -898,6 +950,7 @@ module.exports = {
   parseManagementLabourTotalsQuery,
   parseManagementLabourBreakdownQuery,
   parseManagementLabourPdfRequest,
+  extractManagementLabourerScope,
   getDateKeyRangeForBalanceQuery,
   formatLabourBalanceReply,
   buildLabourEntryDoc,

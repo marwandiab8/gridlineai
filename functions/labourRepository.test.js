@@ -190,6 +190,9 @@ test("parseLabourHoursBalanceQuery distinguishes questions from hour submissions
   assert.equal(parseLabourHoursBalanceQuery("How many hours this week?")?.range, "week");
   assert.equal(parseLabourHoursBalanceQuery("my hours for this pay period")?.range, "pay");
   assert.equal(parseLabourHoursBalanceQuery("hours for today")?.range, "today");
+  assert.equal(parseLabourHoursBalanceQuery("show me hours for 2026-06-15")?.range, "2026-06-15");
+  assert.equal(parseLabourHoursBalanceQuery("show me hours for last week")?.range, "last_week");
+  assert.equal(parseLabourHoursBalanceQuery("show me hours for the past 2 weeks")?.range, "past_2_weeks");
   assert.equal(parseLabourHoursBalanceQuery("What is my time this month?")?.range, "month");
   assert.equal(parseLabourHoursBalanceQuery("How many hours?")?.range, "pay");
   assert.equal(parseLabourHoursBalanceQuery("my hours?")?.range, "pay");
@@ -207,6 +210,19 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
     parseManagementLabourTotalsQuery("show me total hours for all labourers for this pay period")?.range,
     "pay"
   );
+  assert.deepEqual(parseManagementLabourTotalsQuery("give me all total hours on my all projects for today"), {
+    range: "today",
+    projectScope: "",
+  });
+  assert.deepEqual(parseManagementLabourTotalsQuery("give me hours for labourer John Smith last week"), {
+    range: "last_week",
+    projectScope: "",
+    labourerQuery: "John Smith",
+  });
+  assert.deepEqual(parseManagementLabourTotalsQuery("show me total hours for all labourers 2026-06-15"), {
+    range: "2026-06-15",
+    projectScope: "",
+  });
   assert.deepEqual(parseManagementLabourTotalsQuery("show me total hours for docksteader"), {
     range: "pay",
     projectScope: "docksteader",
@@ -255,6 +271,21 @@ test("getDateKeyRangeForBalanceQuery matches Eastern calendar for a fixed now", 
   const pay = getDateKeyRangeForBalanceQuery("pay", fixed);
   assert.equal(pay && pay.startKey, "2026-04-25");
   assert.equal(pay && pay.endKey, "2026-05-08");
+  assert.deepEqual(getDateKeyRangeForBalanceQuery("2026-06-15", fixed), {
+    startKey: "2026-06-15",
+    endKey: "2026-06-15",
+    label: "2026-06-15",
+  });
+  assert.deepEqual(getDateKeyRangeForBalanceQuery("last_week", new Date("2026-06-23T16:00:00.000Z")), {
+    startKey: "2026-06-15",
+    endKey: "2026-06-21",
+    label: "last week",
+  });
+  assert.deepEqual(getDateKeyRangeForBalanceQuery("past_2_weeks", new Date("2026-06-23T16:00:00.000Z")), {
+    startKey: "2026-06-10",
+    endKey: "2026-06-23",
+    label: "past 2 weeks",
+  });
 });
 
 test("formatLabourBalanceReply shows paid when weekend weighting applies", () => {
