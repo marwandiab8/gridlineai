@@ -192,6 +192,7 @@ test("parseLabourHoursBalanceQuery distinguishes questions from hour submissions
   assert.equal(parseLabourHoursBalanceQuery("hours for today")?.range, "today");
   assert.equal(parseLabourHoursBalanceQuery("show me hours for 2026-06-15")?.range, "2026-06-15");
   assert.equal(parseLabourHoursBalanceQuery("show me hours for last week")?.range, "last_week");
+  assert.equal(parseLabourHoursBalanceQuery("show me hours for last pay period")?.range, "last_pay");
   assert.equal(parseLabourHoursBalanceQuery("show me hours for the past 2 weeks")?.range, "past_2_weeks");
   assert.equal(parseLabourHoursBalanceQuery("What is my time this month?")?.range, "month");
   assert.equal(parseLabourHoursBalanceQuery("How many hours?")?.range, "pay");
@@ -210,6 +211,10 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
     parseManagementLabourTotalsQuery("show me total hours for all labourers for this pay period")?.range,
     "pay"
   );
+  assert.deepEqual(parseManagementLabourTotalsQuery("labourers hours for last pay period"), {
+    range: "last_pay",
+    projectScope: "",
+  });
   assert.deepEqual(parseManagementLabourTotalsQuery("give me all total hours on my all projects for today"), {
     range: "today",
     projectScope: "",
@@ -298,6 +303,11 @@ test("getDateKeyRangeForBalanceQuery matches Eastern calendar for a fixed now", 
     startKey: "2026-06-10",
     endKey: "2026-06-23",
     label: "past 2 weeks",
+  });
+  assert.deepEqual(getDateKeyRangeForBalanceQuery("last_pay", new Date("2026-06-23T16:00:00.000Z")), {
+    startKey: "2026-06-06",
+    endKey: "2026-06-19",
+    label: "last pay period",
   });
 });
 

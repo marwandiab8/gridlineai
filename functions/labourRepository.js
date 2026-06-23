@@ -539,6 +539,9 @@ function parseLabourHoursBalanceQuery(text) {
   const pastWeeks = lower.match(/\b(?:past|last)\s+(2|two)\s+weeks?\b/i);
   if (pastWeeks) return { range: "past_2_weeks" };
   if (/\blast\s+week\b/i.test(lower)) return { range: "last_week" };
+  if (/\b(?:last|previous|prior)\s+(?:pay\s*)?(?:period|pay|payroll)\b/i.test(lower)) {
+    return { range: "last_pay" };
+  }
   if (/\byesterday\b/i.test(lower)) return { range: "yesterday" };
   if (/\b(today|so\s*far\s*today|this\s*day|right\s*now|right\s*now\s*today)\b/i.test(lower)) {
     return { range: "today" };
@@ -686,6 +689,9 @@ function extractManagementLabourProjectScope(text) {
     "tomorrow",
     "daily",
     "ytd",
+    "last",
+    "previous",
+    "prior",
   ]);
   if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return "";
   if (reserved.has(candidate)) return "";
@@ -724,6 +730,12 @@ function getDateKeyRangeForBalanceQuery(range, now = new Date()) {
     const start = shiftDateKey(currentWeekStart, -7) || currentWeekStart;
     const end = shiftDateKey(currentWeekStart, -1) || start;
     return { startKey: start, endKey: end, label: "last week" };
+  }
+  if (rangeKey === "last_pay") {
+    const currentPayStart = biweeklyPayPeriodStartKeyFromDateKey(todayKey) || todayKey;
+    const start = shiftDateKey(currentPayStart, -14) || currentPayStart;
+    const end = shiftDateKey(currentPayStart, -1) || start;
+    return { startKey: start, endKey: end, label: "last pay period" };
   }
   const pastWeeks = rangeKey.match(/^past_(\d+)_weeks$/);
   if (pastWeeks) {
