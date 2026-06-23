@@ -575,6 +575,7 @@ function parseManagementLabourTotalsQuery(text) {
   const lower = raw.toLowerCase();
   const projectScope = extractManagementLabourProjectScope(raw);
   const labourerQuery = extractManagementLabourerScope(raw);
+  const exactDate = raw.match(/\b(\d{4}-\d{2}-\d{2})\b/);
   const wantsAllProjects =
     /\bmy\s+all\s+projects?\b/i.test(lower) ||
     /\ball\s+(?:my\s+)?projects?\b/i.test(lower) ||
@@ -610,7 +611,7 @@ function parseManagementLabourTotalsQuery(text) {
   const wantsHours = wantsExplicitLabourTotals || ((wantsAllLabourers || wantsAllProjects) && /\btime\b/i.test(lower));
   if (!wantsHours) return null;
 
-  const range = parseLabourHoursBalanceQuery(raw);
+  const range = exactDate ? { range: exactDate[1] } : parseLabourHoursBalanceQuery(raw);
   const resolvedRange = range && range.range ? range.range : projectScope || labourerQuery || wantsAllProjects ? "pay" : "";
   if (!resolvedRange) return null;
   return {
@@ -705,12 +706,29 @@ function extractManagementLabourerScope(text) {
   if (!raw) return "";
   const match = raw.match(
     /\b(?:for|by)\s+(?:labou?rer|worker|employee|person)\s+([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,3})\b/i
-  ) || raw.match(/\b([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,2})'s\s+(?:hours?|time)\b/i);
+  ) || raw.match(/\b([a-z][a-z.-]*(?:\s+[a-z][a-z.-]*){0,2})'s\s+(?:hours?|time)\b/i)
+    || raw.match(/^([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,2})\s+(?:hours?|time)\b/i);
   if (!match) return "";
   const name = String(match[1] || "")
     .replace(/\b(?:today|yesterday|last|past|this|week|weeks|month|pay|period|project|projects|hours?|time)\b.*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
+  const reserved = new Set([
+    "all",
+    "crew",
+    "everyone",
+    "everybody",
+    "labourer",
+    "labourers",
+    "laborer",
+    "laborers",
+    "worker",
+    "workers",
+  ]);
+  const lowerName = name.toLowerCase();
+  if (reserved.has(lowerName) || /^(?:can|could|give|how|list|please|send|show|tell|what|would)\b/i.test(name)) {
+    return "";
+  }
   return name.length >= 2 ? name : "";
 }
 

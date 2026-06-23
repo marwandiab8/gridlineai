@@ -3485,13 +3485,19 @@ async function buildReply({
       .toLowerCase();
     if (!query) return entries;
     const compactQuery = query.replace(/[^a-z0-9]+/g, "");
+    const compactPossessiveQuery =
+      compactQuery.length > 2 && compactQuery.endsWith("s") ? compactQuery.slice(0, -1) : "";
     return (entries || []).filter((entry) => {
       const label = String(entry && (entry.labourerName || entry.labourerPhone) ? entry.labourerName || entry.labourerPhone : "")
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase();
       const compactLabel = label.replace(/[^a-z0-9]+/g, "");
-      return label.includes(query) || compactLabel.includes(compactQuery);
+      return (
+        label.includes(query) ||
+        compactLabel.includes(compactQuery) ||
+        (compactPossessiveQuery && compactLabel.includes(compactPossessiveQuery))
+      );
     });
   };
 
