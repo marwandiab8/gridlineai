@@ -521,13 +521,13 @@ function parseLabourHoursBalanceQuery(text) {
 
   const wantsTotal =
     /\?[\s!]*$/.test(raw) ||
-    /\b(how\s+many|how\s+much)\s+hours?\b/i.test(raw) ||
+    /\b(how\s+many|how\s+much)\b.*\bhours?\b/i.test(raw) ||
     /^hours?\s+for\s+/i.test(raw) ||
     /^(time|my\s+hours?)\s+for\s+/i.test(raw) ||
     /^what(?:'s|s| is)\s+my\s+(total\s+)?(hours?|time)\b/i.test(raw) ||
     /\bmy\s+hours?\b/i.test(raw) ||
     /\b(tally|check|see|show|show\s+me|text\s+me|tell\s+me|give\s+me)\b.*\b(hours?|tally|time|pay)\b/i.test(lower) ||
-    /\b(hours?|time)\b.*\b(today|so\s*far|this\s*week|this\s*pay|this\s*month|the\s*week|pay|payroll|pay\s*period)\b/i.test(lower);
+    /\b(hours?|time)\b.*\b(today|yesterday|last\s+week|past\s+2\s+weeks?|so\s*far|this\s*week|this\s*pay|this\s*month|the\s*week|pay|payroll|pay\s*period)\b/i.test(lower);
 
   if (!wantsTotal) return null;
   if (!/\b(hours?|hrs?|h\b|time|tally|pay|worked|logged)\b/i.test(lower)) {
@@ -557,7 +557,7 @@ function parseLabourHoursBalanceQuery(text) {
     return { range: "pay" };
   }
   if (/\bmy\s+hours?\b/i.test(lower)) return { range: "pay" };
-  if (/\b(how\s+many|how\s+much)\s+hours?\b/i.test(raw)) return { range: "pay" };
+  if (/\b(how\s+many|how\s+much)\b.*\bhours?\b/i.test(raw)) return { range: "pay" };
 
   return null;
 }
@@ -582,7 +582,20 @@ function parseManagementLabourTotalsQuery(text) {
     /\bfor\s+all\s+labou?rers?\b/i.test(lower) ||
     /\b(entire|whole)\s+crew\b/i.test(lower) ||
     /\bevery(?:one|body)\b.*\b(hours?|time)\b/i.test(lower);
-  if (!wantsAllLabourers && !wantsAllProjects && !projectScope && !labourerQuery) return null;
+  const mentionsLabourHours =
+    /\blabou?r(?:ers?)?\s+hours?\b/i.test(lower) || /\bhours?\s+labou?r(?:ers?)?\b/i.test(lower);
+  const wantsCurrentProjectLabourHours = /[\?]\s*$/.test(raw) && mentionsLabourHours;
+  const wantsScopedLabourHours = mentionsLabourHours && /\b(today|yesterday|last\s+week|past\s+2\s+weeks?|this\s+pay|pay\s+period|week|month|\d{4}-\d{2}-\d{2})\b/i.test(lower);
+  if (
+    !wantsAllLabourers &&
+    !wantsAllProjects &&
+    !projectScope &&
+    !labourerQuery &&
+    !wantsCurrentProjectLabourHours &&
+    !wantsScopedLabourHours
+  ) {
+    return null;
+  }
 
   const wantsExplicitLabourTotals =
     /\b(total\s+)?hours?\b/i.test(lower) ||
@@ -599,7 +612,7 @@ function parseManagementLabourTotalsQuery(text) {
   if (!resolvedRange) return null;
   return {
     range: resolvedRange,
-    projectScope,
+    projectScope: projectScope || (wantsCurrentProjectLabourHours ? "this_project" : ""),
     ...(labourerQuery ? { labourerQuery } : {}),
   };
 }
@@ -669,7 +682,12 @@ function extractManagementLabourProjectScope(text) {
     "labourer",
     "worker",
     "workers",
+    "yesterday",
+    "tomorrow",
+    "daily",
+    "ytd",
   ]);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return "";
   if (reserved.has(candidate)) return "";
   return candidate;
 }
@@ -681,7 +699,7 @@ function extractManagementLabourerScope(text) {
   if (!raw) return "";
   const match = raw.match(
     /\b(?:for|by)\s+(?:labou?rer|worker|employee|person)\s+([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,3})\b/i
-  );
+  ) || raw.match(/\b([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*){0,2})'s\s+(?:hours?|time)\b/i);
   if (!match) return "";
   const name = String(match[1] || "")
     .replace(/\b(?:today|yesterday|last|past|this|week|weeks|month|pay|period|project|projects|hours?|time)\b.*$/i, "")

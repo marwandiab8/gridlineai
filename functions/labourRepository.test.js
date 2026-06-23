@@ -219,6 +219,19 @@ test("parseManagementLabourTotalsQuery detects cross-project management totals",
     projectScope: "",
     labourerQuery: "John Smith",
   });
+  assert.deepEqual(parseManagementLabourTotalsQuery("Labourers hours for yesterday"), {
+    range: "yesterday",
+    projectScope: "",
+  });
+  assert.deepEqual(parseManagementLabourTotalsQuery("How many labour hours?"), {
+    range: "pay",
+    projectScope: "this_project",
+  });
+  assert.deepEqual(parseManagementLabourTotalsQuery("Wael's hours"), {
+    range: "pay",
+    projectScope: "",
+    labourerQuery: "Wael",
+  });
   assert.deepEqual(parseManagementLabourTotalsQuery("show me total hours for all labourers 2026-06-15"), {
     range: "2026-06-15",
     projectScope: "",
