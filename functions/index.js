@@ -9008,3 +9008,4 @@ exports.createLookaheadCloseoutReportCallable = onCall(
 );
 
 Object.assign(exports, require("./timeLeftGridline/triggers"));
+Object.assign(exports, require("./timeLeftShortcutTriggers"));

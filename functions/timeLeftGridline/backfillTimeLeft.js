@@ -7,6 +7,7 @@ const {
   mapReportToTimeLeft,
 } = require("./mappers");
 const { sendTimeLeftDailyItemsBatch } = require("./ingestionClient");
+const { assertFirebaseProjectId, isIosShortcutLegacyLogEntry } = require("./policy");
 
 if (!admin.apps.length) admin.initializeApp();
 
@@ -59,23 +60,36 @@ async function loadCollection(db, collectionName, limit) {
 async function main() {
   const args = parseArgs(process.argv);
   const source = String(args.source || "all");
-  const dryRun = Boolean(args.dryRun || args["dry-run"]);
+  const apply = Boolean(args.apply);
+  const dryRun = !apply;
   const limit = Math.max(1, Number(args.limit || 50) || 50);
   const batchSize = Math.min(100, Math.max(1, Number(args.batchSize || 100) || 100));
   const appBaseUrl = String(process.env.GRIDLINE_APP_BASE_URL || "");
-  const sourceFirebaseProjectId = String(process.env.GRIDLINE_FIREBASE_PROJECT_ID || "gridlineai");
+  const sourceFirebaseProjectId = assertFirebaseProjectId(
+    process.env.GRIDLINE_FIREBASE_PROJECT_ID || "gridlineai"
+  );
   const timeZone = String(process.env.GRIDLINE_DEFAULT_TIME_ZONE || "America/Toronto");
+  const startDate = String(args.startDate || args["start-date"] || args.date || "").trim();
+  const endDate = String(args.endDate || args["end-date"] || args.date || startDate).trim();
+  if (apply && (!startDate || !endDate)) {
+    throw new Error("--apply requires --date or both --start-date and --end-date.");
+  }
 
   const names = source === "all" ? Object.keys(COLLECTIONS) : [source];
   const db = admin.firestore();
-  const totals = { scanned: 0, mapped: 0, missingDate: 0, sent: 0, failed: 0 };
+  const totals = { scanned: 0, mapped: 0, eligible: 0, skippedShortcut: 0, skippedDate: 0, missingDate: 0, sent: 0, failed: 0 };
 
   for (const collectionName of names) {
     const mapper = COLLECTIONS[collectionName];
     if (!mapper) throw new Error(`Unknown source: ${collectionName}`);
     const rows = await loadCollection(db, collectionName, limit);
     totals.scanned += rows.length;
-    const items = rows.map(({ id, data }) => mapper(data, {
+    const sourceRows = rows.filter(({ data }) => {
+      const skip = collectionName === "logEntries" && isIosShortcutLegacyLogEntry(data);
+      if (skip) totals.skippedShortcut += 1;
+      return !skip;
+    });
+    const items = sourceRows.map(({ id, data }) => mapper(data, {
       id,
       path: `${collectionName}/${id}`,
       appBaseUrl,
@@ -85,15 +99,21 @@ async function main() {
     }));
     totals.mapped += items.length;
     totals.missingDate += items.filter((item) => !item.dateId).length;
-    console.log(`[${collectionName}] scanned=${rows.length} mapped=${items.length} missingDate=${items.filter((item) => !item.dateId).length}`);
-    if (dryRun || !items.length) continue;
-    for (const batch of chunk(items, batchSize)) {
+    const eligible = items.filter((item) => {
+      if (!startDate && !endDate) return true;
+      return Boolean(item.dateId && item.dateId >= startDate && item.dateId <= endDate);
+    });
+    totals.eligible += eligible.length;
+    totals.skippedDate += items.length - eligible.length;
+    console.log(`[${collectionName}] scanned=${rows.length} eligible=${eligible.length} skippedShortcut=${rows.length - sourceRows.length} missingDate=${items.filter((item) => !item.dateId).length}`);
+    if (dryRun || !eligible.length) continue;
+    for (const batch of chunk(eligible, batchSize)) {
       const result = await sendTimeLeftDailyItemsBatch(batch, { throwOnError: true });
       totals.sent += batch.length;
       console.log(`[${collectionName}] sent batch=${batch.length} result=${JSON.stringify(result).slice(0, 500)}`);
     }
   }
-  console.log(JSON.stringify(totals, null, 2));
+  console.log(JSON.stringify({ dryRun, startDate: startDate || null, endDate: endDate || null, ...totals }, null, 2));
 }
 
 main().catch((error) => {
