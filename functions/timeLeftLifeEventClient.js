@@ -171,11 +171,10 @@ function createTimeLeftLifeEventClient(configInput = {}, options = {}) {
     }
 
     const body = {
+      ...lifeEvent,
       calendarId: config.calendarId,
       connectionId: config.connectionId,
       integrationId: config.integrationId,
-      targetProjectId: config.targetProjectId,
-      lifeEvent,
     };
 
     try {

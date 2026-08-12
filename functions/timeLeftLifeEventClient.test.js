@@ -56,6 +56,15 @@ function baseConfig() {
   };
 }
 
+function productionConfig() {
+  return {
+    ...baseConfig(),
+    endpointUrl: "https://timelefttolive.web.app/api/v1/life-events",
+    targetProjectId: "timelefttolive",
+    mode: "production",
+  };
+}
+
 test("off mode performs zero HTTP requests", async () => {
   const calls = [];
   const client = createTimeLeftLifeEventClient({ ...baseConfig(), mode: "off" }, {
@@ -76,10 +85,20 @@ test("staging target accepted", () => {
   assert.equal(result.config.endpointUrl, baseConfig().endpointUrl);
 });
 
-test("production target rejected", () => {
-  const result = validateTimeLeftLifeEventConfig({ ...baseConfig(), mode: "production" });
-  assert.equal(result.valid, false);
-  assert.equal(result.errors.join("|").includes("production is disabled"), true);
+test("accepts only the exact production endpoint and project", () => {
+  assert.equal(validateTimeLeftLifeEventConfig(productionConfig()).valid, true);
+  const wrongHost = validateTimeLeftLifeEventConfig({
+    ...productionConfig(),
+    endpointUrl: "https://northamerica-northeast1-timelefttolive.cloudfunctions.net/apiV1LifeEvents",
+  });
+  const wrongProject = validateTimeLeftLifeEventConfig({
+    ...productionConfig(),
+    targetProjectId: "gridlineai",
+  });
+  assert.equal(wrongHost.valid, false);
+  assert.match(wrongHost.errors.join("|"), /timelefttolive\.web\.app/);
+  assert.equal(wrongProject.valid, false);
+  assert.match(wrongProject.errors.join("|"), /must be timelefttolive/);
 });
 
 test("obsolete staging target rejected", () => {
@@ -301,6 +320,16 @@ test("sets request headers and payload correctly", async () => {
   assert.equal(body.calendarId, "cal_123");
   assert.equal(body.connectionId, "conn_123");
   assert.equal(body.integrationId, "int_123");
-  assert.equal(body.targetProjectId, "gridlineai-stage");
-  assert.equal(body.lifeEvent.sourceRecordId, "evt_001");
+  assert.equal(body.sourceRecordId, "evt_001");
+  assert.equal(body.lifeEvent, undefined);
+});
+
+test("production request uses the exact allowlisted endpoint", async () => {
+  const { fn, calls } = mockFetchWithResponse(async () =>
+    responseFrom(JSON.stringify({ duplicate: false, lifeEventId: "le_prod" }), 200)
+  );
+  const client = createTimeLeftLifeEventClient(productionConfig(), { fetch: fn });
+  const result = await client.sendLifeEvent(sampleEvent());
+  assert.equal(result.status, "delivered");
+  assert.equal(calls[0].url, "https://timelefttolive.web.app/api/v1/life-events");
 });

@@ -17,6 +17,10 @@ const {
   mapProjectRecordToTimeLeft,
   mapReportToTimeLeft,
 } = require("./mappers");
+const {
+  assertFirebaseProjectId,
+  isIosShortcutLegacyLogEntry,
+} = require("./policy");
 
 const triggerOptions = {
   region: "northamerica-northeast1",
@@ -50,7 +54,9 @@ function writeOptions(collectionName, id, syncStatus) {
     id,
     path: `${collectionName}/${id}`,
     appBaseUrl: GRIDLINE_APP_BASE_URL.value(),
-    sourceFirebaseProjectId: GRIDLINE_FIREBASE_PROJECT_ID.value() || "gridlineai",
+    sourceFirebaseProjectId: assertFirebaseProjectId(
+      GRIDLINE_FIREBASE_PROJECT_ID.value() || "gridlineai"
+    ),
     syncStatus,
     timeZone: GRIDLINE_DEFAULT_TIME_ZONE.value() || "America/Toronto",
   };
@@ -63,6 +69,14 @@ async function syncWrittenDocument(event, collectionName, paramName, mapper) {
   const deleted = before && !after;
   const source = after || before;
   if (!source || !id) return null;
+
+  if (collectionName === "logEntries" && isIosShortcutLegacyLogEntry(source)) {
+    logger.info("TimeLeft generic journal sync skipped for canonical Shortcut event", {
+      sourceDocumentPath: `${collectionName}/${id}`,
+      shortcutEventId: String(source.shortcutEventId),
+    });
+    return { status: "skipped_shortcut_canonical" };
+  }
 
   const options = writeOptions(collectionName, id, deleted ? "deletedFromSource" : "active");
   const item = mapper(source, options);
@@ -88,6 +102,7 @@ async function syncWrittenDocument(event, collectionName, paramName, mapper) {
 }
 
 function mapBackfillItem(collectionName, id, source) {
+  if (collectionName === "logEntries" && isIosShortcutLegacyLogEntry(source)) return null;
   const def = BACKFILL_SOURCES[collectionName];
   const options = writeOptions(collectionName, id, "active");
   const item = def.mapper(source || {}, options);
@@ -126,9 +141,10 @@ async function backfillCollection(collectionName, limit) {
   const def = BACKFILL_SOURCES[collectionName];
   const snap = await admin.firestore().collection(def.collection).limit(limit).get();
   const items = snap.docs.map((doc) => mapBackfillItem(collectionName, doc.id, doc.data() || {}));
+  const mappedItems = items.filter(Boolean);
   const allowedItems = [];
   const skippedLocalProjectIds = {};
-  for (const item of items) {
+  for (const item of mappedItems) {
     if (isLocallyAllowedSourceProject(item)) {
       allowedItems.push(item);
     } else {
@@ -139,7 +155,8 @@ async function backfillCollection(collectionName, limit) {
   const result = {
     source: collectionName,
     scanned: snap.size,
-    skippedLocal: items.length - allowedItems.length,
+    skippedCanonicalShortcuts: items.length - mappedItems.length,
+    skippedLocal: mappedItems.length - allowedItems.length,
     skippedLocalProjectIds,
     sent: 0,
     failed: 0,

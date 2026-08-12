@@ -299,6 +299,7 @@ module.exports = {
   DEFAULT_TIMEZONE,
   DEFAULT_SOURCE_APP,
   DEFAULT_SOURCE_FIREBASE_PROJECT_ID,
+  SHORTCUT_EVENT_RULES,
   mapShortcutEventToTimeLeftLifeEvent,
   parseOccurredAt,
   parseEventAtMs,
