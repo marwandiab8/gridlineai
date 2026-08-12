@@ -1,6 +1,8 @@
 # Avoid Firebase dotenv pairing errors (env.<id> vs .env.<alias>)
 functions/.env*
+!functions/.env.example
 functions/env.*
 .env*
+!.env.example
 env.gridlineai
 .agents/

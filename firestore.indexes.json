@@ -256,6 +256,15 @@
         { "fieldPath": "reportDateKey", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "iosShortcutEvents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "memberEmail", "order": "ASCENDING" },
+        { "fieldPath": "eventType", "order": "ASCENDING" },
+        { "fieldPath": "eventAtMs", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

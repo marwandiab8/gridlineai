@@ -71,18 +71,21 @@
           </div>
         </header>
 
-        <nav class="page-nav" aria-label="Admin sections">
+          <nav class="page-nav" aria-label="Admin sections">
           <a href="#dashboard" class="page-nav-link" data-view-link="dashboard" data-min-role="admin">Dashboard</a>
           <a href="#assistant" class="page-nav-link" data-view-link="assistant" data-min-role="management">Assistant</a>
           <a href="#todo" class="page-nav-link" data-view-link="todo" data-min-role="management">Todo</a>
           <a href="#lookahead" class="page-nav-link" data-view-link="lookahead" data-min-role="management">Lookahead</a>
           <a href="#voice" class="page-nav-link" data-view-link="voice" data-min-role="management">Voice</a>
           <a href="#messages" class="page-nav-link" data-view-link="messages" data-min-role="admin">Messages</a>
+          <a href="#communications" class="page-nav-link" data-view-link="communications" data-min-role="admin">Communications</a>
+          <a href="#webhook" class="page-nav-link" data-view-link="webhook" data-min-role="admin">Webhook</a>
           <a href="#reports" class="page-nav-link" data-view-link="reports">Reports</a>
           <a href="#approvals" class="page-nav-link" data-view-link="approvals">Approvals</a>
           <a href="#labour" class="page-nav-link" data-view-link="labour" data-min-role="management">Labour</a>
           <a href="#projects" class="page-nav-link" data-view-link="projects" data-min-role="admin">Projects</a>
           <a href="#team" class="page-nav-link" data-view-link="team" data-min-role="admin">Team</a>
+          <a href="#procore" class="page-nav-link" data-view-link="procore" data-min-role="management">Procore</a>
           <a href="#tools" class="page-nav-link" data-view-link="tools" data-min-role="management">Tools</a>
           <a href="./issues.html" class="page-nav-link page-nav-link-secondary" data-min-role="management">Issue board</a>
         </nav>
@@ -138,6 +141,8 @@
                   <button type="button" class="btn-secondary" data-view-target="labour">Labour page</button>
                   <button type="button" class="btn-secondary" data-view-target="voice">Review voice</button>
                   <button type="button" class="btn-secondary" data-view-target="messages">Review messages</button>
+                  <button type="button" class="btn-secondary" data-view-target="communications">Review all communication</button>
+                  <button type="button" class="btn-secondary" data-view-target="webhook">Review webhook activity</button>
                   <a href="./issues.html" class="btn-secondary quick-link">Open issue board</a>
                 </div>
               </article>
@@ -497,6 +502,54 @@
                 <div id="logEntries" class="scroll-list scroll-list-tall"></div>
               </article>
             </div>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="communications" data-min-role="admin">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Unified communication</p>
+                <h2>Communications</h2>
+              </div>
+              <p class="muted">
+                Single timeline for SMS, voice, and iOS Shortcuts webhook communication entries.
+              </p>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Recent communication feed</h3>
+                  <p class="muted small">
+                    Combined inbound/outbound SMS, voice calls, and webhook events, sorted by event time.
+                  </p>
+                </div>
+              </div>
+              <div id="communicationFeed" class="scroll-list scroll-list-tall"></div>
+            </article>
+          </section>
+
+          <section class="view-panel hidden" data-view-panel="webhook" data-min-role="admin">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Direct communication</p>
+                <h2>Webhook Activity</h2>
+              </div>
+              <p class="muted">
+                View the webhook events coming from Apple Shortcuts and their AI processing result.
+              </p>
+            </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Recent shortcut events</h3>
+                  <p class="muted small">
+                    One row per incoming webhook request with status, duplicate handling, and linked message/log IDs.
+                  </p>
+                </div>
+              </div>
+              <div id="shortcutEvents" class="scroll-list scroll-list-tall"></div>
+            </article>
           </section>
 
           <section class="view-panel hidden" data-view-panel="voice" data-min-role="management">
@@ -1121,6 +1174,91 @@
             </div>
           </section>
 
+          <section class="view-panel hidden" data-view-panel="procore" data-min-role="management">
+            <div class="page-header">
+              <div>
+                <p class="eyebrow">Procore API</p>
+                <h2>Procore</h2>
+              </div>
+              <p class="muted">
+                Inspect connected Procore data before mapping it into Gridline records.
+              </p>
+            </div>
+
+            <div class="section-grid section-grid-main">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Project connection</h3>
+                    <p class="muted small">Select which Procore project this app should use for sync and imports.</p>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label class="form-field">
+                    <span>Company</span>
+                    <select id="procoreCompanySelect">
+                      <option value="">Load companies first</option>
+                    </select>
+                  </label>
+                  <label class="form-field">
+                    <span>Project</span>
+                    <select id="procoreProjectSelect">
+                      <option value="">Choose a company first</option>
+                    </select>
+                  </label>
+                </div>
+                  <div class="quick-actions">
+                  <button type="button" id="procoreConnect" class="btn-primary">Connect Procore</button>
+                  <button type="button" id="procoreLoadCompanies" class="btn-secondary">Load companies</button>
+                  <button type="button" id="procoreLoadProjects" class="btn-secondary">Load projects</button>
+                  <button type="button" id="procoreSaveSelection" class="btn-primary">Save selected project</button>
+                </div>
+                <div id="procoreSelectionResult" class="project-manager-result muted small" aria-live="polite">No Procore project selected yet.</div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Data browser</h3>
+                    <p class="muted small">Run read-only Procore REST requests with your signed-in admin session.</p>
+                  </div>
+                </div>
+                <div class="quick-actions">
+                  <button type="button" class="btn-secondary" data-procore-preset="/rest/v1.0/me">Me</button>
+                  <button type="button" class="btn-secondary" data-procore-preset="/rest/v1.0/companies">Companies</button>
+                  <button type="button" class="btn-primary" data-procore-preset="/rest/v1.1/projects" data-procore-query="selected-company">Projects</button>
+                  <a href="./procore.html" class="btn-secondary quick-link">Connection status</a>
+                </div>
+                <div class="form-grid">
+                  <label class="form-field">
+                    <span>Path</span>
+                    <input id="procoreDataPath" type="text" value="/rest/v1.1/projects" />
+                  </label>
+                  <label class="form-field">
+                    <span>Query</span>
+                    <input id="procoreDataQuery" type="text" value="" />
+                  </label>
+                </div>
+                <div class="quick-actions">
+                  <button type="button" id="procoreFetchData" class="btn-primary">Fetch</button>
+                  <button type="button" id="procoreCopyJson" class="btn-secondary">Copy JSON</button>
+                  <button type="button" id="procoreDownloadJson" class="btn-secondary">Download JSON</button>
+                </div>
+                <div id="procoreDataResult" class="project-manager-result muted small" aria-live="polite">No request run yet.</div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <h3>Response</h3>
+                    <p class="muted small">Raw JSON from the protected server route.</p>
+                  </div>
+                </div>
+                <pre id="procoreJsonOutput" class="json-output scroll-list scroll-list-tall">{}</pre>
+              </article>
+            </div>
+          </section>
+
           <section class="view-panel hidden" data-view-panel="tools" data-min-role="management">
             <div class="page-header">
               <div>
@@ -1133,6 +1271,62 @@
             </div>
 
             <div class="section-grid">
+              <article class="card" id="iosShortcutsIntegrationCard">
+                <div class="card-head">
+                  <div>
+                    <h3>iOS Shortcuts Integration</h3>
+                    <p class="muted small">
+                      Send arrival and departure tracking events directly from Apple Shortcuts without SMS.
+                    </p>
+                  </div>
+                  <span id="iosShortcutsStatusPill" class="pill">Not loaded</span>
+                </div>
+                <div class="project-manager-form">
+                  <label class="checkbox-row">
+                    <input id="iosShortcutsEnabled" type="checkbox" disabled />
+                    Enabled
+                  </label>
+                  <label class="project-manager-label" for="iosShortcutsWebhookUrl">Webhook URL</label>
+                  <div class="project-manager-inline">
+                    <input id="iosShortcutsWebhookUrl" class="project-manager-input" type="text" readonly value="" />
+                    <button type="button" class="btn-secondary" id="iosShortcutsCopyUrlBtn">Copy URL</button>
+                  </div>
+                  <label class="project-manager-label" for="iosShortcutsToken">Secret token</label>
+                  <div class="project-manager-inline">
+                    <input id="iosShortcutsToken" class="project-manager-input" type="password" readonly value="" placeholder="Generate a token to reveal it once" />
+                    <button type="button" class="btn-secondary" id="iosShortcutsCopyTokenBtn">Copy token</button>
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-primary" id="iosShortcutsGenerateBtn">Generate token</button>
+                    <button type="button" class="btn-secondary" id="iosShortcutsRegenerateBtn">Regenerate token</button>
+                    <button type="button" class="btn-secondary btn-danger" id="iosShortcutsDisableBtn">Disable</button>
+                  </div>
+                  <div class="project-manager-result muted small" id="iosShortcutsResult" aria-live="polite">
+                    Loading integration status.
+                  </div>
+                  <pre class="project-owned-list muted small" id="iosShortcutsExample">Apple Shortcuts setup:
+Action: Get Contents of URL
+Method: POST
+Headers:
+  Authorization: Bearer &lt;token&gt;
+  Content-Type: application/json
+Request Body:
+{
+  "event_type": "arrive_work",
+  "timestamp": "&lt;Shortcut current date ISO value&gt;",
+  "timezone": "America/Toronto",
+  "location_label": "work",
+  "project_slug": "your-project-slug",
+  "source": "ios_shortcuts"
+}
+Supported event_type values:
+arrive_work, leave_work, arrive_home, leave_home,
+arrive_gym, leave_gym, start_workout, finish_workout,
+start_spotify, arrive_location, leave_location</pre>
+                  <p class="muted">Use the same <code>project_slug</code> that you select for the daily report. If omitted, the webhook uses your active SMS project when available.</p>
+                </div>
+              </article>
+
               <article class="card" data-min-role="admin">
                 <div class="card-head">
                   <div>

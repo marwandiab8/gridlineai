@@ -474,6 +474,17 @@ code {
   flex-wrap: wrap;
 }
 
+.project-manager-inline {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.project-manager-inline .project-manager-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .checkbox-row {
   display: inline-flex;
   align-items: center;
@@ -621,6 +632,11 @@ code {
 @media (max-width: 720px) {
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-manager-inline {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .media-viewer-shell {
@@ -1818,6 +1834,20 @@ body {
 .setup-list code,
 code {
   color: #d8f1ec;
+}
+
+.json-output {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: #101318;
+  color: #e8eaed;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 @media (max-width: 1040px) {

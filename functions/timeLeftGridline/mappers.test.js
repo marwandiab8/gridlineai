@@ -27,12 +27,14 @@ test("maps report with stable idempotency fields", () => {
     reportDateKey: "2028-07-25",
     reportTitle: "Daily Report",
     storagePath: "dailyReports/r1.pdf",
+    createdAt: "2028-07-25T11:30:00.000Z",
   }, { id: "r1", path: "dailyReports/r1", sourceFirebaseProjectId: "gridlineai" });
   assert.equal(item.sourceApp, "gridlineai");
   assert.equal(item.category, "projectReport");
   assert.equal(item.dateId, "2028-07-25");
   assert.equal(item.sourceDocumentPath, "dailyReports/r1");
   assert.equal(item.sourceStoragePath, "dailyReports/r1.pdf");
+  assert.equal(item.addedAt, "2028-07-25T11:30:00.000Z");
 });
 
 test("maps report sourceUrl to the app report deeplink", () => {

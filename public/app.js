@@ -104,11 +104,30 @@ function esc(value) {
     .replace(/"/g, "&quot;");
 }
 
-function fmtTime(ts) {
+function parseDisplayDateTime(value) {
+  if (value == null) return null;
+  try {
+    if (typeof value?.toDate === "function") return value.toDate();
+    if (typeof value?.seconds === "number") return new Date(value.seconds * 1000);
+    if (value instanceof Date) return value;
+    if (typeof value === "number" || typeof value === "string") {
+      const date = new Date(value);
+      return Number.isFinite(date.getTime()) ? date : null;
+    }
+  } catch (_) {
+    return null;
+  }
+  return null;
+}
+
+function fmtTime(ts, options = {}) {
   if (!ts) return "";
   try {
-    if (typeof ts.toDate === "function") return ts.toDate().toLocaleString();
-    if (ts.seconds) return new Date(ts.seconds * 1000).toLocaleString();
+    const date = parseDisplayDateTime(ts);
+    if (!date) return esc(String(ts));
+    const locale = options.timeZone ? "en-US" : undefined;
+    const formatOptions = options.timeZone ? { timeZone: String(options.timeZone) } : {};
+    return date.toLocaleString(locale, formatOptions);
   } catch (_) {}
   return esc(String(ts));
 }
@@ -452,6 +471,12 @@ async function callDashboardFunction(name, payload) {
   return res.data;
 }
 
+async function copyTextToClipboard(text) {
+  const value = String(text || "").trim();
+  if (!value) throw new Error("Nothing to copy.");
+  await navigator.clipboard.writeText(value);
+}
+
 async function resolveProtectedReportUrl(collectionName, reportId) {
   const data = await callDashboardFunction("createReportAccessUrlCallable", {
     collectionName,
@@ -533,6 +558,8 @@ const statusDetailEl = document.getElementById("statusDetail");
 const messagesEl = document.getElementById("messages");
 const voiceMessagesEl = document.getElementById("voiceMessages");
 const voiceRecordingsEl = document.getElementById("voiceRecordings");
+const shortcutEventsEl = document.getElementById("shortcutEvents");
+const communicationFeedEl = document.getElementById("communicationFeed");
 const usersEl = document.getElementById("users");
 const issuesEl = document.getElementById("issues");
 const summariesEl = document.getElementById("summaries");
@@ -568,6 +595,16 @@ const labourPayEntriesEl = document.getElementById("labourPayEntries");
 const labourersEl = document.getElementById("labourers");
 const labourEntriesEl = document.getElementById("labourEntries");
 const labourReportsEl = document.getElementById("labourReports");
+const iosShortcutsEnabledEl = document.getElementById("iosShortcutsEnabled");
+const iosShortcutsStatusPillEl = document.getElementById("iosShortcutsStatusPill");
+const iosShortcutsWebhookUrlEl = document.getElementById("iosShortcutsWebhookUrl");
+const iosShortcutsTokenEl = document.getElementById("iosShortcutsToken");
+const iosShortcutsCopyUrlBtn = document.getElementById("iosShortcutsCopyUrlBtn");
+const iosShortcutsCopyTokenBtn = document.getElementById("iosShortcutsCopyTokenBtn");
+const iosShortcutsGenerateBtn = document.getElementById("iosShortcutsGenerateBtn");
+const iosShortcutsRegenerateBtn = document.getElementById("iosShortcutsRegenerateBtn");
+const iosShortcutsDisableBtn = document.getElementById("iosShortcutsDisableBtn");
+const iosShortcutsResultEl = document.getElementById("iosShortcutsResult");
 const pageNavLinks = Array.from(document.querySelectorAll("[data-view-link]"));
 const pagePanels = Array.from(document.querySelectorAll("[data-view-panel]"));
 const quickViewButtons = Array.from(document.querySelectorAll("[data-view-target]"));
@@ -575,6 +612,7 @@ const quickViewButtons = Array.from(document.querySelectorAll("[data-view-target
 let appUnsubscribers = [];
 let messagesCache = [];
 let voiceMessagesCache = [];
+let shortcutEventsCache = [];
 let smsUsersCache = [];
 let projectsCache = [];
 let appMembersCache = [];
@@ -602,6 +640,10 @@ let homeTodoSearchQuery = "";
 let pendingNewTodoReminders = [];
 let activeTodoReplyComposerKeys = new Set();
 let pendingReportLink = currentRequestedReportLink();
+let lastProcoreDataPayload = null;
+let procoreCompaniesCache = [];
+let procoreProjectsCache = [];
+let selectedProcoreProject = null;
 
 function setStatusOk(detail = "") {
   if (statusEl) statusEl.textContent = "Connected";
@@ -678,6 +720,8 @@ function currentRequestedView() {
     "assistant",
     "todo",
     "lookahead",
+    "webhook",
+    "communications",
     "voice",
     "messages",
     "reports",
@@ -685,6 +729,7 @@ function currentRequestedView() {
     "labour",
     "projects",
     "team",
+    "procore",
     "tools",
   ]);
   return allowed.has(requested) ? requested : "dashboard";
@@ -2276,6 +2321,38 @@ function sortByCreatedAtDesc(docs) {
   return [...(docs || [])].sort((a, b) => timestampSeconds(b.createdAt) - timestampSeconds(a.createdAt));
 }
 
+function parseCommTimestampMs(item) {
+  const eventAtMs = Number(item?.eventAtMs);
+  if (Number.isFinite(eventAtMs)) return eventAtMs;
+  const createdAtSeconds = timestampSeconds(item?.createdAt);
+  if (createdAtSeconds > 0) return createdAtSeconds * 1000;
+  if (item?.eventAtIso) {
+    const parsed = Date.parse(String(item.eventAtIso));
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  if (item?.createdAt && typeof item.createdAt === "string") {
+    const parsed = Date.parse(item.createdAt);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
+function sortByCommTimestampDesc(items) {
+  return [...(Array.isArray(items) ? items : [])].sort((a, b) => {
+    const aItem = a && typeof a === "object" && "item" in a ? a.item : a;
+    const bItem = b && typeof b === "object" && "item" in b ? b.item : b;
+    return parseCommTimestampMs(bItem) - parseCommTimestampMs(aItem);
+  });
+}
+
+function communicationChannelLabel(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "sms";
+  if (raw === "voice") return "voice";
+  if (raw === "webhook") return "webhook";
+  return raw;
+}
+
 function isVoiceMessage(msg) {
   return String(msg?.channel || "").trim().toLowerCase() === "voice";
 }
@@ -2296,9 +2373,13 @@ function renderMessageRow(msg, options = {}) {
     showPhotoStrip = false,
     showVoiceMeta = false,
     mediaDocs = [],
+    showChannel = false,
   } = options;
   const dir = msg.direction === "inbound" ? "inbound" : "outbound";
   const pillClass = dir === "inbound" ? "pill-inbound" : "pill-outbound";
+  const channelRaw = communicationChannelLabel(msg?.channel);
+  const channelClass = channelRaw === "voice" ? "pill-ai" : channelRaw === "webhook" ? "pill-user" : "pill-user";
+  const channelPill = showChannel ? ` <span class="pill ${channelClass}">${esc(`channel:${channelRaw}`)}</span>` : "";
   const aiPill =
     msg.aiError || (msg.command === "ai_error" && msg.aiError)
       ? '<span class="pill pill-warn">AI error</span>'
@@ -2358,7 +2439,7 @@ function renderMessageRow(msg, options = {}) {
     : "";
   return `
     <div class="row-item">
-      <div><span class="pill ${pillClass}">${esc(dir)}</span>${mediaPill}${aiPill}</div>
+      <div><span class="pill ${pillClass}">${esc(dir)}</span>${channelPill}${mediaPill}${aiPill}</div>
       <div class="mono">${fmtTime(msg.createdAt)}</div>
       <div><strong>From:</strong> ${esc(msg.from)} -> <strong>To:</strong> ${esc(msg.to)}</div>
       ${proj}
@@ -2368,6 +2449,111 @@ function renderMessageRow(msg, options = {}) {
       ${err}
       <div class="muted small mono">sid ${esc(msg.messageSid || "")} · doc ${esc(msg.id)}</div>
     </div>`;
+}
+
+function renderShortcutEventRow(event) {
+  const status = String(event?.status || "unknown").trim().toLowerCase() || "unknown";
+  const statusPillClass =
+    status === "recorded"
+      ? "pill-ai"
+      : status === "processing"
+        ? "pill-user"
+        : "pill-warn";
+  const shortcutTime = event?.eventAtIso || event?.createdAt;
+  const location = String(event?.locationLabel || "").trim();
+  const notes = String(event?.notes || "").trim();
+  const command = String(event?.assistantCommand || "").trim();
+  const idempotencyKey = String(event?.idempotencyKey || "").trim();
+  const hasLocation = Boolean(location);
+  const hasCoords =
+    Number.isFinite(event?.latitude) &&
+    Number.isFinite(event?.longitude);
+  const coords = hasCoords ? `${String(event.latitude)}, ${String(event.longitude)}` : "";
+  const shortcutTimeZone = String(event?.timezone || "").trim();
+  return `
+    <div class="row-item">
+      <div>
+        <span class="pill ${statusPillClass}">${esc(status)}</span>
+        ${event?.duplicate ? '<span class="pill pill-user">duplicate</span>' : ""}
+        <span class="pill pill-ai">webhook</span>
+      </div>
+      <div class="mono">${fmtTime(shortcutTime, { timeZone: shortcutTimeZone || undefined })}</div>
+      <div><strong>Event:</strong> ${esc(String(event?.eventType || "unknown"))}</div>
+      <div><strong>Project:</strong> ${esc(String(event?.projectSlug || "-"))}</div>
+      <div><strong>Member:</strong> ${esc(String(event?.memberEmail || "-"))} · <strong>Phone:</strong> ${esc(String(event?.phoneE164 || "-"))}</div>
+      <div class="muted small">
+        Report date: ${esc(String(event?.reportDateKey || "-"))} · Source: ${esc(String(event?.source || "ios_shortcuts"))}
+      </div>
+      ${hasLocation ? `<div><strong>Location:</strong> ${esc(location)}</div>` : ""}
+      ${coords ? `<div><strong>Coordinates:</strong> ${esc(coords)}</div>` : ""}
+      ${event?.timezone ? `<div><strong>Timezone:</strong> ${esc(String(event.timezone))}</div>` : ""}
+      ${event?.deviceName ? `<div><strong>Device:</strong> ${esc(String(event.deviceName))}</div>` : ""}
+      ${idempotencyKey ? `<div><strong>Idempotency:</strong> <span class="mono">${esc(idempotencyKey)}</span></div>` : ""}
+      ${command ? `<div><strong>Assistant command:</strong> ${esc(command)}</div>` : ""}
+      ${notes ? `<div><strong>Notes:</strong> ${esc(notes.slice(0, 180))}</div>` : ""}
+      <div class="muted small mono">
+        event ${esc(String(event?.id || ""))} · log entry ${esc(String(event?.logEntryId || "none"))} · inbound ${esc(String(event?.inboundMessageId || "none"))} · outbound ${esc(String(event?.outboundMessageId || "none"))}
+      </div>
+      ${event?.aiError ? `<div class="muted small">AI error: ${esc(String(event.aiError))}</div>` : ""}
+    </div>`;
+}
+
+function renderShortcutEvents() {
+  if (!shortcutEventsEl) return;
+  const docs = sortByCreatedAtDesc(shortcutEventsCache);
+  if (!docs.length) {
+    shortcutEventsEl.innerHTML =
+      '<div class="row-item muted small">No shortcut webhook events yet. Check the iOS Shortcuts Integration section for the latest token and URL.</div>';
+    return;
+  }
+  shortcutEventsEl.innerHTML = docs.map(renderShortcutEventRow).join("");
+}
+
+function renderCommunicationFeed() {
+  if (!communicationFeedEl) return;
+
+  const mediaByMessageId = new Map();
+  for (const media of mediaCache) {
+    const sourceMessageId = String(media?.sourceMessageId || "").trim();
+    if (!sourceMessageId) continue;
+    if (!mediaByMessageId.has(sourceMessageId)) mediaByMessageId.set(sourceMessageId, []);
+    mediaByMessageId.get(sourceMessageId).push(media);
+  }
+
+  const combined = [];
+  for (const item of Array.isArray(messagesCache) ? messagesCache : []) {
+    combined.push({ kind: "message", item });
+  }
+  for (const item of Array.isArray(shortcutEventsCache) ? shortcutEventsCache : []) {
+    combined.push({ kind: "shortcut", item });
+  }
+
+  const docs = sortByCommTimestampDesc(combined);
+  if (!docs.length) {
+    communicationFeedEl.innerHTML =
+      '<div class="row-item muted small">No communication yet. Start SMS, voice, or iOS Shortcuts activity.</div>';
+    return;
+  }
+
+  communicationFeedEl.innerHTML = docs
+    .map((entry) => {
+      if (entry.kind === "shortcut") {
+        return renderShortcutEventRow(entry.item);
+      }
+
+      const message = entry.item;
+      const isVoice = isVoiceMessage(message);
+      return renderMessageRow(message, {
+        mediaLabel: isVoice ? "REC" : "MMS",
+        showPhotoStrip: true,
+        showVoiceMeta: isVoice,
+        mediaDocs: mediaByMessageId.get(String(message?.id || "").trim()) || [],
+        showChannel: true,
+      });
+    })
+    .join("");
+
+  scheduleHydrateMediaThumbs();
 }
 
 function renderVoiceMessages() {
@@ -2441,6 +2627,8 @@ function clearAdminPanels() {
   if (messagesEl) messagesEl.innerHTML = placeholder;
   if (voiceMessagesEl) voiceMessagesEl.innerHTML = placeholder;
   if (voiceRecordingsEl) voiceRecordingsEl.innerHTML = placeholder;
+  if (communicationFeedEl) communicationFeedEl.innerHTML = placeholder;
+  if (shortcutEventsEl) shortcutEventsEl.innerHTML = placeholder;
   if (usersEl) usersEl.innerHTML = placeholder;
   if (appMembersEl) appMembersEl.innerHTML = placeholder;
   if (labourersEl) labourersEl.innerHTML = placeholder;
@@ -2457,6 +2645,7 @@ function clearAdminPanels() {
 function resetAdminCaches() {
   messagesCache = [];
   voiceMessagesCache = [];
+  shortcutEventsCache = [];
   smsUsersCache = [];
   projectsCache = [];
   appMembersCache = [];
@@ -2472,6 +2661,8 @@ function resetAdminCaches() {
   labourTodayCache = [];
   labourWeekCache = [];
   labourPayCache = [];
+  renderShortcutEvents();
+  renderCommunicationFeed();
   currentAppAccess = null;
   renderDashboard();
   renderVoiceMessages();
@@ -2792,10 +2983,15 @@ function renderLogEntriesWithMedia() {
           : '<span class="pill pill-ai">in day log</span>';
       const text = entry.summaryText || entry.normalizedText || entry.rawText || "";
       const thumbs = Array.isArray(mediaByLog[entry.id]) ? mediaByLog[entry.id] : [];
+      const entryTime = entry.shortcutEventAtIso || entry.shortcutEventAtMs || entry.createdAt;
+      const entryTimeZone =
+        typeof entry.shortcutTimezone === "string" && entry.shortcutTimezone.trim() ? entry.shortcutTimezone.trim() : "";
       return `
         <div class="row-item">
           <span class="pill pill-issue">${esc(entry.category || "-")}</span>${ai}${inclusion}
-          <div class="mono">${fmtTime(entry.createdAt)} · ${esc(entry.dateKey || "")}</div>
+          <div class="mono">${fmtTime(entryTime, { timeZone: entryTimeZone || undefined })} · ${esc(
+            entry.dateKey || ""
+          )}</div>
           <div class="muted small">Sections: ${esc(sections || "-")} · status ${esc(entry.status || "-")} · openItem ${entry.openItem ? "yes" : "no"} · id <span class="mono">${esc(entry.id)}</span></div>
           <div>${esc(text.slice(0, 220))}${text.length > 220 ? "..." : ""}</div>
           ${thumbs.length ? `<div class="log-entry-thumbs">${thumbs.map((media) => mediaThumbOrFallback(media)).join("")}</div>` : ""}
@@ -2896,16 +3092,35 @@ function startAdminListeners() {
             .map((msg) => renderMessageRow(msg, { mediaLabel: "MMS", showPhotoStrip: true }))
             .join("");
       },
-      (docs) => {
-        messagesCache = docs;
-        voiceMessagesCache = sortByCreatedAtDesc(docs.filter(isVoiceMessage));
-        renderDashboard();
-        renderVoiceMessages();
-        scheduleHydrateMediaThumbs();
-      },
-      "messages"
-    )
-  );
+        (docs) => {
+          messagesCache = docs;
+          voiceMessagesCache = sortByCreatedAtDesc(docs.filter(isVoiceMessage));
+          renderDashboard();
+          renderVoiceMessages();
+          renderCommunicationFeed();
+          scheduleHydrateMediaThumbs();
+        },
+        "messages"
+      )
+    );
+    if (shortcutEventsEl) {
+      appUnsubscribers.push(
+        bindQuery(
+          query(collection(db, "iosShortcutEvents"), orderBy("createdAt", "desc"), limit(80)),
+          shortcutEventsEl,
+          () => renderShortcutEvents(),
+          (docs) => {
+            shortcutEventsCache = docs;
+            renderShortcutEvents();
+            renderCommunicationFeed();
+          },
+          "iosShortcutEvents"
+        )
+      );
+    } else {
+      shortcutEventsCache = [];
+      renderCommunicationFeed();
+    }
 
     appUnsubscribers.push(
       onSnapshot(
@@ -3078,6 +3293,9 @@ function startAdminListeners() {
     }
     if (logEntriesEl) logEntriesEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
     if (appMembersEl) appMembersEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
+    if (shortcutEventsEl) {
+      shortcutEventsEl.innerHTML = '<div class="row-item muted small">Admin-only section.</div>';
+    }
   }
 
   if (!isAdmin && isManagement) {
@@ -3634,7 +3852,7 @@ function syncAccessControlledUi() {
 }
 
 function applyView(viewName) {
-  const fallbacks = ["dashboard", "assistant", "todo", "lookahead", "voice", "reports", "labour", "tools", "approvals"];
+  const fallbacks = ["dashboard", "assistant", "todo", "lookahead", "communications", "webhook", "voice", "messages", "reports", "labour", "procore", "tools", "approvals"];
   const fallbackView = fallbacks.find((candidate) => viewAllowedForCurrentRole(candidate)) || "reports";
   const resolvedView = viewAllowedForCurrentRole(viewName) ? viewName : fallbackView;
   if (appPanelEl) appPanelEl.dataset.activeView = resolvedView;
@@ -3646,6 +3864,347 @@ function applyView(viewName) {
   for (const link of pageNavLinks) {
     link.classList.toggle("active", link.getAttribute("data-view-link") === resolvedView && !link.classList.contains("hidden"));
   }
+}
+
+function parseQueryInput(value) {
+  const raw = String(value || "").trim().replace(/^\?/, "");
+  const params = new URLSearchParams();
+  if (!raw) return params;
+  for (const part of raw.split("&")) {
+    if (!part.trim()) continue;
+    const [key, ...rest] = part.split("=");
+    const cleanKey = decodeURIComponent(String(key || "").trim());
+    if (!cleanKey) continue;
+    params.append(cleanKey, decodeURIComponent(rest.join("=")));
+  }
+  return params;
+}
+
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function procoreFetchJson(url, options = {}) {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("Sign in with an admin or management account first.");
+  }
+  const idToken = await user.getIdToken();
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${idToken}`,
+      Accept: "application/json",
+    },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload.ok === false) {
+    const message = payload?.error?.message || payload?.message || response.statusText || "Procore request failed";
+    throw new Error(message);
+  }
+  return payload;
+}
+
+function procoreCompanyIdFromUi() {
+  const select = document.getElementById("procoreCompanySelect");
+  return String(select && select.value ? select.value : selectedProcoreProject?.company_id || "").trim();
+}
+
+function procoreProjectIdFromUi() {
+  const select = document.getElementById("procoreProjectSelect");
+  return String(select && select.value ? select.value : selectedProcoreProject?.project_id || "").trim();
+}
+
+function setProcoreSelectionMessage(message) {
+  const result = document.getElementById("procoreSelectionResult");
+  if (result) result.textContent = message;
+}
+
+function renderProcoreCompanyOptions(selectedCompanyId = "") {
+  const select = document.getElementById("procoreCompanySelect");
+  if (!select) return;
+  select.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = procoreCompaniesCache.length ? "Choose a company" : "Load companies first";
+  select.appendChild(placeholder);
+  for (const company of procoreCompaniesCache) {
+    const id = company && company.id != null ? String(company.id) : "";
+    if (!id) continue;
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = `${company.name || "Unnamed company"} (${id})`;
+    option.dataset.companyName = company.name || "";
+    select.appendChild(option);
+  }
+  if (selectedCompanyId) select.value = String(selectedCompanyId);
+}
+
+function renderProcoreProjectOptions(selectedProjectId = "") {
+  const select = document.getElementById("procoreProjectSelect");
+  if (!select) return;
+  select.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = procoreProjectsCache.length ? "Choose a project" : "Load projects first";
+  select.appendChild(placeholder);
+  for (const project of procoreProjectsCache) {
+    const id = project && project.id != null ? String(project.id) : "";
+    if (!id) continue;
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = `${project.name || project.display_name || "Unnamed project"} (${id})`;
+    option.dataset.projectName = project.name || project.display_name || "";
+    option.dataset.projectNumber = project.project_number || "";
+    select.appendChild(option);
+  }
+  if (selectedProjectId) select.value = String(selectedProjectId);
+}
+
+function selectedProcoreCompanyName() {
+  const select = document.getElementById("procoreCompanySelect");
+  const option = select && select.selectedOptions && select.selectedOptions[0];
+  return option ? option.dataset.companyName || option.textContent.replace(/\s+\([^)]*\)\s*$/, "") : "";
+}
+
+function selectedProcoreProjectDetails() {
+  const select = document.getElementById("procoreProjectSelect");
+  const option = select && select.selectedOptions && select.selectedOptions[0];
+  return {
+    id: procoreProjectIdFromUi(),
+    name: option ? option.dataset.projectName || option.textContent.replace(/\s+\([^)]*\)\s*$/, "") : "",
+    projectNumber: option ? option.dataset.projectNumber || "" : "",
+  };
+}
+
+async function loadProcoreSelection() {
+  const payload = await procoreFetchJson("/api/procore/selection");
+  selectedProcoreProject = payload.selected || null;
+  if (selectedProcoreProject) {
+    setProcoreSelectionMessage(
+      `Selected: ${selectedProcoreProject.company_name || selectedProcoreProject.company_id} / ${selectedProcoreProject.project_name || selectedProcoreProject.project_id}`
+    );
+  } else {
+    setProcoreSelectionMessage("No Procore project selected yet.");
+  }
+  return payload;
+}
+
+async function loadProcoreCompanies() {
+  setProcoreSelectionMessage("Loading Procore companies...");
+  const params = new URLSearchParams({ path: "/rest/v1.0/companies" });
+  const payload = await procoreFetchJson(`/api/procore/data?${params.toString()}`);
+  procoreCompaniesCache = Array.isArray(payload.data) ? payload.data : [];
+  renderProcoreCompanyOptions(selectedProcoreProject?.company_id || "");
+  setProcoreSelectionMessage(`Loaded ${procoreCompaniesCache.length} Procore companies.`);
+  return procoreCompaniesCache;
+}
+
+async function loadProcoreProjects() {
+  const companyId = procoreCompanyIdFromUi();
+  if (!companyId) {
+    setProcoreSelectionMessage("Choose a Procore company first.");
+    return [];
+  }
+  setProcoreSelectionMessage("Loading Procore projects...");
+  let params = new URLSearchParams({
+    path: "/rest/v1.1/projects",
+    company_id: companyId,
+  });
+  let payload;
+  try {
+    payload = await procoreFetchJson(`/api/procore/data?${params.toString()}`);
+  } catch (err) {
+    params = new URLSearchParams({
+      path: "/rest/v1.0/projects",
+      company_id: companyId,
+    });
+    try {
+      payload = await procoreFetchJson(`/api/procore/data?${params.toString()}`);
+    } catch (_) {
+      throw err;
+    }
+  }
+  procoreProjectsCache = Array.isArray(payload.data) ? payload.data : [];
+  renderProcoreProjectOptions(selectedProcoreProject?.project_id || "");
+  setProcoreSelectionMessage(`Loaded ${procoreProjectsCache.length} Procore projects.`);
+  return procoreProjectsCache;
+}
+
+async function saveProcoreSelection() {
+  const companyId = procoreCompanyIdFromUi();
+  const project = selectedProcoreProjectDetails();
+  if (!companyId || !project.id) {
+    setProcoreSelectionMessage("Choose both a Procore company and project before saving.");
+    return;
+  }
+  setProcoreSelectionMessage("Saving selected Procore project...");
+  const payload = await procoreFetchJson("/api/procore/selection", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      company_id: companyId,
+      company_name: selectedProcoreCompanyName(),
+      project_id: project.id,
+      project_name: project.name,
+      project_number: project.projectNumber,
+    }),
+  });
+  selectedProcoreProject = payload.selected || null;
+  setProcoreSelectionMessage(
+    `Saved: ${selectedProcoreProject?.company_name || companyId} / ${selectedProcoreProject?.project_name || project.id}`
+  );
+}
+
+async function fetchProcoreData() {
+  const pathInput = document.getElementById("procoreDataPath");
+  const queryInput = document.getElementById("procoreDataQuery");
+  const result = document.getElementById("procoreDataResult");
+  const output = document.getElementById("procoreJsonOutput");
+  if (!pathInput || !queryInput || !result || !output) return;
+  const path = String(pathInput.value || "").trim();
+  if (!path.startsWith("/rest/")) {
+    result.textContent = "Use a Procore REST path starting with /rest/.";
+    return;
+  }
+  result.textContent = "Fetching Procore data...";
+  output.textContent = "{}";
+  try {
+    const params = parseQueryInput(queryInput.value);
+    params.set("path", path);
+    const payload = await procoreFetchJson(`/api/procore/data?${params.toString()}`);
+    lastProcoreDataPayload = payload;
+    const pretty = JSON.stringify(payload, null, 2);
+    output.textContent = pretty;
+    result.textContent = `Loaded ${path}${pretty ? ` (${formatBytes(new Blob([pretty]).size)})` : ""}.`;
+  } catch (err) {
+    lastProcoreDataPayload = null;
+    result.textContent = `Failed: ${formatUiError(err)}`;
+  }
+}
+
+function downloadProcoreJson() {
+  const output = document.getElementById("procoreJsonOutput");
+  const pathInput = document.getElementById("procoreDataPath");
+  if (!output) return;
+  const body = output.textContent || JSON.stringify(lastProcoreDataPayload || {}, null, 2);
+  const safePath = String(pathInput?.value || "procore")
+    .replace(/^\/+/, "")
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase() || "procore";
+  const blob = new Blob([body], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${safePath}-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function initProcoreDataBrowser() {
+  const pathInput = document.getElementById("procoreDataPath");
+  const queryInput = document.getElementById("procoreDataQuery");
+  const fetchButton = document.getElementById("procoreFetchData");
+  const copyButton = document.getElementById("procoreCopyJson");
+  const downloadButton = document.getElementById("procoreDownloadJson");
+  const result = document.getElementById("procoreDataResult");
+  const output = document.getElementById("procoreJsonOutput");
+  const companySelect = document.getElementById("procoreCompanySelect");
+  const projectSelect = document.getElementById("procoreProjectSelect");
+  const loadCompaniesButton = document.getElementById("procoreLoadCompanies");
+  const loadProjectsButton = document.getElementById("procoreLoadProjects");
+  const saveSelectionButton = document.getElementById("procoreSaveSelection");
+  const connectButton = document.getElementById("procoreConnect");
+  if (!pathInput || !queryInput || !fetchButton || !copyButton || !downloadButton || !result || !output) return;
+
+  if (connectButton) {
+    connectButton.addEventListener("click", async () => {
+      try {
+        connectButton.disabled = true;
+        const payload = await procoreFetchJson("/api/procore/login?format=json");
+        if (!payload.authorization_url) throw new Error("Procore authorization URL was not returned.");
+        window.location.assign(payload.authorization_url);
+      } catch (err) {
+        setProcoreSelectionMessage(`Connect failed: ${formatUiError(err)}`);
+      } finally {
+        connectButton.disabled = false;
+      }
+    });
+  }
+
+  void loadProcoreSelection().catch((err) => {
+    setProcoreSelectionMessage(`Selection load failed: ${formatUiError(err)}`);
+  });
+  if (loadCompaniesButton) {
+    loadCompaniesButton.addEventListener("click", () => {
+      void loadProcoreCompanies().catch((err) => {
+        setProcoreSelectionMessage(`Failed: ${formatUiError(err)}`);
+      });
+    });
+  }
+  if (loadProjectsButton) {
+    loadProjectsButton.addEventListener("click", () => {
+      void loadProcoreProjects().catch((err) => {
+        setProcoreSelectionMessage(`Failed: ${formatUiError(err)}`);
+      });
+    });
+  }
+  if (saveSelectionButton) {
+    saveSelectionButton.addEventListener("click", () => {
+      void saveProcoreSelection().catch((err) => {
+        setProcoreSelectionMessage(`Failed: ${formatUiError(err)}`);
+      });
+    });
+  }
+  if (companySelect) {
+    companySelect.addEventListener("change", () => {
+      procoreProjectsCache = [];
+      renderProcoreProjectOptions("");
+      if (queryInput.value.includes("company_id=") || pathInput.value === "/rest/v1.1/projects") {
+        queryInput.value = companySelect.value ? `company_id=${companySelect.value}` : "";
+      }
+    });
+  }
+  if (projectSelect) {
+    projectSelect.addEventListener("change", () => {
+      const companyId = procoreCompanyIdFromUi();
+      const projectId = procoreProjectIdFromUi();
+      if (companyId && projectId && queryInput.value.includes("project_id=")) {
+        queryInput.value = `company_id=${companyId}&project_id=${projectId}`;
+      }
+    });
+  }
+
+  fetchButton.addEventListener("click", () => {
+    void fetchProcoreData();
+  });
+  for (const button of Array.from(document.querySelectorAll("[data-procore-preset]"))) {
+    button.addEventListener("click", () => {
+      pathInput.value = button.getAttribute("data-procore-preset") || "";
+      const queryPreset = button.getAttribute("data-procore-query") || "";
+      queryInput.value = queryPreset === "selected-company"
+        ? (procoreCompanyIdFromUi() ? `company_id=${procoreCompanyIdFromUi()}` : "")
+        : queryPreset;
+      void fetchProcoreData();
+    });
+  }
+  copyButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(output.textContent || "");
+      result.textContent = "Copied Procore JSON.";
+    } catch (err) {
+      result.textContent = `Copy failed: ${formatUiError(err)}`;
+    }
+  });
+  downloadButton.addEventListener("click", downloadProcoreJson);
 }
 
 function initNavigation() {
@@ -5558,6 +6117,120 @@ function formatAuthLabel(user) {
   return user.email || user.displayName || user.uid;
 }
 
+function setIosShortcutsUiState(data = {}) {
+  const enabled = data.enabled === true;
+  if (iosShortcutsEnabledEl) iosShortcutsEnabledEl.checked = enabled;
+  if (iosShortcutsStatusPillEl) {
+    iosShortcutsStatusPillEl.textContent = enabled ? "Enabled" : "Disabled";
+    iosShortcutsStatusPillEl.className = enabled ? "pill pill-user" : "pill pill-warn";
+  }
+  if (iosShortcutsWebhookUrlEl && data.webhookUrl) iosShortcutsWebhookUrlEl.value = data.webhookUrl;
+  if (iosShortcutsTokenEl && data.token) {
+    iosShortcutsTokenEl.type = "text";
+    iosShortcutsTokenEl.value = data.token;
+  } else if (iosShortcutsTokenEl && !iosShortcutsTokenEl.value) {
+    iosShortcutsTokenEl.type = "password";
+    iosShortcutsTokenEl.placeholder = data.tokenLast4
+      ? `Token saved ending in ${data.tokenLast4}. Regenerate to reveal a new token.`
+      : "Generate a token to reveal it once";
+  }
+  if (iosShortcutsResultEl) {
+    const phone = data.approvedPhoneE164 ? ` Approved phone: ${data.approvedPhoneE164}.` : "";
+    const token = data.token
+      ? " Copy the token now; it will not be shown again."
+      : data.tokenLast4
+        ? ` Token ending in ${data.tokenLast4} is stored.`
+        : " No token generated yet.";
+    iosShortcutsResultEl.textContent = `${enabled ? "Integration enabled." : "Integration disabled."}${phone}${token}`;
+    iosShortcutsResultEl.className = "project-manager-result muted small";
+  }
+}
+
+async function loadIosShortcutsIntegration() {
+  if (!iosShortcutsResultEl) return;
+  iosShortcutsResultEl.textContent = "Loading integration status.";
+  try {
+    const data = await callDashboardFunction("getIosShortcutsIntegrationCallable", {});
+    setIosShortcutsUiState(data);
+  } catch (err) {
+    iosShortcutsResultEl.textContent = `Could not load iOS Shortcuts integration: ${formatUiError(err)}`;
+    iosShortcutsResultEl.className = "project-manager-result err";
+    if (iosShortcutsStatusPillEl) {
+      iosShortcutsStatusPillEl.textContent = "Unavailable";
+      iosShortcutsStatusPillEl.className = "pill pill-warn";
+    }
+  }
+}
+
+function initIosShortcutsIntegration() {
+  if (iosShortcutsCopyUrlBtn) {
+    iosShortcutsCopyUrlBtn.addEventListener("click", async () => {
+      try {
+        await copyTextToClipboard(iosShortcutsWebhookUrlEl?.value || "");
+        if (iosShortcutsResultEl) iosShortcutsResultEl.textContent = "Webhook URL copied.";
+      } catch (err) {
+        if (iosShortcutsResultEl) iosShortcutsResultEl.textContent = `Copy failed: ${formatUiError(err)}`;
+      }
+    });
+  }
+  if (iosShortcutsCopyTokenBtn) {
+    iosShortcutsCopyTokenBtn.addEventListener("click", async () => {
+      try {
+        await copyTextToClipboard(iosShortcutsTokenEl?.value || "");
+        if (iosShortcutsResultEl) iosShortcutsResultEl.textContent = "Token copied.";
+      } catch (err) {
+        if (iosShortcutsResultEl) iosShortcutsResultEl.textContent = `Copy failed: ${formatUiError(err)}`;
+      }
+    });
+  }
+  const generate = async () => {
+    if (iosShortcutsResultEl) iosShortcutsResultEl.textContent = "Generating token.";
+    const data = await callDashboardFunction("generateIosShortcutsTokenCallable", {});
+    setIosShortcutsUiState(data);
+  };
+  if (iosShortcutsGenerateBtn) {
+    iosShortcutsGenerateBtn.addEventListener("click", async () => {
+      try {
+        await generate();
+      } catch (err) {
+        if (iosShortcutsResultEl) {
+          iosShortcutsResultEl.textContent = `Generate failed: ${formatUiError(err)}`;
+          iosShortcutsResultEl.className = "project-manager-result err";
+        }
+      }
+    });
+  }
+  if (iosShortcutsRegenerateBtn) {
+    iosShortcutsRegenerateBtn.addEventListener("click", async () => {
+      try {
+        await generate();
+      } catch (err) {
+        if (iosShortcutsResultEl) {
+          iosShortcutsResultEl.textContent = `Regenerate failed: ${formatUiError(err)}`;
+          iosShortcutsResultEl.className = "project-manager-result err";
+        }
+      }
+    });
+  }
+  if (iosShortcutsDisableBtn) {
+    iosShortcutsDisableBtn.addEventListener("click", async () => {
+      try {
+        const data = await callDashboardFunction("disableIosShortcutsIntegrationCallable", {});
+        if (iosShortcutsTokenEl) {
+          iosShortcutsTokenEl.value = "";
+          iosShortcutsTokenEl.type = "password";
+        }
+        setIosShortcutsUiState(data);
+      } catch (err) {
+        if (iosShortcutsResultEl) {
+          iosShortcutsResultEl.textContent = `Disable failed: ${formatUiError(err)}`;
+          iosShortcutsResultEl.className = "project-manager-result err";
+        }
+      }
+    });
+  }
+}
+
 function showSignedOutState() {
   currentAppAccess = null;
   stopAdminListeners();
@@ -5567,6 +6240,8 @@ function showSignedOutState() {
   if (authPanelEl) authPanelEl.classList.remove("hidden");
   if (appPanelEl) appPanelEl.classList.add("hidden");
   if (adminUserLabelEl) adminUserLabelEl.textContent = "-";
+  if (iosShortcutsTokenEl) iosShortcutsTokenEl.value = "";
+  if (iosShortcutsResultEl) iosShortcutsResultEl.textContent = "Sign in to manage iOS Shortcuts integration.";
   setStatusInfo("Sign in required", "Admin data stays locked until you authenticate.");
   applyView(currentRequestedView());
 }
@@ -5583,6 +6258,7 @@ async function showSignedInState(user) {
   const roleLabel = currentAppAccess && currentAppAccess.role ? String(currentAppAccess.role) : "user";
   setStatusInfo("Connecting...", `Access level: ${roleLabel}. Starting secure Firestore subscriptions.`);
   startAdminListeners();
+  await loadIosShortcutsIntegration();
 }
 
 function initAuthGate() {
@@ -5626,6 +6302,8 @@ initDailyPdfFromDashboard();
 initProjectManager();
 initMemberManager();
 initLabourPage();
+initProcoreDataBrowser();
+initIosShortcutsIntegration();
 initProjectNotesRequestForm();
 initApprovals();
 initHomeTodos();

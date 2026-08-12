@@ -76,6 +76,172 @@ test("buildDailyReportModel only promotes actionable items into the open items t
   assert.equal(rows[0][2], "tile crew");
 });
 
+test("buildDailyReportModel uses iOS Shortcut event time instead of server createdAt", () => {
+  const reportDateKey = "2026-07-09";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-07-09T19:02:12Z"),
+        shortcutEventAtIso: "2026-07-09T12:30:00Z",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "Left work.",
+        normalizedText: "Left work.",
+        shortcutTimezone: "America/Toronto",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-07-09T12:00:00Z"), reportDateKey }
+  );
+
+  assert.equal(model.unifiedAppendix[0].time, "8:30 AM EDT");
+});
+
+test("buildDailyReportModel converts shortcut UTC timestamp to local event timezone in summer", () => {
+  const reportDateKey = "2026-07-13";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-07-13T19:29:00Z"),
+        shortcutEventAtIso: "2026-07-13T19:29:00Z",
+        shortcutTimezone: "America/Toronto",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "Left work at end of day.",
+        normalizedText: "Left work at end of day.",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-07-13T12:00:00Z"), reportDateKey }
+  );
+
+  assert.equal(model.unifiedAppendix[0].time, "3:29 PM EDT");
+});
+
+test("buildDailyReportModel rewrites shortcut Event time text to local time", () => {
+  const reportDateKey = "2026-07-13";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-07-13T19:29:00Z"),
+        shortcutEventAtIso: "2026-07-13T19:29:00Z",
+        shortcutTimezone: "America/Toronto",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "iOS Shortcuts tracking event - Event time: 2026-07-13T19:29:00.000Z.",
+        summaryText: "iOS Shortcuts tracking event - Event time: 2026-07-13T19:29:00.000Z.",
+        normalizedText: "iOS Shortcuts tracking event - Event time: 2026-07-13T19:29:00.000Z.",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-07-13T12:00:00Z"), reportDateKey }
+  );
+
+  assert.match(model.unifiedAppendix[0].text, /Event time:\s*3:29 PM/);
+  assert.doesNotMatch(model.unifiedAppendix[0].text, /19:29/);
+});
+
+test("buildDailyReportModel rewrites shortcut non-ISO Event time text", () => {
+  const reportDateKey = "2026-07-13";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-07-13T19:29:00Z"),
+        shortcutEventAtIso: "2026-07-13T19:29:00Z",
+        shortcutTimezone: "America/Toronto",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "iOS Shortcuts tracking event - Event time: 7:29 PM EDT.",
+        normalizedText: "iOS Shortcuts tracking event - Event time: 7:29 PM EDT.",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-07-13T12:00:00Z"), reportDateKey }
+  );
+
+  assert.match(model.unifiedAppendix[0].text, /Event time:\s*3:29 PM/i);
+  assert.ok(!/7:29 PM EDT/i.test(model.unifiedAppendix[0].text));
+});
+
+test("buildDailyReportModel rewrites shortcut Time label to local time", () => {
+  const reportDateKey = "2026-07-13";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-07-13T19:29:00Z"),
+        shortcutEventAtIso: "2026-07-13T19:29:00Z",
+        shortcutTimezone: "America/Toronto",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "iOS Shortcuts tracking event - Time: 7:29 PM EDT.",
+        normalizedText: "iOS Shortcuts tracking event - Time: 7:29 PM EDT.",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-07-13T12:00:00Z"), reportDateKey }
+  );
+
+  assert.match(model.unifiedAppendix[0].text, /Time:\s*3:29 PM/i);
+  assert.ok(!/7:29 PM EDT/i.test(model.unifiedAppendix[0].text));
+});
+
+test("buildDailyReportModel includes shortcut location label when not present in text", () => {
+  const reportDateKey = "2026-07-13";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-07-13T19:29:00Z"),
+        shortcutEventAtIso: "2026-07-13T19:29:00Z",
+        shortcutTimezone: "America/Toronto",
+        shortcutLocationLabel: "Home office",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "Arrived at site.",
+        normalizedText: "Arrived at site.",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-07-13T12:00:00Z"), reportDateKey }
+  );
+
+  assert.match(model.unifiedAppendix[0].text, /Location:\s*Home office/i);
+});
+
+test("buildDailyReportModel converts shortcut UTC timestamp to local event timezone in winter", () => {
+  const reportDateKey = "2026-01-15";
+  const model = buildDailyReportModel(
+    [
+      {
+        id: "shortcut-1",
+        createdAt: ts("2026-01-15T19:29:00Z"),
+        shortcutEventAtIso: "2026-01-15T19:29:00Z",
+        shortcutTimezone: "America/Toronto",
+        source: "ios_shortcuts",
+        category: "note",
+        rawText: "Left work in winter.",
+        normalizedText: "Left work in winter.",
+        dailySummarySections: ["dayLog"],
+      },
+    ],
+    [],
+    { dayStart: new Date("2026-01-15T12:00:00Z"), reportDateKey }
+  );
+
+  assert.equal(model.unifiedAppendix[0].time, "2:29 PM EST");
+});
+
 test("buildJournalReportModel preserves chronological timeline order and links photos to entries", () => {
   const reportDateKey = "2026-04-18";
   const model = buildJournalReportModel(

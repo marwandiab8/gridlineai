@@ -117,6 +117,30 @@ test("project-scoped report includes legacy unassigned entry with explicit proje
   assert.equal(filtered[0].id, "legacy-1");
 });
 
+test("project report excludes unassigned iOS Shortcut tracking entries", () => {
+  const raw = [
+    entry("1", dock, "Roofing installing BSW blindside waterproofing at piers K-5.1", "journal"),
+    {
+      ...entry("shortcut-1", home, "iOS Shortcuts tracking event - Left work.", "note"),
+      source: "ios_shortcuts",
+      shortcutEventType: "leave_work",
+    },
+  ];
+  const filtered = filterLogEntriesForProjectDailyReport(raw, dock);
+  const ids = new Set(filtered.map((e) => e.id));
+  assert.equal(ids.has("1"), true);
+  assert.equal(ids.has("shortcut-1"), false);
+});
+
+test("project report keeps assigned iOS Shortcut entries in only their project", () => {
+  const raw = [
+    { ...entry("dock-event", dock, "iOS Shortcuts tracking event - Arrived.", "note"), source: "ios_shortcuts", shortcutEventType: "arrive_work" },
+    { ...entry("home-event", home, "iOS Shortcuts tracking event - Arrived home.", "note"), source: "ios_shortcuts", shortcutEventType: "arrive_home" },
+  ];
+  assert.deepEqual(filterLogEntriesForProjectDailyReport(raw, dock).map((e) => e.id), ["dock-event"]);
+  assert.deepEqual(filterLogEntriesForProjectDailyReport(raw, home).map((e) => e.id), ["home-event"]);
+});
+
 test("project-scoped report excludes entry explicitly labeled for another project", () => {
   const raw = [
     entry(

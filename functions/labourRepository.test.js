@@ -151,6 +151,47 @@ test("parseLabourHoursCommand parses hyphenated breakdowns with mixed hour and m
   );
 });
 
+test("parseLabourHoursCommand parses Shawn Jones's exact compact-hyphen breakdown", () => {
+  const originalExactMessage =
+    "8.5 hours -2.5 hrs site cleaning - 2 hrs relocating material -3 hrs unloading deliveries - 1 hr digging out gravel to expose footings for column install";
+  const parsed = parseLabourHoursCommand(originalExactMessage);
+
+  assert.deepEqual(parsed, {
+    hours: 8.5,
+    workOn:
+      "2.5h site cleaning - 2h relocating material - 3h unloading deliveries - 1h digging out gravel to expose footings for column install",
+    reportDateKey: null,
+    rawText: originalExactMessage,
+  });
+});
+
+test("parseLabourHoursCommand accepts compact and Unicode dash separators", () => {
+  const parsed = parseLabourHoursCommand(
+    "8.5 hours-2.5h site cleaning–2 hours relocating material—3 hrs unloading deliveries-1 hr exposing footings"
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.hours, 8.5);
+  assert.equal(
+    parsed.workOn,
+    "2.5h site cleaning - 2h relocating material - 3h unloading deliveries - 1h exposing footings"
+  );
+});
+
+test("parseLabourHoursCommand uses the complete compact breakdown when the declared total conflicts", () => {
+  const original =
+    "7 hours -2.5 hours site cleaning -2 h relocating material -3hrs unloading deliveries -1hr exposing footings";
+  const parsed = parseLabourHoursCommand(original);
+
+  assert.ok(parsed);
+  assert.equal(parsed.hours, 8.5);
+  assert.equal(
+    parsed.workOn,
+    "2.5h site cleaning - 2h relocating material - 3h unloading deliveries - 1h exposing footings"
+  );
+  assert.equal(parsed.rawText, original);
+});
+
 test("labour minute conversion stores fractional hours as int-safe minutes", () => {
   assert.equal(labourMinutesFromHours(11.5), 690);
   assert.equal(labourHoursFromStoredValue({ minutesWorked: 690 }), 11.5);
@@ -158,7 +199,6 @@ test("labour minute conversion stores fractional hours as int-safe minutes", () 
   const doc = buildLabourEntryDoc({
     labourerName: "Wael",
     labourerPhone: "+12898882780",
-    reportDateKey: "2026-05-12",
     hours: 11.5,
     workOn: "4h fast fence tow wall - 1h traffic control - 4h keeping - 2.5h general help",
   });

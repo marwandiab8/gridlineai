@@ -349,6 +349,14 @@ function entryHasNoProject(entry) {
   return !slug && !pid;
 }
 
+function isIosShortcutTrackingEntry(entry) {
+  return (
+    String(entry?.source || "").trim() === "ios_shortcuts" ||
+    String(entry?.shortcutEventId || "").trim() !== "" ||
+    String(entry?.shortcutEventType || "").trim() !== ""
+  );
+}
+
 /**
  * @param {object[]} entries already passed filterEntriesForDailySummary
  * @param {string|null} reportProjectSlug

@@ -15,6 +15,7 @@
     "sourceDocumentId": "REPORT_ID",
     "sourceDocumentPath": "dailyReports/REPORT_ID",
     "sourceStoragePath": "dailyReports/report.pdf",
+    "addedAt": "2028-07-25T11:30:00.000Z",
     "visibility": "ownerOnly",
     "metadata": {
       "source": "gridlineai"

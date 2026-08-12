@@ -1324,6 +1324,25 @@ async function renderJournalPdf(opts) {
 
   const renderedPhotoIds = new Set();
   const timelineRows = Array.isArray(model.timeline) ? model.timeline : [];
+  const trackedActivityRows = timelineRows.filter((row) => {
+    const entry = model && model.entryById instanceof Map
+      ? model.entryById.get(String(row.entryId || ""))
+      : null;
+    if (/^auto log\s*:/i.test(String(row.text || "").trim())) return false;
+    return (
+      String(entry && entry.source || "").trim() === "ios_shortcuts" ||
+      String(entry && entry.shortcutEventType || "").trim() !== "" ||
+      /iOS Shortcuts|iPhone tracking|tracking event|via iPhone/i.test(String(row.text || ""))
+    );
+  });
+  if (trackedActivityRows.length) {
+    drawSectionTitle("Tracked Activity");
+    drawBullets(
+      trackedActivityRows.map((row) => `${row.time ? `${row.time} - ` : ""}${row.text || ""}`),
+      C.body
+    );
+  }
+
   if (timelineRows.length) {
     drawSectionTitle("Chronological Journal");
     for (const row of timelineRows) {

@@ -35,6 +35,7 @@ const {
   loadLogEntriesForDayForProject,
   loadTodayLogEntriesForProject,
   formatGroupedDayLog,
+  lineText,
   formatRollupByReportSections,
   maybeEnhanceLogEntry,
   appendLinkedMediaIds,
@@ -3335,7 +3336,7 @@ async function buildDayRollup(
     const bundle = entries
       .map((e) => {
         const secs = (e.dailySummarySections || ["dayLog"]).join(",");
-        const body = e.normalizedText || e.rawText || "";
+        const body = lineText(e);
         return `[category=${e.category || "journal"}; sections=${secs}] ${body}`;
       })
       .join("\n")

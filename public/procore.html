@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Procore Connection</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .procore-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .procore-kv {
+        display: grid;
+        grid-template-columns: minmax(120px, 180px) 1fr;
+        gap: 8px 14px;
+        margin-top: 12px;
+      }
+      .procore-kv dt {
+        color: #9aa0a6;
+      }
+      .procore-kv dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .procore-error {
+        border-color: #7f3434;
+        background: #2a1719;
+      }
+      .procore-json {
+        max-height: 280px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="hero">
+        <div class="brand-lockup">
+          <img src="./apple-touch-icon.png" alt="K2 logo" class="brand-lockup-logo" />
+        </div>
+        <h1>Procore</h1>
+        <p class="muted">Connect Procore and verify the company and project ids.</p>
+      </section>
+
+      <section class="card">
+        <h2>Connection</h2>
+        <p id="procoreSummary" class="muted">Checking Procore status...</p>
+        <div class="procore-actions">
+          <a class="btn-primary quick-link" href="/">Sign in to connect Procore</a>
+          <button type="button" id="testProcore" class="btn-secondary">Test Procore Connection</button>
+          <a class="btn-secondary quick-link" href="/">Back to admin</a>
+        </div>
+      </section>
+
+      <section id="procoreErrorCard" class="card procore-error hidden">
+        <h2>Connection error</h2>
+        <p id="procoreError"></p>
+      </section>
+
+      <section class="card">
+        <h2>Status</h2>
+        <dl class="procore-kv">
+          <dt>Connected</dt>
+          <dd id="connectedValue">-</dd>
+          <dt>User</dt>
+          <dd id="userValue">-</dd>
+          <dt>Company ID</dt>
+          <dd id="companyValue">-</dd>
+          <dt>Project</dt>
+          <dd id="projectValue">-</dd>
+          <dt>Project ID</dt>
+          <dd id="projectIdValue">-</dd>
+          <dt>Project Number</dt>
+          <dd id="projectNumberValue">-</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Companies found</h2>
+        <div id="companiesValue" class="scroll-list"></div>
+      </section>
+
+      <section class="card">
+        <h2>Raw safe response</h2>
+        <pre id="rawValue" class="procore-json muted"></pre>
+      </section>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function friendlyError(data, status) {
+        const text = String(data && data.message ? data.message : "").toLowerCase();
+        if (text.includes("redirect") || text.includes("uri")) {
+          return "Redirect URI mismatch. Add this site's /callback URL to the matching Procore OAuth credentials.";
+        }
+        if (text.includes("client")) {
+          return "Invalid Procore client settings. Check the client id and client secret in the server env file.";
+        }
+        if (status === 401 || data.error === "unauthorized" || data.error === "not-connected") {
+          return data.message || "Procore is not connected. Connect Procore again.";
+        }
+        if (status === 403 || data.error === "forbidden") {
+          return "Forbidden by Procore. Check that the Procore app is installed and has permission for this company/project.";
+        }
+        if (status === 404 || data.error === "not-found") {
+          return "Procore endpoint, company id, or project id was not found. Confirm the company id.";
+        }
+        return data.message || "Procore connection test failed.";
+      }
+
+      function setText(id, value) {
+        $(id).textContent = value == null || value === "" ? "-" : String(value);
+      }
+
+      function render(data, status) {
+        $("rawValue").textContent = JSON.stringify(data, null, 2);
+        const connected = data && data.connected === true;
+        setText("connectedValue", connected ? "Yes" : "No");
+        setText("companyValue", data && data.company_id);
+        const me = data && data.me ? data.me : {};
+        setText("userValue", me.name || me.email || me.login || me.id);
+        const project = data && data.project ? data.project : {};
+        setText("projectValue", project.name);
+        setText("projectIdValue", project.id);
+        setText("projectNumberValue", project.project_number);
+        $("companiesValue").innerHTML = "";
+        const companies = Array.isArray(data && data.companies_found) ? data.companies_found : [];
+        if (companies.length) {
+          for (const company of companies) {
+            const row = document.createElement("div");
+            row.className = "media-group-head";
+            row.textContent = `${company.name || "Unnamed company"} (${company.id || "no id"})`;
+            $("companiesValue").appendChild(row);
+          }
+        } else {
+          $("companiesValue").textContent = "No companies returned yet.";
+        }
+
+        const isError = status >= 400 || (data && data.ok === false);
+        $("procoreErrorCard").classList.toggle("hidden", !isError);
+        $("procoreError").textContent = isError ? friendlyError(data || {}, status) : "";
+        $("procoreSummary").textContent = connected
+          ? "Procore is connected."
+          : data.message || "Procore is not connected yet.";
+      }
+
+      async function loadStatus() {
+        $("procoreSummary").textContent = "Checking Procore status...";
+        try {
+          const response = await fetch("/api/procore/status", {
+            method: "GET",
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+          });
+          const data = await response.json();
+          render(data, response.status);
+        } catch (err) {
+          render({ connected: false, ok: false, message: err.message }, 500);
+        }
+      }
+
+      $("testProcore").addEventListener("click", loadStatus);
+      loadStatus();
+    </script>
+  </body>
+</html>

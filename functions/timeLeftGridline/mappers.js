@@ -36,6 +36,7 @@ function commonFields(record, options) {
     sourceDocumentPath: options.path || "",
     sourceStoragePath: record.storagePath || null,
     sourceUrl: options.sourceUrl || "",
+    addedAt: toIsoTimestamp(record.addedAt || record.createdAt),
     originalCreatedAt: toIsoTimestamp(record.createdAt),
     originalUpdatedAt: toIsoTimestamp(record.updatedAt),
     capturedAt: toIsoTimestamp(record.capturedAt || record.takenAt || record.occurredAt || record.reportDate || record.dateKey),

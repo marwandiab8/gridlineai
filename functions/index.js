@@ -95,6 +95,23 @@ const {
   normalizePdfPushSettings,
   resolveAppBaseUrl,
 } = require("./reportPushConfig");
+const { createProcoreHandlers } = require("./procore/routes");
+const {
+  generateShortcutToken,
+  hashShortcutToken,
+  handleShortcutEventRequest,
+  tokenLast4,
+} = require("./iosShortcutsIntegration");
+const {
+  createTimeLeftDeliveryRepository,
+} = require("./timeLeftDeliveryRepository");
+const { createTimeLeftLifeEventDelivery } = require("./timeLeftLifeEventDelivery");
+const { mapShortcutEventToTimeLeftLifeEvent } = require("./timeLeftLifeEventMapper");
+const {
+  readTimeLeftLifeEventConfigFromEnv,
+  requireValidTimeLeftLifeEventConfig,
+} = require("./timeLeftLifeEventConfig");
+const { createTimeLeftLifeEventClient } = require("./timeLeftLifeEventClient");
 
 const COL_APP_MEMBERS = "appMembers";
 const COL_PROJECT_NOTE_EDIT_REQUESTS = "projectNoteEditRequests";
@@ -131,6 +148,29 @@ const APP_BASE_URL = defineString("APP_BASE_URL", {
 const MESSAGE_SCHEMA_VERSION = 3;
 const AUDIO_REVIEW_CONFIRM_RE = /^(?:send|use(?:\s+it)?|confirm|yes|y|ok|okay|submit|save)$/i;
 const AUDIO_REVIEW_CANCEL_RE = /^(?:cancel|discard|ignore|stop)$/i;
+
+function buildIosShortcutTimeLeftDeliveryService({ db, FieldValue, logger }) {
+  try {
+    const config = requireValidTimeLeftLifeEventConfig(
+      readTimeLeftLifeEventConfigFromEnv(process.env)
+    );
+    const repository = createTimeLeftDeliveryRepository({ db, FieldValue });
+    const client = createTimeLeftLifeEventClient(config, { logger });
+    return createTimeLeftLifeEventDelivery({
+      mapper: mapShortcutEventToTimeLeftLifeEvent,
+      client,
+      repository,
+      logger,
+    });
+  } catch (error) {
+    if (logger && typeof logger.warn === "function") {
+      logger.warn("iosShortcutsEvents: TimeLeftToLive delivery disabled", {
+        reason: error && error.message ? error.message : "invalid configuration",
+      });
+    }
+    return null;
+  }
+}
 
 function normalizeTodoStatus(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -466,11 +506,41 @@ try {
 }
 admin.initializeApp({ storageBucket });
 const db = admin.firestore();
+async function authorizeProcoreDataRequest(req) {
+  const header = String(req.get("Authorization") || req.get("authorization") || "").trim();
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    const err = new Error("Sign in required to read Procore data.");
+    err.status = 401;
+    err.code = "unauthenticated";
+    throw err;
+  }
+  const decoded = await admin.auth().verifyIdToken(match[1].trim());
+  const access = await getAppAccess(db, {
+    auth: {
+      uid: decoded.uid,
+      token: decoded,
+    },
+  });
+  if (!roleAtLeast(access.role, "management")) {
+    const err = new Error("Management access is required to read Procore data.");
+    err.status = 403;
+    err.code = "permission-denied";
+    throw err;
+  }
+  return access;
+}
+const procoreHandlers = createProcoreHandlers({
+  db,
+  logger,
+  authorizeRequest: authorizeProcoreDataRequest,
+});
 
 const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
 const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
 const TWILIO_PHONE_NUMBER = defineSecret("TWILIO_PHONE_NUMBER");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+const PROCORE_CLIENT_SECRET = defineSecret("PROCORE_CLIENT_SECRET");
 const COL_VOICE_MESSAGE_QUEUE = "voiceMessageProcessingQueue";
 const COL_AUDIO_MESSAGE_QUEUE = "audioMessageProcessingQueue";
 
@@ -1112,6 +1182,33 @@ function currentEasternTimeKey(date = new Date()) {
 
 function resolveConfiguredAppBaseUrl() {
   return resolveAppBaseUrl(admin.app().options.projectId || "", APP_BASE_URL.value());
+}
+
+function buildIosShortcutsWebhookUrl() {
+  const base =
+    resolveConfiguredAppBaseUrl() ||
+    (String(process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || "").trim()
+      ? `https://${String(process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT).trim()}.web.app`
+      : "");
+  return base ? `${base.replace(/\/+$/, "")}/api/integrations/ios-shortcuts/events` : "";
+}
+
+async function getActiveShortcutMemberRef(access) {
+  const email = normalizeEmail(access && access.email);
+  if (!email) {
+    throw new HttpsError("unauthenticated", "Sign in to manage iOS Shortcuts integration.");
+  }
+  const ref = db.collection(COL_APP_MEMBERS).doc(email);
+  const snap = await ref.get();
+  if (!snap.exists || (snap.data() || {}).active === false) {
+    throw new HttpsError("permission-denied", "Your app member profile is not active.");
+  }
+  const data = snap.data() || {};
+  const approvedPhoneE164 = normalizePhoneE164(String(data.approvedPhoneE164 || "").trim());
+  if (!approvedPhoneE164) {
+    throw new HttpsError("failed-precondition", "Add an approved phone number to your app member profile first.");
+  }
+  return { ref, data, email, approvedPhoneE164 };
 }
 
 function getPublicFunctionBaseUrl(exportName) {
@@ -6334,6 +6431,89 @@ exports.dailyReportDownload = onRequest(
   }
 );
 
+exports.procoreLogin = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    secrets: [PROCORE_CLIENT_SECRET],
+  },
+  procoreHandlers.login
+);
+
+exports.procoreCallback = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    secrets: [PROCORE_CLIENT_SECRET],
+  },
+  procoreHandlers.callback
+);
+
+exports.procoreStatus = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    secrets: [PROCORE_CLIENT_SECRET],
+  },
+  procoreHandlers.status
+);
+
+exports.procoreData = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    secrets: [PROCORE_CLIENT_SECRET],
+  },
+  procoreHandlers.data
+);
+
+exports.procoreSelection = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    secrets: [PROCORE_CLIENT_SECRET],
+  },
+  procoreHandlers.selection
+);
+
+const iosShortcutTimeLeftDelivery = buildIosShortcutTimeLeftDeliveryService({
+  db,
+  FieldValue,
+  logger,
+});
+
+exports.iosShortcutsEvents = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    cors: true,
+    secrets: [OPENAI_API_KEY],
+  },
+  async (req, res) =>
+    handleShortcutEventRequest({
+      db,
+      FieldValue,
+      req,
+      res,
+      logger,
+      processAssistantMessage,
+      openaiKey: OPENAI_API_KEY.value() || null,
+      timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
+    })
+);
+
 exports.sendAssistantMessageHttp = onRequest(
   {
     region: "northamerica-northeast1",
@@ -6576,6 +6756,111 @@ exports.getDashboardAccessCallable = onCall(
       allProjects: access.allProjects === true,
       canApproveNotes: access.canApproveNotes === true,
       via: access.via || null,
+    };
+  }
+);
+
+exports.getIosShortcutsIntegrationCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    const member = await getActiveShortcutMemberRef(access);
+    const integration = member.data.shortcutIntegration || {};
+    return {
+      ok: true,
+      enabled: integration.enabled === true,
+      webhookUrl: buildIosShortcutsWebhookUrl(),
+      tokenCreatedAt: integration.tokenCreatedAt || null,
+      tokenUpdatedAt: integration.tokenUpdatedAt || null,
+      tokenLast4: integration.tokenLast4 || null,
+      approvedPhoneE164: member.approvedPhoneE164,
+      supportedEventTypes: [
+        "arrive_work",
+        "leave_work",
+        "arrive_home",
+        "leave_home",
+        "arrive_gym",
+        "leave_gym",
+        "start_workout",
+        "finish_workout",
+        "start_spotify",
+        "arrive_location",
+        "leave_location",
+      ],
+    };
+  }
+);
+
+exports.generateIosShortcutsTokenCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    const member = await getActiveShortcutMemberRef(access);
+    const token = generateShortcutToken();
+    const existing = member.data.shortcutIntegration || {};
+    await member.ref.set(
+      {
+        shortcutIntegration: {
+          enabled: true,
+          tokenHash: hashShortcutToken(token),
+          tokenLast4: tokenLast4(token),
+          tokenCreatedAt: existing.tokenCreatedAt || FieldValue.serverTimestamp(),
+          tokenUpdatedAt: FieldValue.serverTimestamp(),
+          tokenDisabledAt: FieldValue.delete(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return {
+      ok: true,
+      enabled: true,
+      token,
+      tokenLast4: tokenLast4(token),
+      webhookUrl: buildIosShortcutsWebhookUrl(),
+      approvedPhoneE164: member.approvedPhoneE164,
+    };
+  }
+);
+
+exports.disableIosShortcutsIntegrationCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    const member = await getActiveShortcutMemberRef(access);
+    await member.ref.set(
+      {
+        shortcutIntegration: {
+          enabled: false,
+          tokenHash: FieldValue.delete(),
+          tokenLast4: FieldValue.delete(),
+          tokenUpdatedAt: FieldValue.serverTimestamp(),
+          tokenDisabledAt: FieldValue.serverTimestamp(),
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return {
+      ok: true,
+      enabled: false,
+      webhookUrl: buildIosShortcutsWebhookUrl(),
+      approvedPhoneE164: member.approvedPhoneE164,
     };
   }
 );

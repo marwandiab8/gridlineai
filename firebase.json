@@ -11,10 +11,64 @@
     ],
     "rewrites": [
       {
+        "source": "/api/procore/login",
+        "function": {
+          "functionId": "procoreLogin",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/api/procore/status",
+        "function": {
+          "functionId": "procoreStatus",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/api/procore/data",
+        "function": {
+          "functionId": "procoreData",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/api/procore/selection",
+        "function": {
+          "functionId": "procoreSelection",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/api/integrations/ios-shortcuts/events",
+        "function": {
+          "functionId": "iosShortcutsEvents",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/callback",
+        "function": {
+          "functionId": "procoreCallback",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/procore",
+        "destination": "/procore.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
     ]
+  },
+  "emulators": {
+    "hosting": {
+      "port": 3000
+    },
+    "functions": {
+      "port": 5001
+    }
   },
   "firestore": {
     "rules": "firestore.rules",

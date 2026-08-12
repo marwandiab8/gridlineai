@@ -26,8 +26,54 @@ const {
 } = require("./dailyReportIntegrity");
 const { normalizeReportLineText } = require("./dailyReportBulkText");
 
+function isShortcutSourceEntry(e) {
+  return String((e && e.source) || "").trim() === "ios_shortcuts";
+}
+
+function shortcutEventLocationLabel(entry) {
+  if (!entry) return "";
+  return String(
+    entry.shortcutLocationLabel ||
+      entry.shortcutLocation ||
+      entry.locationLabel ||
+      entry.location ||
+      ""
+  ).trim();
+}
+
+function appendShortcutLocationToLine(baseLine, entry) {
+  const normalized = String(baseLine || "").trim();
+  const locationLabel = shortcutEventLocationLabel(entry);
+  if (!locationLabel) return normalized;
+  if (/\bLocation:\s*/i.test(normalized)) return normalized;
+  return `${normalized}${normalized && !/[.!?]$/.test(normalized) ? "." : ""} Location: ${locationLabel}.`;
+}
+
+function shortcutEventTimeLabel(entry) {
+  if (!entry) return "";
+  const tz = entryDisplayTimeZone(entry);
+  return fmtTimeShort(entryDisplayTimestamp(entry), { timeZone: tz });
+}
+
+function normalizeShortcutEventLineText(rawText, entry) {
+  if (!rawText) return "";
+  if (!isShortcutSourceEntry(entry)) return String(rawText).trim();
+  const localTime = shortcutEventTimeLabel(entry);
+  if (!localTime) return String(rawText).trim();
+  const withTime = String(rawText)
+    .replace(/\bEvent time:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-Z]+\b/gi, `Event time: ${localTime}`)
+    .replace(/\b(?<!Event )Time:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-Z]+\b/gi, `Time: ${localTime}`)
+    .replace(/\bEvent time:\s*[^.;\n]+/gi, `Event time: ${localTime}`)
+    .replace(/\b(?<!Event )Time:\s*[^.;\n]+/gi, `Time: ${localTime}`)
+    .trim();
+  return appendShortcutLocationToLine(withTime, entry);
+}
+
 function lineText(e) {
-  return (e.summaryText || e.normalizedText || e.rawText || "").trim();
+  const rawLine = isShortcutSourceEntry(e)
+    ? e.normalizedText || e.rawText || ""
+    : e.summaryText || e.normalizedText || e.rawText || "";
+  return normalizeShortcutEventLineText(rawLine, e);
 }
 
 function mediaContentTypeLooksImage(value) {
@@ -118,24 +164,68 @@ function reportLineText(e, reportDateKey) {
   return stripReportFiller(normalizeReportLineText(raw, reportDateKey));
 }
 
-function fmtTimeShort(ts) {
+function isValidIanaTimeZone(value) {
+  const tz = String(value || "").trim();
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function normalizeReportTimeZone(value) {
+  return isValidIanaTimeZone(value) ? String(value).trim() : DAILY_REPORT_TIME_ZONE;
+}
+
+function entryDisplayTimeZone(entry, fallbackTimeZone = DAILY_REPORT_TIME_ZONE) {
+  return normalizeReportTimeZone(
+    (entry && (entry.shortcutTimezone || entry.timezone)) || fallbackTimeZone || DAILY_REPORT_TIME_ZONE
+  );
+}
+
+function parseReportTimestamp(ts) {
+  if (ts == null) return null;
+  try {
+    if (ts.toDate) return ts.toDate();
+    if (ts.seconds) return new Date(ts.seconds * 1000);
+    if (ts instanceof Date) return ts;
+    if (typeof ts === "string" || typeof ts === "number") {
+      const d = new Date(ts);
+      return Number.isFinite(d.getTime()) ? d : null;
+    }
+  } catch (_) {
+    return null;
+  }
+  return null;
+}
+
+function fmtTimeShort(ts, options = {}) {
   if (!ts) return "";
   try {
-    let d;
-    if (ts.toDate) d = ts.toDate();
-    else if (ts.seconds) d = new Date(ts.seconds * 1000);
-    else return "";
+    const d = parseReportTimestamp(ts);
+    if (!d) return "";
+    if (!Number.isFinite(d.getTime())) return "";
     return (
       new Intl.DateTimeFormat("en-US", {
-        timeZone: DAILY_REPORT_TIME_ZONE,
+        timeZone: normalizeReportTimeZone(options.timeZone || DAILY_REPORT_TIME_ZONE),
         hour: "numeric",
         minute: "2-digit",
         hour12: true,
-      }).format(d) + " ET"
+        timeZoneName: "short",
+      }).format(d)
     );
   } catch (_) {
     return "";
   }
+}
+
+function entryDisplayTimestamp(e) {
+  if (!e) return null;
+  if (e.shortcutEventAtIso) return e.shortcutEventAtIso;
+  if (Number.isFinite(Number(e.shortcutEventAtMs))) return Number(e.shortcutEventAtMs);
+  return e.createdAt || null;
 }
 
 /** Always 7 rows: week starting Eastern calendar day of `dayStart` (best-effort horizon). */
@@ -208,7 +298,7 @@ function formatReportBundleForAi(entries, reportDateKey) {
     .map((e, i) => {
       const body = reportDateKey ? reportLineText(e, reportDateKey) : lineText(e);
       const secs = (e.dailySummarySections || ["dayLog"]).join(",");
-      const tm = fmtTimeShort(e.createdAt);
+      const tm = fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) });
       return `[#${i + 1}] ${tm} [category=${e.category || "journal"}; sections=${secs}] ${body}`;
     })
     .join("\n")
@@ -900,7 +990,7 @@ function groupWorkByTrade(entries, reportDateKey) {
     groups[trade].push({
       id: e.id,
       text: raw,
-      createdAt: e.createdAt,
+      createdAt: entryDisplayTimestamp(e),
       authorLabel: entryAuthorLabel(e),
     });
   }
@@ -969,6 +1059,11 @@ function chunkEntriesWithPhotos(entries, byEntry, reportDateKey) {
 
 function entryTimeMs(e) {
   try {
+    if (e.shortcutEventAtIso) {
+      const ms = new Date(e.shortcutEventAtIso).getTime();
+      if (Number.isFinite(ms)) return ms;
+    }
+    if (Number.isFinite(Number(e.shortcutEventAtMs))) return Number(e.shortcutEventAtMs);
     if (e.createdAt && e.createdAt.toDate) return e.createdAt.toDate().getTime();
     if (e.createdAt && e.createdAt.seconds) return e.createdAt.seconds * 1000;
   } catch (_) {}
@@ -1007,7 +1102,7 @@ function buildDailyReportModel(logEntriesRaw, mediaDocs, options = {}) {
 
   const unifiedAppendix = entries.map((e, i) => ({
     num: i + 1,
-    time: fmtTimeShort(e.createdAt),
+    time: fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) }),
     authorLabel: entryAuthorLabel(e),
     category: e.category || "journal",
     text: reportLineText(e, reportDateKey),
@@ -1466,7 +1561,7 @@ function formatJournalBundleForAi(entries, reportDateKey, options = {}) {
   const lines = list
     .map((e, i) => {
       const body = reportDateKey ? reportLineText(e, reportDateKey) : lineText(e);
-      const tm = fmtTimeShort(e.createdAt);
+      const tm = fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) });
       const author = sanitizeJournalMetaValue(entryAuthorLabel(e, authorLabelsByIdentity));
       return `[#${i + 1}] ${tm} [author=${author}; category=${e.category || "journal"}] ${body}`;
     })
@@ -1499,7 +1594,7 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
   const timeline = entries
     .map((e) => ({
       entryId: e.id,
-      time: fmtTimeShort(e.createdAt),
+      time: fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) }),
       authorLabel: entryAuthorLabel(e, authorLabelsByIdentity),
       text: reportDateKey ? reportLineText(e, reportDateKey) : lineText(e),
       photos: byEntry.get(String(e.id)) || [],

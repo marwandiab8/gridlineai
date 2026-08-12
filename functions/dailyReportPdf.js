@@ -334,7 +334,7 @@ function filterJournalMediaForReport(mediaDocs, entryIdSetOrEntries, projectKey,
         : m && m.projectSlug != null && String(m.projectSlug).trim() !== ""
           ? String(m.projectSlug).trim()
           : null;
-    return mediaProject === wantProject || mediaProject === "_unassigned";
+    return mediaProject === wantProject;
   });
 }
 
@@ -368,6 +368,65 @@ const {
   renderDailySiteLogPdf,
   renderJournalPdf,
 } = require("./dailyPdfReportBuilder");
+
+function mergeUniqueTextLines(primary, secondary, limit = 10) {
+  const out = [];
+  const seen = new Set();
+  for (const value of [...(primary || []), ...(secondary || [])]) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function journalShortcutMoments(model) {
+  const entryById = model && model.entryById instanceof Map ? model.entryById : new Map();
+  return (Array.isArray(model && model.timeline) ? model.timeline : [])
+    .filter((row) => {
+      const entry = entryById.get(String(row.entryId || ""));
+      if (/^auto log\s*:/i.test(String(row.text || "").trim())) return false;
+      return (
+        String(entry && entry.source || "").trim() === "ios_shortcuts" ||
+        String(entry && entry.shortcutEventType || "").trim() ||
+        /iOS Shortcuts tracking event/i.test(String(row.text || ""))
+      );
+    })
+    .map((row) => {
+      const stamp = row.time ? `${row.time} - ` : "";
+      return `${stamp}${row.text || ""}`.trim();
+    })
+    .filter(Boolean);
+}
+
+function safeReportPreview(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone]")
+    .trim()
+    .slice(0, 140);
+}
+
+function journalTimelineAuditRows(model) {
+  const entryById = model && model.entryById instanceof Map ? model.entryById : new Map();
+  return (Array.isArray(model && model.timeline) ? model.timeline : []).map((row) => {
+    const entry = entryById.get(String(row.entryId || "")) || {};
+    return {
+      id: String(row.entryId || "").slice(0, 32),
+      source: String(entry.source || "").slice(0, 32),
+      shortcutEventType: String(entry.shortcutEventType || "").slice(0, 40),
+      projectSlug: String(entry.projectSlug || "").slice(0, 80),
+      dateKey: String(entry.dateKey || entry.reportDateKey || "").slice(0, 20),
+      time: String(row.time || "").slice(0, 32),
+      preview: safeReportPreview(row.text),
+    };
+  });
+}
 const {
   filterLogEntriesForProjectDailyReport,
   filterMediaForProjectDailyReport,
@@ -641,6 +700,20 @@ async function generateDailyReportPdf(opts) {
   if (reportType === "journal") {
     const logEntries = filterEntriesForDailySummary(logEntriesRaw);
     curatedEntries = filterEntriesForJournalReport(logEntries, dk);
+    if (logger) {
+      const isShortcut = (e) =>
+        String(e && e.source || "").trim() === "ios_shortcuts" ||
+        String(e && e.shortcutEventType || "").trim() !== "";
+      logger.info("dailyReportPdf: after journal filters", {
+        runId,
+        projectKey,
+        dk,
+        afterSummary: logEntries.length,
+        curatedEntries: curatedEntries.length,
+        shortcutRaw: (logEntriesRaw || []).filter(isShortcut).length,
+        shortcutCurated: (curatedEntries || []).filter(isShortcut).length,
+      });
+    }
     const journalMediaEntryIds = new Set(
       (logEntriesRaw || [])
         .map((e) => (e && e.id != null ? String(e.id) : ""))
@@ -694,6 +767,18 @@ async function generateDailyReportPdf(opts) {
           reflections: model.deterministic.reflections,
           closingNote: model.deterministic.closingNote,
         };
+    merged.keyMoments = mergeUniqueTextLines(journalShortcutMoments(model), merged.keyMoments, 12);
+    if (logger) {
+      logger.info("dailyReportPdf: journal shortcut moments", {
+        runId,
+        shortcutMoments: journalShortcutMoments(model).length,
+        keyMoments: Array.isArray(merged.keyMoments) ? merged.keyMoments.length : 0,
+      });
+      logger.info("dailyReportPdf: journal timeline audit", {
+        runId,
+        rows: journalTimelineAuditRows(model),
+      });
+    }
 
     const titleDate = formatCoverDateEastern(dayStart);
     const journalScopeLabel = resolvedProjectName || projectKey || "Personal journal";

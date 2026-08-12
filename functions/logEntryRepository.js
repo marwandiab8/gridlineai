@@ -9,6 +9,7 @@ const {
   startOfEasternDayForDateKey,
   addCalendarDaysToDateKey,
   extractExplicitReportDate,
+  DAILY_REPORT_TIME_ZONE,
 } = require("./logClassifier");
 const {
   completionText,
@@ -161,6 +162,28 @@ async function loadLegacyBackdatedLogEntriesForProjectDay(db, dateKey, projectSl
   ]);
   const chunks = await Promise.all(pairs.map(([field, v]) => runLegacyQuery(field, v)));
   return dedupeEntries(chunks.flat());
+}
+
+async function loadIosShortcutLogEntriesForReportDay(db, dateKey) {
+  const dk = dateKey || dateKeyEastern(new Date());
+  const snap = await db
+    .collection(COL)
+    .where("dateKey", "==", dk)
+    .limit(800)
+    .get()
+    .catch((err) => {
+      logFirestoreQueryError(`logEntryRepository:iosShortcuts:${dk}:projectDay`, err);
+      return null;
+    });
+  if (!snap) return [];
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((e) => String(e.source || "").trim() === "ios_shortcuts")
+    .sort((a, b) => {
+      const av = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+      const bv = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+      return av - bv;
+    });
 }
 
 async function writeLogEntry(db, FieldValue, input) {
@@ -355,7 +378,8 @@ async function loadLogEntriesForProjectDay(db, dateKey, projectSlug) {
   const chunks = await Promise.all(pairs.map(([field, v]) => runExact(field, v)));
   const exactRows = dedupeEntries(chunks.flat());
   const legacyRows = await loadLegacyBackdatedLogEntriesForProjectDay(db, dk, projectSlug);
-  return dedupeEntries([...exactRows, ...legacyRows]);
+  const shortcutRows = await loadIosShortcutLogEntriesForReportDay(db, dk);
+  return dedupeEntries([...exactRows, ...legacyRows, ...shortcutRows]);
 }
 
 async function loadTodayLogEntries(db, phoneE164) {
@@ -373,8 +397,98 @@ async function loadTodayLogEntriesForProject(db, phoneE164, projectSlug) {
   return filterEntriesForDailySummary(rows);
 }
 
+function isShortcutSourceEntry(e) {
+  return String((e && e.source) || "").trim() === "ios_shortcuts";
+}
+
+function isValidIanaTimeZone(value) {
+  const tz = String(value || "").trim();
+  if (!tz) return false;
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(new Date());
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function normalizeReportTimeZone(value) {
+  const tz = String(value || "").trim();
+  return isValidIanaTimeZone(tz) ? tz : DAILY_REPORT_TIME_ZONE;
+}
+
+function parseShortcutTimestamp(ts) {
+  if (ts == null) return null;
+  try {
+    if (ts.toDate) return ts.toDate();
+    if (ts.seconds) return new Date(ts.seconds * 1000);
+    if (ts instanceof Date) return ts;
+    const parsed = new Date(ts);
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function shortcutEventLocationLabel(entry) {
+  if (!entry) return "";
+  return String(
+    entry.shortcutLocationLabel ||
+      entry.shortcutLocation ||
+      entry.locationLabel ||
+      entry.location ||
+      ""
+  ).trim();
+}
+
+function appendShortcutLocationToLine(baseLine, entry) {
+  const normalized = String(baseLine || "").trim();
+  const locationLabel = shortcutEventLocationLabel(entry);
+  if (!locationLabel) return normalized;
+  if (/\bLocation:\s*/i.test(normalized)) return normalized;
+  return `${normalized}${normalized && !/[.!?]$/.test(normalized) ? "." : ""} Location: ${locationLabel}.`;
+}
+
+function shortcutEventTimeLabel(entry) {
+  if (!entry) return "";
+  const tz = normalizeReportTimeZone(
+    String(entry.shortcutTimezone || entry.timezone || "").trim() || DAILY_REPORT_TIME_ZONE
+  );
+  const ts = parseShortcutTimestamp(entry.shortcutEventAtIso || entry.shortcutEventAtMs);
+  if (!ts || !Number.isFinite(ts.getTime())) return "";
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(ts);
+  } catch (_) {
+    return "";
+  }
+}
+
+function normalizeShortcutEventLineText(rawText, entry) {
+  const base = String(rawText || "").trim();
+  if (!isShortcutSourceEntry(entry)) return base;
+  const localTime = shortcutEventTimeLabel(entry);
+  if (!localTime) return appendShortcutLocationToLine(base, entry);
+  const withTime = base
+    .replace(
+      /\bEvent time:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-Z]+\b/gi,
+      `Event time: ${localTime}`
+    )
+    .replace(/\b(?<!Event )Time:\s*[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.+-Z]+\b/gi, `Time: ${localTime}`)
+    .replace(/\bEvent time:\s*[^.;\n]+/gi, `Event time: ${localTime}`)
+    .replace(/\b(?<!Event )Time:\s*[^.;\n]+/gi, `Time: ${localTime}`);
+  return appendShortcutLocationToLine(withTime, entry);
+}
+
 function lineText(e) {
-  return (e.summaryText || e.normalizedText || e.rawText || "").trim();
+  const rawLine = isShortcutSourceEntry(e)
+    ? e.normalizedText || e.rawText || ""
+    : e.summaryText || e.normalizedText || e.rawText || "";
+  return normalizeShortcutEventLineText(rawLine, e).trim();
 }
 
 function formatGroupedDayLog(entries) {
@@ -574,4 +688,5 @@ module.exports = {
   maybeEnhanceLogEntry,
   sanitizeAiManpowerRows,
   getLogEntryEffectiveDateKey,
+  lineText,
 };

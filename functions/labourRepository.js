@@ -415,43 +415,15 @@ function parseLabourHoursCommand(text) {
 
   const cleaned = extractExplicitReportDate(raw);
   const body = String(cleaned.cleanedText || raw).trim();
-  const fullBreakdownParts =
-    /(?:\s[-–—]\s|[;,]\s*)/.test(body) ? parseSegmentedBreakdown(body) : [];
-  if (fullBreakdownParts.length) {
-    const totalHours = roundLabourHours(fullBreakdownParts.reduce((sum, part) => sum + part.hours, 0));
-    const workOnSource = fullBreakdownParts.map((p) => `${p.hours}h ${p.task}`).join(" - ");
-    const workOnDate = extractExplicitReportDate(workOnSource);
-    const workOn = normalizeLabourEntryText(String(workOnDate.cleanedText || workOnSource).trim());
-    if (workOn && totalHours > 0) {
-      return {
-        hours: totalHours,
-        workOn,
-        reportDateKey: cleaned.reportDateKey || workOnDate.reportDateKey || null,
-        rawText: raw,
-      };
-    }
-  }
-  const segmented = body.match(/^(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s+([\s\S]+)$/i);
-  if (segmented) {
+  const segmented = body.match(/^(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s*([\s\S]+)$/i);
+  const segmentedTail = String(segmented && segmented[2] || "").trim();
+  const startsWithBreakdown = /^(?:[-–—,;:]\s*)?\d/.test(segmentedTail);
+  if (segmented && startsWithBreakdown) {
     const declaredHours = Number(segmented[1]);
-    const tail = String(segmented[2] || "").trim();
-    const parts = [];
-    const partRe = /(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\s+([\s\S]*?)(?=(?:\s+\d+(?:\.\d+)?\s*(?:hours?|hrs?|h)\b)|$)/gi;
-    let m;
-    while ((m = partRe.exec(tail))) {
-      const h = Number(m[1]);
-      const task = normalizeLabourEntryText(m[2]);
-      if (!Number.isFinite(h) || h <= 0 || !task) continue;
-      parts.push({ hours: roundLabourHours(h), task });
-    }
-    const normalizedExplicitSum = roundLabourHours(parts.reduce((total, p) => total + p.hours, 0));
+    const tail = segmentedTail;
+    const explicitParts = parseSegmentedBreakdown(tail);
     const implicitParts = parseImplicitSegmentedTail(tail, declaredHours);
-    const effectiveParts =
-      parts.length && Math.abs(normalizedExplicitSum - declaredHours) <= 0.25
-        ? parts
-        : implicitParts.length
-          ? implicitParts
-          : parts;
+    const effectiveParts = explicitParts.length ? explicitParts : implicitParts;
     if (effectiveParts.length) {
       const sum = effectiveParts.reduce((total, p) => total + p.hours, 0);
       const normalizedSum = roundLabourHours(sum);
@@ -470,6 +442,21 @@ function parseLabourHoursCommand(text) {
           rawText: raw,
         };
       }
+    }
+  }
+  const fullBreakdownParts = parseSegmentedBreakdown(body);
+  if (fullBreakdownParts.length) {
+    const totalHours = roundLabourHours(fullBreakdownParts.reduce((sum, part) => sum + part.hours, 0));
+    const workOnSource = fullBreakdownParts.map((p) => `${p.hours}h ${p.task}`).join(" - ");
+    const workOnDate = extractExplicitReportDate(workOnSource);
+    const workOn = normalizeLabourEntryText(String(workOnDate.cleanedText || workOnSource).trim());
+    if (workOn && totalHours > 0) {
+      return {
+        hours: totalHours,
+        workOn,
+        reportDateKey: cleaned.reportDateKey || workOnDate.reportDateKey || null,
+        rawText: raw,
+      };
     }
   }
   const candidates = [
