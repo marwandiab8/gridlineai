@@ -24,7 +24,6 @@ if (!admin.apps.length) admin.initializeApp();
 
 const triggerOptions = {
   region: "northamerica-northeast1",
-  timeoutSeconds: 60,
   memory: "256MiB",
   secrets: [TIME_LEFT_INGESTION_TOKEN],
 };
@@ -60,6 +59,7 @@ exports.syncIosShortcutEventToTimeLeft = onDocumentCreated(
   {
     ...triggerOptions,
     document: "iosShortcutEvents/{eventId}",
+    timeoutSeconds: 60,
     retry: false,
   },
   async (event) => {
@@ -81,6 +81,7 @@ exports.retryIosShortcutEventsToTimeLeft = onSchedule(
     ...triggerOptions,
     schedule: "every 15 minutes",
     timeZone: "America/Toronto",
+    timeoutSeconds: 300,
   },
   async () => {
     const config = buildRuntimeConfig();
