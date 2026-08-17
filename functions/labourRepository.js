@@ -125,6 +125,10 @@ function parseImplicitSegmentedTail(tail, declaredHours) {
   const numberRe = /(^|\s)(\d+(?:\.\d+)?)(?=\s+(?:hours?|hrs?|h\b)?\s*\S)/gi;
   let match;
   while ((match = numberRe.exec(rawTail))) {
+    const before = rawTail.slice(0, match.index + match[1].length).toLowerCase();
+    if (/(?:\blevel|\bfloor|\broom|\bunit|\bqty|\bquantity|\bcount|\bnumber|\bno\.?)[\s:#-]*$/i.test(before)) {
+      continue;
+    }
     segments.push({
       hours: Number(match[2]),
       index: match.index + match[1].length,
@@ -414,16 +418,30 @@ function parseLabourHoursCommand(text) {
   if (!raw) return null;
 
   const cleaned = extractExplicitReportDate(raw);
-  const body = String(cleaned.cleanedText || raw).trim();
+  let body = String(cleaned.cleanedText || raw).trim();
   const segmented = body.match(/^(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b\s*([\s\S]+)$/i);
-  const segmentedTail = String(segmented && segmented[2] || "").trim();
+  let segmentedTail = String(segmented && segmented[2] || "").trim();
+  if (segmentedTail) {
+    const embeddedDate = segmentedTail.match(/^\s*(?:for\s+)?(\d{4}-\d{2}-\d{2})\b\s*[,;:\-–—]?\s*/i);
+    if (embeddedDate) {
+      if (!cleaned.reportDateKey) cleaned.reportDateKey = embeddedDate[1];
+      segmentedTail = segmentedTail.slice(embeddedDate[0].length).trim();
+    }
+  }
   const startsWithBreakdown = /^(?:[-–—,;:]\s*)?\d/.test(segmentedTail);
   if (segmented && startsWithBreakdown) {
     const declaredHours = Number(segmented[1]);
     const tail = segmentedTail;
     const explicitParts = parseSegmentedBreakdown(tail);
     const implicitParts = parseImplicitSegmentedTail(tail, declaredHours);
-    const effectiveParts = explicitParts.length ? explicitParts : implicitParts;
+    const implicitSum = roundLabourHours(implicitParts.reduce((total, p) => total + p.hours, 0));
+    const implicitMatchesDeclared =
+      implicitParts.length >= 2 && Math.abs(implicitSum - declaredHours) <= 0.25;
+    const effectiveParts = implicitMatchesDeclared && implicitParts.length > explicitParts.length
+      ? implicitParts
+      : explicitParts.length
+        ? explicitParts
+        : implicitParts;
     if (effectiveParts.length) {
       const sum = effectiveParts.reduce((total, p) => total + p.hours, 0);
       const normalizedSum = roundLabourHours(sum);

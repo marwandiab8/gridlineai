@@ -192,6 +192,62 @@ test("parseLabourHoursCommand uses the complete compact breakdown when the decla
   assert.equal(parsed.rawText, original);
 });
 
+test("parseLabourHoursCommand infers a final unlabelled duration only when it reconciles the declared total", () => {
+  const original =
+    "8.5 hours 1 hour safety tape and signs 6 hours building wall on exterior stair case 1.5 housekeeping";
+  const parsed = parseLabourHoursCommand(original);
+
+  assert.equal(parsed.hours, 8.5);
+  assert.equal(
+    parsed.workOn,
+    "1h safety tape and signs - 6h building wall on exterior stair case - 1.5h housekeeping"
+  );
+  assert.equal(parsed.rawText, original);
+});
+
+test("parseLabourHoursCommand excludes a declared total and embedded work date from the task breakdown", () => {
+  const inputs = [
+    "8.5 hours for 2026-08-14 - 6.5 hours for safety railing install and foam install on treads - 2 hours for housekeeping",
+    "8.5 hours for 2026-08-14, 6.5 hours for safety railing install and foam install on treads, 2 hours for housekeeping",
+    "8.5 hours for 2026-08-14 6.5 hours for safety railing install and foam install on treads 2 hours for housekeeping",
+    "2026-08-14 8.5 hours 6.5 hours for safety railing install and foam install on treads 2 hours for housekeeping",
+  ];
+  for (const original of inputs) {
+    const parsed = parseLabourHoursCommand(original);
+    assert.ok(parsed, original);
+    assert.equal(parsed.hours, 8.5, original);
+    assert.equal(parsed.reportDateKey, "2026-08-14", original);
+    assert.equal(
+      parsed.workOn,
+      "6.5h for safety railing install and foam install on treads - 2h for housekeeping",
+      original
+    );
+    assert.equal(parsed.rawText, original);
+  }
+});
+
+test("parseLabourHoursCommand preserves a true task-only first duration", () => {
+  const parsed = parseLabourHoursCommand(
+    "4h fast fence tow wall - 1h traffic control - 4h keeping - 2h 30 min general help"
+  );
+
+  assert.equal(parsed.hours, 11.5);
+  assert.equal(
+    parsed.workOn,
+    "4h fast fence tow wall - 1h traffic control - 4h keeping - 2.5h general help"
+  );
+});
+
+test("parseLabourHoursCommand does not infer a level number as hours", () => {
+  const parsed = parseLabourHoursCommand(
+    "8 hours level 2 work area"
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed.hours, 8);
+  assert.equal(parsed.workOn, "level 2 work area");
+});
+
 test("labour minute conversion stores fractional hours as int-safe minutes", () => {
   assert.equal(labourMinutesFromHours(11.5), 690);
   assert.equal(labourHoursFromStoredValue({ minutesWorked: 690 }), 11.5);
