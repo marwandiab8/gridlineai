@@ -10,6 +10,10 @@ const {
 const { filterEntriesForDailySummary } = require("./logEntryRepository");
 const { normalizeReportLineText } = require("./dailyReportBulkText");
 const { normalizeProjectSlug } = require("./projectAccess");
+const {
+  getReportRecordProjectOwnership,
+  reportRecordBelongsToProject,
+} = require("./reportProjectOwnership");
 
 function lineText(e) {
   return (e.summaryText || e.normalizedText || e.rawText || "").trim();
@@ -307,20 +311,10 @@ function entryIsExcludedFromReport(entry) {
  * Defensive: entry.projectSlug must match report project (query should already enforce).
  */
 function entryMatchesReportProject(entry, reportProjectSlug) {
-  const want = normalizeProjectSlug(reportProjectSlug) || normSlug(reportProjectSlug);
-  const slugRaw =
-    entry.projectSlug != null && String(entry.projectSlug).trim() !== ""
-      ? String(entry.projectSlug).trim()
-      : null;
-  const idRaw =
-    entry.projectId != null && String(entry.projectId).trim() !== ""
-      ? String(entry.projectId).trim()
-      : null;
-  const gotSlug = slugRaw ? normalizeProjectSlug(slugRaw) || slugRaw : null;
-  const gotId = idRaw ? normalizeProjectSlug(idRaw) || idRaw : null;
-  if (want) return gotSlug === want || gotId === want;
-  const unassigned = !gotSlug && !gotId;
-  return unassigned || gotSlug === "" || gotSlug === "_unassigned";
+  const wantedProject = normalizeProjectSlug(reportProjectSlug);
+  if (wantedProject) return reportRecordBelongsToProject(entry, wantedProject);
+  const ownership = getReportRecordProjectOwnership(entry);
+  return ownership.consistent && !ownership.hasProjectFields;
 }
 
 /**
@@ -344,9 +338,8 @@ function entryExplicitProjectSlug(entry) {
 }
 
 function entryHasNoProject(entry) {
-  const slug = normalizeProjectSlug(String(entry?.projectSlug || "").trim());
-  const pid = normalizeProjectSlug(String(entry?.projectId || "").trim());
-  return !slug && !pid;
+  const ownership = getReportRecordProjectOwnership(entry);
+  return ownership.consistent && !ownership.hasProjectFields;
 }
 
 function isIosShortcutTrackingEntry(entry) {
@@ -370,12 +363,22 @@ function filterLogEntriesForProjectDailyReport(entries, reportProjectSlug) {
       const canRescue =
         wantedProject &&
         explicitProject === wantedProject &&
-        entryHasNoProject(e);
+        entryHasNoProject(e) &&
+        !isIosShortcutTrackingEntry(e);
       if (!canRescue) return false;
     }
     if (entryIsExcludedFromReport(e)) return false;
     return true;
   });
+}
+
+/** Strict ownership-only boundary for project journals; no text- or sender-based rescue. */
+function filterLogEntriesForExactProject(entries, reportProjectSlug) {
+  const wantedProject = normalizeProjectSlug(reportProjectSlug);
+  if (!wantedProject) return [];
+  return (entries || []).filter((entry) =>
+    reportRecordBelongsToProject(entry, wantedProject)
+  );
 }
 
 function mediaProjectMatches(m, reportProjectSlug) {
@@ -558,6 +561,7 @@ module.exports = {
   isValidTradeHeading,
   entryIsExcludedFromReport,
   filterLogEntriesForProjectDailyReport,
+  filterLogEntriesForExactProject,
   filterMediaForProjectDailyReport,
   promoteFieldReportSections,
   auditDailyReportEntries,

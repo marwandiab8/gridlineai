@@ -7,10 +7,12 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   filterLogEntriesForProjectDailyReport,
+  filterLogEntriesForExactProject,
   filterMediaForProjectDailyReport,
   promoteFieldReportSections,
   isMetaOrControlChatter,
   entryIsExcludedFromReport,
+  entryMatchesReportProject,
   curateFieldEntriesForDailyReport,
   isValidTradeHeading,
 } = require("./dailyReportIntegrity");
@@ -117,11 +119,17 @@ test("project-scoped report includes legacy unassigned entry with explicit proje
   assert.equal(filtered[0].id, "legacy-1");
 });
 
-test("project report excludes unassigned iOS Shortcut tracking entries", () => {
+test("project report never rescues unassigned iOS Shortcut tracking entries from text", () => {
   const raw = [
     entry("1", dock, "Roofing installing BSW blindside waterproofing at piers K-5.1", "journal"),
     {
-      ...entry("shortcut-1", home, "iOS Shortcuts tracking event - Left work.", "note"),
+      ...entry(
+        "shortcut-1",
+        null,
+        "Project: docksteader - iOS Shortcuts tracking event marker.",
+        "note"
+      ),
+      projectId: null,
       source: "ios_shortcuts",
       shortcutEventType: "leave_work",
     },
@@ -139,6 +147,32 @@ test("project report keeps assigned iOS Shortcut entries in only their project",
   ];
   assert.deepEqual(filterLogEntriesForProjectDailyReport(raw, dock).map((e) => e.id), ["dock-event"]);
   assert.deepEqual(filterLogEntriesForProjectDailyReport(raw, home).map((e) => e.id), ["home-event"]);
+});
+
+test("exact project boundary rejects missing, malformed, and contradictory ownership", () => {
+  const raw = [
+    { ...entry("dock", dock, "DOCK_ONLY_MARKER"), projectId: dock },
+    { ...entry("home", home, "HOME_ONLY_MARKER"), projectId: home },
+    { ...entry("legacy-dock", null, "DOCK_LEGACY_MARKER"), projectId: dock },
+    { ...entry("unassigned", null, "UNASSIGNED_MARKER"), projectId: null },
+    { ...entry("unassigned-sentinel", "_unassigned", "UNASSIGNED_SENTINEL_MARKER"), projectId: "_unassigned" },
+    { ...entry("malformed", "!!!", "MALFORMED_MARKER"), projectId: null },
+    { ...entry("contradictory", dock, "CONTRADICTORY_MARKER"), projectId: home },
+  ];
+
+  assert.deepEqual(
+    filterLogEntriesForExactProject(raw, dock).map((row) => row.id),
+    ["dock", "legacy-dock"]
+  );
+  assert.deepEqual(
+    filterLogEntriesForExactProject(raw, home).map((row) => row.id),
+    ["home"]
+  );
+  assert.equal(entryMatchesReportProject(raw[6], dock), false);
+  assert.equal(entryMatchesReportProject(raw[6], home), false);
+  assert.equal(entryMatchesReportProject(raw[3], null), true);
+  assert.equal(entryMatchesReportProject(raw[4], null), false);
+  assert.equal(entryMatchesReportProject(raw[5], null), false);
 });
 
 test("project-scoped report excludes entry explicitly labeled for another project", () => {

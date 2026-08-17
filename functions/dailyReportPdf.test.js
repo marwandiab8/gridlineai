@@ -4,8 +4,13 @@ const {
   formatDailyReportPdfFileName,
   buildDailyReportSequenceDocId,
   filterJournalMediaForReport,
+  filterJournalLogEntriesForProject,
   mediaFallsOnEasternReportDay,
 } = require("./dailyReportPdf");
+const {
+  buildJournalReportModel,
+  formatJournalBundleForAi,
+} = require("./dailyReportContent");
 
 test("formatDailyReportPdfFileName prefixes construction reports", () => {
   const fileName = formatDailyReportPdfFileName(new Date("2026-04-14T15:00:00Z"), 1);
@@ -137,4 +142,104 @@ test("mediaFallsOnEasternReportDay keeps only createdAt inside report-day window
     ),
     false
   );
+});
+
+test("two project journals in one scheduler cycle isolate timeline and AI inputs", () => {
+  const createdAt = (iso) => ({
+    toDate: () => new Date(iso),
+    toMillis: () => new Date(iso).getTime(),
+  });
+  const rows = [
+    {
+      id: "home-entry",
+      projectSlug: "home",
+      projectId: "home",
+      source: "ios_shortcuts",
+      shortcutEventType: "arrive_home",
+      dateKey: "2026-08-16",
+      normalizedText: "HOME_ONLY_MARKER",
+      includeInDailySummary: true,
+      createdAt: createdAt("2026-08-16T14:00:00Z"),
+    },
+    {
+      id: "dock-entry",
+      projectSlug: "docksteader",
+      projectId: "docksteader",
+      source: "ios_shortcuts",
+      shortcutEventType: "arrive_work",
+      dateKey: "2026-08-16",
+      normalizedText: "DOCK_ONLY_MARKER",
+      includeInDailySummary: true,
+      createdAt: createdAt("2026-08-16T15:00:00Z"),
+    },
+    {
+      id: "dock-legacy-entry",
+      projectId: "docksteader",
+      source: "sms",
+      dateKey: "2026-08-16",
+      normalizedText: "DOCK_LEGACY_MARKER",
+      includeInDailySummary: true,
+      createdAt: createdAt("2026-08-16T16:00:00Z"),
+    },
+    {
+      id: "unassigned-entry",
+      source: "ios_shortcuts",
+      shortcutEventType: "leave_home",
+      dateKey: "2026-08-16",
+      normalizedText: "UNASSIGNED_MARKER",
+      includeInDailySummary: true,
+      createdAt: createdAt("2026-08-16T17:00:00Z"),
+    },
+    {
+      id: "contradictory-entry",
+      projectSlug: "home",
+      projectId: "docksteader",
+      source: "ios_shortcuts",
+      shortcutEventType: "arrive_location",
+      dateKey: "2026-08-16",
+      normalizedText: "CONTRADICTORY_MARKER",
+      includeInDailySummary: true,
+      createdAt: createdAt("2026-08-16T18:00:00Z"),
+    },
+    {
+      id: "unassigned-sentinel-entry",
+      projectSlug: "_unassigned",
+      projectId: "_unassigned",
+      source: "ios_shortcuts",
+      shortcutEventType: "leave_location",
+      dateKey: "2026-08-16",
+      normalizedText: "UNASSIGNED_SENTINEL_MARKER",
+      includeInDailySummary: true,
+      createdAt: createdAt("2026-08-16T19:00:00Z"),
+    },
+  ];
+
+  const homeRows = filterJournalLogEntriesForProject(rows, "home");
+  const dockRows = filterJournalLogEntriesForProject(rows, "docksteader");
+  assert.deepEqual(homeRows.map((row) => row.id), ["home-entry"]);
+  assert.deepEqual(dockRows.map((row) => row.id), ["dock-entry", "dock-legacy-entry"]);
+
+  const homeModel = buildJournalReportModel(homeRows, [], {
+    dayStart: new Date("2026-08-16T12:00:00Z"),
+    reportDateKey: "2026-08-16",
+  });
+  const dockModel = buildJournalReportModel(dockRows, [], {
+    dayStart: new Date("2026-08-16T12:00:00Z"),
+    reportDateKey: "2026-08-16",
+  });
+  const homeTimeline = homeModel.timeline.map((row) => row.text).join("\n");
+  const dockTimeline = dockModel.timeline.map((row) => row.text).join("\n");
+  const homeAiInput = formatJournalBundleForAi(homeRows, "2026-08-16");
+  const dockAiInput = formatJournalBundleForAi(dockRows, "2026-08-16");
+
+  assert.match(homeTimeline, /HOME_ONLY_MARKER/);
+  assert.doesNotMatch(homeTimeline, /DOCK_ONLY_MARKER|DOCK_LEGACY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
+  assert.match(dockTimeline, /DOCK_ONLY_MARKER/);
+  assert.match(dockTimeline, /DOCK_LEGACY_MARKER/);
+  assert.doesNotMatch(dockTimeline, /HOME_ONLY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
+  assert.match(homeAiInput, /HOME_ONLY_MARKER/);
+  assert.doesNotMatch(homeAiInput, /DOCK_ONLY_MARKER|DOCK_LEGACY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
+  assert.match(dockAiInput, /DOCK_ONLY_MARKER/);
+  assert.match(dockAiInput, /DOCK_LEGACY_MARKER/);
+  assert.doesNotMatch(dockAiInput, /HOME_ONLY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
 });

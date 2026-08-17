@@ -429,6 +429,7 @@ function journalTimelineAuditRows(model) {
 }
 const {
   filterLogEntriesForProjectDailyReport,
+  filterLogEntriesForExactProject,
   filterMediaForProjectDailyReport,
   promoteFieldReportSections,
   auditDailyReportEntries,
@@ -660,6 +661,12 @@ async function generateDailyReportPdf(opts) {
     messages = msgs;
     logEntriesRaw = logEntriesScoped;
     mediaDocs = dedupeMediaDocs([mediaToday]);
+  }
+
+  // Project journals fail closed before management filtering, timeline construction,
+  // AI input, snapshot generation, PDF rendering, or delivery.
+  if (reportType === "journal" && useProjectAggregate) {
+    logEntriesRaw = filterLogEntriesForExactProject(logEntriesRaw, projectKey);
   }
 
   let managementPhoneDigits = new Set();
@@ -1068,6 +1075,7 @@ async function generateDailyReportPdf(opts) {
 
   return {
     reportId: reportRef.id,
+    projectSlug: projectKey,
     reportDateKey: dk,
     reportType,
     fileName,
@@ -1084,5 +1092,6 @@ module.exports = {
   formatDailyReportPdfFileName,
   buildDailyReportSequenceDocId,
   filterJournalMediaForReport,
+  filterJournalLogEntriesForProject: filterLogEntriesForExactProject,
   mediaFallsOnEasternReportDay,
 };

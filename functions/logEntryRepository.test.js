@@ -52,29 +52,78 @@ test("getLogEntryEffectiveDateKey recovers legacy backdated entries from raw tex
   assert.equal(key, "2026-04-16");
 });
 
-test("loadLogEntriesForProjectDay rescues iOS Shortcut rows outside selected project", async () => {
+test("loadLogEntriesForProjectDay isolates Shortcut and legacy rows by canonical project ownership", async () => {
   const docs = {
-    exact: {
+    "dock-sms": {
       projectSlug: "docksteader",
       projectId: "docksteader",
       dateKey: "2026-07-09",
       source: "sms",
       createdAt: 1,
     },
-    shortcut: {
+    "dock-shortcut": {
+      projectSlug: "docksteader",
+      projectId: "docksteader",
+      dateKey: "2026-07-09",
+      source: "ios_shortcuts",
+      shortcutEventType: "arrive_work",
+      normalizedText: "DOCK_ONLY_MARKER",
+      createdAt: 2,
+    },
+    "dock-legacy-id": {
+      projectId: "docksteader",
+      dateKey: "2026-07-09",
+      source: "sms",
+      normalizedText: "DOCK_LEGACY_MARKER",
+      createdAt: 3,
+    },
+    "home-shortcut": {
       projectSlug: "home",
       projectId: "home",
       dateKey: "2026-07-09",
       source: "ios_shortcuts",
       shortcutEventType: "leave_work",
-      createdAt: 2,
+      normalizedText: "HOME_ONLY_MARKER",
+      createdAt: 4,
     },
-    other: {
+    "home-legacy-slug": {
       projectSlug: "home",
-      projectId: "home",
       dateKey: "2026-07-09",
       source: "sms",
-      createdAt: 3,
+      normalizedText: "HOME_LEGACY_MARKER",
+      createdAt: 5,
+    },
+    unassigned: {
+      projectSlug: null,
+      projectId: null,
+      dateKey: "2026-07-09",
+      source: "ios_shortcuts",
+      normalizedText: "UNASSIGNED_MARKER",
+      createdAt: 6,
+    },
+    "unassigned-sentinel": {
+      projectSlug: "_unassigned",
+      projectId: "_unassigned",
+      dateKey: "2026-07-09",
+      source: "ios_shortcuts",
+      normalizedText: "UNASSIGNED_SENTINEL_MARKER",
+      createdAt: 6.5,
+    },
+    contradictory: {
+      projectSlug: "docksteader",
+      projectId: "home",
+      dateKey: "2026-07-09",
+      source: "ios_shortcuts",
+      normalizedText: "CONTRADICTORY_MARKER",
+      createdAt: 7,
+    },
+    malformed: {
+      projectSlug: "!!!",
+      projectId: null,
+      dateKey: "2026-07-09",
+      source: "ios_shortcuts",
+      normalizedText: "MALFORMED_MARKER",
+      createdAt: 8,
     },
   };
   const db = {
@@ -110,8 +159,24 @@ test("loadLogEntriesForProjectDay rescues iOS Shortcut rows outside selected pro
     },
   };
 
-  const rows = await loadLogEntriesForProjectDay(db, "2026-07-09", "docksteader");
-  assert.deepEqual(rows.map((r) => r.id).sort(), ["exact", "shortcut"]);
+  const dockRows = await loadLogEntriesForProjectDay(db, "2026-07-09", "docksteader");
+  const homeRows = await loadLogEntriesForProjectDay(db, "2026-07-09", "home");
+
+  assert.deepEqual(
+    dockRows.map((row) => row.id).sort(),
+    ["dock-legacy-id", "dock-shortcut", "dock-sms"]
+  );
+  assert.deepEqual(
+    homeRows.map((row) => row.id).sort(),
+    ["home-legacy-slug", "home-shortcut"]
+  );
+  for (const rows of [dockRows, homeRows]) {
+    const ids = new Set(rows.map((row) => row.id));
+    assert.equal(ids.has("unassigned"), false);
+    assert.equal(ids.has("unassigned-sentinel"), false);
+    assert.equal(ids.has("contradictory"), false);
+    assert.equal(ids.has("malformed"), false);
+  }
 });
 
 test("lineText rewrites ios_shortcuts UTC Event time with shortcut timezone", () => {

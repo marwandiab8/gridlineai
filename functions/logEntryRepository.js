@@ -16,6 +16,7 @@ const {
   chatCompletionWithFallback,
 } = require("./openaiHelpers");
 const { normalizeProjectSlug } = require("./projectAccess");
+const { reportRecordBelongsToProject } = require("./reportProjectOwnership");
 
 function logFirestoreQueryError(context, err) {
   try {
@@ -104,15 +105,7 @@ async function loadLegacyBackdatedLogEntriesForDay(db, phoneE164, dateKey, proje
 }
 
 function entryBelongsToNormalizedProject(entry, psNorm) {
-  const slugPart =
-    entry.projectSlug != null && String(entry.projectSlug).trim() !== ""
-      ? normalizeProjectSlug(entry.projectSlug)
-      : "";
-  const idPart =
-    entry.projectId != null && String(entry.projectId).trim() !== ""
-      ? normalizeProjectSlug(entry.projectId)
-      : "";
-  return slugPart === psNorm || idPart === psNorm;
+  return Boolean(psNorm) && reportRecordBelongsToProject(entry, psNorm);
 }
 
 /** Firestore equality is exact; include raw trimmed slug when it differs from normalized (legacy casing). */
@@ -164,8 +157,10 @@ async function loadLegacyBackdatedLogEntriesForProjectDay(db, dateKey, projectSl
   return dedupeEntries(chunks.flat());
 }
 
-async function loadIosShortcutLogEntriesForReportDay(db, dateKey) {
+async function loadIosShortcutLogEntriesForReportDay(db, dateKey, projectSlug) {
   const dk = dateKey || dateKeyEastern(new Date());
+  const psNorm = normalizeProjectSlug(projectSlug);
+  if (!psNorm) return [];
   const snap = await db
     .collection(COL)
     .where("dateKey", "==", dk)
@@ -178,7 +173,11 @@ async function loadIosShortcutLogEntriesForReportDay(db, dateKey) {
   if (!snap) return [];
   return snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((e) => String(e.source || "").trim() === "ios_shortcuts")
+    .filter(
+      (e) =>
+        String(e.source || "").trim() === "ios_shortcuts" &&
+        reportRecordBelongsToProject(e, psNorm)
+    )
     .sort((a, b) => {
       const av = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
       const bv = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
@@ -378,7 +377,7 @@ async function loadLogEntriesForProjectDay(db, dateKey, projectSlug) {
   const chunks = await Promise.all(pairs.map(([field, v]) => runExact(field, v)));
   const exactRows = dedupeEntries(chunks.flat());
   const legacyRows = await loadLegacyBackdatedLogEntriesForProjectDay(db, dk, projectSlug);
-  const shortcutRows = await loadIosShortcutLogEntriesForReportDay(db, dk);
+  const shortcutRows = await loadIosShortcutLogEntriesForReportDay(db, dk, projectSlug);
   return dedupeEntries([...exactRows, ...legacyRows, ...shortcutRows]);
 }
 

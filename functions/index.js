@@ -96,6 +96,11 @@ const {
   normalizePdfPushSettings,
   resolveAppBaseUrl,
 } = require("./reportPushConfig");
+const {
+  assertGeneratedReportMatchesDelivery,
+  resolveManagementJournalDeliveryContext,
+  shouldSkipManagementJournalDelivery,
+} = require("./managementJournalDelivery");
 const { createProcoreHandlers } = require("./procore/routes");
 const {
   generateShortcutToken,
@@ -4129,16 +4134,21 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       );
     };
 
-    if (d.status === "sent") return;
+    if (shouldSkipManagementJournalDelivery(d)) return;
 
-    const projectSlug = normalizeProjectSlug(String(d.projectSlug || "").trim());
+    let deliveryContext;
+    try {
+      deliveryContext = resolveManagementJournalDeliveryContext(snap.id, d);
+    } catch (error) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: String(error.message || error).slice(0, 500),
+      }).catch(() => {});
+      return;
+    }
+    const { projectSlug, reportDateKey, reportType, audience, runId } = deliveryContext;
     const projectName = String(d.projectName || projectSlug || "").trim() || projectSlug;
-    const reportDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(d.reportDateKey || "").trim())
-      ? String(d.reportDateKey || "").trim()
-      : dateKeyEastern(new Date());
-    const reportType = String(d.reportType || "").trim() === "dailySiteLog" ? "dailySiteLog" : "journal";
-    const audience = String(d.audience || "").trim() === "project_users" ? "project_users" : "management";
-    const runId = String(d.runId || `mgmt-journal-delivery-${snap.id}`).trim();
     const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
     const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
     const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
@@ -4194,6 +4204,16 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       },
       appBaseUrl: resolveConfiguredAppBaseUrl(),
     });
+    try {
+      assertGeneratedReportMatchesDelivery(pdfResult, deliveryContext);
+    } catch (error) {
+      await markQueue({
+        status: "failed",
+        failedAt: FieldValue.serverTimestamp(),
+        lastError: String(error.message || error).slice(0, 500),
+      }).catch(() => {});
+      return;
+    }
 
     const fanout = await sendSmsNotificationFanout({
       db,

@@ -46,6 +46,23 @@ test("resolveAppBaseUrl and buildReportAppUrl create app deeplinks", () => {
   );
 });
 
+test("delivery links remain bound to each project's exact report id", () => {
+  const homeLink = buildReportAppUrl({
+    baseUrl: "https://gridlineai.web.app",
+    reportId: "home-report-id",
+    openPdf: true,
+  });
+  const dockLink = buildReportAppUrl({
+    baseUrl: "https://gridlineai.web.app",
+    reportId: "dock-report-id",
+    openPdf: true,
+  });
+  assert.match(homeLink, /reportId=home-report-id/);
+  assert.doesNotMatch(homeLink, /dock-report-id/);
+  assert.match(dockLink, /reportId=dock-report-id/);
+  assert.doesNotMatch(dockLink, /home-report-id/);
+});
+
 test("canReceiveProjectReport only allows assigned management scope", () => {
   assert.equal(
     canReceiveProjectReport(
