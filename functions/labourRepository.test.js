@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  LABOUR_PAY_PERIOD_CONFIG,
   biweeklyPayPeriodStartKeyFromDateKey,
   buildLabourRollup,
   buildLabourEntryDoc,
@@ -272,6 +273,17 @@ test("labour entry normalization and totals support both legacy hours and minute
   assert.equal(intSafe.hours, 2.5);
   assert.equal(intSafe.minutesWorked, 150);
   assert.equal(sumHours([legacy, intSafe]), 10.5);
+  assert.equal(labourHoursFromStoredValue({ minutesWorked: 150, hours: 99 }), 2.5);
+  assert.equal(normalizeLoadedLabourEntry({ minutesWorked: 150, hours: 99 }).hours, 2.5);
+});
+
+test("pay-period calendar exposes the established repository definition", () => {
+  assert.deepEqual(LABOUR_PAY_PERIOD_CONFIG, {
+    anchorStartKey: "2026-04-25",
+    lengthDays: 14,
+    timeZone: "America/Toronto",
+    source: "gridlineai_payroll_calendar_v1",
+  });
 });
 
 test("dayMultiplierFromDateKey applies holiday/weekend multipliers to the report date", () => {

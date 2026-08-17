@@ -78,6 +78,16 @@ const {
   validateLabourReportDateKey,
   startOfWeekFromDateKey,
 } = require("./labourRepository");
+const {
+  ADMIN_LABOUR_DENIAL_TEXT,
+  executeAdminLabourQuery,
+  formatAdminLabourHelp,
+  formatAdminLabourText,
+  formatLabourClarification,
+  getAdminLabourAccessDecision,
+  parseAdminLabourQuery,
+  privacySafeReference,
+} = require("./labourAdminQuery");
 const { loadLatestLookaheadSnapshot } = require("./lookaheadScheduleRepository");
 
 const ADMIN_DOC_ID = "company";
@@ -3408,6 +3418,7 @@ async function buildReply({
   numMedia = 0,
   channel = "sms",
   models: modelsOverride,
+  messageIdempotencyKey = null,
 }) {
   const models = getModels(modelsOverride);
   const phoneE164 = from.trim();
@@ -3442,6 +3453,9 @@ async function buildReply({
     labourReportStartKey: null,
     labourReportEndKey: null,
     labourReportAllLabourers: false,
+    labourAdminQuery: false,
+    labourAdminPdfQuery: null,
+    labourAdminRequestKey: messageIdempotencyKey || null,
     todoReportRequested: false,
     todoReportFormat: null,
     lookaheadReportRequested: false,
@@ -3512,6 +3526,154 @@ async function buildReply({
 
   if (lower === "help" || lower === "commands" || lower === "?") {
     return { replyText: HELP_TEXT, outboundMeta: { ...outboundMeta, command: "help" } };
+  }
+
+  const parsedAdminLabourQuery = parseAdminLabourQuery(trimmedBody);
+  if (parsedAdminLabourQuery) {
+    const labourAccessDecision = getAdminLabourAccessDecision({
+      access: currentMemberAccess,
+      parsed: parsedAdminLabourQuery,
+      text: trimmedBody,
+    });
+
+    if (labourAccessDecision === "denied") {
+      logger.warn("assistant: administrator labour query denied", {
+        runId,
+        intent: parsedAdminLabourQuery.intent,
+        administratorRef: currentMemberAccess
+          ? privacySafeReference(currentMemberAccess.memberDocId || currentMemberAccess.email, "admin")
+          : null,
+        requestIdempotencyKey: messageIdempotencyKey || null,
+        failureReason: "administrator_required",
+      });
+      return {
+        replyText: ADMIN_LABOUR_DENIAL_TEXT,
+        outboundMeta: {
+          ...outboundMeta,
+          command: "labour_admin_query_forbidden",
+          labourAdminQuery: true,
+        },
+      };
+    }
+
+    if (labourAccessDecision === "administrator") {
+      if (parsedAdminLabourQuery.intent === "help") {
+        return {
+          replyText: formatAdminLabourHelp(),
+          outboundMeta: {
+            ...outboundMeta,
+            command: "labour_admin_help",
+            labourAdminQuery: true,
+          },
+        };
+      }
+
+      try {
+        const execution = await executeAdminLabourQuery({
+          db,
+          parsed: { ...parsedAdminLabourQuery, queryText: trimmedBody },
+        });
+        if (!execution || !execution.prepared) {
+          throw new Error("Labour query preparation returned no result.");
+        }
+        if (execution.prepared.status !== "ready") {
+          logger.info("assistant: administrator labour query clarification", {
+            runId,
+            intent: parsedAdminLabourQuery.intent,
+            administratorRef: privacySafeReference(
+              currentMemberAccess.memberDocId || currentMemberAccess.email,
+              "admin"
+            ),
+            requestIdempotencyKey: messageIdempotencyKey || null,
+            clarificationReason: execution.prepared.reason || execution.prepared.status,
+          });
+          return {
+            replyText: formatLabourClarification(execution.prepared),
+            outboundMeta: {
+              ...outboundMeta,
+              command: "labour_admin_query_clarification",
+              labourAdminQuery: true,
+            },
+          };
+        }
+
+        const result = execution.result;
+        logger.info("assistant: administrator labour query completed", {
+          runId,
+          intent: parsedAdminLabourQuery.intent,
+          output: parsedAdminLabourQuery.output,
+          administratorRef: privacySafeReference(
+            currentMemberAccess.memberDocId || currentMemberAccess.email,
+            "admin"
+          ),
+          projectSlug: execution.prepared.request.projectSlug || "all-work-projects",
+          workerRef: execution.prepared.request.workerId
+            ? privacySafeReference(execution.prepared.request.workerId, "worker")
+            : null,
+          startKey: result.request.startKey,
+          endKey: result.request.endKey,
+          matchedEntryCount: result.entryCount,
+          excludedEntryCount: result.excludedCount,
+          conflictingLegacyHoursCount: Number(
+            result.auditFlags?.contradictory_legacy_hours_ignored || 0
+          ),
+          totalMinutes: result.totalMinutes,
+          requestIdempotencyKey: messageIdempotencyKey || null,
+        });
+
+        if (parsedAdminLabourQuery.output === "pdf") {
+          return {
+            replyText: `OK. Generating the administrator labour PDF for ${result.request.startKey} to ${result.request.endKey}. A protected link will follow.`,
+            outboundMeta: {
+              ...outboundMeta,
+              command: "labour_admin_report_pdf",
+              labourAdminQuery: true,
+              labourPdfRequested: true,
+              labourAdminPdfQuery: result.request,
+              labourReportStartKey: result.request.startKey,
+              labourReportEndKey: result.request.endKey,
+              labourReportAllLabourers: true,
+              projectSlug: result.request.projectSlug || null,
+            },
+          };
+        }
+
+        return {
+          replyText: truncateSms(formatAdminLabourText(result)),
+          outboundMeta: {
+            ...outboundMeta,
+            command: parsedAdminLabourQuery.intent === "who"
+              ? "labour_admin_who"
+              : "labour_admin_totals",
+            labourAdminQuery: true,
+            reportStartKey: result.request.startKey,
+            reportEndKey: result.request.endKey,
+            projectSlug: result.request.projectSlug || null,
+          },
+        };
+      } catch (error) {
+        logger.error("assistant: administrator labour query failed", {
+          runId,
+          intent: parsedAdminLabourQuery.intent,
+          administratorRef: privacySafeReference(
+            currentMemberAccess.memberDocId || currentMemberAccess.email,
+            "admin"
+          ),
+          requestIdempotencyKey: messageIdempotencyKey || null,
+          failureReason: "query_error",
+          message: String(error && error.message || error).slice(0, 300),
+        });
+        return {
+          replyText: "I could not safely calculate that labour total. No total was returned. Try again or contact support.",
+          outboundMeta: {
+            ...outboundMeta,
+            aiError: String(error && error.message || error),
+            command: "labour_admin_query_error",
+            labourAdminQuery: true,
+          },
+        };
+      }
+    }
   }
 
   if (lower === "ai check" || lower === "openai check") {

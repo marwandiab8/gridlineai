@@ -37,6 +37,28 @@ const {
 } = require("./labourRepository");
 const { generateLabourReportPdf } = require("./labourReportPdf");
 const {
+  ADMIN_LABOUR_REPORT_COLLECTION,
+  canAccessAdminLabourReportMetadata,
+  generateAdminLabourReportPdf,
+} = require("./labourAdminReportPdf");
+const {
+  buildLabourSmsRequestKey,
+  executePreparedAdminLabourQuery,
+  isAdminLabourQueryCandidate,
+  normalizeProjectRegistry,
+  normalizeWorkerRegistry,
+  privacySafeReference,
+} = require("./labourAdminQuery");
+const {
+  claimAdminLabourPdfDelivery,
+  claimLabourSmsQuery,
+  completeLabourSmsQuery,
+  createAdminLabourPdfQueueOnce,
+  failLabourSmsQuery,
+  markAdminLabourPdfSending,
+  validateAdminLabourPdfQueue,
+} = require("./labourAdminIdempotency");
+const {
   generateTodoReportExcel,
   generateTodoReportPdf,
   summarizeTodos,
@@ -760,10 +782,12 @@ const MAX_NOTIFY_RECIPIENTS = 80;
 const COL_REPORT_ACCESS_GRANTS = "reportAccessGrants";
 const REPORT_COLLECTION_DAILY = "dailyReports";
 const REPORT_COLLECTION_LABOUR = "labourReports";
+const REPORT_COLLECTION_ADMIN_LABOUR = ADMIN_LABOUR_REPORT_COLLECTION;
 const REPORT_COLLECTION_TODO = "todoReports";
 const REPORT_COLLECTIONS = new Set([
   REPORT_COLLECTION_DAILY,
   REPORT_COLLECTION_LABOUR,
+  REPORT_COLLECTION_ADMIN_LABOUR,
   REPORT_COLLECTION_TODO,
 ]);
 const COL_DEMO_REQUESTS = "demoRequests";
@@ -807,23 +831,42 @@ async function createReportAccessGrant({
   recipientPhoneE164 = null,
   requestedByEmail = null,
   requestedByName = null,
+  grantToken = null,
 }) {
   const collection = normalizeReportCollectionName(collectionName);
   const id = String(reportId || "").trim();
   const path = String(storagePath || "").trim();
   if (!collection || !id || !path) return null;
-  const token = makeOpaqueAccessToken();
+  const requestedToken = String(grantToken || "").trim();
+  const token = /^[a-f0-9]{32,128}$/i.test(requestedToken)
+    ? requestedToken
+    : makeOpaqueAccessToken();
   const expiresAtMs = Date.now() + Math.max(60 * 1000, Number(expiresInMs) || REPORT_ACCESS_GRANT_TTL_MS);
-  await db.collection(COL_REPORT_ACCESS_GRANTS).doc(token).set({
-    collectionName: collection,
-    reportId: id,
-    storagePath: path,
-    grantType: String(grantType || "sms").trim(),
-    recipientPhoneE164: recipientPhoneE164 || null,
-    requestedByEmail: requestedByEmail || null,
-    requestedByName: requestedByName || null,
-    expiresAt: admin.firestore.Timestamp.fromMillis(expiresAtMs),
-    createdAt: FieldValue.serverTimestamp(),
+  const grantRef = db.collection(COL_REPORT_ACCESS_GRANTS).doc(token);
+  await db.runTransaction(async (tx) => {
+    const existing = await tx.get(grantRef);
+    if (existing.exists) {
+      const data = existing.data() || {};
+      if (
+        data.collectionName !== collection ||
+        data.reportId !== id ||
+        data.storagePath !== path
+      ) {
+        throw new Error("Report access grant identity mismatch.");
+      }
+      return;
+    }
+    tx.set(grantRef, {
+      collectionName: collection,
+      reportId: id,
+      storagePath: path,
+      grantType: String(grantType || "sms").trim(),
+      recipientPhoneE164: recipientPhoneE164 || null,
+      requestedByEmail: requestedByEmail || null,
+      requestedByName: requestedByName || null,
+      expiresAt: admin.firestore.Timestamp.fromMillis(expiresAtMs),
+      createdAt: FieldValue.serverTimestamp(),
+    });
   });
   return buildReportDownloadUrl({ collectionName: collection, reportId: id, grantToken: token });
 }
@@ -883,6 +926,9 @@ function canAccessStoredReport(access, collectionName, reportData) {
     const projectSlug = normalizeProjectSlug(String(reportData.projectSlug || "").trim());
     if (projectSlug) return canAccessProject(access, projectSlug);
     return roleAtLeast(access.role, "management");
+  }
+  if (collection === REPORT_COLLECTION_ADMIN_LABOUR) {
+    return canAccessAdminLabourReportMetadata(access);
   }
   return false;
 }
@@ -2715,6 +2761,12 @@ async function deliverDailyPdfSmsViaTwilio({
   };
 }
 
+function sendEmptyTwiml(res) {
+  const twiml = new twilio.twiml.MessagingResponse();
+  res.set("Content-Type", "text/xml; charset=utf-8");
+  res.status(200).send(twiml.toString());
+}
+
 async function deliverTodoReportSmsViaTwilio({
   phoneE164,
   projectSlug,
@@ -3436,6 +3488,258 @@ exports.deliverDailyPdfSms = onDocumentCreated(
   }
 );
 
+async function deliverAdministratorLabourPdfQueue(snap) {
+  const d = snap.data() || {};
+  const queueRef = snap.ref;
+  let identity;
+  let query;
+  try {
+    ({ identity, query } = validateAdminLabourPdfQueue(snap.id, d));
+  } catch (error) {
+    await queueRef.set({
+      status: "failed",
+      lastError: String(error.message || error).slice(0, 500),
+      failedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true }).catch(() => {});
+    return;
+  }
+
+  const claim = await claimAdminLabourPdfDelivery({
+    db,
+    queueRef,
+    FieldValue,
+    nowMs: Date.now(),
+  });
+  if (!claim.claimed) {
+    logger.info("deliverLabourPdfSms: administrator delivery deduplicated", {
+      queueDocId: snap.id,
+      requestIdempotencyKey: identity.requestKey,
+      status: claim.status,
+    });
+    return;
+  }
+
+  const phoneE164 = String(d.phoneE164 || "").trim();
+  const replyToNumber = String(d.replyToNumber || "").trim();
+  const replyMessagingServiceSid = normalizeTwilioSecret(d.replyMessagingServiceSid || "") || null;
+  const runId = String(d.runId || `labour-admin-pdf-${identity.requestKey}`).trim();
+  const administratorRef = privacySafeReference(phoneE164, "admin");
+  const markQueue = async (patch) => queueRef.set({
+    ...patch,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  try {
+    const access = await findActiveAppMemberByApprovedPhone(db, phoneE164);
+    if (!access || !roleAtLeast(access.role, "admin")) {
+      throw new Error("administrator access required for labour report delivery");
+    }
+
+    const [projectSnap, workerSnap] = await Promise.all([
+      db.collection("projects").get(),
+      db.collection("labourers").get(),
+    ]);
+    const projects = normalizeProjectRegistry(
+      projectSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    );
+    const workers = normalizeWorkerRegistry(
+      workerSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    );
+    if (query.projectSlug) {
+      const project = projects.find((item) => item.projectSlug === query.projectSlug);
+      if (!project || !project.active || !project.labourEnabled || project.contradictory) {
+        throw new Error("labour report project is no longer valid");
+      }
+    }
+    if (query.workerId) {
+      const worker = workers.find((item) => item.workerId === query.workerId);
+      if (!worker || worker.contradictory) {
+        throw new Error("labour report worker is no longer valid");
+      }
+    }
+
+    const prepared = {
+      status: "ready",
+      projects,
+      workers,
+      request: query,
+      parsed: { intent: "report", output: "pdf" },
+    };
+    const result = await executePreparedAdminLabourQuery({ db, prepared });
+    const reportRef = db.collection(REPORT_COLLECTION_ADMIN_LABOUR).doc(identity.reportId);
+    let reportSnap = await reportRef.get();
+    let report = reportSnap.exists ? reportSnap.data() || {} : null;
+
+    if (report && (
+      report.requestKey !== identity.requestKey ||
+      report.storagePath !== identity.storagePath ||
+      report.type !== "administratorLabourQuery"
+    )) {
+      throw new Error("administrator labour report identity mismatch");
+    }
+
+    if (!report || report.status !== "ready") {
+      await reportRef.set({
+        type: "administratorLabourQuery",
+        status: "generating",
+        requestKey: identity.requestKey,
+        reportTitle: query.projectName
+          ? `${query.projectName} Labour Report`
+          : "GridlineAI Labour Report",
+        projectSlug: query.projectSlug || null,
+        workerIdRef: query.workerId ? privacySafeReference(query.workerId, "worker") : null,
+        startKey: result.request.startKey,
+        endKey: result.request.endKey,
+        periodLabel: result.request.periodLabel,
+        storagePath: identity.storagePath,
+        createdByPhoneRef: administratorRef,
+        runId,
+        createdAt: report && report.createdAt ? report.createdAt : FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+
+      const generated = await generateAdminLabourReportPdf({
+        result,
+        generatedAt: new Date(),
+        storageBucket: admin.storage().bucket(),
+        storagePath: identity.storagePath,
+      });
+      await reportRef.set({
+        status: "ready",
+        totalMinutes: result.totalMinutes,
+        totalHours: result.totalMinutes / 60,
+        totalEntries: result.entryCount,
+        workerCount: result.workerCount,
+        projectCount: result.projectCount,
+        excludedEntryCount: result.excludedCount,
+        excludedReasons: result.excludedReasons,
+        auditFlags: result.auditFlags,
+        sourceEntryIds: result.documentIds,
+        projectSections: result.sections.map((section) => ({
+          projectSlug: section.projectSlug,
+          totalMinutes: section.totalMinutes,
+          entryCount: section.entryCount,
+          workerCount: section.workerCount,
+        })),
+        storagePath: generated.storagePath,
+        pdfByteLength: generated.byteLength,
+        downloadURL: null,
+        generatedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      reportSnap = await reportRef.get();
+      report = reportSnap.data() || {};
+    }
+
+    let accessGrantToken = String(d.accessGrantToken || "").trim();
+    if (!/^[a-f0-9]{32,128}$/i.test(accessGrantToken)) {
+      accessGrantToken = randomBytes(32).toString("hex");
+      await markQueue({ accessGrantToken });
+    }
+    const accessURL = await createReportAccessGrant({
+      collectionName: REPORT_COLLECTION_ADMIN_LABOUR,
+      reportId: identity.reportId,
+      storagePath: identity.storagePath,
+      recipientPhoneE164: phoneE164,
+      grantType: "sms_admin_labour",
+      grantToken: accessGrantToken,
+    });
+    if (!accessURL) throw new Error("administrator labour report access URL could not be created");
+
+    const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+    const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+    const configuredFrom = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+    if (!accountSid || !authToken || !(replyMessagingServiceSid || replyToNumber || configuredFrom)) {
+      throw new Error("Twilio configuration is unavailable for administrator labour report delivery");
+    }
+
+    const canSend = await markAdminLabourPdfSending({ db, queueRef, FieldValue });
+    if (!canSend) {
+      logger.info("deliverLabourPdfSms: administrator send suppressed by state", {
+        queueDocId: snap.id,
+        requestIdempotencyKey: identity.requestKey,
+      });
+      return;
+    }
+
+    const periodText = result.request.startKey === result.request.endKey
+      ? result.request.startKey
+      : `${result.request.startKey} to ${result.request.endKey}`;
+    const smsBody = `Administrator labour report (${periodText}): ${accessURL}`;
+    const payload = { to: phoneE164, body: smsBody };
+    if (replyMessagingServiceSid) payload.messagingServiceSid = replyMessagingServiceSid;
+    else payload.from = replyToNumber || configuredFrom;
+    const sent = await twilio(accountSid, authToken).messages.create(payload);
+    const messageSid = sent && sent.sid ? sent.sid : null;
+
+    await markQueue({
+      status: "sent",
+      sentAt: FieldValue.serverTimestamp(),
+      twilioMessageSid: messageSid,
+      reportId: identity.reportId,
+      storagePath: identity.storagePath,
+      processingLeaseUntilMs: null,
+      lastError: null,
+    });
+    await db.collection("messages").doc(identity.outboundMessageDocId).set({
+      direction: "outbound",
+      from: replyToNumber || configuredFrom || null,
+      to: phoneE164,
+      body: smsBody,
+      messageSid: messageSid || null,
+      delivery: "twilio_api",
+      replyToInboundDocId: d.replyToInboundDocId || null,
+      threadKey: phoneE164,
+      phoneE164,
+      channel: "sms",
+      schemaVersion: MESSAGE_SCHEMA_VERSION,
+      command: "labour_admin_report_link",
+      reportId: identity.reportId,
+      createdAt: FieldValue.serverTimestamp(),
+    }, { merge: false });
+
+    logger.info("deliverLabourPdfSms: administrator report sent", {
+      runId,
+      administratorRef,
+      requestIdempotencyKey: identity.requestKey,
+      projectSlug: result.request.projectSlug || "all-work-projects",
+      workerRef: result.request.workerId
+        ? privacySafeReference(result.request.workerId, "worker")
+        : null,
+      startKey: result.request.startKey,
+      endKey: result.request.endKey,
+      matchedEntryCount: result.entryCount,
+      excludedEntryCount: result.excludedCount,
+      conflictingLegacyHoursCount: Number(
+        result.auditFlags?.contradictory_legacy_hours_ignored || 0
+      ),
+      totalMinutes: result.totalMinutes,
+      reportRef: privacySafeReference(identity.reportId, "report"),
+    });
+  } catch (error) {
+    const current = await queueRef.get().catch(() => null);
+    const currentStatus = current && current.exists
+      ? String((current.data() || {}).status || "")
+      : "";
+    const status = currentStatus === "sending" ? "delivery_unknown" : "failed";
+    await markQueue({
+      status,
+      failedAt: FieldValue.serverTimestamp(),
+      processingLeaseUntilMs: null,
+      lastError: String(error.message || error).slice(0, 1000),
+    }).catch(() => {});
+    logger.error("deliverLabourPdfSms: administrator report failed", {
+      runId,
+      administratorRef,
+      requestIdempotencyKey: identity.requestKey,
+      failureReason: status,
+      message: String(error.message || error).slice(0, 300),
+    });
+    if (status === "failed") throw error;
+  }
+}
+
 exports.deliverLabourPdfSms = onDocumentCreated(
   {
     document: "labourPdfDeliveryQueue/{docId}",
@@ -3724,6 +4028,10 @@ exports.deliverTodoReportSms = onDocumentCreated(
     }
 
     const d = snap.data() || {};
+    if (d.adminQuery === true) {
+      await deliverAdministratorLabourPdfQueue(snap);
+      return;
+    }
     const queueRef = snap.ref;
     const markQueue = async (patch) => {
       await queueRef.set(
@@ -4547,6 +4855,7 @@ exports.inboundSms = onRequest(
   },
   async (req, res) => {
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    let labourSmsClaim = null;
     logger.info("inboundSms: request start", {
       runId,
       method: req.method,
@@ -4685,6 +4994,11 @@ exports.inboundSms = onRequest(
         });
       }
       const messageSid = params.MessageSid || "";
+      const bodyTrimmedForCommands = (params.Body || body || "").trim();
+      const labourAdminQueryCandidate = isAdminLabourQueryCandidate(bodyTrimmedForCommands);
+      const labourAdminRequestKey = labourAdminQueryCandidate
+        ? buildLabourSmsRequestKey(messageSid)
+        : "";
 
       if (!from) {
         logger.warn("inboundSms: missing From (check webhook URL and POST body)", {
@@ -4713,10 +5027,38 @@ exports.inboundSms = onRequest(
         return;
       }
 
-      const bodyTrimmedForCommands = (params.Body || body || "").trim();
+      if (labourAdminQueryCandidate && !labourAdminRequestKey) {
+        logger.warn("inboundSms: labour query missing MessageSid", {
+          runId,
+          senderRef: privacySafeReference(from, "sender"),
+          failureReason: "missing_message_sid",
+        });
+        sendTwiml(res, "I could not safely process that labour query. Try again in a minute.");
+        return;
+      }
+
+      if (labourAdminQueryCandidate && labourAdminRequestKey) {
+        labourSmsClaim = await claimLabourSmsQuery({
+          db,
+          FieldValue,
+          requestKey: labourAdminRequestKey,
+          senderIdentity: from,
+        });
+        if (!labourSmsClaim.claimed) {
+          logger.info("inboundSms: duplicate labour query suppressed", {
+            runId,
+            requestIdempotencyKey: labourAdminRequestKey,
+            priorStatus: labourSmsClaim.status || null,
+          });
+          sendEmptyTwiml(res);
+          return;
+        }
+      }
+
       if (
         !openaiKey &&
-        !isDailyReportPdfRequest(bodyTrimmedForCommands)
+        !isDailyReportPdfRequest(bodyTrimmedForCommands) &&
+        !labourAdminQueryCandidate
       ) {
         logger.error("inboundSms: missing OPENAI_API_KEY", { runId });
         const errText =
@@ -4821,10 +5163,14 @@ exports.inboundSms = onRequest(
         return;
       }
 
-      if (!openaiKey && isDailyReportPdfRequest(bodyTrimmedForCommands)) {
+      if (!openaiKey && (isDailyReportPdfRequest(bodyTrimmedForCommands) || labourAdminQueryCandidate)) {
         logger.warn(
-          "inboundSms: OPENAI_API_KEY missing — still handling daily PDF request (deterministic)",
-          { runId }
+          "inboundSms: OPENAI_API_KEY missing — still handling deterministic request",
+          {
+            runId,
+            requestType: labourAdminQueryCandidate ? "labour_admin_query" : "daily_pdf",
+            requestIdempotencyKey: labourAdminRequestKey || null,
+          }
         );
       }
 
@@ -4921,10 +5267,10 @@ exports.inboundSms = onRequest(
 
       logger.info("inboundSms: parsed webhook", {
         runId,
-        from,
-        to,
-        bodyPreview: (body || "").slice(0, 160),
-        messageSid,
+        senderRef: privacySafeReference(from, "sender"),
+        destinationRef: privacySafeReference(to, "destination"),
+        bodyLength: String(body || "").length,
+        messageRef: privacySafeReference(messageSid, "message"),
         numMedia,
         mediaCountEffective,
       });
@@ -5078,6 +5424,7 @@ exports.inboundSms = onRequest(
             models: {
               primary: OPENAI_MODEL_PRIMARY.value(),
             },
+            messageIdempotencyKey: labourAdminRequestKey || null,
           }),
           new Promise((_, reject) =>
             setTimeout(
@@ -5172,24 +5519,48 @@ exports.inboundSms = onRequest(
 
       if (outboundMeta.labourPdfRequested) {
         try {
-          labourPdfQueueRef = await db.collection("labourPdfDeliveryQueue").add({
-            phoneE164: from,
-            startKey: outboundMeta.labourReportStartKey || null,
-            endKey: outboundMeta.labourReportEndKey || null,
-            allLabourers: outboundMeta.labourReportAllLabourers === true,
-            replyToNumber: to || null,
-            replyMessagingServiceSid: messagingServiceSid || null,
-            replyAccountSid: inboundAccountSid || null,
-            runId,
-            replyToInboundDocId: inboundRef.id,
-            status: "queued",
-            attemptCount: 0,
-            lastError: null,
-            createdAt: FieldValue.serverTimestamp(),
-          });
+          if (outboundMeta.labourAdminQuery && outboundMeta.labourAdminPdfQuery) {
+            if (!labourAdminRequestKey) {
+              throw new Error("Administrator labour PDF requires a MessageSid idempotency key.");
+            }
+            const queued = await createAdminLabourPdfQueueOnce({
+              db,
+              FieldValue,
+              requestKey: labourAdminRequestKey,
+              payload: {
+                phoneE164: from,
+                query: outboundMeta.labourAdminPdfQuery,
+                replyToNumber: to || null,
+                replyMessagingServiceSid: messagingServiceSid || null,
+                replyAccountSid: inboundAccountSid || null,
+                runId,
+                replyToInboundDocId: inboundRef.id,
+                administratorRef: privacySafeReference(from, "admin"),
+              },
+            });
+            labourPdfQueueRef = queued.ref;
+          } else {
+            labourPdfQueueRef = await db.collection("labourPdfDeliveryQueue").add({
+              phoneE164: from,
+              startKey: outboundMeta.labourReportStartKey || null,
+              endKey: outboundMeta.labourReportEndKey || null,
+              allLabourers: outboundMeta.labourReportAllLabourers === true,
+              replyToNumber: to || null,
+              replyMessagingServiceSid: messagingServiceSid || null,
+              replyAccountSid: inboundAccountSid || null,
+              runId,
+              replyToInboundDocId: inboundRef.id,
+              status: "queued",
+              attemptCount: 0,
+              lastError: null,
+              createdAt: FieldValue.serverTimestamp(),
+            });
+          }
           logger.info("inboundSms: labour PDF queued for SMS delivery", {
             runId,
             queueDocId: labourPdfQueueRef.id,
+            administratorQuery: Boolean(outboundMeta.labourAdminQuery),
+            requestIdempotencyKey: labourAdminRequestKey || null,
           });
         } catch (queueErr) {
           logger.error("inboundSms: labour PDF queue failed", {
@@ -5300,6 +5671,15 @@ exports.inboundSms = onRequest(
           aiUsed: false,
           command: "photo_caption_confirmation_requested",
         };
+      }
+
+      if (labourSmsClaim && labourSmsClaim.claimed) {
+        await completeLabourSmsQuery({
+          ref: labourSmsClaim.ref,
+          FieldValue,
+          command: outboundMeta.command || "labour_admin_query",
+          queueDocId: labourPdfQueueRef ? labourPdfQueueRef.id : null,
+        });
       }
 
       // Twilio waits ~15s for this HTTP response — reply must be sent before that.
@@ -5685,6 +6065,13 @@ exports.inboundSms = onRequest(
         });
       }
     } catch (error) {
+      if (labourSmsClaim && labourSmsClaim.claimed) {
+        await failLabourSmsQuery({
+          ref: labourSmsClaim.ref,
+          FieldValue,
+          reason: "inbound_processing_failed",
+        }).catch(() => {});
+      }
       logger.error("inboundSms: error", {
         runId,
         message: error && error.message,

@@ -4,6 +4,12 @@ const { normalizeProjectSlug } = require("./projectAccess");
 const COL_LABOURERS = "labourers";
 const COL_LABOUR_ENTRIES = "labourEntries";
 const LABOUR_PAY_PERIOD_ANCHOR = "2026-04-25"; // Anchor date (start of a biweekly pay period).
+const LABOUR_PAY_PERIOD_CONFIG = Object.freeze({
+  anchorStartKey: LABOUR_PAY_PERIOD_ANCHOR,
+  lengthDays: 14,
+  timeZone: "America/Toronto",
+  source: "gridlineai_payroll_calendar_v1",
+});
 const LABOUR_REGULAR_WEEKLY_HOURS = 44;
 const LABOUR_REGULAR_DAILY_HOURS = 12;
 const LABOUR_REGULAR_HOURS_PER_DAY = LABOUR_REGULAR_WEEKLY_HOURS / 5;
@@ -41,12 +47,12 @@ function labourMinutesFromHours(value) {
 }
 
 function labourHoursFromStoredValue(value) {
-  const hours = Number(value && value.hours);
-  if (Number.isFinite(hours) && hours > 0) return roundLabourHours(hours);
   const minutesWorked = Number(value && value.minutesWorked);
   if (Number.isFinite(minutesWorked) && minutesWorked > 0) {
     return roundLabourHours(minutesWorked / 60);
   }
+  const hours = Number(value && value.hours);
+  if (Number.isFinite(hours) && hours > 0) return roundLabourHours(hours);
   return 0;
 }
 
@@ -994,6 +1000,7 @@ function buildLabourRollup(entries) {
 module.exports = {
   COL_LABOURERS,
   COL_LABOUR_ENTRIES,
+  LABOUR_PAY_PERIOD_CONFIG,
   normalizeLabourerName,
   normalizeLabourEntryText,
   normalizeLabourerPhone,

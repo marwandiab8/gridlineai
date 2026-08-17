@@ -30,12 +30,12 @@ function formatHours(value) {
 }
 
 function labourHoursForReportEntry(entry) {
-  const hours = Number(entry?.hours);
-  if (Number.isFinite(hours) && hours > 0) return hours;
   const minutesWorked = Number(entry?.minutesWorked);
   if (Number.isFinite(minutesWorked) && minutesWorked > 0) {
     return Math.round((minutesWorked / 60) * 100) / 100;
   }
+  const hours = Number(entry?.hours);
+  if (Number.isFinite(hours) && hours > 0) return hours;
   return 0;
 }
 
