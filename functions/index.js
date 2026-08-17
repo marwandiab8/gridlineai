@@ -9,6 +9,7 @@ const { FieldValue } = require("firebase-admin/firestore");
 const twilio = require("twilio");
 const OpenAI = require("openai");
 const { buildReply, checkRateLimit, resolveVoiceMediaProjectSlug, COL_USERS } = require("./assistant");
+// Keep inboundSms source revisions sensitive to labour parser dependency updates.
 const {
   addDashboardIssueNote,
   attachDashboardIssuePhoto,
