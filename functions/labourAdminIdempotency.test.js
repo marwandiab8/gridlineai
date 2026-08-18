@@ -5,7 +5,9 @@ const {
   claimLabourSmsQuery,
   completeLabourSmsQuery,
   createAdminLabourPdfQueueOnce,
+  markLabourSmsRequestOutcome,
   markAdminLabourPdfSending,
+  recordAdminLabourPdfFailure,
   validateAdminLabourPdfQueue,
 } = require("./labourAdminIdempotency");
 const { buildLabourSmsRequestKey } = require("./labourAdminQuery");
@@ -130,6 +132,7 @@ test("duplicate PDF requests create one deterministic queue document", async () 
       endKey: "2026-08-15",
       projectSlug: "docksteader",
     },
+    aggregation: { persisted: true },
   };
   const [first, second] = await Promise.all([
     createAdminLabourPdfQueueOnce({ db, FieldValue, requestKey: key, payload }),
@@ -158,6 +161,14 @@ test("queue identity rejects mismatched request keys and missing structured quer
     }),
     /query is missing/
   );
+  assert.throws(
+    () => validateAdminLabourPdfQueue(`admin-${key}`, {
+      adminQuery: true,
+      requestKey: key,
+      query: { startKey: "2026-08-01", endKey: "2026-08-15" },
+    }),
+    /persisted aggregation is missing/
+  );
 });
 
 test("delivery processing and sending transitions are transactional and single-use", async () => {
@@ -170,6 +181,7 @@ test("delivery processing and sending transitions are transactional and single-u
     payload: {
       phoneE164: "+15555550100",
       query: { startKey: "2026-08-01", endKey: "2026-08-15" },
+      aggregation: { persisted: true },
     },
   });
   const first = await claimAdminLabourPdfDelivery({
@@ -197,4 +209,165 @@ test("delivery processing and sending transitions are transactional and single-u
   });
   assert.equal(afterSending.claimed, false);
   assert.equal(afterSending.status, "sending");
+});
+
+test("PDF request is marked queued only after its deterministic job exists", async () => {
+  const db = new FakeDb();
+  const key = requestKey();
+  const requestClaim = await claimLabourSmsQuery({
+    db,
+    FieldValue,
+    requestKey: key,
+    senderIdentity: "+15555550100",
+  });
+  const queued = await createAdminLabourPdfQueueOnce({
+    db,
+    FieldValue,
+    requestKey: key,
+    payload: {
+      query: { startKey: "2026-08-01", endKey: "2026-08-15" },
+      aggregation: { persisted: true },
+    },
+  });
+  const requestRef = requestClaim.ref;
+  await completeLabourSmsQuery({
+    ref: requestRef,
+    FieldValue,
+    command: "labour_admin_report_pdf",
+    queueDocId: queued.ref.id,
+  });
+  const request = (await requestRef.get()).data();
+  assert.equal(request.status, "queued");
+  assert.equal(request.queueDocId, queued.ref.id);
+  const duplicate = await claimLabourSmsQuery({
+    db,
+    FieldValue,
+    requestKey: key,
+    senderIdentity: "+15555550100",
+  });
+  assert.equal(duplicate.claimed, false);
+  assert.equal(duplicate.status, "queued");
+});
+
+test("transient delivery failures retry and the exhausted attempt claims one failure notification", async () => {
+  const db = new FakeDb();
+  const key = requestKey();
+  const queued = await createAdminLabourPdfQueueOnce({
+    db,
+    FieldValue,
+    requestKey: key,
+    payload: {
+      query: { startKey: "2026-08-01", endKey: "2026-08-15" },
+      aggregation: { persisted: true },
+    },
+  });
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const claim = await claimAdminLabourPdfDelivery({
+      db,
+      queueRef: queued.ref,
+      FieldValue,
+      nowMs: attempt * 1_000_000,
+    });
+    assert.equal(claim.claimed, true);
+    const failure = await recordAdminLabourPdfFailure({
+      db,
+      queueRef: queued.ref,
+      FieldValue,
+      error: new Error("temporary rendering failure"),
+      maxAttempts: 3,
+    });
+    if (attempt < 3) {
+      assert.deepEqual(
+        { retry: failure.retry, notify: failure.notify, status: failure.status },
+        { retry: true, notify: false, status: "failed" }
+      );
+    } else {
+      assert.deepEqual(
+        { retry: failure.retry, notify: failure.notify, status: failure.status },
+        { retry: false, notify: true, status: "failure_sending" }
+      );
+    }
+  }
+  const duplicate = await claimAdminLabourPdfDelivery({
+    db,
+    queueRef: queued.ref,
+    FieldValue,
+    nowMs: 9_000_000,
+  });
+  assert.equal(duplicate.claimed, false);
+  assert.equal(duplicate.status, "failure_sending");
+});
+
+test("a provider failure after sending begins becomes delivery-unknown and is never resent", async () => {
+  const db = new FakeDb();
+  const key = requestKey();
+  const queued = await createAdminLabourPdfQueueOnce({
+    db,
+    FieldValue,
+    requestKey: key,
+    payload: {
+      query: { startKey: "2026-08-01", endKey: "2026-08-15" },
+      aggregation: { persisted: true },
+    },
+  });
+  await claimAdminLabourPdfDelivery({ db, queueRef: queued.ref, FieldValue, nowMs: 1_000 });
+  await markAdminLabourPdfSending({ db, queueRef: queued.ref, FieldValue });
+  const failure = await recordAdminLabourPdfFailure({
+    db,
+    queueRef: queued.ref,
+    FieldValue,
+    error: new Error("provider timeout"),
+    maxAttempts: 3,
+  });
+  assert.equal(failure.status, "delivery_unknown");
+  assert.equal(failure.retry, false);
+  const duplicate = await claimAdminLabourPdfDelivery({
+    db,
+    queueRef: queued.ref,
+    FieldValue,
+    nowMs: 9_000_000,
+  });
+  assert.equal(duplicate.claimed, false);
+  assert.equal(duplicate.status, "delivery_unknown");
+});
+
+test("request delivery outcomes are durable and terminal for duplicate webhooks", async () => {
+  const db = new FakeDb();
+  const key = requestKey();
+  await markLabourSmsRequestOutcome({
+    db,
+    FieldValue,
+    requestKey: key,
+    status: "delivered",
+    messageSid: "SMaccepted11111111111111111111111111",
+  });
+  const duplicate = await claimLabourSmsQuery({
+    db,
+    FieldValue,
+    requestKey: key,
+    senderIdentity: "+15555550100",
+  });
+  assert.equal(duplicate.claimed, false);
+  assert.equal(duplicate.status, "delivered");
+});
+
+test("late inbound completion cannot downgrade an already delivered request", async () => {
+  const db = new FakeDb();
+  const key = requestKey();
+  await markLabourSmsRequestOutcome({
+    db,
+    FieldValue,
+    requestKey: key,
+    status: "delivered",
+    messageSid: "SMaccepted11111111111111111111111111",
+  });
+  const ref = db.collection("labourSmsQueryRequests").doc(`labour-query-${key}`);
+  await completeLabourSmsQuery({
+    db,
+    ref,
+    FieldValue,
+    command: "labour_admin_report_pdf",
+    queueDocId: `admin-${key}`,
+  });
+  assert.equal((await ref.get()).data().status, "delivered");
 });

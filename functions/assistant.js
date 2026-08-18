@@ -3623,13 +3623,14 @@ async function buildReply({
 
         if (parsedAdminLabourQuery.output === "pdf") {
           return {
-            replyText: `OK. Generating the administrator labour PDF for ${result.request.startKey} to ${result.request.endKey}. A protected link will follow.`,
+            replyText: "Preparing the administrator labour PDF request.",
             outboundMeta: {
               ...outboundMeta,
               command: "labour_admin_report_pdf",
               labourAdminQuery: true,
               labourPdfRequested: true,
               labourAdminPdfQuery: result.request,
+              labourAdminPdfAggregation: result,
               labourReportStartKey: result.request.startKey,
               labourReportEndKey: result.request.endKey,
               labourReportAllLabourers: true,

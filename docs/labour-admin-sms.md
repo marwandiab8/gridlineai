@@ -73,4 +73,13 @@ PDF metadata is stored in the dedicated `adminLabourReports` collection, which h
 
 The inbound Twilio `MessageSid` is hashed into deterministic request, queue, report, storage, access-grant, and outbound-message identities. Duplicate webhook deliveries are transactionally consumed without a second TwiML message, queue document, report document, PDF path, access grant, or report-link SMS.
 
+For PDF requests, the canonical aggregation is persisted in the durable queue transaction before GridlineAI acknowledges that a protected link will follow. The delivery trigger validates that persisted result, creates the private PDF and access grant once, and marks the queue delivered only after Twilio accepts the link message. Pre-send failures remain retryable for three delivery attempts; an exhausted job sends one administrator-safe failure message. Provider-uncertain sends fail closed rather than risking a duplicate link.
+
+Successful project acknowledgement and link messages use readable inclusive dates, for example:
+
+```text
+Okay. Generating the administrator labour PDF for Docksteader, August 15–28, 2026. A protected link will follow shortly.
+Docksteader labour report — August 15–28, 2026: [protected link]
+```
+
 Privacy-safe logs record only the structured intent, hashed identity references, project/worker scope, inclusive dates, entry/exclusion counts, total minutes, clarification/failure reason, and request idempotency key. Raw SMS text, notes, full phone numbers, grant tokens, and PDF URLs are not logged by this workflow.
