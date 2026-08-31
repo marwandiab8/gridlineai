@@ -6,8 +6,7 @@
     "seed": "node seedFirestore.js",
     "lookahead": "node extractLookaheadSchedule.js",
     "backfill:timeleft:gridline": "node timeLeftGridline/backfillTimeLeft.js",
-    "test": "node --test",
-    "procore:test": "node ../scripts/procore-smoke-test.js"
+    "test": "node --test"
   },
   "engines": {
     "node": "22"

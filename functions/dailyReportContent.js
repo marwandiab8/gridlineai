@@ -25,6 +25,7 @@ const {
   isValidTradeHeading,
 } = require("./dailyReportIntegrity");
 const { normalizeReportLineText } = require("./dailyReportBulkText");
+const { summarizeJournalTrackingEntries, isTrackingEntry } = require("./journalActivitySummarizer");
 
 function isShortcutSourceEntry(e) {
   return String((e && e.source) || "").trim() === "ios_shortcuts";
@@ -154,6 +155,7 @@ function journalLineWithOptionalAuthor(entry, reportDateKey, includeAuthor, auth
   const text = reportDateKey ? reportLineText(entry, reportDateKey) : lineText(entry);
   if (!includeAuthor || !text) return text;
   const author = entryAuthorLabel(entry, authorLabelsByIdentity);
+  if (author && new RegExp(`^${escapeRegExp(author)}\\b`, "i").test(text)) return text;
   return `${author}: ${text}`;
 }
 
@@ -1459,6 +1461,7 @@ function isJournalMetaOrControlText(text) {
 
 function filterEntriesForJournalReport(entries, reportDateKey) {
   return filterEntriesForDailySummary(entries || []).filter((e) => {
+    if (isTrackingEntry(e) && String(e.shortcutEventType || "").trim()) return true;
     const layers = [
       reportDateKey ? reportLineText(e, reportDateKey) : lineText(e),
       String(e.rawText || "").trim(),
@@ -1549,7 +1552,10 @@ function sanitizeJournalMetaValue(value) {
 }
 
 function formatJournalBundleForAi(entries, reportDateKey, options = {}) {
-  const list = filterEntriesForJournalReport(entries || [], reportDateKey)
+  const list = summarizeJournalTrackingEntries(
+    filterEntriesForJournalReport(entries || [], reportDateKey),
+    options
+  )
     .sort((a, b) => entryTimeMs(a) - entryTimeMs(b));
   const authorLabelsByIdentity = buildAuthorLabelContext(list, options.authorLabelsByIdentity || null);
   const contributors = journalContributors(list, authorLabelsByIdentity)
@@ -1573,7 +1579,10 @@ function formatJournalBundleForAi(entries, reportDateKey, options = {}) {
 function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
   const dayStart = options.dayStart || new Date();
   const reportDateKey = options.reportDateKey || dateKeyEastern(dayStart);
-  const entries = filterEntriesForJournalReport(logEntriesRaw || [], reportDateKey)
+  const entries = summarizeJournalTrackingEntries(
+    filterEntriesForJournalReport(logEntriesRaw || [], reportDateKey),
+    options
+  )
     .sort((a, b) => entryTimeMs(a) - entryTimeMs(b));
   const entryMap = new Map(entries.map((e) => [String(e.id), e]));
 
@@ -1589,6 +1598,15 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
     .sort((a, b) => photoCreatedMs(a) - photoCreatedMs(b));
 
   const byEntry = indexPhotosByEntry(photos);
+  const photosForEntry = (entry) => {
+    const ids = [String(entry.id || ""), ...(entry.sourceEntryIds || []).map(String)];
+    const seen = new Set();
+    return ids.flatMap((id) => byEntry.get(id) || []).filter((photo) => {
+      if (seen.has(photo.mediaId)) return false;
+      seen.add(photo.mediaId);
+      return true;
+    });
+  };
   const authorLabelsByIdentity = buildAuthorLabelContext(entries, options.authorLabelsByIdentity || null);
   const contributors = journalContributors(entries, authorLabelsByIdentity);
   const timeline = entries
@@ -1597,7 +1615,7 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
       time: fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) }),
       authorLabel: entryAuthorLabel(e, authorLabelsByIdentity),
       text: reportDateKey ? reportLineText(e, reportDateKey) : lineText(e),
-      photos: byEntry.get(String(e.id)) || [],
+      photos: photosForEntry(e),
     }))
     .filter((row) => row.text);
 
@@ -1628,6 +1646,7 @@ module.exports = {
   formatReportBundleForAi,
   formatJournalBundleForAi,
   filterEntriesForJournalReport,
+  summarizeJournalTrackingEntries,
   stripReportFiller,
   lineText,
   reportLineText,

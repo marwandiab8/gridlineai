@@ -427,6 +427,20 @@ async function renderJournalPdf(opts) {
     drawParagraph(overview, 10, false, C.body);
   }
 
+  const activitySummaryRows = timelineRows.filter((row) => {
+    const entry = model && model.entryById instanceof Map
+      ? model.entryById.get(String(row.entryId || ""))
+      : null;
+    return Boolean(entry && entry._journalActivitySummary && row.text);
+  });
+  if (activitySummaryRows.length) {
+    drawSectionTitle("Activity Summary");
+    drawBullets(
+      activitySummaryRows.map((row) => `${row.time ? `${row.time} - ` : ""}${row.text}`),
+      C.body
+    );
+  }
+
   const renderedPhotoIds = new Set();
   if (timelineRows.length) {
     drawSectionTitle("Chronological Journal");

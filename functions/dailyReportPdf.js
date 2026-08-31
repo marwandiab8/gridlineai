@@ -391,6 +391,7 @@ function journalShortcutMoments(model) {
       const entry = entryById.get(String(row.entryId || ""));
       if (/^auto log\s*:/i.test(String(row.text || "").trim())) return false;
       return (
+        Boolean(entry && entry._journalActivitySummary) ||
         String(entry && entry.source || "").trim() === "ios_shortcuts" ||
         String(entry && entry.shortcutEventType || "").trim() ||
         /iOS Shortcuts tracking event/i.test(String(row.text || ""))

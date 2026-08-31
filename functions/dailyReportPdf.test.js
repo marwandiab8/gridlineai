@@ -232,14 +232,18 @@ test("two project journals in one scheduler cycle isolate timeline and AI inputs
   const homeAiInput = formatJournalBundleForAi(homeRows, "2026-08-16");
   const dockAiInput = formatJournalBundleForAi(dockRows, "2026-08-16");
 
-  assert.match(homeTimeline, /HOME_ONLY_MARKER/);
+  assert.match(homeTimeline, /arrived (at )?home/i);
+  assert.doesNotMatch(homeTimeline, /HOME_ONLY_MARKER/);
   assert.doesNotMatch(homeTimeline, /DOCK_ONLY_MARKER|DOCK_LEGACY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
-  assert.match(dockTimeline, /DOCK_ONLY_MARKER/);
+  assert.match(dockTimeline, /arrived at work/i);
+  assert.doesNotMatch(dockTimeline, /DOCK_ONLY_MARKER/);
   assert.match(dockTimeline, /DOCK_LEGACY_MARKER/);
   assert.doesNotMatch(dockTimeline, /HOME_ONLY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
-  assert.match(homeAiInput, /HOME_ONLY_MARKER/);
+  assert.match(homeAiInput, /arrived at home/i);
+  assert.doesNotMatch(homeAiInput, /HOME_ONLY_MARKER/);
   assert.doesNotMatch(homeAiInput, /DOCK_ONLY_MARKER|DOCK_LEGACY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
-  assert.match(dockAiInput, /DOCK_ONLY_MARKER/);
+  assert.match(dockAiInput, /arrived at work/i);
+  assert.doesNotMatch(dockAiInput, /DOCK_ONLY_MARKER/);
   assert.match(dockAiInput, /DOCK_LEGACY_MARKER/);
   assert.doesNotMatch(dockAiInput, /HOME_ONLY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
 });

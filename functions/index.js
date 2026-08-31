@@ -134,7 +134,6 @@ const {
   resolveManagementJournalDeliveryContext,
   shouldSkipManagementJournalDelivery,
 } = require("./managementJournalDelivery");
-const { createProcoreHandlers } = require("./procore/routes");
 const {
   generateShortcutToken,
   hashShortcutToken,
@@ -545,41 +544,11 @@ try {
 }
 admin.initializeApp({ storageBucket });
 const db = admin.firestore();
-async function authorizeProcoreDataRequest(req) {
-  const header = String(req.get("Authorization") || req.get("authorization") || "").trim();
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) {
-    const err = new Error("Sign in required to read Procore data.");
-    err.status = 401;
-    err.code = "unauthenticated";
-    throw err;
-  }
-  const decoded = await admin.auth().verifyIdToken(match[1].trim());
-  const access = await getAppAccess(db, {
-    auth: {
-      uid: decoded.uid,
-      token: decoded,
-    },
-  });
-  if (!roleAtLeast(access.role, "management")) {
-    const err = new Error("Management access is required to read Procore data.");
-    err.status = 403;
-    err.code = "permission-denied";
-    throw err;
-  }
-  return access;
-}
-const procoreHandlers = createProcoreHandlers({
-  db,
-  logger,
-  authorizeRequest: authorizeProcoreDataRequest,
-});
 
 const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
 const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
 const TWILIO_PHONE_NUMBER = defineSecret("TWILIO_PHONE_NUMBER");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
-const PROCORE_CLIENT_SECRET = defineSecret("PROCORE_CLIENT_SECRET");
 const COL_VOICE_MESSAGE_QUEUE = "voiceMessageProcessingQueue";
 const COL_AUDIO_MESSAGE_QUEUE = "audioMessageProcessingQueue";
 
@@ -6980,61 +6949,6 @@ exports.dailyReportDownload = onRequest(
       res.status(500).type("text/plain").send("Could not open the report.");
     }
   }
-);
-
-exports.procoreLogin = onRequest(
-  {
-    region: "northamerica-northeast1",
-    invoker: "public",
-    timeoutSeconds: 60,
-    memory: "256MiB",
-    secrets: [PROCORE_CLIENT_SECRET],
-  },
-  procoreHandlers.login
-);
-
-exports.procoreCallback = onRequest(
-  {
-    region: "northamerica-northeast1",
-    invoker: "public",
-    timeoutSeconds: 60,
-    memory: "256MiB",
-    secrets: [PROCORE_CLIENT_SECRET],
-  },
-  procoreHandlers.callback
-);
-
-exports.procoreStatus = onRequest(
-  {
-    region: "northamerica-northeast1",
-    invoker: "public",
-    timeoutSeconds: 60,
-    memory: "256MiB",
-    secrets: [PROCORE_CLIENT_SECRET],
-  },
-  procoreHandlers.status
-);
-
-exports.procoreData = onRequest(
-  {
-    region: "northamerica-northeast1",
-    invoker: "public",
-    timeoutSeconds: 120,
-    memory: "512MiB",
-    secrets: [PROCORE_CLIENT_SECRET],
-  },
-  procoreHandlers.data
-);
-
-exports.procoreSelection = onRequest(
-  {
-    region: "northamerica-northeast1",
-    invoker: "public",
-    timeoutSeconds: 60,
-    memory: "256MiB",
-    secrets: [PROCORE_CLIENT_SECRET],
-  },
-  procoreHandlers.selection
 );
 
 const iosShortcutTimeLeftDelivery = buildIosShortcutTimeLeftDeliveryService({

@@ -403,6 +403,45 @@ test("journal AI bundle carries contributor labels for co-authored journals", ()
   assert.match(model.deterministic.overview, /Marwan Diab: I got to the gym early\./);
 });
 
+test("journal tracking summaries combine locations, calculate durations, and hide technical events", () => {
+  const entries = [
+    { id: "arrive-work", source: "ios_shortcuts", shortcutEventType: "arrive_work", shortcutEventAtIso: "2026-08-30T10:57:00Z", authorLabel: "Marwan Diab", projectSlug: "home", includeInDailySummary: true },
+    { id: "spotify", source: "ios_shortcuts", shortcutEventType: "start_spotify", shortcutEventAtIso: "2026-08-30T11:00:00Z", authorLabel: "Marwan Diab", projectSlug: "home", includeInDailySummary: true },
+    { id: "leave-work", source: "ios_shortcuts", shortcutEventType: "leave_work", shortcutEventAtIso: "2026-08-30T20:12:00Z", authorLabel: "Marwan Diab", projectSlug: "home", includeInDailySummary: true },
+  ];
+  const model = buildJournalReportModel(entries, [], {
+    reportDateKey: "2026-08-30",
+    dayStart: new Date("2026-08-30T12:00:00Z"),
+  });
+  assert.equal(model.timeline.length, 1);
+  assert.match(model.timeline[0].text, /arrived at work at 6:57 am and finished the workday at 4:12 pm/i);
+  assert.match(model.timeline[0].text, /approximately 9 hours and 15 minutes/);
+  assert.doesNotMatch(formatJournalBundleForAi(entries, "2026-08-30"), /spotify|tracking|event type|coordinates/i);
+});
+
+test("journal tracking summaries handle an incomplete event without inventing duration", () => {
+  const model = buildJournalReportModel([
+    { id: "arrive-home", source: "ios_shortcuts", shortcutEventType: "arrive_home", shortcutEventAtIso: "2026-08-30T21:20:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+  ], [], { reportDateKey: "2026-08-30" });
+  assert.equal(model.timeline.length, 1);
+  assert.match(model.timeline[0].text, /arrived at home at approximately 5:20 pm/i);
+  assert.doesNotMatch(model.timeline[0].text, /spent|duration|remained|hours|minutes/i);
+});
+
+test("journal tracking summaries combine a gym session and its workout", () => {
+  const entries = [
+    { id: "gym-in", source: "ios_shortcuts", shortcutEventType: "arrive_gym", shortcutEventAtIso: "2026-08-30T10:00:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "workout-in", source: "ios_shortcuts", shortcutEventType: "start_workout", shortcutEventAtIso: "2026-08-30T10:08:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "workout-out", source: "ios_shortcuts", shortcutEventType: "finish_workout", shortcutEventAtIso: "2026-08-30T11:02:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "gym-out", source: "ios_shortcuts", shortcutEventType: "leave_gym", shortcutEventAtIso: "2026-08-30T11:10:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+  ];
+  const model = buildJournalReportModel(entries, [], { reportDateKey: "2026-08-30" });
+  assert.equal(model.timeline.length, 1);
+  assert.match(model.timeline[0].text, /went to the gym.*completed a workout.*left/i);
+  assert.match(model.timeline[0].text, /54 minutes/);
+  assert.doesNotMatch(model.timeline[0].text, /start_workout|finish_workout|tracking/i);
+});
+
 test("buildDailyReportModel carries author labels into source chunks", () => {
   const reportDateKey = "2026-04-18";
   const model = buildDailyReportModel(
