@@ -35,6 +35,7 @@ const {
   buildLabourRollup,
   normalizeLabourRangeKeys,
 } = require("./labourRepository");
+const { createLabourPortalHandler } = require("./labourPortal");
 const { generateLabourReportPdf } = require("./labourReportPdf");
 const {
   ADMIN_LABOUR_REPORT_COLLECTION,
@@ -4939,6 +4940,16 @@ exports.processAudioMessageQueue = onDocumentCreated(
     }
     await processAudioMessageQueueDoc(snap);
   }
+);
+
+exports.labourPortal = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  createLabourPortalHandler({ db, FieldValue, logger })
 );
 
 exports.inboundSms = onRequest(
