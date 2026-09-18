@@ -18,11 +18,16 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function normalizeCanadianPhone(value) {
+function normalizeCode(value) {
   const digits = String(value || "").replace(/\D/g, "");
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith("1")) return `+${digits}`;
-  return "";
+  return digits.length === 4 ? digits : "";
+}
+
+async function findLabourersByCode(db, code) {
+  const snap = await db.collection("labourers").get();
+  return snap.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((labourer) => labourer.active !== false && String(labourer.phoneE164 || "").endsWith(code));
 }
 
 function easternDateKey(now = new Date()) {
@@ -32,10 +37,24 @@ function easternDateKey(now = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
+const SHARED_STYLE = `*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#172033;font-family:system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:520px;margin:0 auto;padding:28px 18px 44px}.brand{font-size:14px;font-weight:800;letter-spacing:.12em;color:#3564a8;text-transform:uppercase}.card{margin-top:12px;background:#fff;border-radius:20px;padding:24px;box-shadow:0 12px 35px #17203318}h1{margin:0 0 8px;font-size:28px}p{margin:0 0 22px;color:#5d687b;line-height:1.45}label{display:block;margin:16px 0 7px;font-weight:750}input,textarea{width:100%;font:inherit;font-size:17px;border:1px solid #cbd4e1;border-radius:11px;padding:13px;background:#fff}input:focus,textarea:focus{outline:3px solid #4a83cf35;border-color:#4a83cf}textarea{min-height:110px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{width:100%;margin-top:22px;border:0;border-radius:12px;padding:15px;background:#17643a;color:#fff;font-size:18px;font-weight:800}.pick{width:100%;margin-top:10px;border:1px solid #cbd4e1;border-radius:11px;padding:13px;background:#fff;color:#172033;font-size:17px;font-weight:700;text-align:left}.notice{padding:13px;border-radius:11px;margin-bottom:18px;background:${"__ERR__"};color:${"__ERRTEXT__"};font-weight:700}.help{font-size:13px;margin-top:14px;color:#788397}.trap{position:absolute;left:-9999px}@media(max-width:430px){.row{grid-template-columns:1fr}.card{padding:20px}.wrap{padding:20px 12px}}`;
+
+function noticeStyle(error) {
+  return SHARED_STYLE
+    .replace("__ERR__", error ? "#fff0f0" : "#eaf8ef")
+    .replace("__ERRTEXT__", error ? "#9b2323" : "#17643a");
+}
+
 function page({ message = "", error = false, values = {} } = {}) {
   const today = easternDateKey();
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12233f"><title>Submit Labour Hours</title><style>
-*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#172033;font-family:system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:520px;margin:0 auto;padding:28px 18px 44px}.brand{font-size:14px;font-weight:800;letter-spacing:.12em;color:#3564a8;text-transform:uppercase}.card{margin-top:12px;background:#fff;border-radius:20px;padding:24px;box-shadow:0 12px 35px #17203318}h1{margin:0 0 8px;font-size:28px}p{margin:0 0 22px;color:#5d687b;line-height:1.45}label{display:block;margin:16px 0 7px;font-weight:750}input,textarea{width:100%;font:inherit;font-size:17px;border:1px solid #cbd4e1;border-radius:11px;padding:13px;background:#fff}input:focus,textarea:focus{outline:3px solid #4a83cf35;border-color:#4a83cf}textarea{min-height:110px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}button{width:100%;margin-top:22px;border:0;border-radius:12px;padding:15px;background:#17643a;color:#fff;font-size:18px;font-weight:800}.notice{padding:13px;border-radius:11px;margin-bottom:18px;background:${error ? "#fff0f0" : "#eaf8ef"};color:${error ? "#9b2323" : "#17643a"};font-weight:700}.help{font-size:13px;margin-top:14px;color:#788397}.trap{position:absolute;left:-9999px}@media(max-width:430px){.row{grid-template-columns:1fr}.card{padding:20px}.wrap{padding:20px 12px}}</style></head><body><main class="wrap"><div class="brand">GridlineAI</div><section class="card"><h1>Submit your hours</h1><p>Enter your work hours for the day. Your phone number must match the number registered with your employer.</p>${message ? `<div class="notice" role="status">${escapeHtml(message)}</div>` : ""}<form method="post" action="/labour" autocomplete="on"><label for="name">Your name</label><input id="name" name="name" value="${escapeHtml(values.name)}" autocomplete="name" maxlength="120" required><label for="phone">Phone number</label><input id="phone" name="phone" value="${escapeHtml(values.phone)}" type="tel" inputmode="tel" autocomplete="tel" placeholder="289 555 1234" required><div class="row"><div><label for="date">Work date</label><input id="date" name="date" type="date" value="${escapeHtml(values.date || today)}" max="${today}" required></div><div><label for="hours">Total hours</label><input id="hours" name="hours" value="${escapeHtml(values.hours)}" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" placeholder="8.5" required></div></div><label for="workOn">Work completed</label><textarea id="workOn" name="workOn" maxlength="2000" placeholder="Example: 6.5h safety railing, 2h housekeeping" required>${escapeHtml(values.workOn)}</textarea><label class="trap">Leave blank<input name="website" tabindex="-1" autocomplete="off"></label><button type="submit">Submit hours</button></form><div class="help">One entry is allowed per person per day. Contact your supervisor if a correction is needed.</div></section></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12233f"><title>Submit Labour Hours</title><style>${noticeStyle(error)}</style></head><body><main class="wrap"><div class="brand">GridlineAI</div><section class="card"><h1>Submit your hours</h1><p>Enter your 4-digit code (the last 4 digits of your registered phone number) and your work hours for the day.</p>${message ? `<div class="notice" role="status">${escapeHtml(message)}</div>` : ""}<form method="post" action="/labour" autocomplete="on"><label for="code">Your code</label><input id="code" name="code" value="${escapeHtml(values.code)}" type="tel" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="1234" autocomplete="off" required autofocus><div class="row"><div><label for="date">Work date</label><input id="date" name="date" type="date" value="${escapeHtml(values.date || today)}" max="${today}" required></div><div><label for="hours">Total hours</label><input id="hours" name="hours" value="${escapeHtml(values.hours)}" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" placeholder="8.5" required></div></div><label for="workOn">Work completed</label><textarea id="workOn" name="workOn" maxlength="2000" placeholder="Example: 6.5h safety railing, 2h housekeeping" required>${escapeHtml(values.workOn)}</textarea><label class="trap">Leave blank<input name="website" tabindex="-1" autocomplete="off"></label><button type="submit">Submit hours</button></form><div class="help">One entry is allowed per person per day. Contact your supervisor if a correction is needed.</div></section></main></body></html>`;
+}
+
+function pickerPage({ candidates, values }) {
+  const buttons = candidates
+    .map((candidate) => `<button class="pick" type="submit" name="chosenPhone" value="${escapeHtml(candidate.phoneE164)}">${escapeHtml(candidate.name)}</button>`)
+    .join("");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12233f"><title>Submit Labour Hours</title><style>${noticeStyle(false)}</style></head><body><main class="wrap"><div class="brand">GridlineAI</div><section class="card"><h1>Which one are you?</h1><p>More than one labourer uses that code. Tap your name to continue.</p><form method="post" action="/labour"><input type="hidden" name="code" value="${escapeHtml(values.code)}"><input type="hidden" name="date" value="${escapeHtml(values.date)}"><input type="hidden" name="hours" value="${escapeHtml(values.hours)}"><input type="hidden" name="workOn" value="${escapeHtml(values.workOn)}">${buttons}</form></section></main></body></html>`;
 }
 
 function formBody(req) {
@@ -72,34 +91,40 @@ function createLabourPortalHandler({ db, FieldValue, logger = console }) {
     if (rateLimited(req)) return res.status(429).type("html").send(page({ message: "Too many attempts. Please wait 15 minutes and try again.", error: true }));
 
     const body = formBody(req);
-    const values = { name: String(body.name || ""), phone: String(body.phone || ""), date: String(body.date || ""), hours: String(body.hours || ""), workOn: String(body.workOn || "") };
+    const values = { code: String(body.code || ""), date: String(body.date || ""), hours: String(body.hours || ""), workOn: String(body.workOn || "") };
     const fail = (message, status = 400) => res.status(status).type("html").send(page({ message, error: true, values }));
     if (body.website) return fail("Unable to submit the entry.");
-    const phone = normalizeCanadianPhone(body.phone);
-    const name = normalizeLabourerName(body.name);
+    const code = normalizeCode(body.code);
     const workOn = normalizeLabourEntryText(body.workOn);
     const hours = Number(body.hours);
     const date = String(body.date || "").trim();
-    if (!phone || !name) return fail("Enter your registered name and a valid Canadian phone number.");
+    if (!code) return fail("Enter your 4-digit code.");
     if (!Number.isFinite(hours) || hours < 0.25 || hours > 24) return fail("Enter total hours between 0.25 and 24.");
     if (!workOn) return fail("Describe the work completed.");
     const dateValidation = validateLabourReportDateKey(date, new Date());
     if (!dateValidation.ok) return fail("Choose a valid recent work date.");
 
     try {
-      const labourerSnap = await db.collection("labourers").doc(phone).get();
-      const labourer = labourerSnap.exists ? labourerSnap.data() || {} : null;
-      const registeredName = normalizeLabourerName(labourer && (labourer.name || labourer.displayName));
-      if (!labourer || labourer.active === false || registeredName.toLowerCase() !== name.toLowerCase()) {
-        return fail("The name and phone number do not match an active labourer record.", 403);
+      const candidates = await findLabourersByCode(db, code);
+      if (!candidates.length) return fail("No active labourer is registered with that code. Contact your supervisor.", 403);
+
+      let labourer = candidates[0];
+      if (candidates.length > 1) {
+        const chosenPhone = String(body.chosenPhone || "").trim();
+        const chosen = chosenPhone && candidates.find((candidate) => candidate.phoneE164 === chosenPhone);
+        if (!chosen) return res.status(200).type("html").send(pickerPage({ candidates, values }));
+        labourer = chosen;
       }
+
+      const phone = labourer.phoneE164;
+      const registeredName = normalizeLabourerName(labourer.name || labourer.displayName);
       const projectSlug = projectForLabourer(labourer);
       if (!projectSlug) return fail("No active project is assigned to this labourer. Contact your supervisor.", 403);
       const existing = await loadLabourEntries(db, { startKey: date, endKey: date, labourerPhone: phone });
       if (existing.length) return fail(`Hours were already submitted for ${date}. Contact your supervisor to make a correction.`, 409);
       await writeLabourEntry(db, FieldValue, { labourerName: registeredName, labourerPhone: phone, projectSlug, reportDateKey: date, hours, workOn, notes: workOn, source: "labour-web", enteredByPhone: phone });
       logger.info("labourPortal: entry saved", { labourerPhoneLast4: phone.slice(-4), projectSlug, reportDateKey: date });
-      return res.status(201).type("html").send(page({ message: `Saved ${hours} hours for ${registeredName} on ${date}.`, values: { name: registeredName, phone: body.phone, date: easternDateKey(), hours: "", workOn: "" } }));
+      return res.status(201).type("html").send(page({ message: `Saved ${hours} hours for ${registeredName} on ${date}.`, values: { code, date: easternDateKey(), hours: "", workOn: "" } }));
     } catch (error) {
       logger.error("labourPortal: submission failed", { message: error.message });
       return fail("The hours could not be saved. Please try again or contact your supervisor.", 500);
@@ -107,4 +132,4 @@ function createLabourPortalHandler({ db, FieldValue, logger = console }) {
   };
 }
 
-module.exports = { createLabourPortalHandler, normalizeCanadianPhone, projectForLabourer, easternDateKey };
+module.exports = { createLabourPortalHandler, normalizeCode, projectForLabourer, easternDateKey };
