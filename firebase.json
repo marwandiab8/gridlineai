@@ -11,6 +11,13 @@
     ],
     "rewrites": [
       {
+        "source": "/labour",
+        "function": {
+          "functionId": "labourPortal",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
         "source": "/api/procore/login",
         "function": {
           "functionId": "procoreLogin",
