@@ -143,6 +143,16 @@ test("maps start_spotify", () => {
   assert.equal(body.eventClass, "activity_boundary");
 });
 
+test("maps finish_spotify", () => {
+  const event = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({ eventType: "finish_spotify" }));
+  const body = baseAssertion(event);
+  assert.equal(body.eventType, "finish_spotify");
+  assert.equal(body.activityFamily, "spotify");
+  assert.equal(body.categoryId, "spotify");
+  assert.equal(body.eventClass, "activity_boundary");
+  assert.equal(body.title, "Stopped listening to Spotify");
+});
+
 test("uses stable sourceRecordId", () => {
   const event = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({ id: "stable-id-77" }));
   assert.equal(event.event.sourceRecordId, "stable-id-77");

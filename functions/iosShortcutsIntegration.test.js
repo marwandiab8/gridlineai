@@ -374,6 +374,9 @@ test("accepts gym, workout, and Spotify Shortcut events", () => {
     ["started workout", "start_workout"],
     ["finished workout", "finish_workout"],
     ["started listening to spotify", "start_spotify"],
+    ["finished listening to spotify", "finish_spotify"],
+    ["stopped spotify", "finish_spotify"],
+    ["stop listening to spotify", "finish_spotify"],
   ];
   for (const [input, expected] of cases) {
     const parsed = parseShortcutEventPayload({

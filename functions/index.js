@@ -7356,8 +7356,10 @@ exports.getIosShortcutsIntegrationCallable = onCall(
         "start_workout",
         "finish_workout",
         "start_spotify",
+        "finish_spotify",
         "arrive_location",
         "leave_location",
+        "traffic_jam",
       ],
     };
   }

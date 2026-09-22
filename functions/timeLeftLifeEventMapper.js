@@ -71,6 +71,12 @@ const SHORTCUT_EVENT_RULES = {
     categoryId: "spotify",
     title: "Started listening to Spotify",
   },
+  finish_spotify: {
+    eventClass: "activity_boundary",
+    activityFamily: "spotify",
+    categoryId: "spotify",
+    title: "Stopped listening to Spotify",
+  },
   arrive_location: {
     eventClass: "location",
     activityFamily: "location",
