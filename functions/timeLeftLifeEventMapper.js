@@ -83,6 +83,12 @@ const SHORTCUT_EVENT_RULES = {
     categoryId: "other_location",
     title: "Left location",
   },
+  traffic_jam: {
+    eventClass: "system",
+    activityFamily: "traffic",
+    categoryId: "traffic",
+    title: "Stuck in traffic",
+  },
 };
 
 function trimOrEmpty(value) {

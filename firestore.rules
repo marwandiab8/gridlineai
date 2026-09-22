@@ -245,6 +245,13 @@ service cloud.firestore {
       allow read: if isAdminApp();
       allow write: if false;
     }
+    match /knownPlaces/{placeId} {
+      // A member sees and edits only their own remembered places, never anyone else's; every
+      // mutation still goes through a callable (placesAdmin.js), which re-checks this same
+      // ownership itself since callables run under the Admin SDK and bypass these rules.
+      allow read: if hasAppAccess() && resource.data.memberEmail == operatorEmail();
+      allow write: if false;
+    }
     match /labourers/{labourerId} {
       allow read: if isManagementApp();
       allow write: if false;

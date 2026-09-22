@@ -124,6 +124,16 @@ test("maps leave_location", () => {
   assert.equal(body.location.label, "Riverside Park");
 });
 
+test("maps traffic_jam", () => {
+  const event = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({ eventType: "traffic_jam" }));
+  const body = baseAssertion(event);
+  assert.equal(body.eventType, "traffic_jam");
+  assert.equal(body.eventClass, "system");
+  assert.equal(body.activityFamily, "traffic");
+  assert.equal(body.categoryId, "traffic");
+  assert.equal(body.title, "Stuck in traffic");
+});
+
 test("maps start_spotify", () => {
   const event = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({ eventType: "start_spotify" }));
   const body = baseAssertion(event);

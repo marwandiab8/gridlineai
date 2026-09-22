@@ -53,6 +53,20 @@
         }
       },
       {
+        "source": "/api/integrations/owntracks/events",
+        "function": {
+          "functionId": "ownTracksEvents",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
+        "source": "/api/integrations/places/log",
+        "function": {
+          "functionId": "placesEvents",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
         "source": "/callback",
         "function": {
           "functionId": "procoreCallback",

@@ -141,6 +141,9 @@ const {
   handleShortcutEventRequest,
   tokenLast4,
 } = require("./iosShortcutsIntegration");
+const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
+const { handlePlaceLogRequest } = require("./placesIntegration");
+const { renameKnownPlace, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
 const {
   createTimeLeftDeliveryRepository,
 } = require("./timeLeftDeliveryRepository");
@@ -550,6 +553,12 @@ const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
 const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
 const TWILIO_PHONE_NUMBER = defineSecret("TWILIO_PHONE_NUMBER");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+// Same secret timeLeftShortcutTriggers.js already declares for its own functions; declaring it
+// here too is what actually makes process.env.TIME_LEFT_INGESTION_TOKEN populated for
+// iosShortcutsEvents/ownTracksEvents specifically - readTimeLeftLifeEventConfigFromEnv reads
+// straight from process.env, and Cloud Functions v2 only injects a secret into process.env for
+// the functions that list it in their own `secrets` array.
+const TIME_LEFT_INGESTION_TOKEN = defineSecret("TIME_LEFT_INGESTION_TOKEN");
 const COL_VOICE_MESSAGE_QUEUE = "voiceMessageProcessingQueue";
 const COL_AUDIO_MESSAGE_QUEUE = "audioMessageProcessingQueue";
 
@@ -6975,7 +6984,7 @@ exports.iosShortcutsEvents = onRequest(
     timeoutSeconds: 120,
     memory: "512MiB",
     cors: true,
-    secrets: [OPENAI_API_KEY],
+    secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
   },
   async (req, res) =>
     handleShortcutEventRequest({
@@ -6989,6 +6998,88 @@ exports.iosShortcutsEvents = onRequest(
       timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
     })
 );
+
+// Same auth token, same recording/dedupe/TimeLeft-delivery pipeline as iosShortcutsEvents above;
+// only the wire format differs (OwnTracks region "transition" events instead of a Shortcut's
+// own event_type payload). See docs/owntracks-integration.md.
+exports.ownTracksEvents = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    cors: true,
+    secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
+  },
+  async (req, res) =>
+    handleOwnTracksEventRequest({
+      db,
+      FieldValue,
+      req,
+      res,
+      logger,
+      processAssistantMessage,
+      openaiKey: OPENAI_API_KEY.value() || null,
+      timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
+    })
+);
+
+// "Log this place" Shortcut: coordinates-only first call recognizes an already-named place and
+// logs the visit; an unrecognized place is not logged until a second call supplies a name (asked
+// for locally in the Shortcut, not by SMS). See docs/quick-log-shortcuts.md.
+exports.placesEvents = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    cors: true,
+    secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
+  },
+  async (req, res) =>
+    handlePlaceLogRequest({
+      db,
+      FieldValue,
+      req,
+      res,
+      logger,
+      processAssistantMessage,
+      openaiKey: OPENAI_API_KEY.value() || null,
+      timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
+    })
+);
+
+// "Known Places" dashboard (public/places.html): any signed-in active app member may read their
+// own knownPlaces docs directly (see firestore.rules), but every mutation goes through one of
+// these callables, which re-check ownership themselves regardless of what the rules already say.
+const PLACES_CALLABLE_OPTIONS = { region: "northamerica-northeast1", cors: true, timeoutSeconds: 60, memory: "256MiB" };
+
+exports.renameKnownPlaceCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  const access = await getAppAccess(db, request);
+  return renameKnownPlace({ db, FieldValue, memberEmail: access.email, placeId: request.data?.placeId, name: request.data?.name });
+});
+
+exports.updateKnownPlaceRadiusCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  const access = await getAppAccess(db, request);
+  return updateKnownPlaceRadius({ db, FieldValue, memberEmail: access.email, placeId: request.data?.placeId, radiusMeters: request.data?.radiusMeters });
+});
+
+exports.deleteKnownPlaceCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  const access = await getAppAccess(db, request);
+  return deleteKnownPlace({ db, memberEmail: access.email, placeId: request.data?.placeId });
+});
+
+exports.mergeKnownPlacesCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  const access = await getAppAccess(db, request);
+  return mergeKnownPlaces({
+    db,
+    FieldValue,
+    memberEmail: access.email,
+    survivorId: request.data?.survivorId,
+    mergeIds: request.data?.mergeIds,
+    name: request.data?.name,
+  });
+});
 
 exports.sendAssistantMessageHttp = onRequest(
   {

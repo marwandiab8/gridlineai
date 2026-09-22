@@ -386,6 +386,25 @@ test("accepts gym, workout, and Spotify Shortcut events", () => {
   }
 });
 
+test("accepts traffic_jam and its Shortcut phrasing aliases", () => {
+  const cases = [
+    ["traffic_jam", "traffic_jam"],
+    ["Stuck in traffic", "traffic_jam"],
+    ["traffic", "traffic_jam"],
+    ["In Traffic", "traffic_jam"],
+  ];
+  for (const [input, expected] of cases) {
+    const parsed = parseShortcutEventPayload({
+      event_type: input,
+      timestamp: "2026-07-09T08:30:00-04:00",
+      timezone: "America/Toronto",
+    });
+    assert.equal(parsed.ok, true, input);
+    assert.equal(parsed.event.eventType, expected, input);
+    assert.equal(parsed.event.eventLabel, "Stuck in traffic");
+  }
+});
+
 test("falls back to server receive time when timestamp is missing", () => {
   const parsed = parseShortcutEventPayload(
     { event_type: "arrive_home", timezone: "America/Toronto" },

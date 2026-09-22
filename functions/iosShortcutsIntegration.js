@@ -16,6 +16,7 @@ const SUPPORTED_EVENT_TYPES = new Set([
   "start_spotify",
   "arrive_location",
   "leave_location",
+  "traffic_jam",
 ]);
 const EVENT_LABELS = {
   arrive_work: "Arrived at work",
@@ -29,6 +30,7 @@ const EVENT_LABELS = {
   start_spotify: "Started listening to Spotify",
   arrive_location: "Arrived at location",
   leave_location: "Left location",
+  traffic_jam: "Stuck in traffic",
 };
 const EVENT_TYPE_ALIASES = {
   arrive_at_work: "arrive_work",
@@ -84,6 +86,10 @@ const EVENT_TYPE_ALIASES = {
   left_location: "leave_location",
   depart_location: "leave_location",
   departed_location: "leave_location",
+  traffic: "traffic_jam",
+  traffic_jam: "traffic_jam",
+  stuck_in_traffic: "traffic_jam",
+  in_traffic: "traffic_jam",
 };
 const rateLimitBuckets = new Map();
 

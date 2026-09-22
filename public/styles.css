@@ -1904,3 +1904,69 @@ code {
     z-index: 30;
   }
 }
+
+/* Known Places page (public/places.html) */
+.places-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.places-toolbar #filterSearch {
+  flex: 1 1 220px;
+  min-width: 160px;
+}
+.places-toolbar input,
+.place-row input {
+  background: #12141a;
+  border: 1px solid #3d4450;
+  color: #e8eaed;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color-scheme: dark;
+}
+.places-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.place-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  background: #12151c;
+}
+.place-select {
+  padding-top: 6px;
+}
+.place-main {
+  flex: 1;
+  min-width: 0;
+}
+.place-name-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.place-name-input {
+  flex: 1;
+  min-width: 0;
+}
+.place-meta {
+  margin-top: 4px;
+}
+.place-radius-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.place-radius-input {
+  width: 70px;
+}
