@@ -162,7 +162,7 @@ test("an empty export (no sleep/workouts/steps) delivers nothing and never calls
   const client = fakeClient();
   const { response } = await call({ request: req({ token: "secret-token", body: { data: { metrics: [], workouts: [] } } }), client });
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.body, { ok: true, received: { sleep: 0, workouts: 0, steps: 0 }, delivered: 0, duplicates: 0, failed: 0 });
+  assert.deepEqual(response.body, { ok: true, received: { sleep: 0, workouts: 0, steps: 0 }, delivered: 0, duplicates: 0, failed: 0, stepsRevised: 0 });
   assert.equal(client.calls.length, 0);
 });
 
@@ -230,6 +230,34 @@ test("counts duplicates and failures from the batch response separately from del
   assert.equal(response.body.delivered, 0);
   assert.equal(response.body.duplicates, 1);
   assert.equal(response.body.failed, 1);
+});
+
+test("a day's step total changing since an earlier export is counted as stepsRevised, not a failure", async () => {
+  const client = fakeClient({
+    resultFor: (items) => ({
+      status: "delivered",
+      results: items.map(() => ({ status: "error", code: "idempotency_conflict", message: "Idempotency conflict for the same key." })),
+    }),
+  });
+  const body = { data: { metrics: [{ name: "step_count", data: [{ qty: 9000, date: "2026-09-21 14:00:00 -0400" }] }], workouts: [] } };
+  const { response } = await call({ request: req({ token: "secret-token", body }), client });
+  assert.equal(response.body.received.steps, 1);
+  assert.equal(response.body.delivered, 0);
+  assert.equal(response.body.failed, 0, "a revised step total is not a delivery failure");
+  assert.equal(response.body.stepsRevised, 1);
+});
+
+test("an idempotency_conflict on a non-steps record (e.g. a workout) still counts as a genuine failure", async () => {
+  const client = fakeClient({
+    resultFor: (items) => ({
+      status: "delivered",
+      results: items.map(() => ({ status: "error", code: "idempotency_conflict", message: "Idempotency conflict for the same key." })),
+    }),
+  });
+  const body = { data: { metrics: [], workouts: [{ id: "w1", name: "Running", start: "2026-09-22 07:00:00 -0400", end: "2026-09-22 07:30:00 -0400" }] } };
+  const { response } = await call({ request: req({ token: "secret-token", body }), client });
+  assert.equal(response.body.failed, 1);
+  assert.equal(response.body.stepsRevised, 0);
 });
 
 test("acknowledges the export instead of erroring when TimeLeft delivery is not configured", async () => {

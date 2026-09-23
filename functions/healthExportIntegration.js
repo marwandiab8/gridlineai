@@ -83,7 +83,7 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
 
     const counts = { sleep: sleepEvents.length, workouts: workoutEvents.length, steps: stepsEvents.length };
     if (allEvents.length === 0) {
-      res.status(200).json({ ok: true, received: counts, delivered: 0, duplicates: 0, failed: 0 });
+      res.status(200).json({ ok: true, received: counts, delivered: 0, duplicates: 0, failed: 0, stepsRevised: 0 });
       return;
     }
 
@@ -91,13 +91,21 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
     if (!deliveryClient) {
       // Configuration problem on our side, not the phone's - still acknowledge the export so
       // Health Auto Export doesn't treat it as a failure and keep retrying the same big payload.
-      res.status(200).json({ ok: true, received: counts, delivered: 0, duplicates: 0, failed: 0, deliveryDisabled: true });
+      res.status(200).json({ ok: true, received: counts, delivered: 0, duplicates: 0, failed: 0, stepsRevised: 0, deliveryDisabled: true });
       return;
     }
 
     let delivered = 0;
     let duplicates = 0;
     let failed = 0;
+    // A day's step total keeps changing as Health finishes syncing more samples for it, but each
+    // day is recorded under one fixed key (so re-exports don't pile up separate entries) - and
+    // that fixed-key record is otherwise meant to be immutable, the same as a finished workout.
+    // A changed total therefore always hits a same-key conflict on re-export; that is expected
+    // for steps specifically (not for anything else), so it is counted and logged separately
+    // rather than alarming as a failure. The count from the first successful export of a given
+    // day is what sticks - see docs/health-auto-export-integration.md.
+    let stepsRevised = 0;
     let deliveryDisabled = false;
     for (const batch of chunk(allEvents, BATCH_CHUNK_SIZE)) {
       const result = await deliveryClient.sendLifeEventsBatch(batch);
@@ -111,14 +119,24 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
         result.results.forEach((item, index) => {
           if (item.status === "success" && !item.duplicate) { delivered += 1; return; }
           if (item.status === "success" && item.duplicate) { duplicates += 1; return; }
+          const source = batch[index];
+          if (item.code === "idempotency_conflict" && source && source.eventType === "daily_steps") {
+            stepsRevised += 1;
+            if (logger && typeof logger.info === "function") {
+              logger.info("healthExportEvents: a day's step count changed since it was first recorded - keeping the first value", {
+                runId, sourceRecordId: source.sourceRecordId,
+              });
+            }
+            return;
+          }
           failed += 1;
           if (logger && typeof logger.warn === "function") {
             logger.warn("healthExportEvents: one record in the batch was not accepted", {
               runId,
               code: item.code || null,
               message: item.message || null,
-              eventType: batch[index] && batch[index].eventType,
-              sourceRecordId: batch[index] && batch[index].sourceRecordId,
+              eventType: source && source.eventType,
+              sourceRecordId: source && source.sourceRecordId,
             });
           }
         });
@@ -130,7 +148,7 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
       }
     }
 
-    res.status(200).json({ ok: true, received: counts, delivered, duplicates, failed, ...(deliveryDisabled ? { deliveryDisabled: true } : {}) });
+    res.status(200).json({ ok: true, received: counts, delivered, duplicates, failed, stepsRevised, ...(deliveryDisabled ? { deliveryDisabled: true } : {}) });
   } catch (err) {
     const status = Number(err && err.status) || 500;
     const code = String((err && err.code) || "health_export_failed");

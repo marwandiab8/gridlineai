@@ -62,8 +62,18 @@ Health Auto Export posts one JSON body per export:
 Health Auto Export's schedule typically re-exports a rolling window (e.g. "last 3 days") on every
 run, so the same night's sleep or the same workout will usually be sent more than once. This is
 expected and harmless: every record carries a stable ID derived from its own data (a sleep night's
-exact start/end, or a workout's own Apple Health UUID), so re-sending it just updates the same
-underlying record instead of creating a duplicate.
+exact start/end, or a workout's own Apple Health UUID), so re-sending it just resolves as a
+duplicate instead of creating a second entry.
+
+**Known limitation - a day's step count is captured once, not kept up to date.** Steps are the one
+exception: each day is one record keyed by date, but the *total* for that day keeps changing as
+Health finishes syncing more samples for it (from a phone and a Watch, reconciled over time).
+TimeLeftToLive's ingestion treats a same-key record as immutable once created - appropriate for a
+finished workout or a night of sleep, not for a number that legitimately keeps changing - so a
+later export with a revised total for a day already recorded does not update it; the first count
+captured for that day is what stays. This shows up in the response as `stepsRevised` (not a
+failure) rather than `failed`. Sleep and workouts do not have this problem, since a finished
+workout or a completed night's sleep genuinely does not change afterward.
 
 ## Verifying it works
 
@@ -89,4 +99,4 @@ curl -i -X POST 'https://gridlineai.web.app/api/integrations/health/export' \
 ```
 
 A successful response is `200` with a body like
-`{"ok":true,"received":{"sleep":1,"workouts":1,"steps":1},"delivered":3,"duplicates":0,"failed":0}`.
+`{"ok":true,"received":{"sleep":1,"workouts":1,"steps":1},"delivered":3,"duplicates":0,"failed":0,"stepsRevised":0}`.
