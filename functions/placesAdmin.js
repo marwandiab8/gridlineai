@@ -52,7 +52,8 @@ async function deleteKnownPlace({ db, memberEmail, placeId }) {
 
 /**
  * Folds one or more places into a single survivor: the survivor's name and radius are kept
- * (unless a new name is explicitly given), its visit count becomes the sum of everyone folded in,
+ * (unless a new name is explicitly given), its visit count and time-spent totals become the sums
+ * of everyone folded in,
  * and the folded-in places are deleted. For the plaza case this fixes an over-eager split (two
  * entries that turned out to be the same business) rather than the usual case this app is built
  * for (two genuinely different businesses, which should stay separate).
@@ -71,6 +72,8 @@ async function mergeKnownPlaces({ db, FieldValue, memberEmail, survivorId, merge
     (sum, place) => sum + (Number.isFinite(place.data.visitCount) ? place.data.visitCount : 0),
     0
   );
+  const sumOf = (field) =>
+    [survivorLoad, ...others].reduce((sum, place) => sum + (Number.isFinite(place.data[field]) ? place.data[field] : 0), 0);
   const cleanName = name != null ? normalizePlaceName(name) : "";
   const now = FieldValue.serverTimestamp();
 
@@ -78,6 +81,8 @@ async function mergeKnownPlaces({ db, FieldValue, memberEmail, survivorId, merge
     {
       ...(cleanName ? { name: cleanName } : {}),
       visitCount: combinedVisitCount,
+      totalMinutesSpent: sumOf("totalMinutesSpent"),
+      timedVisitCount: sumOf("timedVisitCount"),
       updatedAt: now,
     },
     { merge: true }

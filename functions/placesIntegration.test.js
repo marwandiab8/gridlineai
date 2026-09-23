@@ -298,3 +298,88 @@ test("known places are scoped per member/token", async () => {
   const { response } = await call({ db, request: req({ token: "bob-token", body: HERE }) });
   assert.equal(response.body.known, false, "bob must be asked to name it even though alice already named the same coordinates");
 });
+
+test("leaving a place records a leave event and reports how long the stay lasted", async () => {
+  const db = seededDb();
+  await call({ db, request: req({ token: "secret-token", body: { ...HERE, name: "Quick Oil Change", timestamp: "2026-09-23T17:50:00Z" } }) });
+  const { response, calls } = await call({
+    db,
+    request: req({ token: "secret-token", body: { ...HERE, action: "leave", timestamp: "2026-09-23T18:32:00Z" } }),
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.left, true);
+  assert.equal(response.body.name, "Quick Oil Change");
+  assert.equal(response.body.durationMinutes, 42);
+  assert.equal(response.body.duration, "42 min");
+  assert.equal(response.body.arrivedAt, "2026-09-23T17:50:00.000Z");
+  assert.match(calls[0].body, /Left location/);
+  assert.match(calls[0].body, /Stayed 42 min at Quick Oil Change/);
+
+  const place = [...db.rows.get("knownPlaces").values()][0];
+  assert.equal(place.lastVisitDurationMinutes, 42);
+  assert.equal(place.totalMinutesSpent, 42);
+  assert.equal(place.timedVisitCount, 1);
+  assert.equal(place.currentVisitStartedAt, undefined, "the stay must be closed");
+  const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
+  assert.equal(leave.locationLabel, "Quick Oil Change");
+});
+
+test("leaving works without coordinates or from outside the radius, using the open stay", async () => {
+  const db = seededDb();
+  await call({ db, request: req({ token: "secret-token", body: { ...HERE, name: "Quick Oil Change", timestamp: "2026-09-23T17:00:00Z" } }) });
+  const farAway = { latitude: HERE.latitude + 0.01, longitude: HERE.longitude }; // ~1.1km, already driven off
+  const { response } = await call({
+    db,
+    request: req({ token: "secret-token", body: { ...farAway, action: "leave", timestamp: "2026-09-23T18:30:00Z" } }),
+  });
+  assert.equal(response.body.name, "Quick Oil Change");
+  assert.equal(response.body.duration, "1 h 30 min");
+});
+
+test("average stay accumulates across visits, and re-logging while there keeps the original arrival", async () => {
+  const db = seededDb();
+  const arrive = (timestamp, extra = {}) => call({ db, request: req({ token: "secret-token", body: { ...HERE, timestamp, ...extra } }) });
+  const leave = (timestamp) => call({ db, request: req({ token: "secret-token", body: { action: "leave", timestamp } }) });
+
+  await arrive("2026-09-01T10:00:00Z", { name: "Gym" });
+  await arrive("2026-09-01T10:20:00Z"); // ran the Shortcut again mid-visit
+  const first = await leave("2026-09-01T11:00:00Z");
+  assert.equal(first.response.body.durationMinutes, 60);
+
+  await arrive("2026-09-02T10:00:00Z");
+  const second = await leave("2026-09-02T10:30:00Z");
+  assert.equal(second.response.body.durationMinutes, 30);
+  assert.equal(second.response.body.averageMinutes, 45);
+  assert.equal(second.response.body.totalMinutesSpent, 90);
+
+  const again = await leave("2026-09-02T10:45:00Z");
+  assert.equal(again.response.body.left, true);
+  assert.equal(again.response.body.durationMinutes, null, "a second leave in a row has no stay to measure");
+});
+
+test("a place logged before leave tracking existed can still be left and timed", async () => {
+  const db = seededDb();
+  db._set("knownPlaces", "legacy", {
+    memberEmail: "user@example.com",
+    name: "Quick Oil Change",
+    latitude: HERE.latitude,
+    longitude: HERE.longitude,
+    radiusMeters: 120,
+    visitCount: 1,
+    lastVisitAt: { toMillis: () => Date.parse("2026-09-23T17:52:00Z") },
+  });
+  const { response } = await call({ db, request: req({ token: "secret-token", body: { ...HERE, action: "leave", timestamp: "2026-09-23T18:40:00Z" } }) });
+  assert.equal(response.body.name, "Quick Oil Change");
+  assert.equal(response.body.durationMinutes, 48);
+});
+
+test("leaving by name picks that place, and an unknown leave reports nothing to close", async () => {
+  const db = seededDb();
+  await call({ db, request: req({ token: "secret-token", body: { ...HERE, name: "Gas Station", timestamp: "2026-09-23T17:00:00Z" } }) });
+  const byName = await call({ db, request: req({ token: "secret-token", body: { action: "leave", name: "gas station", timestamp: "2026-09-23T17:10:00Z" } }) });
+  assert.equal(byName.response.body.name, "Gas Station");
+  assert.equal(byName.response.body.durationMinutes, 10);
+
+  const unknown = await call({ db, request: req({ token: "secret-token", body: { action: "leave", name: "Nowhere" } }) });
+  assert.deepEqual(unknown.response.body, { ok: true, known: false, left: false });
+});

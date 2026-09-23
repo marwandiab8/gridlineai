@@ -46,6 +46,31 @@ the phone (Shortcuts' own "Ask for Text" prompt), and traffic logging is a singl
 A voice trigger for step 1 (Siri phrase like "Log this place") makes the whole thing hands-free
 except for typing the name the one time a place is new.
 
+### Leaving a place — how long you stayed
+
+Same endpoint, same token. POST `{"action": "leave"}` when you leave; coordinates and `name` are
+optional:
+
+```json
+{"action": "leave", "latitude": [Latitude], "longitude": [Longitude]}
+```
+
+- The place is picked by `name` if you send one; otherwise a saved place within range that you
+  haven't left yet; otherwise the place you most recently arrived at and haven't left. So it still
+  works when the Shortcut fires after you've already driven off.
+- It logs a `leave_location` event (dashboard note "Left location … Stayed 42 min at …", plus the
+  usual Time Left To Live delivery) and responds with the stay:
+  `{"ok":true,"known":true,"left":true,"name":"Quick Oil Change","arrivedAt":"…","leftAt":"…","durationMinutes":42,"duration":"42 min","averageMinutes":42,"totalMinutesSpent":42}`.
+- Nothing to close (no saved place matches): `{"ok":true,"known":false,"left":false}`.
+  Leaving twice in a row still logs the departure, with `durationMinutes: null`.
+- The stay starts at the arrival logged by "Log this place". Running "Log this place" again while
+  you're still there keeps the original arrival time (unless it's more than 12 hours old).
+- The Known Places page shows "here now since …" during a stay, and last stay / average stay
+  after.
+
+**Shortcut:** duplicate "Log this place", delete the Ask for Text step, and replace the `name`
+field in the body with `action` = `leave`. Show the response's `duration` in a notification.
+
 ## 2. "Stuck in traffic" — one-shot, no location needed
 
 Reuses the existing Shortcuts endpoint from `docs/ios-shortcuts.md` with a new event type — no new
