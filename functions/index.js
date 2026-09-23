@@ -7009,7 +7009,10 @@ exports.ownTracksEvents = onRequest(
     invoker: "public",
     timeoutSeconds: 120,
     memory: "512MiB",
-    cors: true,
+    // No cors:true here on purpose: this is a native app, not a browser, and Cloud Functions'
+    // automatic CORS handling answers OPTIONS with an empty, non-JSON 204 before this function's
+    // own code ever runs - see the OPTIONS handling in ownTracksIntegration.js for why that
+    // matters here specifically.
     secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
   },
   async (req, res) =>
