@@ -23,6 +23,14 @@ function parseHealthAutoExportDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** The "yyyy-MM-dd" Health Auto Export actually meant, read straight off its own string - see the
+ * note above stepsByDate for why this must not go through a UTC conversion first. */
+function localDateKey(value) {
+  const text = String(value == null ? "" : value).trim();
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(text);
+  return match ? match[1] : null;
+}
+
 function toIso(value) {
   const date = value instanceof Date ? value : parseHealthAutoExportDate(value);
   return date ? date.toISOString() : null;
@@ -178,12 +186,16 @@ function parseHealthExportPayload(body) {
 
   // step_count arrives as one row per sample interval (often hourly); sum same-day rows into one
   // running daily total per date rather than sending dozens of tiny point events per day.
+  //
+  // Grouped by the LOCAL calendar date Health Auto Export actually sent (the first 10 characters
+  // of its own "yyyy-MM-dd HH:mm:ss +/-HHMM" string), not by converting to UTC first: a sample
+  // from, say, 11pm Eastern is still "today" locally, but UTC-slicing an already-converted
+  // timestamp would roll it into tomorrow - splitting one real day's steps across two records.
   const stepsByDate = new Map();
   for (const point of Array.isArray(stepsMetric?.data) ? stepsMetric.data : []) {
-    const at = toIso(point?.date);
+    const dateKey = localDateKey(point?.date);
     const qty = Number(point?.qty);
-    if (!at || !Number.isFinite(qty)) continue;
-    const dateKey = at.slice(0, 10);
+    if (!dateKey || !Number.isFinite(qty)) continue;
     stepsByDate.set(dateKey, (stepsByDate.get(dateKey) || 0) + qty);
   }
   const stepsEvents = [...stepsByDate.entries()]

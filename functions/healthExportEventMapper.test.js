@@ -172,6 +172,29 @@ test("parseHealthExportPayload splits a full Health Auto Export body into sleep/
   assert.equal(stepsEvents[0].metrics.steps, 8500, "same-day step samples are summed into one daily total");
 });
 
+test("groups steps by the local calendar date Health Auto Export sent, not by its UTC-shifted equivalent", () => {
+  // 11pm Eastern is still September 21st locally, even though it is September 22nd in UTC -
+  // grouping by a UTC-converted date would wrongly split this one real day into two.
+  const body = {
+    data: {
+      metrics: [
+        {
+          name: "step_count",
+          data: [
+            { qty: 6000, date: "2026-09-21 09:00:00 -0400" },
+            { qty: 1500, date: "2026-09-21 23:30:00 -0400" },
+          ],
+        },
+      ],
+      workouts: [],
+    },
+  };
+  const { stepsEvents } = parseHealthExportPayload(body);
+  assert.equal(stepsEvents.length, 1, "both samples belong to the same local day");
+  assert.equal(stepsEvents[0].metrics.steps, 7500);
+  assert.equal(stepsEvents[0].sourceRecordId, "steps:2026-09-21");
+});
+
 test("parseHealthExportPayload tolerates a payload with no data section", () => {
   const result = parseHealthExportPayload({});
   assert.deepEqual(result, { sleepEvents: [], workoutEvents: [], stepsEvents: [] });
