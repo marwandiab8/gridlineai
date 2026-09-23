@@ -108,11 +108,20 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
         continue;
       }
       if (Array.isArray(result.results) && result.results.length) {
-        for (const item of result.results) {
-          if (item.status === "success" && !item.duplicate) delivered += 1;
-          else if (item.status === "success" && item.duplicate) duplicates += 1;
-          else failed += 1;
-        }
+        result.results.forEach((item, index) => {
+          if (item.status === "success" && !item.duplicate) { delivered += 1; return; }
+          if (item.status === "success" && item.duplicate) { duplicates += 1; return; }
+          failed += 1;
+          if (logger && typeof logger.warn === "function") {
+            logger.warn("healthExportEvents: one record in the batch was not accepted", {
+              runId,
+              code: item.code || null,
+              message: item.message || null,
+              eventType: batch[index] && batch[index].eventType,
+              sourceRecordId: batch[index] && batch[index].sourceRecordId,
+            });
+          }
+        });
       } else if (result.status !== "delivered") {
         failed += batch.length;
         if (logger && typeof logger.warn === "function") {
