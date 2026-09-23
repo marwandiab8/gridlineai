@@ -134,6 +134,22 @@ function formatWhen(value) {
   }
 }
 
+function formatMinutes(minutes) {
+  const total = Math.max(0, Math.round(Number(minutes) || 0));
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  if (!hours) return `${mins} min`;
+  return mins ? `${hours} h ${mins} min` : `${hours} h`;
+}
+
+function formatStayStats(place) {
+  if (place.currentVisitStartedAt) return `here now since ${formatWhen(place.currentVisitStartedAt)} · `;
+  const timed = Number(place.timedVisitCount) || 0;
+  if (!timed) return "";
+  const avg = (Number(place.totalMinutesSpent) || 0) / timed;
+  return `last stay ${formatMinutes(place.lastVisitDurationMinutes)} · avg ${formatMinutes(avg)} · `;
+}
+
 function stopListeners() {
   if (unsubscribe) {
     unsubscribe();
@@ -198,6 +214,7 @@ function renderPlaces() {
         </div>
         <div class="place-meta muted small">
           ${place.visitCount || 0} visit${(place.visitCount || 0) === 1 ? "" : "s"} · last ${formatWhen(place.lastVisitAt)} ·
+          ${formatStayStats(place)}
           ${Number(place.latitude).toFixed(5)}, ${Number(place.longitude).toFixed(5)}
         </div>
         <div class="place-radius-row muted small">
