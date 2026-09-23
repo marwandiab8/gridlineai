@@ -22,7 +22,13 @@ const {
 } = require("./timeLeftLifeEventConfig");
 const { createTimeLeftLifeEventClient } = require("./timeLeftLifeEventClient");
 
-const MAX_BATCH_SIZE = 100;
+// TimeLeftToLive's batch endpoint processes each record as its own Firestore transaction,
+// sequentially - not in parallel - so a big batch is genuinely slow, especially the first call
+// after a while (a real cold start there measured over 20s for just 15 records). A smaller chunk
+// size, paired with a much longer timeout than a single-event delivery needs, keeps each call
+// comfortably inside that function's own timeout budget instead of the client giving up first.
+const BATCH_CHUNK_SIZE = 20;
+const BATCH_TIMEOUT_MS = 45000;
 
 function jsonError(res, status, code, message) {
   res.status(status).json({ ok: false, error: code, message });
@@ -37,7 +43,7 @@ function chunk(items, size) {
 function buildDeliveryClient({ env = process.env, logger } = {}) {
   try {
     const config = requireValidTimeLeftLifeEventConfig(readTimeLeftLifeEventConfigFromEnv(env));
-    return createTimeLeftLifeEventClient(config, { logger });
+    return createTimeLeftLifeEventClient({ ...config, timeoutMs: BATCH_TIMEOUT_MS }, { logger });
   } catch (error) {
     if (logger && typeof logger.warn === "function") {
       logger.warn("healthExportEvents: TimeLeftToLive delivery disabled", {
@@ -93,7 +99,7 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
     let duplicates = 0;
     let failed = 0;
     let deliveryDisabled = false;
-    for (const batch of chunk(allEvents, MAX_BATCH_SIZE)) {
+    for (const batch of chunk(allEvents, BATCH_CHUNK_SIZE)) {
       const result = await deliveryClient.sendLifeEventsBatch(batch);
       if (result.status === "off") {
         // Delivery is deliberately turned off (e.g. local/staging), not broken - acknowledge

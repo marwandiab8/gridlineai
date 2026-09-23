@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hashShortcutToken } = require("./iosShortcutsIntegration");
-const { handleHealthExportEventRequest } = require("./healthExportIntegration");
+const { handleHealthExportEventRequest, buildDeliveryClient } = require("./healthExportIntegration");
 
 // Same minimal fake Firestore pattern used by ownTracksIntegration.test.js / placesIntegration.test.js.
 class FakeDocSnap {
@@ -193,8 +193,8 @@ test("maps and delivers workouts and steps together with sleep", async () => {
   assert.equal(client.calls[0].length, 3);
 });
 
-test("splits more than 100 records into multiple batch calls", async () => {
-  const manyWorkouts = Array.from({ length: 150 }, (_, index) => ({
+test("splits a large export into multiple, smaller batch calls (the other side processes each record as its own slow transaction)", async () => {
+  const manyWorkouts = Array.from({ length: 45 }, (_, index) => ({
     id: `w${index}`,
     name: "Walking",
     start: `2026-09-${String((index % 27) + 1).padStart(2, "0")} 07:00:00 -0400`,
@@ -203,11 +203,12 @@ test("splits more than 100 records into multiple batch calls", async () => {
   const body = { data: { metrics: [], workouts: manyWorkouts } };
   const client = fakeClient();
   const { response } = await call({ request: req({ token: "secret-token", body }), client });
-  assert.equal(response.body.received.workouts, 150);
-  assert.equal(client.calls.length, 2, "150 records must be split into a 100-item batch and a 50-item batch");
-  assert.equal(client.calls[0].length, 100);
-  assert.equal(client.calls[1].length, 50);
-  assert.equal(response.body.delivered, 150);
+  assert.equal(response.body.received.workouts, 45);
+  assert.equal(client.calls.length, 3, "45 records must be split into 20+20+5 item batches");
+  assert.equal(client.calls[0].length, 20);
+  assert.equal(client.calls[1].length, 20);
+  assert.equal(client.calls[2].length, 5);
+  assert.equal(response.body.delivered, 45);
 });
 
 test("counts duplicates and failures from the batch response separately from delivered", async () => {
@@ -252,6 +253,22 @@ test("a client that returns off-mode status is reported as disabled, never as fa
   assert.equal(response.body.delivered, 0);
   assert.equal(response.body.failed, 0);
   assert.equal(response.body.deliveryDisabled, true);
+});
+
+test("the delivery client is built with a much longer timeout than a single event needs, since a batch is many sequential transactions on the other side", () => {
+  const client = buildDeliveryClient({
+    env: {
+      TLTL_DUAL_WRITE_MODE: "production",
+      TLTL_LIFE_EVENTS_URL: "https://timelefttolive.web.app/api/v1/life-events",
+      TLTL_TARGET_PROJECT_ID: "timelefttolive",
+      TIME_LEFT_CALENDAR_ID: "cal_1",
+      TIME_LEFT_CONNECTION_ID: "conn_1",
+      TLTL_INTEGRATION_ID: "int_1",
+      TIME_LEFT_INGESTION_TOKEN: "token-abc",
+    },
+  });
+  assert.ok(client);
+  assert.equal(client.config.timeoutMs, 45000);
 });
 
 test("health export records are scoped per member/token", async () => {
