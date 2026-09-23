@@ -7377,6 +7377,8 @@ exports.getIosShortcutsIntegrationCallable = onCall(
         "finish_workout",
         "start_spotify",
         "finish_spotify",
+        "start_drive",
+        "finish_drive",
         "arrive_location",
         "leave_location",
         "traffic_jam",
