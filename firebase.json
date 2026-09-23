@@ -67,6 +67,13 @@
         }
       },
       {
+        "source": "/api/integrations/health/export",
+        "function": {
+          "functionId": "healthExportEvents",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
         "source": "/callback",
         "function": {
           "functionId": "procoreCallback",

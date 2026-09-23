@@ -236,8 +236,98 @@ function createTimeLeftLifeEventClient(configInput = {}, options = {}) {
     }
   }
 
+  /**
+   * Sends up to 100 life events in a single request to the :batch sibling of the same endpoint
+   * this client is configured for - one HTTP round trip instead of one per record, which matters
+   * for a Health Auto Export payload that can carry dozens of workouts/nights in one POST.
+   */
+  async function sendLifeEventsBatch(lifeEvents) {
+    const items = Array.isArray(lifeEvents) ? lifeEvents.filter(Boolean) : [];
+    if (safeMode === "off") {
+      return { status: RESULT_STATUS.off, retryable: false, summary: "life event delivery is disabled", results: [] };
+    }
+    if (items.length === 0) {
+      return { status: RESULT_STATUS.delivered, retryable: false, summary: "nothing to send", results: [] };
+    }
+    if (items.length > 100) {
+      return {
+        status: RESULT_STATUS.permanentFailure,
+        retryable: false,
+        errorCode: "batch_too_large",
+        summary: `Batch of ${items.length} exceeds the 100-item limit.`,
+        results: [],
+      };
+    }
+
+    const batchUrl = `${config.endpointUrl}:batch`;
+    const body = {
+      calendarId: config.calendarId,
+      connectionId: config.connectionId,
+      integrationId: config.integrationId,
+      items,
+    };
+
+    try {
+      const response = await fetchWithTimeout(
+        fetchImpl,
+        batchUrl,
+        {
+          method: "POST",
+          headers: normalizeHeaders({
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.bearerToken}`,
+          }),
+          body: JSON.stringify(body),
+        },
+        config.timeoutMs
+      );
+      const parsed = await safeParseJson(response);
+      if (parsed && parsed.__invalidJson) {
+        return {
+          status: RESULT_STATUS.retryableFailure,
+          retryable: true,
+          errorCode: "invalid_json",
+          summary: "Could not parse TimeLeft batch response JSON.",
+          results: [],
+        };
+      }
+      if (response.status !== 200) {
+        const classified = classifyResponse(response.status, parsed);
+        return { ...classified, results: [] };
+      }
+      return {
+        status: RESULT_STATUS.delivered,
+        retryable: false,
+        summary: parsed.summary || null,
+        results: Array.isArray(parsed.results) ? parsed.results : [],
+      };
+    } catch (error) {
+      if (isTimeoutError(error)) {
+        return { status: RESULT_STATUS.retryableFailure, retryable: true, errorCode: "timeout", summary: "Timed out waiting for TimeLeft LifeEvent batch endpoint.", results: [] };
+      }
+      if (isNetworkError(error)) {
+        return { status: RESULT_STATUS.retryableFailure, retryable: true, errorCode: "network_error", summary: sanitizeErrorSummary(error), results: [] };
+      }
+      if (logger && typeof logger.error === "function") {
+        logger.error("TimeLeft LifeEvent batch client failed", {
+          status: error && error.status ? error.status : null,
+          summary: sanitizeErrorSummary(error),
+          code: error && error.code ? error.code : null,
+        });
+      }
+      return {
+        status: RESULT_STATUS.retryableFailure,
+        retryable: true,
+        errorCode: error && error.code ? error.code : "delivery_error",
+        summary: sanitizeErrorSummary(error),
+        results: [],
+      };
+    }
+  }
+
   return {
     sendLifeEvent,
+    sendLifeEventsBatch,
     config,
   };
 }

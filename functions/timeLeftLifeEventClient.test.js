@@ -333,3 +333,56 @@ test("production request uses the exact allowlisted endpoint", async () => {
   assert.equal(result.status, "delivered");
   assert.equal(calls[0].url, "https://timelefttolive.web.app/api/v1/life-events");
 });
+
+test("sendLifeEventsBatch posts to the :batch sibling of the configured endpoint", async () => {
+  const { fn, calls } = mockFetchWithResponse(async () =>
+    responseFrom(JSON.stringify({ summary: { total: 2, success: 2 }, results: [{ status: "success" }, { status: "success" }] }), 200)
+  );
+  const client = createTimeLeftLifeEventClient(productionConfig(), { fetch: fn });
+  const result = await client.sendLifeEventsBatch([sampleEvent(), { ...sampleEvent(), sourceRecordId: "evt_002" }]);
+  assert.equal(result.status, "delivered");
+  assert.equal(result.results.length, 2);
+  assert.equal(calls[0].url, "https://timelefttolive.web.app/api/v1/life-events:batch");
+  const body = JSON.parse(calls[0].init.body);
+  assert.equal(body.items.length, 2);
+  assert.equal(body.calendarId, "cal_123");
+});
+
+test("sendLifeEventsBatch with off mode performs zero HTTP requests", async () => {
+  const calls = [];
+  const client = createTimeLeftLifeEventClient({ ...baseConfig(), mode: "off" }, {
+    fetch: async () => { calls.push(1); return responseFrom("{}"); },
+  });
+  const result = await client.sendLifeEventsBatch([sampleEvent()]);
+  assert.equal(result.status, "off");
+  assert.equal(calls.length, 0);
+});
+
+test("sendLifeEventsBatch with an empty array performs zero HTTP requests", async () => {
+  const calls = [];
+  const client = createTimeLeftLifeEventClient(productionConfig(), {
+    fetch: async () => { calls.push(1); return responseFrom("{}"); },
+  });
+  const result = await client.sendLifeEventsBatch([]);
+  assert.equal(calls.length, 0);
+  assert.equal(result.results.length, 0);
+});
+
+test("sendLifeEventsBatch rejects more than 100 items without making a request", async () => {
+  const calls = [];
+  const client = createTimeLeftLifeEventClient(productionConfig(), {
+    fetch: async () => { calls.push(1); return responseFrom("{}"); },
+  });
+  const result = await client.sendLifeEventsBatch(Array.from({ length: 101 }, () => sampleEvent()));
+  assert.equal(result.status, "permanent_failure");
+  assert.equal(result.errorCode, "batch_too_large");
+  assert.equal(calls.length, 0);
+});
+
+test("sendLifeEventsBatch maps a non-200 batch response to a failure without results", async () => {
+  const { fn } = mockFetchWithResponse(async () => responseFrom(JSON.stringify({ error: "bad" }), 401));
+  const client = createTimeLeftLifeEventClient(productionConfig(), { fetch: fn });
+  const result = await client.sendLifeEventsBatch([sampleEvent()]);
+  assert.equal(result.status, "authentication_failure");
+  assert.deepEqual(result.results, []);
+});

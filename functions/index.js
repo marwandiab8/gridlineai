@@ -143,6 +143,7 @@ const {
 } = require("./iosShortcutsIntegration");
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
 const { handlePlaceLogRequest } = require("./placesIntegration");
+const { handleHealthExportEventRequest } = require("./healthExportIntegration");
 const { renameKnownPlace, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
 const {
   createTimeLeftDeliveryRepository,
@@ -7049,6 +7050,22 @@ exports.placesEvents = onRequest(
     })
 );
 
+// Apple Health via the Health Auto Export app - same integration token as the endpoints above,
+// but its own delivery client (health data is already-complete records with a real start/end,
+// batched, and does not go through the Shortcut-event mapper or per-event AI note enrichment).
+// See docs/health-auto-export-integration.md.
+exports.healthExportEvents = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    cors: true,
+    secrets: [TIME_LEFT_INGESTION_TOKEN],
+  },
+  async (req, res) => handleHealthExportEventRequest({ db, req, res, logger })
+);
+
 // "Known Places" dashboard (public/places.html): any signed-in active app member may read their
 // own knownPlaces docs directly (see firestore.rules), but every mutation goes through one of
 // these callables, which re-check ownership themselves regardless of what the rules already say.
@@ -7399,6 +7416,38 @@ exports.generateIosShortcutsTokenCallable = onCall(
       webhookUrl: buildIosShortcutsWebhookUrl(),
       approvedPhoneE164: member.approvedPhoneE164,
     };
+  }
+);
+
+// TEMPORARY one-off maintenance endpoint: replays a single accidentally-deleted TimeLeftToLive
+// event using the exact original data, through the real delivery code path, so it reconstructs
+// byte-for-byte identically (same deterministic idempotencyKey) instead of being hand-typed.
+// Remove this export once the restore has been confirmed - it is intentionally not meant to stay.
+exports.oneOffRestoreWorkEvent = onRequest(
+  { region: "northamerica-northeast1", secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN] },
+  async (req, res) => {
+    if (req.query.confirm !== "restore-1gNsH91BKnWWvbKoumZp") {
+      res.status(403).json({ ok: false, error: "missing_confirm" });
+      return;
+    }
+    const service = buildIosShortcutTimeLeftDeliveryService({ db, FieldValue, logger });
+    if (!service) {
+      res.status(500).json({ ok: false, error: "delivery_service_unavailable" });
+      return;
+    }
+    const result = await service({
+      event: {
+        id: "1gNsH91BKnWWvbKoumZp",
+        eventType: "arrive_work",
+        eventAtIso: "2026-09-22T11:06:41.297Z",
+        timezone: "America/Toronto",
+        reportDateKey: "2026-09-22",
+        projectSlug: "home",
+        locationLabel: "work",
+      },
+      eventId: "1gNsH91BKnWWvbKoumZp",
+    });
+    res.status(200).json({ ok: true, result });
   }
 );
 

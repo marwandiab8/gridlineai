@@ -1327,6 +1327,23 @@ arrive_gym, leave_gym, start_workout, finish_workout,
 start_spotify, finish_spotify, arrive_location, leave_location,
 traffic_jam</pre>
                   <p class="muted">Use the same <code>project_slug</code> that you select for the daily report. If omitted, the webhook uses your active SMS project when available.</p>
+
+                  <h3 style="margin-top: 1.5rem;">Other integrations (same token as above)</h3>
+                  <p class="muted small">
+                    These reuse the exact same secret token, they are not a separate credential.
+                  </p>
+                  <ul class="muted small">
+                    <li>
+                      <strong>OwnTracks</strong> (location, no Shortcuts automation needed) &mdash;
+                      URL: <code>https://gridlineai.web.app/api/integrations/owntracks/events</code>.
+                      See <code>docs/owntracks-integration.md</code> in the repo for phone setup.
+                    </li>
+                    <li>
+                      <strong>Apple Health</strong> via the Health Auto Export app (sleep, workouts, steps) &mdash;
+                      URL: <code>https://gridlineai.web.app/api/integrations/health/export</code>.
+                      See <code>docs/health-auto-export-integration.md</code> in the repo for phone setup.
+                    </li>
+                  </ul>
                 </div>
               </article>
 
