@@ -7009,7 +7009,10 @@ exports.ownTracksEvents = onRequest(
     invoker: "public",
     timeoutSeconds: 120,
     memory: "512MiB",
-    cors: true,
+    // No cors:true here on purpose: this is a native app, not a browser, and Cloud Functions'
+    // automatic CORS handling answers OPTIONS with an empty, non-JSON 204 before this function's
+    // own code ever runs - see the OPTIONS handling in ownTracksIntegration.js for why that
+    // matters here specifically.
     secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
   },
   async (req, res) =>
@@ -7416,38 +7419,6 @@ exports.generateIosShortcutsTokenCallable = onCall(
       webhookUrl: buildIosShortcutsWebhookUrl(),
       approvedPhoneE164: member.approvedPhoneE164,
     };
-  }
-);
-
-// TEMPORARY one-off maintenance endpoint: replays a single accidentally-deleted TimeLeftToLive
-// event using the exact original data, through the real delivery code path, so it reconstructs
-// byte-for-byte identically (same deterministic idempotencyKey) instead of being hand-typed.
-// Remove this export once the restore has been confirmed - it is intentionally not meant to stay.
-exports.oneOffRestoreWorkEvent = onRequest(
-  { region: "northamerica-northeast1", secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN] },
-  async (req, res) => {
-    if (req.query.confirm !== "restore-1gNsH91BKnWWvbKoumZp") {
-      res.status(403).json({ ok: false, error: "missing_confirm" });
-      return;
-    }
-    const service = buildIosShortcutTimeLeftDeliveryService({ db, FieldValue, logger });
-    if (!service) {
-      res.status(500).json({ ok: false, error: "delivery_service_unavailable" });
-      return;
-    }
-    const result = await service({
-      event: {
-        id: "1gNsH91BKnWWvbKoumZp",
-        eventType: "arrive_work",
-        eventAtIso: "2026-09-22T11:06:41.297Z",
-        timezone: "America/Toronto",
-        reportDateKey: "2026-09-22",
-        projectSlug: "home",
-        locationLabel: "work",
-      },
-      eventId: "1gNsH91BKnWWvbKoumZp",
-    });
-    res.status(200).json({ ok: true, result });
   }
 );
 

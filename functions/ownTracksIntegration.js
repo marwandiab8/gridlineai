@@ -133,6 +133,16 @@ async function handleOwnTracksEventRequest({
 }) {
   const runId = `owntracks-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   try {
+    // OwnTracks is a native app, not a browser - it never needs a CORS preflight - but its own
+    // networking layer appears to probe the endpoint with OPTIONS as part of its "connecting"
+    // handshake before ever sending a real POST. Cloud Functions' automatic CORS handling was
+    // answering that with an empty 204 (no body, not JSON), which fails NSJSONSerialization
+    // immediately on the phone and stops the app from proceeding to publish anything at all.
+    // Answering it the same way a real event would be acknowledged fixes that.
+    if (req.method === "OPTIONS") {
+      res.status(200).json([]);
+      return;
+    }
     if (req.method !== "POST") {
       res.status(405).set("Allow", "POST").json({ ok: false, error: "method_not_allowed", message: "Use POST." });
       return;

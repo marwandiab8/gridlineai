@@ -133,11 +133,11 @@ function mergeSentinels(target, patch) {
   return out;
 }
 
-function req({ token = "", body = {}, headers: extraHeaders = {}, query = {} } = {}) {
+function req({ token = "", body = {}, headers: extraHeaders = {}, query = {}, method = "POST" } = {}) {
   const headers = { ...extraHeaders };
   if (token) headers.authorization = `Bearer ${token}`;
   return {
-    method: "POST",
+    method,
     body,
     query,
     get(name) {
@@ -197,6 +197,23 @@ async function callHandler({ db = seededDb(), request = req({ token: "secret-tok
   });
   return { response, calls, db };
 }
+
+// --- method handling ---
+
+test("OPTIONS is acknowledged the same way a real event would be, not left to an empty CORS 204", async () => {
+  // Regression test: OwnTracks' own networking layer probes with OPTIONS before ever sending its
+  // real POST, and an empty non-JSON response there (Cloud Functions' default CORS behavior)
+  // makes the phone fail to parse it and never proceed to publish anything at all.
+  const { response } = await callHandler({ request: req({ method: "OPTIONS" }) });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body, []);
+});
+
+test("rejects other non-POST methods with a real JSON body", async () => {
+  const { response } = await callHandler({ request: req({ method: "GET" }) });
+  assert.equal(response.statusCode, 405);
+  assert.equal(response.body.error, "method_not_allowed");
+});
 
 // --- translation ---
 
