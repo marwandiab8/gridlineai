@@ -389,6 +389,28 @@ test("accepts gym, workout, and Spotify Shortcut events", () => {
   }
 });
 
+test("accepts start_drive/finish_drive and car-connection phrasing", () => {
+  const cases = [
+    ["start_drive", "start_drive"],
+    ["Started Driving", "start_drive"],
+    ["car connected", "start_drive"],
+    ["Connected to CarPlay", "start_drive"],
+    ["finish_drive", "finish_drive"],
+    ["stopped driving", "finish_drive"],
+    ["End Drive", "finish_drive"],
+    ["car disconnected", "finish_drive"],
+  ];
+  for (const [input, expected] of cases) {
+    const parsed = parseShortcutEventPayload({
+      event_type: input,
+      timestamp: "2026-09-23T13:13:00-04:00",
+      timezone: "America/Toronto",
+    });
+    assert.equal(parsed.ok, true, input);
+    assert.equal(parsed.event.eventType, expected, input);
+  }
+});
+
 test("accepts traffic_jam and its Shortcut phrasing aliases", () => {
   const cases = [
     ["traffic_jam", "traffic_jam"],

@@ -153,6 +153,54 @@ test("maps finish_spotify", () => {
   assert.equal(body.title, "Stopped listening to Spotify");
 });
 
+test("maps start_drive and finish_drive as drive boundaries", () => {
+  for (const [eventType, title] of [["start_drive", "Started driving"], ["finish_drive", "Finished driving"]]) {
+    const body = baseAssertion(mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({ eventType })));
+    assert.equal(body.eventType, eventType);
+    assert.equal(body.eventClass, "activity_boundary");
+    assert.equal(body.activityFamily, "drive");
+    assert.equal(body.categoryId, "drive");
+    assert.equal(body.title, title);
+  }
+});
+
+test("drive boundaries keep coordinates but move the place label to metadata so start and finish pair", () => {
+  const start = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({
+    eventType: "start_drive",
+    locationLabel: "Fergus",
+    latitude: 43.7087,
+    longitude: -80.3952,
+  })).event;
+  const finish = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({
+    eventType: "finish_drive",
+    locationLabel: "Brampton",
+    latitude: 43.7593,
+    longitude: -79.7908,
+  })).event;
+  assert.deepEqual(start.location, { latitude: 43.7087, longitude: -80.3952 });
+  assert.deepEqual(finish.location, { latitude: 43.7593, longitude: -79.7908 });
+  assert.equal(start.metadata.driveLocationLabel, "Fergus");
+  assert.equal(finish.metadata.driveLocationLabel, "Brampton");
+});
+
+test("a drive boundary with only a place label sends no location object", () => {
+  const body = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({
+    eventType: "start_drive",
+    locationLabel: "Orangeville",
+  })).event;
+  assert.equal(body.location, undefined);
+  assert.equal(body.metadata.driveLocationLabel, "Orangeville");
+});
+
+test("non-drive events keep their location label", () => {
+  const body = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({
+    eventType: "arrive_work",
+    locationLabel: "Docksteader",
+  })).event;
+  assert.equal(body.location.label, "Docksteader");
+  assert.equal(body.metadata.driveLocationLabel, undefined);
+});
+
 test("uses stable sourceRecordId", () => {
   const event = mapShortcutEventToTimeLeftLifeEvent(baseShortcutEvent({ id: "stable-id-77" }));
   assert.equal(event.event.sourceRecordId, "stable-id-77");

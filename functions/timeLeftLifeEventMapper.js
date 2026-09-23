@@ -77,6 +77,23 @@ const SHORTCUT_EVENT_RULES = {
     categoryId: "spotify",
     title: "Stopped listening to Spotify",
   },
+  // A drive starts and ends in different places, but TimeLeftToLive only pairs a start with a
+  // finish that shares the same location label. Drive boundaries therefore carry coordinates only;
+  // the Shortcut's place label is kept in metadata.driveLocationLabel instead.
+  start_drive: {
+    eventClass: "activity_boundary",
+    activityFamily: "drive",
+    categoryId: "drive",
+    title: "Started driving",
+    pairAcrossLocations: true,
+  },
+  finish_drive: {
+    eventClass: "activity_boundary",
+    activityFamily: "drive",
+    categoryId: "drive",
+    title: "Finished driving",
+    pairAcrossLocations: true,
+  },
   arrive_location: {
     eventClass: "location",
     activityFamily: "location",
@@ -294,11 +311,19 @@ function mapShortcutEventToTimeLeftLifeEvent(event) {
   }
 
   const location = buildLocation(event);
-  if (location) {
+  let driveLocationLabel = "";
+  if (location && rule.pairAcrossLocations && location.label) {
+    driveLocationLabel = location.label;
+    delete location.label;
+  }
+  if (location && Object.keys(location).length) {
     eventBody.event.location = location;
   }
 
-  const metadata = buildMetadata(event);
+  let metadata = buildMetadata(event);
+  if (driveLocationLabel) {
+    metadata = { ...(metadata || {}), driveLocationLabel };
+  }
   if (metadata) {
     eventBody.event.metadata = metadata;
   }
