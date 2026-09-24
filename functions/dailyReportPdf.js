@@ -403,6 +403,15 @@ function mergeJournalStorylines(model, journalJson) {
   };
 }
 
+function safeReportPreview(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone]")
+    .trim()
+    .slice(0, 140);
+}
+
 function journalTimelineAuditRows(model) {
   const entryById = model && model.entryById instanceof Map ? model.entryById : new Map();
   return (Array.isArray(model && model.timeline) ? model.timeline : []).map((row) => {
@@ -1093,4 +1102,5 @@ module.exports = {
   filterJournalLogEntriesForProject: filterLogEntriesForExactProject,
   mediaFallsOnEasternReportDay,
   mergeJournalStorylines,
+  journalTimelineAuditRows,
 };

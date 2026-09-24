@@ -286,3 +286,16 @@ test("mergeJournalStorylines has no shared thread for a single contributor and w
   assert.equal(noAi.storylines.length, 1);
   assert.deepEqual(noAi.storylines[0].story, []);
 });
+
+test("journalTimelineAuditRows summarizes timeline rows without personal details", () => {
+  const { journalTimelineAuditRows } = require("./dailyReportPdf");
+  const model = {
+    entryById: new Map([["e1", { id: "e1", source: "sms" }]]),
+    timeline: [{ entryId: "e1", time: "7:10 PM EDT", authorLabel: "Ashley", text: "Call me at +1 519 555 0202 or ashley@example.com" }],
+  };
+  const rows = journalTimelineAuditRows(model);
+  assert.equal(rows.length, 1);
+  const preview = JSON.stringify(rows[0]);
+  assert.doesNotMatch(preview, /555 0202|ashley@example\.com/);
+  assert.match(preview, /\[phone\]|\[email\]/);
+});
