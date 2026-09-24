@@ -65,15 +65,15 @@ expected and harmless: every record carries a stable ID derived from its own dat
 exact start/end, or a workout's own Apple Health UUID), so re-sending it just resolves as a
 duplicate instead of creating a second entry.
 
-**Known limitation - a day's step count is captured once, not kept up to date.** Steps are the one
-exception: each day is one record keyed by date, but the *total* for that day keeps changing as
+**A day's step count is kept up to date.** Steps are the one exception to "immutable once
+recorded": each day is one record keyed by date, but the *total* for that day keeps changing as
 Health finishes syncing more samples for it (from a phone and a Watch, reconciled over time).
-TimeLeftToLive's ingestion treats a same-key record as immutable once created - appropriate for a
-finished workout or a night of sleep, not for a number that legitimately keeps changing - so a
-later export with a revised total for a day already recorded does not update it; the first count
-captured for that day is what stays. This shows up in the response as `stepsRevised` (not a
-failure) rather than `failed`. Sleep and workouts do not have this problem, since a finished
-workout or a completed night's sleep genuinely does not change afterward.
+TimeLeftToLive's ingestion updates a `daily_steps` record in place when a later export carries a
+different total for the same day, so every export refreshes the day's count (and re-exported
+past days are corrected too). Sleep and workouts stay immutable, since a finished workout or a
+completed night's sleep genuinely does not change afterward - a changed payload for those is still
+an `idempotency_conflict`. `stepsRevised` in the response only counts a step conflict from a
+TimeLeftToLive deployment that predates in-place step updates.
 
 ## Verifying it works
 

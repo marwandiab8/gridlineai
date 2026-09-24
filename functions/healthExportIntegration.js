@@ -98,13 +98,12 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
     let delivered = 0;
     let duplicates = 0;
     let failed = 0;
-    // A day's step total keeps changing as Health finishes syncing more samples for it, but each
-    // day is recorded under one fixed key (so re-exports don't pile up separate entries) - and
-    // that fixed-key record is otherwise meant to be immutable, the same as a finished workout.
-    // A changed total therefore always hits a same-key conflict on re-export; that is expected
-    // for steps specifically (not for anything else), so it is counted and logged separately
-    // rather than alarming as a failure. The count from the first successful export of a given
-    // day is what sticks - see docs/health-auto-export-integration.md.
+    // A day's step total keeps changing as Health finishes syncing more samples for it, and each
+    // day is recorded under one fixed key (so re-exports don't pile up separate entries).
+    // TimeLeftToLive updates a daily_steps record in place when the total changes, so a revised
+    // total normally comes back as a plain success. A same-key conflict on steps can still come
+    // from a TimeLeftToLive deployment without that behaviour; it is counted separately rather
+    // than alarming as a failure - see docs/health-auto-export-integration.md.
     let stepsRevised = 0;
     let deliveryDisabled = false;
     for (const batch of chunk(allEvents, BATCH_CHUNK_SIZE)) {
