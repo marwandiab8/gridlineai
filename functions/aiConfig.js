@@ -3,8 +3,8 @@
  */
 
 const DEFAULT_MODELS = {
-  /** GPT-5.2 family — single model; no alternate fallback model. */
-  primary: "gpt-5.2-chat-latest",
+  /** GPT-5.5 (gpt-5.2-chat-latest was retired by OpenAI). Single model; no fallback. */
+  primary: "gpt-5.5",
 };
 
 /**

@@ -162,7 +162,7 @@ async function loadGymWorkoutsForStorylines({ db, gymDb, storylines, dateKey, lo
           runId,
           dateKey,
           code: err && err.code,
-          message: err && err.message,
+          errorMessage: err && err.message,
         });
       }
     }

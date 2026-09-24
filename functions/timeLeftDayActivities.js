@@ -263,7 +263,7 @@ async function loadTimeLeftActivitiesForStorylines({
         logger.warn("timeLeftDayActivities: could not load TimeLeftToLive activities", {
           runId,
           code: err && err.code,
-          message: err && err.message,
+          errorMessage: err && err.message,
         });
       }
     }

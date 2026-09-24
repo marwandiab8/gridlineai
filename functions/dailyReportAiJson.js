@@ -345,7 +345,7 @@ Rules:
     }
     return sanitizeStructuredDailyReportJson(parsed);
   } catch (e) {
-    if (logger) logger.warn("dailyReportAiJson: request failed", { runId, message: e.message });
+    if (logger) logger.warn("dailyReportAiJson: request failed", { runId, errorMessage: e && e.message, status: e && e.status, code: e && e.code });
     return null;
   }
 }
@@ -410,7 +410,7 @@ Rules:
     }
     return sanitizeStructuredJournalReportJson(parsed);
   } catch (e) {
-    if (logger) logger.warn("dailyReportAiJson: journal request failed", { runId, message: e.message });
+    if (logger) logger.warn("dailyReportAiJson: journal request failed", { runId, errorMessage: e && e.message, status: e && e.status, code: e && e.code });
     return null;
   }
 }

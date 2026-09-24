@@ -175,7 +175,7 @@ const TODO_RECURRENCE_MODES = new Set([
 ]);
 
 const OPENAI_MODEL_PRIMARY = defineString("OPENAI_MODEL_PRIMARY", {
-  default: "gpt-5.2-chat-latest",
+  default: "gpt-5.5",
 });
 
 /** Optional. If set, dashboard PDF button must send the same `token` (see public app). */
