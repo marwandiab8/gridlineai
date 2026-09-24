@@ -112,7 +112,7 @@ test("renderJournalPdf draws a two-person storytelling journal with captioned ph
     merged: {
       dayTitle: "Early iron, late pasta",
       storylines: [
-        { author: "Marwan Diab", headline: "A long day", story: ["I lifted, then waited on a pump truck."], highs: ["PR"], struggles: ["Delays"], activities: [{ text: "Was at work from 7:06 AM to 1:13 PM." }], notes: [{ time: "3:30 PM EDT", text: "Pour got pushed again.", photos: [] }], photos: [] },
+        { author: "Marwan Diab", headline: "A long day", story: ["I lifted, then waited on a pump truck."], highs: ["PR"], struggles: ["Delays"], activities: [{ text: "Was at work from 7:06 AM to 1:13 PM." }], notes: [{ time: "3:30 PM EDT", text: "Pour got pushed again.", photos: [] }], photos: [], workouts: [require("./gymK2Workouts").normalizeGymWorkout("w1", { status: "final", routineName: "Chest", focus: ["Chest"], unit: "lb", startedAt: "2026-09-23T09:17:00Z", finishedAt: "2026-09-23T10:11:00Z", exercises: [{ name: "MTS Chest Press", firstEditTime: 1790155208501, lastEditTime: 1790155647568, sets: [{ weight: "40", reps: "20" }, { weight: "0", reps: "6 wide handle" }] }] })] },
         { author: "Ashley Trower", headline: "", story: [], highs: [], struggles: [], activities: [], notes: [{ time: "7:10 PM EDT", text: "Made pasta.", photos: [photo] }], photos: [] },
       ],
       orphanPhotos: [],

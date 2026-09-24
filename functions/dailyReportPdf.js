@@ -364,6 +364,7 @@ const {
   generateStructuredDailyReportJson,
   generateStructuredJournalReportJson,
 } = require("./dailyReportAiJson");
+const { loadGymWorkoutsForStorylines, formatWorkoutForAi } = require("./gymK2Workouts");
 const {
   renderDailySiteLogPdf,
   renderJournalPdf,
@@ -732,10 +733,26 @@ async function generateDailyReportPdf(opts) {
       authorLabelsByIdentity,
     });
 
-    const journalBundle = formatJournalBundleForAi(curatedEntries, dk, {
-      authorLabelsByIdentity,
-      photos: model.photos,
+    const gymWorkoutsByIdentity = await loadGymWorkoutsForStorylines({
+      db,
+      storylines: model.storylines.lines,
+      dateKey: dk,
+      logger,
+      runId,
     });
+    for (const line of model.storylines.lines) {
+      line.workouts = gymWorkoutsByIdentity.get(line.identity) || [];
+    }
+    const workoutLines = model.storylines.lines
+      .flatMap((line) => line.workouts.map((workout) => formatWorkoutForAi(workout, line.author)))
+      .join("\n");
+    const journalBundle = [
+      formatJournalBundleForAi(curatedEntries, dk, {
+        authorLabelsByIdentity,
+        photos: model.photos,
+      }),
+      workoutLines,
+    ].filter(Boolean).join("\n");
     let journalJson = null;
     if (openaiApiKey && journalBundle.trim()) {
       journalJson = await generateStructuredJournalReportJson({

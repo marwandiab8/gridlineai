@@ -5,6 +5,7 @@ const {
   wrapToLines,
   selectRemainingJournalPhotos,
 } = require("./dailyPdfReportBuilderLegacy");
+const { formatSetParts, formatTimeRange, formatMinutes } = require("./gymK2Workouts");
 
 const LEADING = 3;
 const HIDDEN_SHORTCUT_EVENT_TYPES = new Set([
@@ -412,6 +413,59 @@ async function renderJournalPdf(opts) {
     return refineCaptionForPdf(own || safeContext, safeContext, "");
   }
 
+  function drawRightText(text, size, f, color, yy) {
+    const value = sanitizePdfText(text);
+    const width = f.widthOfTextAtSize(value, size);
+    page.drawText(value, { x: margin + contentW - width, y: yy, size, font: f, color });
+    return width;
+  }
+
+  /**
+   * One workout laid out like the gym app's "Workout Details" screen: the routine and
+   * its time, the focus, then each exercise with the time it was worked on and every set.
+   */
+  function drawWorkout(workout, color) {
+    const range = formatTimeRange(workout.startMs, workout.endMs);
+    const minutes = formatMinutes(workout.startMs, workout.endMs);
+    ensureSpace(60);
+    page.drawText(sanitizePdfText(workout.routineName), { x: margin, y, size: 12.5, font: fontBold, color: C.ink });
+    drawRightText([range, minutes].filter(Boolean).join(" · "), 8.5, font, C.muted, y + 1);
+    y -= 15;
+    if (workout.focus.length) {
+      drawText(`Focus: ${workout.focus.join(", ")}`, { size: 8.5, color: C.muted, leading: 3 });
+    }
+    if (workout.notes) drawText(workout.notes, { size: 9.5, f: fontItalic, color: C.body, leading: 3 });
+    y -= 4;
+
+    const rowH = 15;
+    for (const exercise of workout.exercises) {
+      const nameLines = linesFor(exercise.name, fontBold, 10, contentW - 120);
+      ensureSpace(nameLines.length * 13 + 8 + Math.min(exercise.sets.length, 3) * (rowH + 2));
+      const exerciseRange = formatTimeRange(exercise.startMs, exercise.endMs);
+      if (exerciseRange) drawRightText(exerciseRange, 8, font, C.muted, y);
+      for (const line of nameLines) {
+        page.drawText(sanitizePdfText(line), { x: margin, y, size: 10, font: fontBold, color: C.ink });
+        y -= 13;
+      }
+      y -= 1;
+      exercise.sets.forEach((set, index) => {
+        ensureSpace(rowH + 4);
+        const { weight, reps } = formatSetParts(set, workout.unit);
+        const top = y + 10;
+        page.drawRectangle({ x: margin, y: top - rowH, width: contentW, height: rowH, color: C.card });
+        const baseY = top - rowH + 4.5;
+        page.drawText(sanitizePdfText(`Set ${index + 1}`), { x: margin + 8, y: baseY, size: 8.5, font, color: C.muted });
+        page.drawText(sanitizePdfText(weight), { x: margin + 62, y: baseY, size: 9, font: fontBold, color: C.ink });
+        if (reps) {
+          page.drawText(sanitizePdfText(`× ${reps}`), { x: margin + 150, y: baseY, size: 9, font, color });
+        }
+        y -= rowH + 2;
+      });
+      if (exercise.note) drawText(exercise.note, { size: 8.5, f: fontItalic, color: C.muted, leading: 3 });
+      y -= 6;
+    }
+  }
+
   function drawChapterHeading(title, color) {
     y -= 14;
     ensureSpace(60);
@@ -440,6 +494,12 @@ async function renderJournalPdf(opts) {
     if ((line.struggles || []).length) {
       drawLabel("The hard parts", C.hard);
       drawBulletList(line.struggles, C.hard);
+    }
+
+    const workouts = Array.isArray(line.workouts) ? line.workouts : [];
+    if (workouts.length) {
+      drawLabel(workouts.length > 1 ? "Workouts" : "Workout", color);
+      for (const workout of workouts) drawWorkout(workout, color);
     }
 
     const activities = (line.activities || []).filter((row) => row && row.text);
