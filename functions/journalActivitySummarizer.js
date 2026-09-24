@@ -70,9 +70,13 @@ function timeLabel(ms, timeZone) {
   }
 }
 
-function approximateTime(ms, timeZone) {
+function atTime(ms, timeZone) {
   const label = timeLabel(ms, timeZone);
-  return label ? `approximately ${label.toLowerCase()}` : "approximately that time";
+  return label ? `at ${label}` : "";
+}
+
+function plural(count, unit) {
+  return `${count} ${unit}${count === 1 ? "" : "s"}`;
 }
 
 function durationLabel(startMs, endMs) {
@@ -80,11 +84,14 @@ function durationLabel(startMs, endMs) {
   if (!Number.isFinite(minutes) || minutes <= 0) return "";
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
-  if (hours === 1 && !remainder) return "1 hour";
-  if (hours === 1) return `1 hour and ${remainder} minutes`;
-  if (hours && remainder) return `${hours} hours and ${remainder} minutes`;
-  if (hours) return `${hours} hours`;
-  return `${minutes} minutes`;
+  if (hours && remainder) return `${plural(hours, "hour")} and ${plural(remainder, "minute")}`;
+  if (hours) return plural(hours, "hour");
+  return plural(minutes, "minute");
+}
+
+function sameLocation(a, b) {
+  const clean = (value) => String(value || "").trim().toLowerCase();
+  return Boolean(clean(a)) && clean(a) === clean(b);
 }
 
 function locationLabel(entry) {
@@ -166,14 +173,14 @@ function summarizeJournalTrackingEntries(entries, options = {}) {
       if (end) {
         const place = pairConfig[2];
         const duration = durationLabel(row.ms, end.ms);
-        const durationText = duration ? ` (approximately ${duration})` : "";
+        const durationText = duration ? ` (${duration})` : "";
         const workoutStart = place === "gym"
           ? cleanTracked.find((candidate) => candidate.type === "start_workout" && candidate.ms > row.ms && candidate.ms < end.ms && !consumed.has(candidate.entry.id))
           : null;
         const workoutFinish = workoutStart ? cleanTracked.find((candidate) => candidate.type === "finish_workout" && candidate.ms > workoutStart.ms && candidate.ms < end.ms && !consumed.has(candidate.entry.id)) : null;
         if (place === "gym" && workoutStart && workoutFinish) {
           const workoutDuration = durationLabel(workoutStart.ms, workoutFinish.ms);
-          const workoutText = workoutDuration ? ` lasting approximately ${workoutDuration}` : "";
+          const workoutText = workoutDuration ? ` lasting ${workoutDuration}` : "";
           summariesFor(
             row,
             `${person} went to the gym at ${timeLabel(row.ms, tz)}, completed a workout${workoutText}, and left at ${timeLabel(end.ms, tz)}${durationText}.`,
@@ -182,7 +189,7 @@ function summarizeJournalTrackingEntries(entries, options = {}) {
           continue;
         }
         const text = place === "work"
-          ? `${person} arrived at work at ${timeLabel(row.ms, tz)} and finished the workday at ${timeLabel(end.ms, tz)}${durationText}.`
+          ? `${person} was at work from ${timeLabel(row.ms, tz)} to ${timeLabel(end.ms, tz)}${durationText}.`
           : place === "home"
             ? `${person} was at home from ${timeLabel(row.ms, tz)} to ${timeLabel(end.ms, tz)}${durationText}.`
             : `${person} went to the gym at ${timeLabel(row.ms, tz)} and left at ${timeLabel(end.ms, tz)}${durationText}.`;
@@ -195,12 +202,51 @@ function summarizeJournalTrackingEntries(entries, options = {}) {
       const duration = durationLabel(row.ms, workoutEnd.ms);
       summariesFor(
         row,
-        `${person} completed a workout${duration ? ` lasting approximately ${duration}` : ""}.`,
+        `${person} completed a workout${duration ? ` lasting ${duration}` : ""}.`,
         [row, workoutEnd]
       );
       continue;
     }
-    if (["start_spotify", "stop_spotify", "carplay_connected", "carplay_disconnected", "tracking_started", "tracking_stopped", "shortcut_triggered", "location_detected"].includes(row.type)) {
+    if (row.type === "arrive_location") {
+      const place = locationLabel(row.entry);
+      const leave = place
+        ? cleanTracked.find((candidate, index) => (
+          index > i
+          && !consumed.has(candidate.entry.id)
+          && candidate.type === "leave_location"
+          && sameLocation(locationLabel(candidate.entry), place)
+          && candidate.ms - row.ms <= 24 * 60 * 60 * 1000
+        ))
+        : null;
+      if (leave) {
+        const duration = durationLabel(row.ms, leave.ms);
+        summariesFor(
+          row,
+          `${person} was at ${place} from ${timeLabel(row.ms, tz)} to ${timeLabel(leave.ms, tz)}${duration ? ` (${duration})` : ""}.`,
+          [row, leave]
+        );
+        continue;
+      }
+    }
+    const driveEnd = row.type === "start_drive" ? findPair(i, "start_drive", "finish_drive", 12 * 60 * 60 * 1000) : null;
+    if (driveEnd) {
+      const duration = durationLabel(row.ms, driveEnd.ms);
+      const from = locationLabel(row.entry);
+      const to = locationLabel(driveEnd.entry);
+      const route = from && to && !sameLocation(from, to) ? ` from ${from} to ${to}` : "";
+      summariesFor(
+        row,
+        `${person} drove${route} ${atTime(row.ms, tz)}${duration ? ` (${duration})` : ""}.`,
+        [row, driveEnd]
+      );
+      continue;
+    }
+    if (row.type === "traffic_jam") {
+      const near = locationLabel(row.entry);
+      summariesFor(row, `${person} got stuck in traffic${near ? ` near ${near}` : ""} ${atTime(row.ms, tz)}.`, [row]);
+      continue;
+    }
+    if (["start_spotify", "stop_spotify", "finish_spotify", "start_drive", "finish_drive", "carplay_connected", "carplay_disconnected", "tracking_started", "tracking_stopped", "shortcut_triggered", "location_detected"].includes(row.type)) {
       consumed.add(row.entry.id);
       continue;
     }
@@ -208,13 +254,13 @@ function summarizeJournalTrackingEntries(entries, options = {}) {
       : row.type === "arrive_home" ? "home" : row.type === "leave_home" ? "home"
         : row.type === "arrive_gym" ? "the gym" : row.type === "leave_gym" ? "the gym" : locationLabel(row.entry);
     if (row.type.startsWith("arrive_") && place) {
-      summariesFor(row, `${person} arrived at ${place} at ${approximateTime(row.ms, tz)}.`, [row]);
+      summariesFor(row, `${person} arrived at ${place} ${atTime(row.ms, tz)}.`, [row]);
     } else if (row.type.startsWith("leave_") && place) {
-      summariesFor(row, `${person} left ${place} at ${approximateTime(row.ms, tz)}.`, [row]);
+      summariesFor(row, `${person} left ${place} ${atTime(row.ms, tz)}.`, [row]);
     } else if (row.type === "start_workout") {
-      summariesFor(row, `${person} started a workout at ${approximateTime(row.ms, tz)}.`, [row]);
+      summariesFor(row, `${person} started a workout ${atTime(row.ms, tz)}.`, [row]);
     } else if (row.type === "finish_workout") {
-      summariesFor(row, `${person} completed a workout at ${approximateTime(row.ms, tz)}.`, [row]);
+      summariesFor(row, `${person} finished a workout ${atTime(row.ms, tz)}.`, [row]);
     } else {
       consumed.add(row.entry.id);
     }

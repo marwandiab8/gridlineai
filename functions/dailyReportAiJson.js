@@ -218,28 +218,64 @@ Never echo ingestion lines: no "Add the below updates", no "Project [name] Monda
 
 const JOURNAL_JSON_SCHEMA_HINT = `Return a single JSON object with this shape (all keys required; use empty strings or empty arrays when unknown):
 {
-  "overview": "string - 2-5 sentences, personal or shared daily journal voice, summarize what the day felt like and what stood out",
-  "keyMoments": ["specific moments, events, or actions from the day in chronological or meaningful order"],
-  "reflections": ["personal reflections, realizations, worries, gratitude, stressors, or emotional notes when supported by INPUT"],
-  "closingNote": "string - short reflective closing note for the day"
+  "dayTitle": "string - an evocative 3-8 word title for the day, like a diary chapter title",
+  "storylines": [
+    {
+      "author": "string - EXACTLY one contributor name as it appears in INPUT",
+      "headline": "string - one line that captures this person's day",
+      "story": ["2-4 short paragraphs telling this person's day as a story, in the first person, from their point of view"],
+      "highs": ["moments of joy, pride, fun, relief, or gratitude from this person's day"],
+      "struggles": ["what was hard, tiring, frustrating, or worrying, and what they pushed through"]
+    }
+  ],
+  "sharedThread": "string - 1-3 sentences on where their days touched each other (the same event, a shared meal, one mentioning the other), or empty when there was only one contributor or nothing connects",
+  "closingNote": "string - one or two warm sentences that close the day"
 }
 
-Do not write like a superintendent report.
-Do not output construction-only headings, manpower tables, inspections tables, concrete summaries, or open-items language unless the INPUT genuinely reads that way and it naturally belongs inside a personal journal sentence.
+Do not write like a superintendent report or a log of facts.
+Do not output construction-only headings, manpower tables, inspections tables, concrete summaries, or open-items language.
 Do not echo commands, report/PDF requests, weather requests, project-switch commands, or app/debug chatter.
-Do not invent events, feelings, or facts that are not supported by INPUT.`;
+Do not invent events, people, places, or facts that are not in INPUT.`;
+
+const MAX_JOURNAL_STORYLINES = 6;
+
+function sanitizeStoryline(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const author = sanitizeJsonLine(raw.author, 120);
+  if (!author) return null;
+  const list = (value, maxItems, maxLen) => (Array.isArray(value) ? value : [])
+    .map((x) => sanitizeJsonLine(x, maxLen))
+    .filter(Boolean)
+    .slice(0, maxItems);
+  const story = list(raw.story, 5, 1400);
+  if (!story.length) return null;
+  return {
+    author,
+    headline: sanitizeJsonLine(raw.headline, 200),
+    story,
+    highs: list(raw.highs, 6, 320),
+    struggles: list(raw.struggles, 6, 320),
+  };
+}
 
 function sanitizeStructuredJournalReportJson(parsed) {
   if (!parsed || typeof parsed !== "object") return null;
+  const seenAuthors = new Set();
+  const storylines = (Array.isArray(parsed.storylines) ? parsed.storylines : [])
+    .map(sanitizeStoryline)
+    .filter((line) => {
+      if (!line) return false;
+      const key = line.author.toLowerCase();
+      if (seenAuthors.has(key)) return false;
+      seenAuthors.add(key);
+      return true;
+    })
+    .slice(0, MAX_JOURNAL_STORYLINES);
   return {
-    overview: sanitizeJsonLine(parsed.overview, 900),
-    keyMoments: Array.isArray(parsed.keyMoments)
-      ? parsed.keyMoments.map((x) => sanitizeJsonLine(x, 320)).filter(Boolean).slice(0, 12)
-      : [],
-    reflections: Array.isArray(parsed.reflections)
-      ? parsed.reflections.map((x) => sanitizeJsonLine(x, 320)).filter(Boolean).slice(0, 10)
-      : [],
-    closingNote: sanitizeJsonLine(parsed.closingNote, 360),
+    dayTitle: sanitizeJsonLine(parsed.dayTitle, 120),
+    storylines,
+    sharedThread: sanitizeJsonLine(parsed.sharedThread, 900),
+    closingNote: sanitizeJsonLine(parsed.closingNote, 400),
   };
 }
 
@@ -329,22 +365,23 @@ async function generateStructuredJournalReportJson({
   const models = getModels(modelsOverride);
   const userContent = `Report day: ${dateKey} (${timeZoneLabel}).
 
-INPUT - personal notes and journal-worthy events from this day only:
+INPUT - each contributor's notes, tracked activities, workouts, and photo captions from this day only:
 ${String(reportBundle).slice(0, 12_000)}
 
 ${JOURNAL_JSON_SCHEMA_HINT}
 
 Rules:
-- Write like a thoughtful personal day journal, not a chatbot, not a superintendent, and not a construction daily site log.
-- Keep the tone reflective, specific, and human.
-- Use actual moments from INPUT. Prefer concrete detail over vague filler.
-- Each input line includes an author. Treat authorship as factual context.
-- If more than one contributor appears, write it as a shared/co-authored journal day. Do not make it sound like one person did everything.
-- In a multi-contributor journal, write a creative third-person narrative using the contributor names from INPUT. Avoid unqualified first-person singular ("I", "me", "my") in the overview, reflections, and closing note.
-- Never assign one contributor's action, feeling, errand, meal, or purchase to another contributor.
-- Work or site events may appear if they were part of the person's day, but describe them as lived experience, not as a formal contractor report.
-- Do not output section labels inside the text arrays.
-- If INPUT is sparse, keep the journal honest and concise rather than inventing detail.`;
+- This is a shared diary. Turn each person's notes into their own storyline: an engaging, human story of their day with its joy, its struggle, and what they strove for - not a list of facts.
+- Write one storyline per contributor who has lines in INPUT, in the order they first appear. Each storyline uses ONLY that person's own lines and photos (the author= tag). Never move an event, feeling, errand, meal, or purchase from one person's storyline into another's.
+- Tell each storyline in the first person ("I"), as that person, so it reads like their own diary page.
+- Weave the day's arc: how it started, what it asked of them, the small wins, the hard parts, and how it ended. Use concrete details, times, places, and photo captions from INPUT to bring it to life.
+- Feelings: show the ones their notes express or clearly imply (a long workday is tiring, an early gym session takes discipline). Do not invent feelings or events that INPUT does not support.
+- Tracking lines (arrivals, workouts, drives, place visits) are the day's skeleton - use them for shape and timing, but do not list them one by one.
+- [workout] lines are that person's gym session from their workout app, with every set. Bring it into their story (the routine, a standout lift, the effort it took), but do not list exercises or sets - the PDF shows the full workout right under the story.
+- highs and struggles are short, specific phrases drawn from that person's day. Leave a list empty rather than padding it.
+- sharedThread only connects things both people actually mentioned. Leave it empty for a single contributor.
+- If a person's INPUT is sparse, keep their story short and honest rather than inventing detail.
+- Do not output section labels inside the text fields.`;
 
   const params = {
     model: models.primary,
@@ -353,7 +390,7 @@ Rules:
       {
         role: "system",
         content:
-          "You output only valid JSON for a personal daily journal report. No markdown. No prose outside the JSON.",
+          "You output only valid JSON for a shared storytelling diary. No markdown. No prose outside the JSON.",
       },
       { role: "user", content: userContent },
     ],

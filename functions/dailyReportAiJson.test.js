@@ -43,3 +43,21 @@ test("sanitizeStructuredDailyReportJson does not chop executive summary mid-sent
   assert.equal(parsed.executiveSummary, executiveSummary);
   assert.ok(parsed.executiveSummary.endsWith("next shift."));
 });
+
+test("journal JSON keeps one storyline per author and drops empty stories", () => {
+  const { sanitizeStructuredJournalReportJson } = require("./dailyReportAiJson");
+  const out = sanitizeStructuredJournalReportJson({
+    dayTitle: "Early iron, late pasta",
+    storylines: [
+      { author: "Marwan Diab", headline: "h", story: ["one"], highs: ["PR"], struggles: [] },
+      { author: "marwan diab", story: ["duplicate author"] },
+      { author: "Ashley Trower", story: [] },
+      { story: ["no author"] },
+    ],
+    sharedThread: "",
+    closingNote: "Night.",
+  });
+  assert.deepEqual(out.storylines.map((line) => line.author), ["Marwan Diab"]);
+  assert.equal(out.dayTitle, "Early iron, late pasta");
+  assert.equal(out.closingNote, "Night.");
+});

@@ -1572,8 +1572,73 @@ function formatJournalBundleForAi(entries, reportDateKey, options = {}) {
       return `[#${i + 1}] ${tm} [author=${author}; category=${e.category || "journal"}] ${body}`;
     })
     .join("\n");
-  return `${header}${lines}`
+  const entryById = new Map(list.map((e) => [String(e.id), e]));
+  const photoLines = (Array.isArray(options.photos) ? options.photos : [])
+    .filter((photo) => String((photo && photo.captionText) || "").trim())
+    .map((photo) => {
+      const linked = photo.linkedLogEntryId ? entryById.get(String(photo.linkedLogEntryId)) : null;
+      const author = linked
+        ? entryAuthorLabel(linked, authorLabelsByIdentity)
+        : authorLabelsByIdentity.get(authorIdentityFromPhone(photo.senderPhone)) || "Unknown sender";
+      const caption = String(photo.captionText).replace(/\s+/g, " ").trim().slice(0, 300);
+      return `[photo] [author=${sanitizeJournalMetaValue(author)}] ${caption}`;
+    })
+    .join("\n");
+  return `${header}${lines}${photoLines ? `\n${photoLines}` : ""}`
     .slice(0, 10_000);
+}
+
+function stripLeadingAuthor(text, author) {
+  const value = String(text || "").trim();
+  const name = String(author || "").trim();
+  if (!name) return value;
+  const stripped = value.replace(new RegExp(`^${escapeRegExp(name)}\\s+`, "i"), "");
+  return stripped === value ? value : stripped.charAt(0).toUpperCase() + stripped.slice(1);
+}
+
+/**
+ * One storyline per contributor, in the order they first appear. Each keeps its own notes
+ * (their exact words), its tracked activities ("day at a glance"), and every photo that
+ * person sent - linked to one of their notes, or matched by the sender's phone - so the
+ * PDF can tell each person's day separately and still show who wrote what.
+ */
+function buildJournalStorylines(timeline, photos, contributors, entryById) {
+  const lines = (contributors || []).map((contributor) => ({
+    identity: contributor.identity,
+    author: contributor.label,
+    notes: [],
+    activities: [],
+    photos: [],
+  }));
+  const byIdentity = new Map(lines.map((line) => [line.identity, line]));
+  const lineFor = (identity) => byIdentity.get(identity) || null;
+  const placed = new Set();
+
+  for (const row of timeline || []) {
+    const line = lineFor(row.authorIdentity) || (lines.length === 1 ? lines[0] : null);
+    if (!line) continue;
+    if (row.isActivity) {
+      line.activities.push({ time: row.time, text: stripLeadingAuthor(row.text, line.author) });
+    } else {
+      line.notes.push({ entryId: row.entryId, time: row.time, text: row.text, photos: row.photos || [] });
+    }
+    for (const photo of row.photos || []) placed.add(String(photo.mediaId));
+  }
+
+  const orphanPhotos = [];
+  for (const photo of photos || []) {
+    if (placed.has(String(photo.mediaId))) continue;
+    const linkedEntry = photo.linkedLogEntryId && entryById ? entryById.get(String(photo.linkedLogEntryId)) : null;
+    const identity = linkedEntry ? entryAuthorIdentity(linkedEntry) : authorIdentityFromPhone(photo.senderPhone);
+    const line = lineFor(identity) || (lines.length === 1 ? lines[0] : null);
+    if (line) line.photos.push(photo);
+    else orphanPhotos.push(photo);
+  }
+
+  return {
+    lines: lines.filter((line) => line.notes.length || line.activities.length || line.photos.length),
+    orphanPhotos,
+  };
 }
 
 function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
@@ -1594,6 +1659,7 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
       captionText: m.captionText || "",
       linkedLogEntryId: m.linkedLogEntryId || null,
       createdAt: m.createdAt || null,
+      senderPhone: m.senderPhone || null,
     }))
     .sort((a, b) => photoCreatedMs(a) - photoCreatedMs(b));
 
@@ -1614,10 +1680,13 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
       entryId: e.id,
       time: fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) }),
       authorLabel: entryAuthorLabel(e, authorLabelsByIdentity),
+      authorIdentity: entryAuthorIdentity(e),
+      isActivity: Boolean(e._journalActivitySummary),
       text: reportDateKey ? reportLineText(e, reportDateKey) : lineText(e),
       photos: photosForEntry(e),
     }))
     .filter((row) => row.text);
+  const storylines = buildJournalStorylines(timeline, photos, contributors, entryMap);
 
   return {
     entries,
@@ -1627,6 +1696,7 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
     photos,
     timeline,
     contributors,
+    storylines,
     isCoauthored: contributors.length > 1,
     deterministic: {
       overview: buildJournalOverview(entries, reportDateKey, authorLabelsByIdentity),
@@ -1647,6 +1717,7 @@ module.exports = {
   formatJournalBundleForAi,
   filterEntriesForJournalReport,
   summarizeJournalTrackingEntries,
+  buildJournalStorylines,
   stripReportFiller,
   lineText,
   reportLineText,

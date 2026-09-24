@@ -247,3 +247,42 @@ test("two project journals in one scheduler cycle isolate timeline and AI inputs
   assert.match(dockAiInput, /DOCK_LEGACY_MARKER/);
   assert.doesNotMatch(dockAiInput, /HOME_ONLY_MARKER|UNASSIGNED_MARKER|UNASSIGNED_SENTINEL_MARKER|CONTRADICTORY_MARKER/);
 });
+
+test("mergeJournalStorylines attaches each AI story only to the matching contributor", () => {
+  const { mergeJournalStorylines } = require("./dailyReportPdf");
+  const model = {
+    storylines: {
+      lines: [
+        { identity: "phone:15195550101", author: "Marwan Diab", notes: [{ text: "Pour got pushed." }], activities: [], photos: [] },
+        { identity: "phone:15195550202", author: "Ashley Trower", notes: [{ text: "Long shift." }], activities: [], photos: [] },
+      ],
+      orphanPhotos: [],
+    },
+  };
+  const merged = mergeJournalStorylines(model, {
+    dayTitle: "Early iron, late pasta",
+    storylines: [
+      { author: "ashley trower", headline: "A long shift", story: ["Ashley's day."], highs: [], struggles: ["No lunch"] },
+      { author: "Someone Else", headline: "x", story: ["Must not appear."], highs: [], struggles: [] },
+    ],
+    sharedThread: "They met at dinner.",
+    closingNote: "Good night.",
+  });
+  assert.equal(merged.dayTitle, "Early iron, late pasta");
+  assert.deepEqual(merged.storylines.map((line) => line.author), ["Marwan Diab", "Ashley Trower"]);
+  assert.deepEqual(merged.storylines[0].story, []);
+  assert.deepEqual(merged.storylines[1].story, ["Ashley's day."]);
+  assert.deepEqual(merged.storylines[1].notes, [{ text: "Long shift." }]);
+  assert.equal(merged.sharedThread, "They met at dinner.");
+  assert.equal(JSON.stringify(merged).includes("Must not appear"), false);
+});
+
+test("mergeJournalStorylines has no shared thread for a single contributor and works without AI", () => {
+  const { mergeJournalStorylines } = require("./dailyReportPdf");
+  const model = { storylines: { lines: [{ author: "Marwan Diab", notes: [], activities: [], photos: [] }], orphanPhotos: [] } };
+  const merged = mergeJournalStorylines(model, { dayTitle: "", storylines: [], sharedThread: "Should be dropped", closingNote: "" });
+  assert.equal(merged.sharedThread, "");
+  const noAi = mergeJournalStorylines(model, null);
+  assert.equal(noAi.storylines.length, 1);
+  assert.deepEqual(noAi.storylines[0].story, []);
+});
