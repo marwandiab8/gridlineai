@@ -1618,7 +1618,7 @@ function buildJournalStorylines(timeline, photos, contributors, entryById) {
     const line = lineFor(row.authorIdentity) || (lines.length === 1 ? lines[0] : null);
     if (!line) continue;
     if (row.isActivity) {
-      line.activities.push({ time: row.time, text: stripLeadingAuthor(row.text, line.author) });
+      line.activities.push({ time: row.time, atMs: row.atMs, text: stripLeadingAuthor(row.text, line.author) });
     } else {
       line.notes.push({ entryId: row.entryId, time: row.time, text: row.text, photos: row.photos || [] });
     }
@@ -1681,6 +1681,7 @@ function buildJournalReportModel(logEntriesRaw, mediaDocs, options = {}) {
       time: fmtTimeShort(entryDisplayTimestamp(e), { timeZone: entryDisplayTimeZone(e) }),
       authorLabel: entryAuthorLabel(e, authorLabelsByIdentity),
       authorIdentity: entryAuthorIdentity(e),
+      atMs: entryTimeMs(e) || null,
       isActivity: Boolean(e._journalActivitySummary),
       text: reportDateKey ? reportLineText(e, reportDateKey) : lineText(e),
       photos: photosForEntry(e),

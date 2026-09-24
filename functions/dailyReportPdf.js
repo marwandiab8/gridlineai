@@ -365,6 +365,7 @@ const {
   generateStructuredJournalReportJson,
 } = require("./dailyReportAiJson");
 const { loadGymWorkoutsForStorylines, formatWorkoutForAi } = require("./gymK2Workouts");
+const { loadTimeLeftActivitiesForStorylines, composeDayAtAGlance } = require("./timeLeftDayActivities");
 const {
   renderDailySiteLogPdf,
   renderJournalPdf,
@@ -752,9 +753,24 @@ async function generateDailyReportPdf(opts) {
     for (const line of model.storylines.lines) {
       line.workouts = gymWorkoutsByIdentity.get(line.identity) || [];
     }
-    const workoutLines = model.storylines.lines
-      .flatMap((line) => line.workouts.map((workout) => formatWorkoutForAi(workout, line.author)))
-      .join("\n");
+    const timeLeftByIdentity = await loadTimeLeftActivitiesForStorylines({
+      db,
+      storylines: model.storylines.lines,
+      dayStart,
+      nextDayStart,
+      logger,
+      runId,
+    });
+    const activityLines = [];
+    for (const line of model.storylines.lines) {
+      const timeLeftItems = timeLeftByIdentity.get(line.identity) || [];
+      line.activities = composeDayAtAGlance(line.activities, timeLeftItems);
+      for (const item of timeLeftItems) activityLines.push(`[activity] [author=${line.author}] ${item.text}`);
+    }
+    const workoutLines = [
+      ...activityLines,
+      ...model.storylines.lines.flatMap((line) => line.workouts.map((workout) => formatWorkoutForAi(workout, line.author))),
+    ].join("\n");
     const journalBundle = [
       formatJournalBundleForAi(curatedEntries, dk, {
         authorLabelsByIdentity,

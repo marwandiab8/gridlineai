@@ -365,7 +365,7 @@ async function generateStructuredJournalReportJson({
   const models = getModels(modelsOverride);
   const userContent = `Report day: ${dateKey} (${timeZoneLabel}).
 
-INPUT - each contributor's notes, tracked activities, workouts, and photo captions from this day only:
+INPUT - each contributor's notes, tracked activities, sleep, workouts, and photo captions from this day only:
 ${String(reportBundle).slice(0, 12_000)}
 
 ${JOURNAL_JSON_SCHEMA_HINT}
@@ -377,6 +377,7 @@ Rules:
 - Weave the day's arc: how it started, what it asked of them, the small wins, the hard parts, and how it ended. Use concrete details, times, places, and photo captions from INPUT to bring it to life.
 - Feelings: show the ones their notes express or clearly imply (a long workday is tiring, an early gym session takes discipline). Do not invent feelings or events that INPUT does not support.
 - Tracking lines (arrivals, workouts, drives, place visits) are the day's skeleton - use them for shape and timing, but do not list them one by one.
+- [activity] lines come from that person's life tracker: the night's sleep before the day (bedtime, hours slept, wake time), steps, and other activities such as darts practice. Let them shape the story where they matter (how rested they were, how early the day started), but do not recite them.
 - [workout] lines are that person's gym session from their workout app, with every set. Bring it into their story (the routine, a standout lift, the effort it took), but do not list exercises or sets - the PDF shows the full workout right under the story.
 - highs and struggles are short, specific phrases drawn from that person's day. Leave a list empty rather than padding it.
 - sharedThread only connects things both people actually mentioned. Leave it empty for a single contributor.
