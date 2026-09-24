@@ -369,48 +369,37 @@ const {
   renderJournalPdf,
 } = require("./dailyPdfReportBuilder");
 
-function mergeUniqueTextLines(primary, secondary, limit = 10) {
-  const out = [];
-  const seen = new Set();
-  for (const value of [...(primary || []), ...(secondary || [])]) {
-    const text = String(value || "").replace(/\s+/g, " ").trim();
-    if (!text) continue;
-    const key = text.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(text);
-    if (out.length >= limit) break;
-  }
-  return out;
+function sameAuthorName(a, b) {
+  const clean = (value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  return Boolean(clean(a)) && clean(a) === clean(b);
 }
 
-function journalShortcutMoments(model) {
-  const entryById = model && model.entryById instanceof Map ? model.entryById : new Map();
-  return (Array.isArray(model && model.timeline) ? model.timeline : [])
-    .filter((row) => {
-      const entry = entryById.get(String(row.entryId || ""));
-      if (/^auto log\s*:/i.test(String(row.text || "").trim())) return false;
-      return (
-        Boolean(entry && entry._journalActivitySummary) ||
-        String(entry && entry.source || "").trim() === "ios_shortcuts" ||
-        String(entry && entry.shortcutEventType || "").trim() ||
-        /iOS Shortcuts tracking event/i.test(String(row.text || ""))
-      );
-    })
-    .map((row) => {
-      const stamp = row.time ? `${row.time} - ` : "";
-      return `${stamp}${row.text || ""}`.trim();
-    })
-    .filter(Boolean);
-}
-
-function safeReportPreview(value) {
-  return String(value || "")
-    .replace(/\s+/g, " ")
-    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]")
-    .replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone]")
-    .trim()
-    .slice(0, 140);
+/**
+ * Joins the AI-written story for each person onto that person's storyline from the model
+ * (their own notes, activities and photos). An AI storyline is only used for an author who
+ * actually has a storyline, so the model can never attach one person's story to another.
+ * Without AI (or for a person the AI skipped) the storyline still renders from their own notes.
+ */
+function mergeJournalStorylines(model, journalJson) {
+  const aiLines = (journalJson && Array.isArray(journalJson.storylines)) ? journalJson.storylines : [];
+  const storylines = ((model && model.storylines && model.storylines.lines) || []).map((line) => {
+    const ai = aiLines.find((candidate) => sameAuthorName(candidate.author, line.author));
+    return {
+      ...line,
+      headline: (ai && ai.headline) || "",
+      story: (ai && ai.story) || [],
+      highs: (ai && ai.highs) || [],
+      struggles: (ai && ai.struggles) || [],
+    };
+  });
+  const isShared = storylines.length > 1;
+  return {
+    dayTitle: (journalJson && journalJson.dayTitle) || "",
+    storylines,
+    orphanPhotos: (model && model.storylines && model.storylines.orphanPhotos) || [],
+    sharedThread: isShared ? (journalJson && journalJson.sharedThread) || "" : "",
+    closingNote: (journalJson && journalJson.closingNote) || "",
+  };
 }
 
 function journalTimelineAuditRows(model) {
@@ -730,7 +719,11 @@ async function generateDailyReportPdf(opts) {
     mediaForReport = filterJournalMediaForReport(mediaDocs, journalMediaEntryIds, projectKey, {
       dateKey: dk,
     });
-    const authorLabelSource = [...(logEntriesRaw || []), ...curatedEntries];
+    const authorLabelSource = [
+      ...(logEntriesRaw || []),
+      ...curatedEntries,
+      ...mediaForReport.map((m) => ({ senderPhone: m && m.senderPhone })),
+    ];
     const authorLabelsByIdentity = await resolveJournalAuthorLabels(db, authorLabelSource);
 
     model = buildJournalReportModel(curatedEntries, mediaForReport, {
@@ -741,6 +734,7 @@ async function generateDailyReportPdf(opts) {
 
     const journalBundle = formatJournalBundleForAi(curatedEntries, dk, {
       authorLabelsByIdentity,
+      photos: model.photos,
     });
     let journalJson = null;
     if (openaiApiKey && journalBundle.trim()) {
@@ -756,31 +750,13 @@ async function generateDailyReportPdf(opts) {
       aiNarrativeApplied = !!journalJson;
     }
 
-    merged = journalJson
-      ? {
-          overview: journalJson.overview || model.deterministic.overview,
-          keyMoments:
-            Array.isArray(journalJson.keyMoments) && journalJson.keyMoments.length
-              ? journalJson.keyMoments
-              : model.deterministic.keyMoments,
-          reflections:
-            Array.isArray(journalJson.reflections) && journalJson.reflections.length
-              ? journalJson.reflections
-              : model.deterministic.reflections,
-          closingNote: journalJson.closingNote || model.deterministic.closingNote,
-        }
-      : {
-          overview: model.deterministic.overview,
-          keyMoments: model.deterministic.keyMoments,
-          reflections: model.deterministic.reflections,
-          closingNote: model.deterministic.closingNote,
-        };
-    merged.keyMoments = mergeUniqueTextLines(journalShortcutMoments(model), merged.keyMoments, 12);
+    merged = mergeJournalStorylines(model, journalJson);
     if (logger) {
-      logger.info("dailyReportPdf: journal shortcut moments", {
+      logger.info("dailyReportPdf: journal storylines", {
         runId,
-        shortcutMoments: journalShortcutMoments(model).length,
-        keyMoments: Array.isArray(merged.keyMoments) ? merged.keyMoments.length : 0,
+        contributors: model.storylines.lines.length,
+        aiStorylines: journalJson ? journalJson.storylines.length : 0,
+        storiesWritten: merged.storylines.filter((line) => line.story.length).length,
       });
       logger.info("dailyReportPdf: journal timeline audit", {
         runId,
@@ -797,7 +773,9 @@ async function generateDailyReportPdf(opts) {
       titleMain: "Daily Journal",
       titleDate,
       projectHeadline: journalScopeLabel,
-      brandLine: `Personal daily journal - ${footerBrand}`,
+      brandLine: `Shared daily journal - ${footerBrand}`,
+      dayTitle: merged.dayTitle || "",
+      toldBy: merged.storylines.map((line) => line.author).filter(Boolean),
       lines: [],
       grid: [
         { label: "Report type", value: "Journal" },
@@ -932,10 +910,12 @@ async function generateDailyReportPdf(opts) {
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   if (reportType === "journal") {
+    const fontItalic = await pdf.embedFont(StandardFonts.HelveticaOblique);
     await renderJournalPdf({
       pdf,
       font,
       fontBold,
+      fontItalic,
       storageBucket: bucket,
       titleStr,
       footerBrand,
@@ -1095,4 +1075,5 @@ module.exports = {
   filterJournalMediaForReport,
   filterJournalLogEntriesForProject: filterLogEntriesForExactProject,
   mediaFallsOnEasternReportDay,
+  mergeJournalStorylines,
 };

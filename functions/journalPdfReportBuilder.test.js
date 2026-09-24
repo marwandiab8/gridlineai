@@ -94,3 +94,34 @@ test("raw tracking is removed from summary sections and repeated narrative is de
     ""
   );
 });
+
+test("renderJournalPdf draws a two-person storytelling journal with captioned photos", async () => {
+  const { PDFDocument, StandardFonts } = require("pdf-lib");
+  const { renderJournalPdf } = require("./journalPdfReportBuilder");
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const fontItalic = await pdf.embedFont(StandardFonts.HelveticaOblique);
+  const photo = { mediaId: "p1", storagePath: "missing.jpg", captionText: "Pasta night" };
+  await renderJournalPdf({
+    pdf, font, fontBold, fontItalic,
+    storageBucket: { file: () => ({ download: async () => { throw new Error("not found"); } }) },
+    titleStr: "Daily Journal - Wed, Sep 23, 2026",
+    footerBrand: "Gridline",
+    coverMeta: { titleMain: "Daily Journal", titleDate: "Wed, Sep 23, 2026", grid: [] },
+    merged: {
+      dayTitle: "Early iron, late pasta",
+      storylines: [
+        { author: "Marwan Diab", headline: "A long day", story: ["I lifted, then waited on a pump truck."], highs: ["PR"], struggles: ["Delays"], activities: [{ text: "Was at work from 7:06 AM to 1:13 PM." }], notes: [{ time: "3:30 PM EDT", text: "Pour got pushed again.", photos: [] }], photos: [] },
+        { author: "Ashley Trower", headline: "", story: [], highs: [], struggles: [], activities: [], notes: [{ time: "7:10 PM EDT", text: "Made pasta.", photos: [photo] }], photos: [] },
+      ],
+      orphanPhotos: [],
+      sharedThread: "They met at dinner.",
+      closingNote: "Good night.",
+    },
+    logger: { warn() {} },
+    runId: "test",
+  });
+  assert.ok(pdf.getPageCount() >= 1);
+  assert.ok((await pdf.save()).length > 1000);
+});

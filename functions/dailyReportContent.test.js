@@ -414,8 +414,8 @@ test("journal tracking summaries combine locations, calculate durations, and hid
     dayStart: new Date("2026-08-30T12:00:00Z"),
   });
   assert.equal(model.timeline.length, 1);
-  assert.match(model.timeline[0].text, /arrived at work at 6:57 am and finished the workday at 4:12 pm/i);
-  assert.match(model.timeline[0].text, /approximately 9 hours and 15 minutes/);
+  assert.match(model.timeline[0].text, /was at work from 6:57 AM to 4:12 PM/);
+  assert.match(model.timeline[0].text, /\(9 hours and 15 minutes\)/);
   assert.doesNotMatch(formatJournalBundleForAi(entries, "2026-08-30"), /spotify|tracking|event type|coordinates/i);
 });
 
@@ -424,7 +424,7 @@ test("journal tracking summaries handle an incomplete event without inventing du
     { id: "arrive-home", source: "ios_shortcuts", shortcutEventType: "arrive_home", shortcutEventAtIso: "2026-08-30T21:20:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
   ], [], { reportDateKey: "2026-08-30" });
   assert.equal(model.timeline.length, 1);
-  assert.match(model.timeline[0].text, /arrived at home at approximately 5:20 pm/i);
+  assert.match(model.timeline[0].text, /arrived at home at 5:20 PM/);
   assert.doesNotMatch(model.timeline[0].text, /spent|duration|remained|hours|minutes/i);
 });
 
@@ -471,4 +471,66 @@ test("buildDailyReportModel carries author labels into source chunks", () => {
 
   assert.equal(model.structured.workBlocks[0].rows[0].authorLabel, "Manager A");
   assert.equal(model.structured.issueChunks[0].authorLabel, "Manager B");
+});
+
+test("journal tracking summaries use exact times and correct plurals", () => {
+  const model = buildJournalReportModel([
+    { id: "gym-in", source: "ios_shortcuts", shortcutEventType: "arrive_gym", shortcutEventAtIso: "2026-09-23T08:59:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "w-in", source: "ios_shortcuts", shortcutEventType: "start_workout", shortcutEventAtIso: "2026-09-23T09:10:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "w-out", source: "ios_shortcuts", shortcutEventType: "finish_workout", shortcutEventAtIso: "2026-09-23T10:11:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "gym-out", source: "ios_shortcuts", shortcutEventType: "leave_gym", shortcutEventAtIso: "2026-09-23T10:38:00Z", authorLabel: "Marwan Diab", includeInDailySummary: true },
+  ], [], { reportDateKey: "2026-09-23" });
+  assert.match(model.timeline[0].text, /lasting 1 hour and 1 minute,/);
+  assert.doesNotMatch(model.timeline[0].text, /approximately|1 minutes/);
+});
+
+test("journal tracking summaries pair a place visit and a drive", () => {
+  const model = buildJournalReportModel([
+    { id: "d1", source: "ios_shortcuts", shortcutEventType: "start_drive", shortcutEventAtIso: "2026-09-23T17:15:00Z", shortcutLocationLabel: "Brampton", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "d2", source: "ios_shortcuts", shortcutEventType: "finish_drive", shortcutEventAtIso: "2026-09-23T17:50:00Z", shortcutLocationLabel: "Bolton", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "p1", source: "ios_shortcuts", shortcutEventType: "arrive_location", shortcutEventAtIso: "2026-09-23T17:52:00Z", shortcutLocationLabel: "Quick Oil Change", authorLabel: "Marwan Diab", includeInDailySummary: true },
+    { id: "p2", source: "ios_shortcuts", shortcutEventType: "leave_location", shortcutEventAtIso: "2026-09-23T18:38:00Z", shortcutLocationLabel: "quick oil change", authorLabel: "Marwan Diab", includeInDailySummary: true },
+  ], [], { reportDateKey: "2026-09-23" });
+  const texts = model.timeline.map((row) => row.text);
+  assert.equal(texts.length, 2);
+  assert.match(texts[0], /drove from Brampton to Bolton at 1:15 PM \(35 minutes\)/);
+  assert.match(texts[1], /was at Quick Oil Change from 1:52 PM to 2:38 PM \(46 minutes\)/);
+});
+
+test("journal storylines keep each contributor's notes, activities, and photos separate", () => {
+  const marwan = { authorLabel: "Marwan Diab", authorPhone: "+15195550101" };
+  const ashley = { authorLabel: "Ashley Trower", authorPhone: "+15195550202" };
+  const entries = [
+    { id: "m-gym", source: "ios_shortcuts", shortcutEventType: "arrive_gym", shortcutEventAtIso: "2026-09-23T09:00:00Z", includeInDailySummary: true, ...marwan },
+    { id: "m-note", createdAt: ts("2026-09-23T15:00:00Z"), category: "journal", rawText: "Pour got pushed again.", normalizedText: "Pour got pushed again.", ...marwan },
+    { id: "a-note", createdAt: ts("2026-09-23T16:00:00Z"), category: "journal", rawText: "Long shift at the clinic.", normalizedText: "Long shift at the clinic.", ...ashley },
+    { id: "a-dinner", createdAt: ts("2026-09-23T23:00:00Z"), category: "journal", rawText: "Made pasta.", normalizedText: "Made pasta.", ...ashley },
+  ];
+  const media = [
+    { id: "linked", storagePath: "a.jpg", contentType: "image/jpeg", linkedLogEntryId: "a-dinner", captionText: "Pasta night", senderPhone: ashley.authorPhone },
+    { id: "by-phone", storagePath: "b.jpg", contentType: "image/jpeg", captionText: "Golden hour", senderPhone: "+1 (519) 555-0202" },
+    { id: "stranger", storagePath: "c.jpg", contentType: "image/jpeg", captionText: "Who sent this", senderPhone: "+14165559999" },
+  ];
+  const model = buildJournalReportModel(entries, media, { reportDateKey: "2026-09-23" });
+  const [m, a] = model.storylines.lines;
+  assert.equal(m.author, "Marwan Diab");
+  assert.deepEqual(m.notes.map((note) => note.text), ["Pour got pushed again."]);
+  assert.equal(m.activities.length, 1);
+  assert.match(m.activities[0].text, /^Arrived at the gym at /);
+  assert.equal(m.photos.length, 0);
+  assert.equal(a.author, "Ashley Trower");
+  assert.deepEqual(a.notes.map((note) => note.text), ["Long shift at the clinic.", "Made pasta."]);
+  assert.deepEqual(a.notes[1].photos.map((photo) => photo.mediaId), ["linked"]);
+  assert.deepEqual(a.photos.map((photo) => photo.mediaId), ["by-phone"]);
+  assert.deepEqual(model.storylines.orphanPhotos.map((photo) => photo.mediaId), ["stranger"]);
+});
+
+test("journal AI bundle includes photo captions under the sender's name", () => {
+  const entries = [
+    { id: "a1", createdAt: ts("2026-09-23T16:00:00Z"), category: "journal", rawText: "Walked the trail.", normalizedText: "Walked the trail.", authorLabel: "Ashley Trower", authorPhone: "+15195550202" },
+  ];
+  const bundle = formatJournalBundleForAi(entries, "2026-09-23", {
+    photos: [{ mediaId: "p", captionText: "Golden hour on the trail", senderPhone: "+15195550202" }],
+  });
+  assert.match(bundle, /\[photo\] \[author=Ashley Trower\] Golden hour on the trail/);
 });

@@ -1,6 +1,5 @@
 const { rgb } = require("pdf-lib");
 const { sanitizePdfText } = require("./pdfWinAnsiText");
-const { formatWallDateTimeEt } = require("./logClassifier");
 const { refineCaptionForPdf } = require("./dailyPdfCompact");
 const {
   wrapToLines,
@@ -176,34 +175,102 @@ async function embedImageIfPossible(pdf, buf) {
   }
 }
 
+// Each contributor gets their own accent colour so their chapter, photo captions and
+// notes are recognisable at a glance - "who wrote what" without reading a single label.
+const STORYLINE_COLORS = [
+  rgb(0.2, 0.38, 0.62),
+  rgb(0.66, 0.28, 0.44),
+  rgb(0.2, 0.52, 0.42),
+  rgb(0.62, 0.42, 0.14),
+  rgb(0.42, 0.32, 0.62),
+  rgb(0.36, 0.44, 0.5),
+];
+
+function firstName(author) {
+  const name = String(author || "").trim();
+  if (!name || /^unknown/i.test(name)) return "";
+  return name.split(/\s+/)[0];
+}
+
+function possessive(name) {
+  const value = String(name || "").trim();
+  if (!value) return "";
+  return /s$/i.test(value) ? `${value}'` : `${value}'s`;
+}
+
+function joinNames(names) {
+  const list = (names || []).filter(Boolean);
+  if (list.length <= 1) return list[0] || "";
+  return `${list.slice(0, -1).join(", ")} & ${list[list.length - 1]}`;
+}
+
+function sameText(a, b) {
+  const left = normalizeJournalKey(a);
+  return Boolean(left) && left === normalizeJournalKey(b);
+}
+
+function photoTimeLabel(photo) {
+  try {
+    const created = photo && photo.createdAt;
+    const date = created && typeof created.toDate === "function" ? created.toDate() : created ? new Date(created) : null;
+    if (!date || !Number.isFinite(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Toronto",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZoneName: "short",
+    }).format(date);
+  } catch (_) {
+    return "";
+  }
+}
+
+/** The notes a person wrote, minus raw tracking telemetry and exact repeats. */
+function storylineNotes(line) {
+  const seen = new Set();
+  return (Array.isArray(line && line.notes) ? line.notes : []).filter((note) => {
+    const text = String((note && note.text) || "").trim();
+    if (!text && !(note && note.photos && note.photos.length)) return false;
+    if (text && isRawShortcutTrackingText(text)) return false;
+    const key = normalizeJournalKey(text);
+    if (key && seen.has(key)) return false;
+    if (key) seen.add(key);
+    return true;
+  });
+}
+
 async function renderJournalPdf(opts) {
   const {
     pdf,
     font,
     fontBold,
+    fontItalic: fontItalicOpt,
     storageBucket,
     pageW = 612,
     pageH = 792,
-    margin = 50,
+    margin = 54,
     titleStr,
     footerBrand,
-    coverMeta,
+    coverMeta = {},
     logoStoragePath,
-    merged,
-    model,
+    merged = {},
     logger,
     runId,
   } = opts;
+  const fontItalic = fontItalicOpt || font;
 
   const contentW = pageW - 2 * margin;
   const footerReserve = 42;
   const headerReserve = 44;
   const C = {
-    ink: rgb(0.14, 0.15, 0.2),
-    body: rgb(0.17, 0.18, 0.22),
-    muted: rgb(0.43, 0.45, 0.5),
-    rule: rgb(0.78, 0.8, 0.84),
-    accent: rgb(0.3, 0.37, 0.48),
+    ink: rgb(0.13, 0.14, 0.18),
+    body: rgb(0.2, 0.21, 0.25),
+    muted: rgb(0.45, 0.47, 0.52),
+    rule: rgb(0.82, 0.83, 0.86),
+    card: rgb(0.965, 0.965, 0.975),
+    good: rgb(0.18, 0.5, 0.34),
+    hard: rgb(0.7, 0.4, 0.12),
   };
 
   let page = pdf.addPage([pageW, pageH]);
@@ -218,120 +285,70 @@ async function renderJournalPdf(opts) {
     if (y - need < margin + footerReserve) newPage();
   }
 
-  function drawLine(yy, thickness = 0.6, color = C.rule) {
-    page.drawLine({
-      start: { x: margin, y: yy },
-      end: { x: pageW - margin, y: yy },
-      thickness,
-      color,
-    });
+  function drawRule(yy, thickness = 0.6, color = C.rule, left = margin, width = contentW) {
+    page.drawLine({ start: { x: left, y: yy }, end: { x: left + width, y: yy }, thickness, color });
   }
 
-  function drawParagraph(text, size = 10, bold = false, color = C.body, left = margin, maxW = contentW) {
-    const f = bold ? fontBold : font;
-    const lines = wrapToLines(String(text || "").trim(), f, size, maxW);
-    const lh = size + LEADING;
-    for (const line of lines) {
+  function linesFor(text, f, size, maxW) {
+    return wrapToLines(String(text || "").trim(), f, size, maxW);
+  }
+
+  function drawText(text, { size = 10, f = font, color = C.body, left = margin, maxW = contentW, leading = LEADING } = {}) {
+    const lh = size + leading;
+    for (const line of linesFor(text, f, size, maxW)) {
       ensureSpace(lh + 2);
       page.drawText(sanitizePdfText(line), { x: left, y, size, font: f, color });
       y -= lh;
     }
   }
 
-  function drawSectionTitle(title) {
-    y -= 10;
-    ensureSpace(34);
-    drawLine(y + 4, 0.8, C.rule);
-    y -= 12;
-    drawParagraph(title, 12, true, C.ink);
-    y -= 6;
+  function drawLabel(text, color = C.muted) {
+    y -= 4;
+    ensureSpace(24);
+    drawText(String(text || "").toUpperCase(), { size: 7.5, f: fontBold, color, leading: 4 });
+    y -= 2;
   }
 
-  function drawBullets(items, color = C.body) {
+  function drawBulletList(items, color) {
     for (const item of items || []) {
-      const lines = wrapToLines(String(item || "").trim(), font, 10, contentW - 18);
+      const lines = linesFor(item, font, 10, contentW - 16);
       if (!lines.length) continue;
       ensureSpace(lines.length * (10 + LEADING) + 2);
-      page.drawText("•", { x: margin, y, size: 10, font: fontBold, color });
-      let bulletY = y;
+      page.drawCircle({ x: margin + 3, y: y + 3.2, size: 1.8, color });
+      let lineY = y;
       for (const line of lines) {
-        page.drawText(sanitizePdfText(line), {
-          x: margin + 14,
-          y: bulletY,
-          size: 10,
-          font,
-          color,
-        });
-        bulletY -= 10 + LEADING;
+        page.drawText(sanitizePdfText(line), { x: margin + 12, y: lineY, size: 10, font, color: C.body });
+        lineY -= 10 + LEADING;
       }
-      y = bulletY - 2;
+      y = lineY - 2;
     }
   }
 
-  function drawJournalTimelineEntry(row) {
-    const timeLabel = String((row && row.time) || "").trim();
-    const authorLabel = String((row && row.authorLabel) || "").trim();
-    const text = String((row && row.text) || "").trim();
-    if (!timeLabel && !text) return;
-
-    if (row && row.compactTracking) {
-      const line = [timeLabel, text].filter(Boolean).join(" — ");
-      if (line) drawParagraph(line, 9.5, false, C.body);
-      y -= 3;
-      return;
-    }
-
-    const metaLabel = [timeLabel, authorLabel].filter(Boolean).join(" · ");
-    if (metaLabel) drawParagraph(metaLabel, 8.5, true, C.accent);
-    if (text) drawParagraph(text, 10, false, C.body);
-    y -= 4;
-  }
-
-  function drawMetaGrid(grid) {
-    for (const row of grid || []) {
-      const label = String(row.label || "").trim();
-      const value = String(row.value || "").trim();
-      if (!label && !value) continue;
-      ensureSpace(26);
-      page.drawText(sanitizePdfText(label), {
-        x: margin,
-        y,
-        size: 8.5,
-        font: fontBold,
-        color: C.accent,
-      });
-      drawParagraph(value || "Not specified", 9.5, false, value ? C.body : C.muted, margin + 100, contentW - 100);
-      y -= 4;
-    }
-  }
-
-  async function drawJournalCoverLogo(topY) {
-    const boxW = 132;
-    const maxH = 52;
-    const leftX = margin;
-    if (logoStoragePath && storageBucket) {
-      let buf;
-      try {
-        [buf] = await storageBucket.file(logoStoragePath).download();
-      } catch (_) {
-        buf = null;
-      }
-      const img = buf ? await embedImageIfPossible(pdf, buf) : null;
-      if (img) {
-        const scale = boxW / img.width;
-        const h = Math.min(img.height * scale, maxH);
-        const w = img.width * (h / img.height);
-        page.drawImage(img, { x: leftX, y: topY - h, width: w, height: h });
-        return { bottomY: topY - h - 10, leftW: boxW };
-      }
-    }
-    return { bottomY: topY, leftW: 0 };
-  }
-
-  async function drawJournalPhoto(photo, captionContext) {
-    let buf;
+  async function drawCoverLogo(topY) {
+    const boxW = 120;
+    const maxH = 48;
+    if (!logoStoragePath || !storageBucket) return { bottomY: topY, leftW: 0 };
+    let buf = null;
     try {
-      [buf] = await storageBucket.file(photo.storagePath).download();
+      [buf] = await storageBucket.file(logoStoragePath).download();
+    } catch (_) {}
+    const img = buf ? await embedImageIfPossible(pdf, buf) : null;
+    if (!img) return { bottomY: topY, leftW: 0 };
+    const h = Math.min(img.height * (boxW / img.width), maxH);
+    const w = img.width * (h / img.height);
+    page.drawImage(img, { x: margin, y: topY - h, width: w, height: h });
+    return { bottomY: topY - h - 10, leftW: boxW };
+  }
+
+  /**
+   * A photo with its caption card directly underneath: who sent it and when, then the
+   * caption in their words. The card is always drawn, so every picture is attributed
+   * even when it has no caption of its own.
+   */
+  async function drawPhotoWithCaption(photo, { author, color, caption, time }) {
+    let buf = null;
+    try {
+      if (storageBucket) [buf] = await storageBucket.file(photo.storagePath).download();
     } catch (e) {
       if (logger) {
         logger.warn("journalPdfReportBuilder: journal photo download failed", {
@@ -340,150 +357,209 @@ async function renderJournalPdf(opts) {
           message: e.message,
         });
       }
-      drawParagraph("(Photo unavailable)", 8.5, false, C.muted);
-      return;
     }
-    const img = await embedImageIfPossible(pdf, buf);
-    if (!img) {
-      drawParagraph("(Unsupported image format)", 8.5, false, C.muted);
-      return;
-    }
-    const maxW = contentW;
-    const maxH = 420;
-    const scale = Math.min(maxW / img.width, maxH / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    ensureSpace(h + 40);
-    page.drawImage(img, { x: margin, y: y - h, width: w, height: h });
-    y -= h + 6;
+    const img = buf ? await embedImageIfPossible(pdf, buf) : null;
 
-    let ts = "";
-    try {
-      if (photo.createdAt && typeof photo.createdAt.toDate === "function") {
-        ts = formatWallDateTimeEt(photo.createdAt.toDate());
+    const captionText = String(caption || "").trim();
+    const metaText = [author, time || photoTimeLabel(photo)].filter(Boolean).join(" · ");
+    const pad = 8;
+    const textW = contentW - pad * 2 - 4;
+    const metaLines = metaText ? linesFor(metaText, fontBold, 8, textW) : [];
+    const captionLines = captionText ? linesFor(captionText, fontItalic, 10, textW) : [];
+    const cardH = pad * 2 + metaLines.length * 11 + captionLines.length * 13.5 + (metaLines.length && captionLines.length ? 2 : 0);
+
+    let imgW = 0;
+    let imgH = 0;
+    if (img) {
+      const scale = Math.min((contentW * 0.85) / img.width, 290 / img.height, 1.5);
+      imgW = img.width * scale;
+      imgH = img.height * scale;
+    }
+    const placeholderH = img ? 0 : 22;
+    ensureSpace(imgH + placeholderH + cardH + 12);
+
+    if (img) {
+      page.drawImage(img, { x: margin + (contentW - imgW) / 2, y: y - imgH, width: imgW, height: imgH });
+      y -= imgH;
+    } else {
+      page.drawRectangle({ x: margin, y: y - placeholderH, width: contentW, height: placeholderH, color: C.card });
+      page.drawText(sanitizePdfText("Photo unavailable"), { x: margin + pad, y: y - 14, size: 8.5, font: fontItalic, color: C.muted });
+      y -= placeholderH;
+    }
+
+    if (cardH > pad * 2) {
+      page.drawRectangle({ x: margin, y: y - cardH, width: contentW, height: cardH, color: C.card });
+      page.drawRectangle({ x: margin, y: y - cardH, width: 3, height: cardH, color });
+      let lineY = y - pad - 7;
+      for (const line of metaLines) {
+        page.drawText(sanitizePdfText(line), { x: margin + pad + 4, y: lineY, size: 8, font: fontBold, color });
+        lineY -= 11;
       }
-    } catch (_) {}
-    const safeContext = isRawShortcutTrackingText(captionContext) ? "" : String(captionContext || "").trim();
-    const body = refineCaptionForPdf(
-      String(photo.captionText || "").trim() || safeContext,
-      safeContext,
-      ""
-    );
-    const cap = [ts, body].filter(Boolean).join(" - ");
-    if (cap) drawParagraph(cap, 8.5, false, C.muted);
-    y -= 4;
+      if (metaLines.length && captionLines.length) lineY -= 2;
+      for (const line of captionLines) {
+        page.drawText(sanitizePdfText(line), { x: margin + pad + 4, y: lineY, size: 10, font: fontItalic, color: C.ink });
+        lineY -= 13.5;
+      }
+      y -= cardH;
+    }
+    y -= 14;
   }
 
-  const timelineRows = prepareJournalTimeline(model || {});
-  const seenNarrative = new Set();
-  for (const row of timelineRows) {
-    const key = normalizeJournalKey(row && row.text);
-    if (key) seenNarrative.add(key);
+  function photoCaption(photo, fallback) {
+    const own = String((photo && photo.captionText) || "").trim();
+    const context = String(fallback || "").trim();
+    const safeContext = isRawShortcutTrackingText(context) ? "" : context;
+    return refineCaptionForPdf(own || safeContext, safeContext, "");
   }
 
-  const overviewRaw = merged && merged.overview
-    ? merged.overview
-    : model && model.deterministic && model.deterministic.overview;
-  const overview = cleanJournalNarrativeText(overviewRaw);
-  const keyMomentsRaw = Array.isArray(merged && merged.keyMoments) && merged.keyMoments.length
-    ? merged.keyMoments
-    : (model && model.deterministic && model.deterministic.keyMoments) || [];
-  const reflectionsRaw = Array.isArray(merged && merged.reflections) && merged.reflections.length
-    ? merged.reflections
-    : (model && model.deterministic && model.deterministic.reflections) || [];
-  const keyMoments = filterJournalNarrativeItems(keyMomentsRaw, seenNarrative);
-  const reflections = filterJournalNarrativeItems(reflectionsRaw, seenNarrative);
-  const closingRaw = (merged && merged.closingNote) ||
-    (model && model.deterministic && model.deterministic.closingNote) || "";
-  const closingNote = cleanJournalNarrativeText(closingRaw, seenNarrative);
+  function drawChapterHeading(title, color) {
+    y -= 14;
+    ensureSpace(60);
+    page.drawRectangle({ x: margin, y: y - 6, width: 4, height: 22, color });
+    page.drawText(sanitizePdfText(title), { x: margin + 12, y, size: 15, font: fontBold, color: C.ink });
+    y -= 26;
+  }
 
-  const coverTopY = y;
-  const logoBand = await drawJournalCoverLogo(coverTopY);
-  const gap = logoBand.leftW > 0 ? 18 : 0;
-  const textLeft = margin + logoBand.leftW + gap;
+  async function drawStoryline(line, color) {
+    const name = firstName(line.author) || line.author || "Someone";
+    drawChapterHeading(`${possessive(line.author || "Someone")} day`, color);
+
+    if (line.headline) {
+      drawText(line.headline, { size: 11.5, f: fontItalic, color: C.ink, leading: 4 });
+      y -= 6;
+    }
+    for (const paragraph of line.story || []) {
+      drawText(paragraph, { size: 10.5, color: C.body, leading: 5 });
+      y -= 7;
+    }
+
+    if ((line.highs || []).length) {
+      drawLabel("The good", C.good);
+      drawBulletList(line.highs, C.good);
+    }
+    if ((line.struggles || []).length) {
+      drawLabel("The hard parts", C.hard);
+      drawBulletList(line.struggles, C.hard);
+    }
+
+    const activities = (line.activities || []).filter((row) => row && row.text);
+    if (activities.length) {
+      drawLabel("Day at a glance");
+      for (const row of activities) {
+        drawText(row.text, { size: 8.5, color: C.muted, leading: 3 });
+        y -= 1;
+      }
+    }
+
+    const notes = storylineNotes(line);
+    const shownPhotoIds = new Set();
+    if (notes.length) {
+      drawLabel(`In ${name}'s own words`, color);
+      for (const note of notes) {
+        const photos = (note.photos || []).filter((photo) => photo && !shownPhotoIds.has(String(photo.mediaId)));
+        const firstCaption = photos.length ? String(photos[0].captionText || "").trim() : "";
+        // When a note came with a photo, the note is that photo's caption: show it once, under the picture.
+        const noteIsCaption = photos.length > 0 && (!firstCaption || sameText(firstCaption, note.text));
+        if (!noteIsCaption) {
+          ensureSpace(30);
+          drawText(note.time || "", { size: 8, f: fontBold, color, leading: 3 });
+          if (note.text) {
+            drawText(note.text, { size: 10, color: C.body, leading: 4 });
+            y -= 4;
+          }
+        }
+        for (let i = 0; i < photos.length; i += 1) {
+          const photo = photos[i];
+          shownPhotoIds.add(String(photo.mediaId));
+          const caption = i === 0 && noteIsCaption ? note.text : photoCaption(photo, "");
+          await drawPhotoWithCaption(photo, { author: line.author, color, caption, time: note.time });
+        }
+        y -= 4;
+      }
+    }
+
+    const morePhotos = (line.photos || []).filter((photo) => photo && !shownPhotoIds.has(String(photo.mediaId)));
+    if (morePhotos.length) {
+      ensureSpace(330); // keep the label on the same page as the first photo
+      drawLabel(`More from ${name}`, color);
+      for (const photo of morePhotos) {
+        shownPhotoIds.add(String(photo.mediaId));
+        const linkedNote = (line.notes || []).find((note) => String(note.entryId || "") === String(photo.linkedLogEntryId || ""));
+        await drawPhotoWithCaption(photo, { author: line.author, color, caption: photoCaption(photo, linkedNote && linkedNote.text) });
+      }
+    }
+  }
+
+  // ----- Cover -----
+  const storylines = Array.isArray(merged.storylines) ? merged.storylines : [];
+  const logoBand = await drawCoverLogo(y);
+  const textLeft = margin + (logoBand.leftW ? logoBand.leftW + 18 : 0);
   const textWidth = pageW - margin - textLeft;
-  const drawJournalCoverText = (text, size, bold, color) => {
-    drawParagraph(text, size, bold, color, textLeft, textWidth);
-  };
+  const coverText = (text, size, f, color, leading = LEADING) =>
+    drawText(text, { size, f, color, left: textLeft, maxW: textWidth, leading });
 
-  drawJournalCoverText(coverMeta.brandLine || `Personal daily journal - ${footerBrand}`, 8.5, false, C.muted);
-  y -= 10;
-  drawJournalCoverText(coverMeta.titleMain || titleStr, 20, true, C.ink);
+  coverText(coverMeta.brandLine || `Shared daily journal - ${footerBrand}`, 8.5, font, C.muted);
+  y -= 8;
+  coverText(coverMeta.titleMain || titleStr, 22, fontBold, C.ink);
   if (coverMeta.titleDate) {
     y -= 2;
-    drawJournalCoverText(coverMeta.titleDate, 11, false, C.accent);
+    coverText(coverMeta.titleDate, 11, font, C.muted);
   }
-  y = Math.min(y, logoBand.bottomY) - 4;
-  drawLine(y + 4, 1, C.rule);
-  y -= 12;
-  drawMetaGrid(coverMeta.grid || []);
-  if (coverMeta.lines && coverMeta.lines.length) {
-    for (const line of coverMeta.lines) drawParagraph(line, 8.5, false, C.muted);
+  const dayTitle = String(merged.dayTitle || coverMeta.dayTitle || "").trim();
+  if (dayTitle) {
+    y -= 8;
+    coverText(dayTitle, 16, fontItalic, C.ink, 5);
   }
-  y -= 8;
-
-  if (overview) {
-    drawSectionTitle("Day Overview");
-    drawParagraph(overview, 10, false, C.body);
+  const toldBy = joinNames(storylines.map((line) => line.author));
+  if (toldBy) {
+    y -= 4;
+    coverText(`Told by ${toldBy}`, 9.5, font, C.muted);
   }
-
-  const activitySummaryRows = timelineRows.filter((row) => {
-    const entry = model && model.entryById instanceof Map
-      ? model.entryById.get(String(row.entryId || ""))
-      : null;
-    return Boolean(entry && entry._journalActivitySummary && row.text);
-  });
-  if (activitySummaryRows.length) {
-    drawSectionTitle("Activity Summary");
-    drawBullets(
-      activitySummaryRows.map((row) => `${row.time ? `${row.time} - ` : ""}${row.text}`),
-      C.body
-    );
+  y = Math.min(y, logoBand.bottomY) - 6;
+  drawRule(y + 4, 0.8);
+  y -= 10;
+  for (const row of coverMeta.grid || []) {
+    const label = String(row.label || "").trim();
+    const value = String(row.value || "").trim();
+    if (!label && !value) continue;
+    ensureSpace(18);
+    page.drawText(sanitizePdfText(label), { x: margin, y, size: 8, font: fontBold, color: C.muted });
+    drawText(value || "Not specified", { size: 8.5, color: C.muted, left: margin + 90, maxW: contentW - 90 });
+    y -= 2;
   }
 
-  const renderedPhotoIds = new Set();
-  if (timelineRows.length) {
-    drawSectionTitle("Chronological Journal");
-    for (const row of timelineRows) {
-      drawJournalTimelineEntry(row);
-      const linkedPhotos = Array.isArray(row.photos) ? row.photos : [];
-      for (const photo of linkedPhotos) {
-        if (!photo || renderedPhotoIds.has(String(photo.mediaId))) continue;
-        renderedPhotoIds.add(String(photo.mediaId));
-        await drawJournalPhoto(photo, row.isTracking ? "" : row.text || "");
-      }
+  // ----- Storylines -----
+  if (!storylines.length) {
+    y -= 16;
+    drawText("No journal notes were captured for this day.", { size: 10.5, f: fontItalic, color: C.muted });
+  }
+  for (let i = 0; i < storylines.length; i += 1) {
+    await drawStoryline(storylines[i], STORYLINE_COLORS[i % STORYLINE_COLORS.length]);
+  }
+
+  if (merged.sharedThread) {
+    drawChapterHeading("Where our days met", C.muted);
+    drawText(merged.sharedThread, { size: 10.5, f: fontItalic, color: C.ink, leading: 5 });
+  }
+
+  const orphanPhotos = Array.isArray(merged.orphanPhotos) ? merged.orphanPhotos : [];
+  if (orphanPhotos.length) {
+    ensureSpace(360);
+    drawChapterHeading("More photos from the day", C.muted);
+    for (const photo of orphanPhotos) {
+      await drawPhotoWithCaption(photo, { author: "", color: C.muted, caption: photoCaption(photo, "") });
     }
   }
 
-  if (keyMoments.length) {
-    drawSectionTitle("Key Moments");
-    drawBullets(keyMoments, C.body);
+  if (merged.closingNote) {
+    y -= 10;
+    ensureSpace(50);
+    drawRule(y + 6, 0.6);
+    y -= 12;
+    drawText(merged.closingNote, { size: 11, f: fontItalic, color: C.ink, leading: 5 });
   }
 
-  if (reflections.length) {
-    drawSectionTitle("Reflections");
-    drawBullets(reflections, C.body);
-  }
-
-  const photos = Array.isArray(model && model.photos) ? model.photos : [];
-  const remainingPhotos = selectRemainingJournalPhotos(photos, renderedPhotoIds);
-  if (remainingPhotos.length) {
-    drawSectionTitle("Additional Photos");
-    for (const photo of remainingPhotos) {
-      if (!photo || renderedPhotoIds.has(String(photo.mediaId))) continue;
-      renderedPhotoIds.add(String(photo.mediaId));
-      const linkedMoment = timelineRows.find(
-        (row) => String(row.entryId || "") === String(photo.linkedLogEntryId || "")
-      );
-      await drawJournalPhoto(photo, linkedMoment && !linkedMoment.isTracking ? linkedMoment.text : "");
-    }
-  }
-
-  if (closingNote) {
-    drawSectionTitle("Closing Note");
-    drawParagraph(closingNote, 10, false, C.body);
-  }
-
+  // ----- Header / footer -----
   const pages = pdf.getPages();
   const totalPages = pages.length;
   const headerTxt = sanitizePdfText(titleStr);
@@ -493,21 +569,9 @@ async function renderJournalPdf(opts) {
     const fr = `Page ${i + 1} of ${totalPages}`;
     const fw = font.widthOfTextAtSize(fr, 8);
     pg.drawText(footL, { x: margin, y: 16, size: 8, font, color: C.muted });
-    pg.drawText(sanitizePdfText(fr), {
-      x: pageW - margin - fw,
-      y: 16,
-      size: 8,
-      font,
-      color: C.muted,
-    });
+    pg.drawText(sanitizePdfText(fr), { x: pageW - margin - fw, y: 16, size: 8, font, color: C.muted });
     if (i > 0) {
-      pg.drawText(headerTxt, {
-        x: margin,
-        y: pageH - 28,
-        size: 9,
-        font: fontBold,
-        color: C.ink,
-      });
+      pg.drawText(headerTxt, { x: margin, y: pageH - 28, size: 9, font: fontBold, color: C.ink });
     }
   }
 }
