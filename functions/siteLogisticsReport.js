@@ -4,6 +4,7 @@
 //   sites/{siteId}/days/{YYYY-MM-DD}  { crews: [{ trade, company, workers }], notes }
 //   sites/{siteId}/bookings           { areaId, trade, company, start, end, notes, activity }
 //   sites/{siteId}/items              work areas etc. ({ type, label })
+//   sites/{siteId}/tasks              { text, day, areaId, trade, company, status: open|done|blocked, note, doneAt, doneBy }
 // This module reads the report day from there, read-only, and folds it into the daily site log:
 // crews go into the Workforce Summary and the day's activities and notes get their own section.
 // Everything the report already gets from field entries is kept. Reading needs the Cloud
@@ -71,8 +72,46 @@ function activitiesForDay(bookings, items, dateKey) {
     .sort((a, b) => (a.company || a.trade).localeCompare(b.company || b.trade) || a.start.localeCompare(b.start));
 }
 
+function toMillis(value) {
+  if (value == null || value === "") return null;
+  if (typeof value.toMillis === "function") return value.toMillis();
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function formatTimeEastern(ms) {
+  return ms == null ? "" : new Date(ms).toLocaleTimeString("en-CA", { timeZone: "America/Toronto", hour: "numeric", minute: "2-digit" });
+}
+
+const TASK_STATUS_ORDER = { done: 0, blocked: 1, open: 2 };
+
+/** The day's tasks, counted and listed: done first, then blocked (with the reason), then still open. */
+function tasksForReport(tasks, items, dateKey) {
+  const areaLabel = new Map((items || []).map((i) => [i.id, clean(i.label)]));
+  const list = (tasks || [])
+    .filter((t) => t && t.day === dateKey && clean(t.text))
+    .map((t) => {
+      const status = TASK_STATUS_ORDER[t.status] != null ? t.status : "open";
+      const doneAt = status === "done" ? toMillis(t.doneAt) : null;
+      return {
+        text: clean(t.text),
+        area: areaLabel.get(t.areaId) || "",
+        trade: clean(t.trade),
+        company: clean(t.company),
+        status,
+        note: status === "blocked" ? clean(t.note) : "",
+        doneBy: status === "done" ? clean(String(t.doneBy || "").split("@")[0]) : "",
+        doneTime: formatTimeEastern(doneAt),
+      };
+    })
+    .sort((a, b) => TASK_STATUS_ORDER[a.status] - TASK_STATUS_ORDER[b.status] || (a.company || a.trade).localeCompare(b.company || b.trade) || a.text.localeCompare(b.text));
+  const done = list.filter((t) => t.status === "done").length;
+  const blocked = list.filter((t) => t.status === "blocked").length;
+  return { total: list.length, done, blocked, open: list.length - done - blocked, items: list };
+}
+
 /** The day as the report needs it. */
-function buildSiteLogisticsDay({ dayDoc, bookings, items, dateKey }) {
+function buildSiteLogisticsDay({ dayDoc, bookings, items, tasks, dateKey }) {
   const crews = crewsFromDay(dayDoc);
   return {
     dateKey,
@@ -80,6 +119,7 @@ function buildSiteLogisticsDay({ dayDoc, bookings, items, dateKey }) {
     totalWorkers: crews.reduce((sum, c) => sum + c.workers, 0),
     notes: clean(dayDoc && dayDoc.notes),
     activities: activitiesForDay(bookings, items, dateKey),
+    tasks: tasksForReport(tasks, items, dateKey),
   };
 }
 
@@ -149,18 +189,20 @@ async function loadSiteLogisticsForReport({ projectSlug, dateKey, logger = conso
       return null;
     }
     const site = store.collection("sites").doc(siteId);
-    const [dayDoc, bookingsSnap, itemsSnap] = await Promise.all([
+    const [dayDoc, bookingsSnap, itemsSnap, tasksSnap] = await Promise.all([
       site.collection("days").doc(dateKey).get(),
       site.collection("bookings").where("start", "<=", dateKey).get(),
       site.collection("items").get(),
+      site.collection("tasks").where("day", "==", dateKey).get(),
     ]);
     const day = buildSiteLogisticsDay({
       dayDoc: dayDoc.exists ? dayDoc.data() : null,
       bookings: bookingsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
       items: itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      tasks: tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
       dateKey,
     });
-    if (!day.crews.length && !day.notes && !day.activities.length) return null;
+    if (!day.crews.length && !day.notes && !day.activities.length && !day.tasks.total) return null;
     return day;
   } catch (error) {
     logger.warn && logger.warn("siteLogistics: could not read Site Logistics, report continues without it", { message: error && error.message });
@@ -175,4 +217,5 @@ module.exports = {
   loadSiteLogisticsForReport,
   mergeManpowerRows,
   resolveSiteRef,
+  tasksForReport,
 };

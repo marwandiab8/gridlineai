@@ -7,6 +7,7 @@ const {
   loadSiteLogisticsForReport,
   mergeManpowerRows,
   resolveSiteRef,
+  tasksForReport,
 } = require("./siteLogisticsReport");
 
 const silent = { warn() {} };
@@ -82,7 +83,7 @@ test("resolveSiteRef only knows Docksteader and honours SITE_LOGISTICS_SITE_ID",
   assert.equal(resolveSiteRef("docksteader", { SITE_LOGISTICS_SITE_ID: " abc123 " }).siteId, "abc123");
 });
 
-function fakeDb({ sites, days = {}, bookings = [], items = [], fail = false }) {
+function fakeDb({ sites, days = {}, bookings = [], items = [], tasks = [], fail = false }) {
   const doc = (id, data) => ({ id, exists: data != null, data: () => data, get: (k) => (data ? data[k] : undefined) });
   return {
     collection(name) {
@@ -94,6 +95,7 @@ function fakeDb({ sites, days = {}, bookings = [], items = [], fail = false }) {
           collection: (sub) => {
             if (sub === "days") return { doc: (k) => ({ get: async () => doc(k, days[k] || null) }) };
             if (sub === "bookings") return { where: () => ({ get: async () => ({ docs: bookings.map((b) => doc(b.id, b)) }) }) };
+            if (sub === "tasks") return { where: (f, op, v) => ({ get: async () => ({ docs: tasks.filter((t) => t[f] === v).map((t) => doc(t.id, t)) }) }) };
             return { get: async () => ({ docs: items.map((i) => doc(i.id, i)) }) };
           },
         }),
@@ -128,4 +130,39 @@ test("loadSiteLogisticsForReport never throws and returns null when nothing usab
 test("buildSiteLogisticsDay totals workers", () => {
   const day = buildSiteLogisticsDay({ dayDoc: { crews: [{ trade: "A", company: "", workers: 2 }, { trade: "B", company: "", workers: 3 }] }, bookings: [], items: [], dateKey: "2026-09-30" });
   assert.equal(day.totalWorkers, 5);
+});
+
+test("tasksForReport counts and orders the day's tasks: done, then could-not-do with the reason, then open", () => {
+  const items = [{ id: "a1", label: "Phase 1" }];
+  const doneAt = new Date("2026-09-28T18:15:00Z").getTime(); // 2:15 PM Toronto
+  const out = tasksForReport(
+    [
+      { day: "2026-09-28", text: "Sweep level 1", areaId: "a1", trade: "Masonry", company: "Legacy", status: "open" },
+      { day: "2026-09-28", text: "Stack block", areaId: "a1", trade: "Masonry", company: "Legacy", status: "done", doneAt, doneBy: "crew@legacy.ca" },
+      { day: "2026-09-28", text: "Wall check", areaId: "gone", trade: "Masonry", company: "Legacy", status: "blocked", note: "Gate locked" },
+      { day: "2026-09-29", text: "Tomorrow", status: "open" },
+      { day: "2026-09-28", text: "  ", status: "open" },
+    ],
+    items,
+    "2026-09-28"
+  );
+  assert.deepEqual({ total: out.total, done: out.done, blocked: out.blocked, open: out.open }, { total: 3, done: 1, blocked: 1, open: 1 });
+  assert.deepEqual(out.items.map((t) => [t.text, t.status]), [["Stack block", "done"], ["Wall check", "blocked"], ["Sweep level 1", "open"]]);
+  assert.equal(out.items[0].doneBy, "crew");
+  assert.match(out.items[0].doneTime, /2:15/);
+  assert.equal(out.items[0].area, "Phase 1");
+  assert.equal(out.items[1].note, "Gate locked");
+  assert.equal(out.items[2].note, "", "a note only matters for could-not-do tasks");
+  assert.deepEqual(tasksForReport([], [], "2026-09-28"), { total: 0, done: 0, blocked: 0, open: 0, items: [] });
+});
+
+test("loadSiteLogisticsForReport includes the day's tasks, and tasks alone are enough to make a section", async () => {
+  const db = fakeDb({
+    sites: [{ id: "s1", name: "Docksteader" }],
+    tasks: [{ id: "t1", day: "2026-09-30", text: "Sweep", status: "done", doneAt: 1, doneBy: "a@b.ca", trade: "Masonry", company: "Legacy" }, { id: "t2", day: "2026-10-01", text: "Other day", status: "open" }],
+  });
+  const day = await loadSiteLogisticsForReport({ projectSlug: "docksteader", dateKey: "2026-09-30", logger: silent, db });
+  assert.equal(day.tasks.total, 1);
+  assert.equal(day.tasks.done, 1);
+  assert.equal(day.crews.length, 0);
 });

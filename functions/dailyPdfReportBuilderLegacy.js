@@ -918,8 +918,35 @@ async function renderDailySiteLogPdf(opts) {
 
   /** Site Logistics: scheduled activities and the day's site notes (only when Site Logistics had data). */
   const siteLogistics = merged.siteLogistics;
-  if (siteLogistics && (siteLogistics.activities.length || siteLogistics.notes)) {
-    drawSectionTitle("Site Logistics - Scheduled Work & Notes");
+  const slTasks = (siteLogistics && siteLogistics.tasks) || { total: 0, items: [] };
+  if (siteLogistics && (siteLogistics.activities.length || siteLogistics.notes || slTasks.total)) {
+    drawSectionTitle("Site Logistics - Tasks, Scheduled Work & Notes");
+    if (slTasks.total) {
+      const parts = [`${slTasks.done} of ${slTasks.total} tasks completed`];
+      if (slTasks.blocked) parts.push(`${slTasks.blocked} could not be done`);
+      if (slTasks.open) parts.push(`${slTasks.open} still open`);
+      drawSubheading(`Tasks: ${parts.join(", ")}`);
+      const byCrew = new Map();
+      for (const t of slTasks.items) {
+        const label = t.company && t.trade && t.company.toLowerCase() !== t.trade.toLowerCase() ? `${t.company} (${t.trade})` : t.company || t.trade || "Anyone";
+        if (!byCrew.has(label)) byCrew.set(label, []);
+        byCrew.get(label).push(t);
+      }
+      for (const [label, list] of byCrew) {
+        drawTradeHeading(label);
+        for (const t of list) {
+          const where = t.area ? ` - ${t.area}` : "";
+          const tail =
+            t.status === "done"
+              ? ` (done${t.doneTime ? ` ${t.doneTime}` : ""}${t.doneBy ? ` by ${t.doneBy}` : ""})`
+              : t.status === "blocked"
+                ? ` (could not be done: ${t.note || "no reason given"})`
+                : " (not done)";
+          drawParagraph(`  - ${t.text}${where}${tail}`, 10, false, C.inkBody);
+        }
+      }
+    }
+    if (slTasks.total && siteLogistics.activities.length) drawSubheading("Scheduled work (from the look-ahead)");
     const byCrew = new Map();
     for (const a of siteLogistics.activities) {
       const label = a.company && a.trade && a.company.toLowerCase() !== a.trade.toLowerCase() ? `${a.company} (${a.trade})` : a.company || a.trade;
