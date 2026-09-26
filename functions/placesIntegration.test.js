@@ -383,3 +383,50 @@ test("leaving by name picks that place, and an unknown leave reports nothing to 
   const unknown = await call({ db, request: req({ token: "secret-token", body: { action: "leave", name: "Nowhere" } }) });
   assert.deepEqual(unknown.response.body, { ok: true, known: false, left: false });
 });
+
+test("arriving somewhere new closes a stay you never left, timed to the arrival (the Guelph gym case)", async () => {
+  const db = seededDb("stay-token-1");
+  await call({ db, request: req({ token: "stay-token-1", body: { ...HERE, name: "GoodLife", timestamp: "2026-09-26T17:27:58Z" } }) });
+  const costco = { latitude: HERE.latitude + 0.02, longitude: HERE.longitude }; // ~2.2km away
+  const { response, calls } = await call({
+    db,
+    request: req({ token: "stay-token-1", body: { ...costco, name: "Costco", timestamp: "2026-09-26T19:47:00Z" } }),
+  });
+  assert.deepEqual(response.body.closedStays, [{ name: "GoodLife", durationMinutes: 139 }]);
+  const places = [...db.rows.get("knownPlaces").values()];
+  const gym = places.find((p) => p.name === "GoodLife");
+  assert.equal(gym.currentVisitStartedAt, undefined, "the gym stay is closed");
+  assert.equal(gym.lastVisitDurationMinutes, 139);
+  const costcoPlace = places.find((p) => p.name === "Costco");
+  assert.ok(costcoPlace.currentVisitStartedAt, "the new place is now the open stay");
+  const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
+  assert.equal(leave.locationLabel, "GoodLife");
+  assert.ok(calls.some((c) => /ended automatically when you arrived at Costco/.test(c.body)));
+});
+
+test("arriving at a place inside another open place's radius (a plaza) leaves both open", async () => {
+  const db = seededDb("stay-token-2");
+  await call({ db, request: req({ token: "stay-token-2", body: { ...HERE, name: "Gas Station", timestamp: "2026-09-26T17:00:00Z" } }) });
+  const nearby = { latitude: HERE.latitude + 0.0004, longitude: HERE.longitude };
+  const { response } = await call({ db, request: req({ token: "stay-token-2", body: { ...nearby, name: "Store", timestamp: "2026-09-26T17:05:00Z" } }) });
+  assert.deepEqual(response.body.closedStays, []);
+  const gas = [...db.rows.get("knownPlaces").values()].find((p) => p.name === "Gas Station");
+  assert.ok(gas.currentVisitStartedAt);
+});
+
+test("an arrival timestamped before the open stay began does not close it", async () => {
+  const db = seededDb("stay-token-3");
+  await call({ db, request: req({ token: "stay-token-3", body: { ...HERE, name: "Gym", timestamp: "2026-09-26T17:30:00Z" } }) });
+  const far = { latitude: HERE.latitude + 0.02, longitude: HERE.longitude };
+  const { response } = await call({ db, request: req({ token: "stay-token-3", body: { ...far, name: "Cafe", timestamp: "2026-09-26T16:00:00Z" } }) });
+  assert.deepEqual(response.body.closedStays, []);
+});
+
+test("re-logging the place you are already at does not close it", async () => {
+  const db = seededDb("stay-token-4");
+  await call({ db, request: req({ token: "stay-token-4", body: { ...HERE, name: "Gym", timestamp: "2026-09-26T17:30:00Z" } }) });
+  const { response } = await call({ db, request: req({ token: "stay-token-4", body: { ...HERE, timestamp: "2026-09-26T18:00:00Z" } }) });
+  assert.deepEqual(response.body.closedStays, []);
+  const gym = [...db.rows.get("knownPlaces").values()][0];
+  assert.ok(gym.currentVisitStartedAt, "still open");
+});

@@ -218,6 +218,28 @@ async function findPlaceToLeave(db, memberEmail, { latitude, longitude, name } =
 }
 
 /**
+ * Stays that logging an arrival at (latitude, longitude) at `arrivedAt` proves are over: an open stay
+ * at another place that began before the arrival and whose own radius does not cover the new spot
+ * (you cannot be there and here). Places close enough to overlap - a plaza's gas station and store -
+ * are left open. Oldest stay first.
+ */
+async function findStaysLeftByArrival(db, memberEmail, { latitude, longitude, exceptPlaceId, arrivedAt }) {
+  const snap = await db.collection(COL_KNOWN_PLACES).where("memberEmail", "==", memberEmail).get();
+  const arrivedMs = toMillis(arrivedAt);
+  const left = [];
+  snap.forEach((doc) => {
+    const place = { id: doc.id, ...(doc.data() || {}) };
+    if (place.id === exceptPlaceId) return;
+    const startMs = openVisitStartMs(place);
+    if (startMs == null || (arrivedMs != null && arrivedMs < startMs)) return;
+    if (!Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) return;
+    const radius = Number.isFinite(place.radiusMeters) && place.radiusMeters > 0 ? place.radiusMeters : DEFAULT_RADIUS_METERS;
+    if (haversineMeters(latitude, longitude, place.latitude, place.longitude) > radius) left.push({ place, startMs });
+  });
+  return left.sort((a, b) => a.startMs - b.startMs).map((x) => x.place);
+}
+
+/**
  * Closes the member's open stay at `place` as of `leftAt` and folds its length into the place's
  * running totals. `durationMinutes` is null when there was no open stay to close (e.g. a second
  * "leave" in a row) - the departure is still recorded, it just has nothing to measure.
@@ -259,5 +281,6 @@ module.exports = {
   nameAndVisitPlace,
   visitKnownPlace,
   findPlaceToLeave,
+  findStaysLeftByArrival,
   leaveKnownPlace,
 };

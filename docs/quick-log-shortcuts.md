@@ -68,6 +68,15 @@ optional:
 - The Known Places page shows "here now since …" during a stay, and last stay / average stay
   after.
 
+**Stays close themselves.** Logging an arrival somewhere new also ends any stay you never left: an
+open stay at another place is closed at the moment of the new arrival (the latest you could have
+left), provided the new spot is outside that place's radius. It logs a `leave_location` event
+("Stayed 1 h 39 min at GoodLife (ended automatically when you arrived at Costco)") and the response
+lists them as `closedStays`. Places close enough to overlap (a plaza's gas station and store) stay
+open together. This is why a place learned by "Log this place" - which has no leave automation of its
+own - no longer stays "here now" forever. The last stay of the day still needs a real "leave" (or the
+next day's first arrival) to close.
+
 **Shortcut:** duplicate "Log this place", delete the Ask for Text step, and replace the `name`
 field in the body with `action` = `leave`. Show the response's `duration` in a notification.
 

@@ -26,6 +26,7 @@ const {
   nameAndVisitPlace,
   visitKnownPlace,
   findPlaceToLeave,
+  findStaysLeftByArrival,
   leaveKnownPlace,
 } = require("./placeLearning");
 
@@ -90,6 +91,41 @@ async function recordAndDeliver({ db, FieldValue, req, member, event, processAss
     }
   }
   return result;
+}
+
+/**
+ * Logging an arrival somewhere new ends any stay elsewhere that you have clearly left, timed to this
+ * arrival (the latest you could have left). This is what closes a stay when no "leave" was ever sent
+ * - e.g. a place learned by "Log this place" has no leave automation of its own. It never fails the
+ * arrival: problems are logged and the arrival still succeeds.
+ */
+async function closeStaysLeftBehind({ db, FieldValue, req, member, payload, arrival, deps }) {
+  const closed = [];
+  try {
+    const stays = await findStaysLeftByArrival(db, member.email, arrival);
+    for (const place of stays) {
+      const stay = await leaveKnownPlace({ db, FieldValue, place, leftAt: arrival.arrivedAt });
+      const parsed = parseShortcutEventPayload(
+        buildVisitBody({
+          eventType: "leave_location",
+          latitude: place.latitude,
+          longitude: place.longitude,
+          name: stay.name,
+          timestamp: arrival.arrivedAt.toISOString(),
+          timezone: payload.timezone,
+          deviceName: payload.device_name,
+          notes: `${stay.durationMinutes != null ? `Stayed ${formatStay(stay.durationMinutes)} at ${stay.name}` : `Left ${stay.name}`} (ended automatically when you arrived at ${arrival.name})`,
+        })
+      );
+      if (parsed.ok) await recordAndDeliver({ db, FieldValue, req, member, event: parsed.event, ...deps });
+      closed.push({ name: stay.name, durationMinutes: stay.durationMinutes });
+    }
+  } catch (err) {
+    if (deps.logger && typeof deps.logger.warn === "function") {
+      deps.logger.warn("placesEvents: could not close earlier stays", { runId: deps.runId, message: err && err.message });
+    }
+  }
+  return closed;
 }
 
 async function handlePlaceLeave({ db, FieldValue, req, res, member, payload, deps }) {
@@ -228,12 +264,17 @@ async function handlePlaceLogRequest({
       } else if (logger && typeof logger.warn === "function") {
         logger.warn("placesEvents: known-place visit could not be recorded as an event", { runId, code: parsed.code });
       }
+      const closed = await closeStaysLeftBehind({
+        db, FieldValue, req, member, payload, deps,
+        arrival: { latitude, longitude, exceptPlaceId: match.id, arrivedAt, name: visit.name },
+      });
       res.status(200).json({
         ok: true,
         known: true,
         isNew: false,
         name: visit.name,
         visitCount: visit.visitCount,
+        closedStays: closed,
         distanceMeters: match.distanceMeters,
         // Other known places also within range (e.g. a plaza's gas station AND convenience
         // store) - present when the guess might be the wrong one of several close together.
@@ -260,7 +301,11 @@ async function handlePlaceLogRequest({
       return;
     }
     await recordAndDeliver({ db, FieldValue, req, member, event: parsed.event, ...deps });
-    res.status(200).json({ ok: true, known: true, isNew: saved.isNew, name: saved.name, visitCount: saved.visitCount });
+    const closed = await closeStaysLeftBehind({
+      db, FieldValue, req, member, payload, deps,
+      arrival: { latitude, longitude, exceptPlaceId: saved.id, arrivedAt, name: saved.name },
+    });
+    res.status(200).json({ ok: true, known: true, isNew: saved.isNew, name: saved.name, visitCount: saved.visitCount, closedStays: closed });
   } catch (err) {
     const status = Number(err && err.status) || 500;
     const code = String((err && err.code) || "place_log_failed");
