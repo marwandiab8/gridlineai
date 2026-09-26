@@ -19,6 +19,7 @@ const {
   parseShortcutEventPayload,
   recordShortcutEvent,
 } = require("./iosShortcutsIntegration");
+const { findStayToCloseOnRegionLeave, leaveKnownPlace } = require("./placeLearning");
 
 /**
  * OwnTracks' iOS app has changed which auth fields it exposes across versions (custom HTTP
@@ -222,6 +223,27 @@ async function handleOwnTracksEventRequest({
             message: err && err.message,
             code: err && err.code,
           });
+        }
+      }
+    }
+
+    // Leaving a region also ends the matching "Log this place" stay (Known Places), at the exit time
+    // OwnTracks reported. Those stays live in a separate collection that OwnTracks events never
+    // touched, so a place learned by the Shortcut stayed "here now" forever. Never blocks the event.
+    if (!result.duplicate && payload.event === "leave") {
+      try {
+        const region = normalizeRegionName(payload.desc);
+        const place = await findStayToCloseOnRegionLeave(db, member.email, {
+          name: payload.desc,
+          latitude: Number(payload.lat),
+          longitude: Number(payload.lon),
+          leftAt: parsed.event.eventDate,
+          allowProximity: !CANONICAL_REGION_EVENT_TYPES[region] || CANONICAL_REGION_EVENT_TYPES[region].leave === "leave_gym",
+        });
+        if (place) await leaveKnownPlace({ db, FieldValue, place, leftAt: parsed.event.eventDate });
+      } catch (err) {
+        if (logger && typeof logger.warn === "function") {
+          logger.warn("ownTracksEvents: could not close the matching known place", { runId, message: err && err.message });
         }
       }
     }

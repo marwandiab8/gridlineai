@@ -74,6 +74,25 @@ OwnTracks posts two kinds of message in HTTP mode; only one of them matters here
   behaves identically to a Shortcuts-sourced event, with `source: "owntracks"` recorded on it for
   anyone debugging later.
 
+## Leaving a region also ends a "Log this place" stay
+
+Places learned by the "Log this place" Shortcut are kept in Known Places, separately from these events.
+When OwnTracks reports leaving a region, the matching open Known Places stay is closed at the exit time
+OwnTracks recorded (no second event is logged - the OwnTracks leave event is the record):
+
+- **By name first:** the region name is matched to the place name ignoring case, spaces and
+  underscores, so a region called `Costco_Guelph` closes the place `Costco Guelph`.
+- **Then by location:** for a region with no name match (and not Home/Work), or the generic `Gym`
+  region, the nearest open stay within its radius plus 300 m of the exit point is closed - so a `Gym`
+  region ends a stay saved as `GoodLife Guelph`.
+- Home and Work exits never close a place by location, an *enter* never closes anything, and an exit
+  older than the stay's start is ignored.
+- If the place can't be closed, the OwnTracks event is still recorded normally.
+
+A region you create while you are already standing inside it has no *enter* event for that visit, so
+that visit's arrival is missing in Time Left ("Arrival was not recorded"); later visits are paired
+normally.
+
 ## Verifying it works
 
 Trigger a Region manually (walk in/out, or use OwnTracks' own "Reconnect"/simulate options if

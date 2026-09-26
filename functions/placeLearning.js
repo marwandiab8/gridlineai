@@ -239,6 +239,47 @@ async function findStaysLeftByArrival(db, memberEmail, { latitude, longitude, ex
   return left.sort((a, b) => a.startMs - b.startMs).map((x) => x.place);
 }
 
+function placeNameKey(name) {
+  return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+// An OwnTracks exit is reported just outside the region's edge, so the phone can be a little past
+// the saved place's own radius when it fires.
+const REGION_LEAVE_MARGIN_METERS = 300;
+
+/**
+ * The open stay an OwnTracks region exit ends: the place whose name matches the region (ignoring case,
+ * spaces and underscores - "Costco_Guelph" is "Costco Guelph"), otherwise, when `allowProximity`, the
+ * nearest open stay within its radius plus a margin of the exit's coordinates (a region called "Gym"
+ * for a place saved as "GoodLife Guelph"). Only stays that began before the exit are considered.
+ */
+async function findStayToCloseOnRegionLeave(db, memberEmail, { name, latitude, longitude, leftAt, allowProximity = true }) {
+  const snap = await db.collection(COL_KNOWN_PLACES).where("memberEmail", "==", memberEmail).get();
+  const leftMs = toMillis(leftAt);
+  const open = [];
+  snap.forEach((doc) => {
+    const place = { id: doc.id, ...(doc.data() || {}) };
+    const startMs = openVisitStartMs(place);
+    if (startMs == null || (leftMs != null && leftMs < startMs)) return;
+    open.push({ place, startMs });
+  });
+  const key = placeNameKey(name);
+  if (key) {
+    const named = open.filter((x) => placeNameKey(x.place.name) === key).sort((a, b) => b.startMs - a.startMs);
+    if (named.length) return named[0].place;
+  }
+  if (!allowProximity || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  const near = open
+    .filter((x) => Number.isFinite(x.place.latitude) && Number.isFinite(x.place.longitude))
+    .map((x) => {
+      const radius = Number.isFinite(x.place.radiusMeters) && x.place.radiusMeters > 0 ? x.place.radiusMeters : DEFAULT_RADIUS_METERS;
+      return { ...x, distance: haversineMeters(latitude, longitude, x.place.latitude, x.place.longitude), radius };
+    })
+    .filter((x) => x.distance <= x.radius + REGION_LEAVE_MARGIN_METERS)
+    .sort((a, b) => a.distance - b.distance);
+  return near.length ? near[0].place : null;
+}
+
 /**
  * Closes the member's open stay at `place` as of `leftAt` and folds its length into the place's
  * running totals. `durationMinutes` is null when there was no open stay to close (e.g. a second
@@ -281,6 +322,7 @@ module.exports = {
   nameAndVisitPlace,
   visitKnownPlace,
   findPlaceToLeave,
+  findStayToCloseOnRegionLeave,
   findStaysLeftByArrival,
   leaveKnownPlace,
 };

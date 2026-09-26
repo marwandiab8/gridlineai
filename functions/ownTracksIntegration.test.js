@@ -65,7 +65,7 @@ class FakeQuery {
       .filter(([, data]) => this.filters.every((f) => matchesFilter(data, f)))
       .slice(0, this._limit)
       .map(([id, data]) => new FakeDocSnap(id, data));
-    return { empty: rows.length === 0, docs: rows };
+    return { empty: rows.length === 0, docs: rows, forEach: (fn) => rows.forEach(fn) };
   }
 }
 
@@ -347,4 +347,62 @@ test("a repeated transition with the same idempotency key is not recorded twice"
   const second = res();
   await handleOwnTracksEventRequest({ db, FieldValue, req: request(), res: second, logger: { warn() {}, info() {}, error() {} }, openaiKey: null, processAssistantMessage: pam });
   assert.equal(calls.length, 1, "assistant processing must run only once for the same idempotency key");
+});
+
+// --- leaving a region ends the matching "Log this place" stay ---
+
+function dbWithStay(token, place) {
+  const db = seededDb(token);
+  db.rows.set("knownPlaces", new Map([["p1", { memberEmail: "user@example.com", radiusMeters: 400, ...place }]]));
+  return db;
+}
+
+const AT_PLACE = { latitude: 43.5448, longitude: -80.2482 };
+const STAY_START = new Date("2026-09-26T19:47:00Z");
+const EXIT_AT = Math.floor(new Date("2026-09-26T20:43:48Z").getTime() / 1000);
+
+test("leaving a region closes the Known Places stay with the same name, ignoring underscores and case", async () => {
+  const db = dbWithStay("ot-name", { name: "Costco Guelph", ...AT_PLACE, currentVisitStartedAt: STAY_START, lastVisitAt: STAY_START });
+  const { response } = await callHandler({
+    db,
+    request: req({ token: "ot-name", body: { _type: "transition", event: "leave", desc: "Costco_Guelph", tst: EXIT_AT, lat: AT_PLACE.latitude, lon: AT_PLACE.longitude } }),
+  });
+  assert.equal(response.statusCode, 200);
+  const place = db.rows.get("knownPlaces").get("p1");
+  assert.equal(place.currentVisitStartedAt, undefined, "the stay is closed");
+  assert.equal(place.lastVisitDurationMinutes, 57);
+  assert.equal(new Date(place.lastLeftAt).toISOString(), "2026-09-26T20:43:48.000Z");
+});
+
+test("a generic Gym region exit closes the nearby stay saved under another name", async () => {
+  const db = dbWithStay("ot-gym", { name: "GoodLife Guelph", ...AT_PLACE, currentVisitStartedAt: new Date("2026-09-26T17:27:58Z"), lastVisitAt: new Date("2026-09-26T17:27:58Z") });
+  const exit = Math.floor(new Date("2026-09-26T19:11:50Z").getTime() / 1000);
+  // Exit fix is ~500m from the saved centre: outside its 400m radius but inside the exit margin.
+  await callHandler({ db, request: req({ token: "ot-gym", body: { _type: "transition", event: "leave", desc: "Gym", tst: exit, lat: AT_PLACE.latitude + 0.0045, lon: AT_PLACE.longitude } }) });
+  const place = db.rows.get("knownPlaces").get("p1");
+  assert.equal(place.currentVisitStartedAt, undefined);
+  assert.equal(place.lastVisitDurationMinutes, 104);
+});
+
+test("leaving Home, an enter event, or an exit before the stay began does not close a nearby stay", async () => {
+  const stay = { name: "Neighbour Cafe", ...AT_PLACE, currentVisitStartedAt: STAY_START, lastVisitAt: STAY_START };
+  const home = dbWithStay("ot-home", stay);
+  await callHandler({ db: home, request: req({ token: "ot-home", body: { _type: "transition", event: "leave", desc: "Home", tst: EXIT_AT, ...{ lat: AT_PLACE.latitude, lon: AT_PLACE.longitude } } }) });
+  assert.ok(home.rows.get("knownPlaces").get("p1").currentVisitStartedAt, "Home never closes a place by proximity");
+
+  const enter = dbWithStay("ot-enter", stay);
+  await callHandler({ db: enter, request: req({ token: "ot-enter", body: { _type: "transition", event: "enter", desc: "Neighbour Cafe", tst: EXIT_AT, lat: AT_PLACE.latitude, lon: AT_PLACE.longitude } }) });
+  assert.ok(enter.rows.get("knownPlaces").get("p1").currentVisitStartedAt, "an enter does not close a stay");
+
+  const early = dbWithStay("ot-early", stay);
+  const before = Math.floor(new Date("2026-09-26T18:00:00Z").getTime() / 1000);
+  await callHandler({ db: early, request: req({ token: "ot-early", body: { _type: "transition", event: "leave", desc: "Neighbour Cafe", tst: before, lat: AT_PLACE.latitude, lon: AT_PLACE.longitude } }) });
+  assert.ok(early.rows.get("knownPlaces").get("p1").currentVisitStartedAt, "an exit older than the stay is not its end");
+});
+
+test("a leave for a region with no matching open stay is still recorded normally", async () => {
+  const db = seededDb("ot-none");
+  const { response } = await callHandler({ db, request: req({ token: "ot-none", body: { _type: "transition", event: "leave", desc: "Somewhere", tst: EXIT_AT, lat: 43.7, lon: -79.7 } }) });
+  assert.equal(response.statusCode, 200);
+  assert.ok([...db.rows.get("iosShortcutEvents").values()].some((e) => e.eventType === "leave_location"));
 });
