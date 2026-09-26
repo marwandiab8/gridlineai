@@ -349,6 +349,18 @@ Trade inference rules:
 
 The PDF may render an executive/superintendent summary when it adds useful content beyond the stitched source log.
 
+### Site Logistics source (Docksteader only)
+
+For the `docksteader` project, the daily construction report also reads that day from the Site Logistics app (Firebase project `site-logistics`). Field entries, SMS and dashboard input keep feeding the report exactly as before; Site Logistics is added on top. Nothing is ever written to Site Logistics.
+
+- **Workforce Summary:** every crew with a headcount entered in Site Logistics for the report day is added. A crew entered as 0 is not on site. If a row from field entries already exists for the same company or trade, the Site Logistics count replaces that row's count (no double counting) and the row's notes say "count from Site Logistics". New crews appear as rows with the note "Site Logistics". Days with no headcount entered are not filled from an earlier day.
+- **Site Logistics - Scheduled Work & Notes:** a section after Work Completed / In Progress lists the bookings that cover the report day (the schedule activity, company/trade, work area and dates), then the day's site note. This is what was scheduled, not confirmed completed work.
+- **Finding the site:** the site is found by name (contains "docksteader") or pinned with the `SITE_LOGISTICS_SITE_ID` function environment variable. If zero or several sites match, nothing is added rather than guessing.
+- **Failure behaviour:** if Site Logistics can't be read (permissions, network, no data for the day), the report is generated unchanged and a warning is logged.
+- **Access:** reading needs the gridlineai Cloud Functions service account to have `roles/datastore.viewer` on the `site-logistics` project.
+- **Not included:** the site logistics plan drawing; journal reports are unaffected.
+- Code: `functions/siteLogisticsReport.js` (tests in `siteLogisticsReport.test.js`), wired in `dailyReportPdf.js` and rendered in `dailyPdfReportBuilderLegacy.js`.
+
 ### Issues and Deficiencies
 
 Issue content comes from sections/buckets:

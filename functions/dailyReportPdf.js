@@ -29,6 +29,7 @@ const {
   DEFAULT_WEATHER_LOCATION_LINE,
 } = require("./dailyReportWeather");
 const { buildReportAppUrl } = require("./reportPushConfig");
+const { loadSiteLogisticsForReport, mergeManpowerRows } = require("./siteLogisticsReport");
 
 /** PDF cover — fixed values (Docksteader); no “default” wording on cover. */
 const COVER_LOCATION_DOCKSTEADER = "6 Docksteader Rd, Brampton, ON L6R 3Y2";
@@ -920,6 +921,14 @@ async function generateDailyReportPdf(opts) {
       snapshot: weatherSnapshot,
       narrativeFromLog: model.deterministic.weatherToday,
     };
+
+    // Docksteader: add that day's crews, scheduled activities and notes from Site Logistics.
+    // Field entries keep feeding the report as before; this never blocks report generation.
+    const siteLogisticsDay = await loadSiteLogisticsForReport({ projectSlug: projectKey, dateKey: dk, logger });
+    if (siteLogisticsDay) {
+      model.deterministic.manpowerRows = mergeManpowerRows(model.deterministic.manpowerRows, siteLogisticsDay.crews);
+      merged.siteLogistics = siteLogisticsDay;
+    }
 
     titleStr = formatDailySiteLogTitleEastern(dayStart);
     concreteLabel = formatConcreteSummaryLabelEastern(dayStart);
