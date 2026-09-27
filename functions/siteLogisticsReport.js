@@ -85,26 +85,46 @@ function formatTimeEastern(ms) {
 
 const TASK_STATUS_ORDER = { done: 0, blocked: 1, open: 2 };
 
-/** The day's tasks, counted and listed: done first, then blocked (with the reason), then still open. */
+function easternDay(ms) {
+  return ms == null ? "" : new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+}
+
+/**
+ * Crew tasks are standing jobs, not tied to a day. For the report day: what was finished that day,
+ * what could not be done, and what was still outstanding (added on or before the day and not finished
+ * by its end), so an older report still reads right after tasks have since been ticked off.
+ */
 function tasksForReport(tasks, items, dateKey) {
   const areaLabel = new Map((items || []).map((i) => [i.id, clean(i.label)]));
-  const list = (tasks || [])
-    .filter((t) => t && t.day === dateKey && clean(t.text))
-    .map((t) => {
-      const status = TASK_STATUS_ORDER[t.status] != null ? t.status : "open";
-      const doneAt = status === "done" ? toMillis(t.doneAt) : null;
-      return {
-        text: clean(t.text),
-        area: areaLabel.get(t.areaId) || "",
-        trade: clean(t.trade),
-        company: clean(t.company),
-        status,
-        note: status === "blocked" ? clean(t.note) : "",
-        doneBy: status === "done" ? clean(String(t.doneBy || "").split("@")[0]) : "",
-        doneTime: formatTimeEastern(doneAt),
-      };
-    })
-    .sort((a, b) => TASK_STATUS_ORDER[a.status] - TASK_STATUS_ORDER[b.status] || (a.company || a.trade).localeCompare(b.company || b.trade) || a.text.localeCompare(b.text));
+  const list = [];
+  for (const t of tasks || []) {
+    if (!t || !clean(t.text)) continue;
+    const createdDay = easternDay(toMillis(t.createdAt));
+    if (createdDay && createdDay > dateKey) continue; // added after the report day
+    const doneMs = t.status === "done" ? toMillis(t.doneAt) : null;
+    const doneDay = easternDay(doneMs);
+    let status;
+    if (t.status === "done") {
+      if (doneDay && doneDay < dateKey) continue; // finished before the report day
+      status = doneDay === dateKey ? "done" : "open"; // finished after the report day: it was open then
+    } else {
+      status = t.status === "blocked" ? "blocked" : "open";
+    }
+    const due = /^\d{4}-\d{2}-\d{2}$/.test(String(t.day || "")) ? t.day : "";
+    list.push({
+      text: clean(t.text),
+      area: areaLabel.get(t.areaId) || "",
+      trade: clean(t.trade),
+      company: clean(t.company),
+      status,
+      note: status === "blocked" ? clean(t.note) : "",
+      doneBy: status === "done" ? clean(String(t.doneBy || "").split("@")[0]) : "",
+      doneTime: status === "done" ? formatTimeEastern(doneMs) : "",
+      since: createdDay,
+      overdueDays: status !== "done" && due && due < dateKey ? Math.round((Date.parse(dateKey) - Date.parse(due)) / 86400000) : 0,
+    });
+  }
+  list.sort((a, b) => TASK_STATUS_ORDER[a.status] - TASK_STATUS_ORDER[b.status] || (a.company || a.trade).localeCompare(b.company || b.trade) || a.text.localeCompare(b.text));
   const done = list.filter((t) => t.status === "done").length;
   const blocked = list.filter((t) => t.status === "blocked").length;
   return { total: list.length, done, blocked, open: list.length - done - blocked, items: list };
@@ -193,7 +213,7 @@ async function loadSiteLogisticsForReport({ projectSlug, dateKey, logger = conso
       site.collection("days").doc(dateKey).get(),
       site.collection("bookings").where("start", "<=", dateKey).get(),
       site.collection("items").get(),
-      site.collection("tasks").where("day", "==", dateKey).get(),
+      site.collection("tasks").get(),
     ]);
     const day = buildSiteLogisticsDay({
       dayDoc: dayDoc.exists ? dayDoc.data() : null,

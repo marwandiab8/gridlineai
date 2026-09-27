@@ -95,7 +95,7 @@ function fakeDb({ sites, days = {}, bookings = [], items = [], tasks = [], fail 
           collection: (sub) => {
             if (sub === "days") return { doc: (k) => ({ get: async () => doc(k, days[k] || null) }) };
             if (sub === "bookings") return { where: () => ({ get: async () => ({ docs: bookings.map((b) => doc(b.id, b)) }) }) };
-            if (sub === "tasks") return { where: (f, op, v) => ({ get: async () => ({ docs: tasks.filter((t) => t[f] === v).map((t) => doc(t.id, t)) }) }) };
+            if (sub === "tasks") return { get: async () => ({ docs: tasks.map((t) => doc(t.id, t)) }) };
             return { get: async () => ({ docs: items.map((i) => doc(i.id, i)) }) };
           },
         }),
@@ -132,37 +132,51 @@ test("buildSiteLogisticsDay totals workers", () => {
   assert.equal(day.totalWorkers, 5);
 });
 
-test("tasksForReport counts and orders the day's tasks: done, then could-not-do with the reason, then open", () => {
+test("tasksForReport: finished that day, could not do, and still open - tasks are not tied to a day", () => {
   const items = [{ id: "a1", label: "Phase 1" }];
-  const doneAt = new Date("2026-09-28T18:15:00Z").getTime(); // 2:15 PM Toronto
+  const at = (iso) => new Date(iso).getTime();
   const out = tasksForReport(
     [
-      { day: "2026-09-28", text: "Sweep level 1", areaId: "a1", trade: "Masonry", company: "Legacy", status: "open" },
-      { day: "2026-09-28", text: "Stack block", areaId: "a1", trade: "Masonry", company: "Legacy", status: "done", doneAt, doneBy: "crew@legacy.ca" },
-      { day: "2026-09-28", text: "Wall check", areaId: "gone", trade: "Masonry", company: "Legacy", status: "blocked", note: "Gate locked" },
-      { day: "2026-09-29", text: "Tomorrow", status: "open" },
-      { day: "2026-09-28", text: "  ", status: "open" },
+      { text: "Sweep level 1", areaId: "a1", trade: "Masonry", company: "Legacy", status: "open", createdAt: at("2026-09-20T15:00:00Z"), day: "2026-09-25" },
+      { text: "Stack block", areaId: "a1", trade: "Masonry", company: "Legacy", status: "done", createdAt: at("2026-09-22T15:00:00Z"), doneAt: at("2026-09-28T18:15:00Z"), doneBy: "crew@legacy.ca" }, // 2:15 PM
+      { text: "Wall check", areaId: "gone", trade: "Masonry", company: "Legacy", status: "blocked", note: "Gate locked", createdAt: at("2026-09-24T15:00:00Z") },
+      { text: "Done last week", status: "done", createdAt: at("2026-09-10T15:00:00Z"), doneAt: at("2026-09-21T15:00:00Z") },
+      { text: "Added tomorrow", status: "open", createdAt: at("2026-09-29T15:00:00Z") },
+      { text: "Finished tomorrow", status: "done", createdAt: at("2026-09-23T15:00:00Z"), doneAt: at("2026-09-29T15:00:00Z"), doneBy: "x@y.ca" },
+      { text: "  ", status: "open", createdAt: at("2026-09-20T15:00:00Z") },
     ],
     items,
     "2026-09-28"
   );
-  assert.deepEqual({ total: out.total, done: out.done, blocked: out.blocked, open: out.open }, { total: 3, done: 1, blocked: 1, open: 1 });
-  assert.deepEqual(out.items.map((t) => [t.text, t.status]), [["Stack block", "done"], ["Wall check", "blocked"], ["Sweep level 1", "open"]]);
+  assert.deepEqual({ total: out.total, done: out.done, blocked: out.blocked, open: out.open }, { total: 4, done: 1, blocked: 1, open: 2 });
+  assert.deepEqual(out.items.map((t) => [t.text, t.status]), [
+    ["Stack block", "done"],
+    ["Wall check", "blocked"],
+    ["Finished tomorrow", "open"],
+    ["Sweep level 1", "open"],
+  ], "finished after the report day was still open on it; finished before, or added after, is left out");
   assert.equal(out.items[0].doneBy, "crew");
   assert.match(out.items[0].doneTime, /2:15/);
   assert.equal(out.items[0].area, "Phase 1");
   assert.equal(out.items[1].note, "Gate locked");
-  assert.equal(out.items[2].note, "", "a note only matters for could-not-do tasks");
+  const sweep = out.items.find((t) => t.text === "Sweep level 1");
+  assert.equal(sweep.since, "2026-09-20");
+  assert.equal(sweep.overdueDays, 3);
+  assert.equal(sweep.note, "");
   assert.deepEqual(tasksForReport([], [], "2026-09-28"), { total: 0, done: 0, blocked: 0, open: 0, items: [] });
 });
 
-test("loadSiteLogisticsForReport includes the day's tasks, and tasks alone are enough to make a section", async () => {
+test("loadSiteLogisticsForReport includes the tasks, and tasks alone are enough to make a section", async () => {
   const db = fakeDb({
     sites: [{ id: "s1", name: "Docksteader" }],
-    tasks: [{ id: "t1", day: "2026-09-30", text: "Sweep", status: "done", doneAt: 1, doneBy: "a@b.ca", trade: "Masonry", company: "Legacy" }, { id: "t2", day: "2026-10-01", text: "Other day", status: "open" }],
+    tasks: [
+      { id: "t1", text: "Sweep", status: "done", doneAt: new Date("2026-09-30T18:00:00Z").getTime(), doneBy: "a@b.ca", trade: "Masonry", company: "Legacy", createdAt: new Date("2026-09-25T15:00:00Z").getTime() },
+      { id: "t2", text: "Still to do", status: "open", createdAt: new Date("2026-09-26T15:00:00Z").getTime() },
+    ],
   });
   const day = await loadSiteLogisticsForReport({ projectSlug: "docksteader", dateKey: "2026-09-30", logger: silent, db });
-  assert.equal(day.tasks.total, 1);
+  assert.equal(day.tasks.total, 2);
   assert.equal(day.tasks.done, 1);
+  assert.equal(day.tasks.open, 1);
   assert.equal(day.crews.length, 0);
 });

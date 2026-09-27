@@ -922,7 +922,7 @@ async function renderDailySiteLogPdf(opts) {
   if (siteLogistics && (siteLogistics.activities.length || siteLogistics.notes || slTasks.total)) {
     drawSectionTitle("Site Logistics - Tasks, Scheduled Work & Notes");
     if (slTasks.total) {
-      const parts = [`${slTasks.done} of ${slTasks.total} tasks completed`];
+      const parts = [`${slTasks.done} completed today`];
       if (slTasks.blocked) parts.push(`${slTasks.blocked} could not be done`);
       if (slTasks.open) parts.push(`${slTasks.open} still open`);
       drawSubheading(`Tasks: ${parts.join(", ")}`);
@@ -941,7 +941,7 @@ async function renderDailySiteLogPdf(opts) {
               ? ` (done${t.doneTime ? ` ${t.doneTime}` : ""}${t.doneBy ? ` by ${t.doneBy}` : ""})`
               : t.status === "blocked"
                 ? ` (could not be done: ${t.note || "no reason given"})`
-                : " (not done)";
+                : ` (still open${t.since ? `, added ${t.since}` : ""}${t.overdueDays ? `, ${t.overdueDays} day${t.overdueDays === 1 ? "" : "s"} overdue` : ""})`;
           drawParagraph(`  - ${t.text}${where}${tail}`, 10, false, C.inkBody);
         }
       }
