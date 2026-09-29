@@ -109,3 +109,48 @@ test("hasRealRows is false for placeholder-only tables and true once any cell ha
   assert.equal(hasRealRows(undefined), false);
   assert.equal(hasRealRows([["â€”", "â€”", "Not stated in log entries."], ["Line 4 wall", "â€”", "Poured"]]), true);
 });
+
+test("stripAbsenceSentences drops 'not reported' filler but keeps real news", () => {
+  const { stripAbsenceSentences } = require("./dailyPdfReportBuilder");
+  assert.equal(
+    stripAbsenceSentences("Overcast with a high of 20C. No curated field updates were provided for manpower or issues. Critical next actions were not stated in the field messages."),
+    "Overcast with a high of 20C."
+  );
+  assert.equal(stripAbsenceSentences("ALC poured Line 4. The pour at Stair D was not completed due to rain."), "ALC poured Line 4. The pour at Stair D was not completed due to rain.");
+  assert.equal(stripAbsenceSentences(""), "");
+});
+
+test("groupByCrew treats O'Connor and O’Connor as one crew, keeping first-seen order", () => {
+  const { groupByCrew } = require("./dailyPdfReportBuilder");
+  const groups = groupByCrew(
+    [
+      { company: "Legacy", trade: "Masonry", activity: "a" },
+      { company: "O'Connor", trade: "Electrical", activity: "b" },
+      { company: "O’Connor ", trade: "electrical", activity: "c" },
+      { trade: "", company: "", activity: "d" },
+    ],
+    "Anyone"
+  );
+  assert.deepEqual(groups.map((g) => [g.label, g.list.length]), [["Legacy (Masonry)", 1], ["O'Connor (Electrical)", 2], ["Anyone", 1]]);
+});
+
+test("tidyManpowerTable drops unused Foreman/Notes columns and moves the Site Logistics note under the table", () => {
+  const { tidyManpowerTable } = require("./dailyPdfReportBuilder");
+  const shown = tidyManpowerTable(
+    [
+      ["Superior (Fire protection)", "-", "3", "Site Logistics"],
+      ["Legacy (Masonry)", "-", "4", "Site Logistics"],
+      ["TOTAL WORKERS", "â€”", "7", "Total workforce on site"],
+    ],
+    512
+  );
+  assert.deepEqual(shown.headers, ["Trade", "Workers"]);
+  assert.deepEqual(shown.rows[0], ["Superior (Fire protection)", "3"]);
+  assert.equal(shown.fromSiteLogistics, true);
+  assert.equal(shown.colWidths.reduce((a, b) => a + b, 0), 512);
+
+  const full = tidyManpowerTable([["Formwork", "Ali", "7", "West side (count from Site Logistics)"]], 512);
+  assert.deepEqual(full.headers, ["Trade", "Foreman", "Workers", "Notes"]);
+  assert.deepEqual(full.rows[0], ["Formwork", "Ali", "7", "West side"]);
+  assert.equal(full.colWidths.reduce((a, b) => a + b, 0), 512);
+});

@@ -212,6 +212,15 @@ Open item signals:
 
 Empty sections are left out of the PDF instead of printing a heading over placeholder text (`â€”`, dashes, `Not stated ...`, `No open items flagged ...`, `None`, `N/A`); see `isPlaceholderText` / `hasRealRows` in `functions/dailyPdfReportBuilderLegacy.js`. This applies to Workforce Summary, Work Completed / In Progress, Issues & Deficiencies, Inspections, Concrete Summary and Open Items. The executive summary and weather are always shown.
 
+Layout (`functions/dailyPdfReportBuilderLegacy.js`):
+
+- The cover shows an "at a glance" row of tiles under the report details: workers on site, Site Logistics tasks done (only when there are tasks), issues logged, concrete pours and photos. The row is left out when every count is zero.
+- The executive summary drops sentences that only say what was not reported (e.g. "No field updates were provided for ...", "... were not stated in the field messages"); the AI is also told not to write them. Sentences reporting a real event ("the pour was not completed") are kept.
+- Photos are laid out two per row (each at most about 240 x 200 pt) with a caption of up to four lines under each, instead of one large photo per page.
+- Tables continue on the next page with a repeated header; a section heading only needs room for itself plus the table header and first row before a page break, and subheadings and trade headings are kept with their first lines.
+- Workforce Summary drops the Foreman and Notes columns when no row uses them, and says "Worker counts from Site Logistics." once under the table instead of on every row.
+- Site Logistics scheduled work is one table (Crew, Activity, Area, Dates) with each crew named once; crews whose names differ only in case, spacing or apostrophe style (O'Connor / O’Connor) are grouped together, for tasks too.
+
 The daily construction report is `dailySiteLog`.
 
 ### Source scope

@@ -26,8 +26,7 @@ const TABLE_FONT = 8;
 const TABLE_HEADER_FONT = 9;
 const MAX_CELL_LINES = 8;
 /** Slightly tighter photos for grid-friendly layout */
-const PHOTO_MAX_H = 320;
-const PHOTO_MAX_W = 440;
+const PHOTO_ROW_MAX_H = 200; // two per row: about three rows of photos fit on a page
 
 function splitOversizeToken(token, font, size, maxWidth) {
   const raw = sanitizePdfText(String(token || "").trim());
@@ -159,6 +158,82 @@ function shouldRenderWorkSummary(execSummary, workSummary, stitchedNarrative) {
   if (!summ || summ === "â€”" || /^Not stated in log entries/i.test(summ)) return false;
   if (exec) return false;
   return summ !== stitched;
+}
+
+const ABSENCE_SENTENCE_PATTERNS = [
+  /\b(?:were|was|is|are|has been|have been)\s+not\s+(?:stated|provided|reported|mentioned|recorded|specified|logged|given)\b/i,
+  /\bnot\s+(?:stated|provided|reported|mentioned)\s+in\s+(?:the\s+)?(?:field|log)/i,
+  /\bno\s+(?:curated\s+|specific\s+|additional\s+|other\s+)?(?:field\s+)?(?:updates?|information|details|entries|messages|reports?)\s+(?:were|was)\s+(?:provided|reported|recorded|logged|received|submitted)\b/i,
+];
+
+/** Drops summary sentences that only say what was NOT reported (e.g. "No field updates were provided for manpower."). */
+function stripAbsenceSentences(text) {
+  const raw = String(text == null ? "" : text).trim();
+  if (!raw) return "";
+  const sentences = raw.split(/(?<=[.!?])\s+/);
+  return sentences.filter((sentence) => !ABSENCE_SENTENCE_PATTERNS.some((re) => re.test(sentence))).join(" ").trim();
+}
+
+/**
+ * Workforce table as printed: the Foreman and Notes columns are dropped when no row uses them, and the
+ * "Site Logistics" source note is taken off each row (the PDF says it once under the table instead).
+ * `rows` are [trade, foreman, workers, notes], the last one possibly the TOTAL WORKERS row.
+ */
+function tidyManpowerTable(rows, contentW) {
+  let fromSiteLogistics = false;
+  const cleaned = (rows || []).map((row) => {
+    const r = [...row];
+    const note = String(r[3] == null ? "" : r[3]).trim();
+    if (/^(?:count from\s+)?site logistics$/i.test(note)) {
+      r[3] = "";
+      fromSiteLogistics = true;
+    } else if (/\s*\(count from site logistics\)$/i.test(note)) {
+      r[3] = note.replace(/\s*\(count from site logistics\)$/i, "");
+      fromSiteLogistics = true;
+    }
+    if (r[0] === "TOTAL WORKERS") r[3] = "";
+    return r;
+  });
+  const body = cleaned.filter((r) => r[0] !== "TOTAL WORKERS");
+  const showForeman = body.some((r) => !isPlaceholderText(r[1]));
+  const showNotes = body.some((r) => !isPlaceholderText(r[3]));
+  const cols = [0];
+  if (showForeman) cols.push(1);
+  cols.push(2);
+  if (showNotes) cols.push(3);
+  const headerNames = ["Trade", "Foreman", "Workers", "Notes"];
+  const workersW = 56;
+  const foremanW = 100;
+  const tradeW = showNotes ? 150 : contentW - workersW - (showForeman ? foremanW : 0);
+  const widthByCol = { 0: tradeW, 1: foremanW, 2: workersW, 3: contentW - tradeW - workersW - (showForeman ? foremanW : 0) };
+  return {
+    headers: cols.map((c) => headerNames[c]),
+    rows: cleaned.map((r) => cols.map((c) => (c === 3 && isPlaceholderText(r[3]) ? "" : r[c]))),
+    colWidths: cols.map((c) => widthByCol[c]),
+    fromSiteLogistics,
+  };
+}
+
+/** Crew names that differ only in case, spacing or apostrophe style (O'Connor / O’Connor) are the same crew. */
+function crewKey(label) {
+  return String(label || "")
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u0060\u00b4]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Groups tasks/activities by crew ("Company (Trade)"), in first-seen order. */
+function groupByCrew(items, fallback) {
+  const groups = new Map();
+  for (const it of items || []) {
+    const label =
+      it.company && it.trade && crewKey(it.company) !== crewKey(it.trade) ? `${it.company} (${it.trade})` : it.company || it.trade || fallback;
+    const key = crewKey(label);
+    if (!groups.has(key)) groups.set(key, { label, list: [] });
+    groups.get(key).list.push(it);
+  }
+  return [...groups.values()];
 }
 
 /** True for the fillers used when a section has nothing to say ("â€”", "Not stated in ...", "No open items flagged ..."). */
@@ -298,10 +373,10 @@ async function renderDailySiteLogPdf(opts) {
   }
 
   /** Rule + heading + spacing â€” must match ensureSpaceForSectionTitleAndTableBlock reserve (allows 1â€“2 title lines) */
-  const SECTION_TITLE_BLOCK_RESERVE = 124;
+  const SECTION_TITLE_BLOCK_RESERVE = 64;
 
   function drawSectionTitle(title) {
-    ensureSectionOpening(118);
+    ensureSectionOpening(90);
     y -= 14;
     ensureSpace(44);
     drawLineFull(y + 3, 1.05, C.rule);
@@ -311,6 +386,7 @@ async function renderDailySiteLogPdf(opts) {
   }
 
   function drawSubheading(t) {
+    ensureSpace(44); // keep the subheading with its first lines
     y -= 2;
     drawParagraph(t, 9.5, true, C.subhead);
     y -= 4;
@@ -607,7 +683,7 @@ async function renderDailySiteLogPdf(opts) {
   function drawTradeHeading(label) {
     ensureSectionOpening(96);
     y -= 8;
-    ensureSpace(30);
+    ensureSpace(48); // keep the trade heading with its first lines
     drawParagraphInColumn(margin + 2, contentW - 4, label, 10.5, true, C.trade);
     drawLineFull(y + 2, 0.55, C.ruleLight);
     y -= 8;
@@ -623,19 +699,19 @@ async function renderDailySiteLogPdf(opts) {
     return true;
   }
 
-  async function drawPhotoBlock(photo, opts = {}) {
-    const indent = Number(opts.indent) || 0;
-    const left = opts.left != null ? opts.left : margin + indent;
-    const availableW = Math.max(120, contentW - (left - margin));
-    const maxW = Math.min(
-      opts.maxBoxW != null ? opts.maxBoxW : Math.min(PHOTO_MAX_W, availableW),
-      availableW
-    );
-    const maxH = opts.maxBoxH != null ? opts.maxBoxH : PHOTO_MAX_H;
-    const captionContext = opts.captionContext || "";
-    let buf;
+  const PHOTO_CAPTION_SIZE = 8;
+  const PHOTO_CAPTION_LH = PHOTO_CAPTION_SIZE + 2;
+  const PHOTO_CAPTION_MAX_LINES = 4;
+
+  /** Downloads and sizes one photo for a cell of `width` x `maxH`, and works out its caption lines. */
+  async function preparePhoto(photo, opts = {}) {
+    const { width, maxH, captionContext = "" } = opts;
+    let img = null;
+    let note = "";
     try {
-      [buf] = await storageBucket.file(photo.storagePath).download();
+      const [buf] = await storageBucket.file(photo.storagePath).download();
+      img = await embedImageIfPossible(pdf, buf);
+      if (!img) note = "(Unsupported image format)";
     } catch (e) {
       if (logger)
         logger.warn("dailyPdfReportBuilder: photo download failed", {
@@ -643,26 +719,11 @@ async function renderDailySiteLogPdf(opts) {
           path: photo.storagePath,
           message: e.message,
         });
-      drawParagraphInColumn(left, maxW, `(Photo unavailable)`, 8, false, rgb(0.45, 0.22, 0.22));
-      return;
+      note = "(Photo unavailable)";
     }
-    const img = await embedImageIfPossible(pdf, buf);
-    if (!img) {
-      drawParagraphInColumn(left, maxW, `(Unsupported image format)`, 8, false);
-      return;
-    }
-    const scale = Math.min(maxW / img.width, maxH / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    const need = h + 44;
-    ensureSpace(need);
-    page.drawImage(img, {
-      x: left,
-      y: y - h,
-      width: w,
-      height: h,
-    });
-    y -= h + 6;
+    const scale = img ? Math.min(width / img.width, maxH / img.height) : 0;
+    const w = img ? img.width * scale : 0;
+    const h = img ? img.height * scale : 0;
     let ts = "";
     try {
       if (photo.createdAt && typeof photo.createdAt.toDate === "function") {
@@ -680,9 +741,33 @@ async function renderDailySiteLogPdf(opts) {
       }
     }
     capBody = refineCaptionForPdf(capBody, captionContext, captionHayNorm);
-    const cap = [ts, capBody].filter(Boolean).join(" - ");
-    drawParagraphInColumn(left, maxW, cap || `Ref ${photo.mediaId || ""}`, 8, false, C.inkMuted);
-    y -= 4;
+    const cap = note || [ts, capBody].filter(Boolean).join(" - ") || `Ref ${photo.mediaId || ""}`;
+    let captionLines = wrapToLines(cap, font, PHOTO_CAPTION_SIZE, width);
+    if (captionLines.length > PHOTO_CAPTION_MAX_LINES) {
+      captionLines = captionLines.slice(0, PHOTO_CAPTION_MAX_LINES);
+      captionLines[PHOTO_CAPTION_MAX_LINES - 1] = `${captionLines[PHOTO_CAPTION_MAX_LINES - 1].replace(/\s+\S*$/, "")}...`;
+    }
+    const height = (img ? h + 6 : 0) + captionLines.length * PHOTO_CAPTION_LH;
+    return { img, w, h, captionLines, height, noteOnly: !img };
+  }
+
+  /** Draws a prepared photo with its top at `top`, centred in a cell starting at `x` of `cellW`. */
+  function drawPhotoCell(cell, x, top, cellW) {
+    let cy = top;
+    if (cell.img) {
+      page.drawImage(cell.img, { x: x + (cellW - cell.w) / 2, y: cy - cell.h, width: cell.w, height: cell.h });
+      cy -= cell.h + 6;
+    }
+    for (const ln of cell.captionLines) {
+      page.drawText(sanitizePdfText(ln), {
+        x,
+        y: cy - PHOTO_CAPTION_SIZE,
+        size: PHOTO_CAPTION_SIZE,
+        font,
+        color: cell.noteOnly ? rgb(0.45, 0.22, 0.22) : C.inkMuted,
+      });
+      cy -= PHOTO_CAPTION_LH;
+    }
   }
 
   async function drawPhotoList(list, opts = {}) {
@@ -695,7 +780,6 @@ async function renderDailySiteLogPdf(opts) {
       maxPhotos = null,
       captionContext,
       maxBoxH,
-      maxBoxW,
       captionKeyMax = 0,
     } = opts;
     let photos = dedupePhotosByMediaId(list || []);
@@ -710,21 +794,24 @@ async function renderDailySiteLogPdf(opts) {
     if (Number.isFinite(maxPhotos) && maxPhotos > 0) {
       photos = photos.slice(0, maxPhotos);
     }
-    if (photos.length) {
-      const est = Math.min(500, photos.length * 158);
-      if (y - margin - footerReserve < est) {
-        newPage();
+    // Two photos per row, each with its caption underneath; an odd last photo sits on the left.
+    const left0 = margin + indent;
+    const rowW = Math.max(240, contentW - indent);
+    const gapX = 14;
+    const cellW = (rowW - gapX) / 2;
+    const cellMaxH = Math.min(maxBoxH != null ? maxBoxH : PHOTO_ROW_MAX_H, PHOTO_ROW_MAX_H);
+    for (let k = 0; k < photos.length; k += 2) {
+      const pair = photos.slice(k, k + 2);
+      const cells = [];
+      for (const p of pair) {
+        cells.push(await preparePhoto(p, { width: cellW, maxH: cellMaxH, model: mdl || model, captionContext }));
       }
-    }
-    for (const p of photos) {
-      await drawPhotoBlock(p, {
-        indent,
-        model: mdl || model,
-        captionContext,
-        maxBoxH,
-        maxBoxW,
-      });
-      if (globalSeen && p.mediaId != null) globalSeen.add(String(p.mediaId));
+      const rowH = Math.max(...cells.map((c) => c.height)) + 14;
+      ensureSpace(rowH);
+      const top = y - 4;
+      cells.forEach((c, i) => drawPhotoCell(c, left0 + i * (cellW + gapX), top, cellW));
+      y = top - rowH;
+      for (const p of pair) if (globalSeen && p.mediaId != null) globalSeen.add(String(p.mediaId));
     }
   }
 
@@ -762,11 +849,36 @@ async function renderDailySiteLogPdf(opts) {
   const issueMediaIds = collectIssuePhotoMediaIds(st);
   const renderedMediaIds = new Set();
 
+  /** At a glance: the day's key numbers as a row of tiles on the cover (left out when there is nothing to count). */
+  {
+    const workers = hasRealRows(det.manpowerRows) ? buildManpowerRowsWithTotal(det.manpowerRows).totalWorkers : 0;
+    const slTasksGlance = (merged.siteLogistics && merged.siteLogistics.tasks) || { total: 0, done: 0 };
+    const pours = (det.concreteRows || []).filter((r) => hasRealRows([r])).length;
+    const issues = (st.issueChunks || []).length;
+    const photoCount = (model.photos || []).length;
+    const tiles = [["Workers on site", String(workers)]];
+    if (slTasksGlance.total) tiles.push(["Tasks done", `${slTasksGlance.done} of ${slTasksGlance.total}`]);
+    tiles.push(["Issues logged", String(issues)], ["Concrete pours", String(pours)], ["Photos", String(photoCount)]);
+    if (workers || slTasksGlance.total || issues || pours || photoCount) {
+      const tileGap = 8;
+      const tileH = 44;
+      const tileW = (contentW - tileGap * (tiles.length - 1)) / tiles.length;
+      ensureSpace(tileH + 20);
+      tiles.forEach(([label, value], i) => {
+        const x = margin + i * (tileW + tileGap);
+        page.drawRectangle({ x, y: y - tileH, width: tileW, height: tileH, color: C.rowB, borderColor: C.rowBorder, borderWidth: 0.6 });
+        page.drawText(sanitizePdfText(value), { x: x + 8, y: y - 22, size: 16, font: fontBold, color: C.ink });
+        page.drawText(sanitizePdfText(label), { x: x + 8, y: y - 36, size: 7.5, font, color: C.inkMuted });
+      });
+      y -= tileH + 16;
+    }
+  }
+
   function pdfDisplayLine(s) {
     return stripSourceLogArtifacts(String(s || ""));
   }
 
-  const execSummary = merged.execSummary && String(merged.execSummary).trim();
+  const execSummary = stripAbsenceSentences(merged.execSummary);
   if (execSummary) {
     drawSectionTitle("Executive summary");
     drawParagraph(execSummary, 10, false);
@@ -812,7 +924,6 @@ async function renderDailySiteLogPdf(opts) {
   y -= 6;
 
   /** Workforce */
-  const manpowerColWidths = [120, 100, 56, contentW - 276];
   const manpowerTable = buildManpowerRowsWithTotal(det.manpowerRows);
   const manNarRaw = String(merged.manpowerNarrative || "").trim();
   const manpowerChunksPdf = filterManpowerChunksForPdf(st.manpowerChunks);
@@ -822,9 +933,15 @@ async function renderDailySiteLogPdf(opts) {
   // A section with nothing in it is left out entirely, rather than printing a heading over placeholders.
   if (hasMpRows || hasMpNarrative || mpPhotos.length) {
     if (hasMpRows) {
-      ensureSpaceForSectionTitleAndTableBlock(manpowerTable.rows, manpowerColWidths);
+      const shown = tidyManpowerTable(manpowerTable.rows, contentW);
+      ensureSpaceForSectionTitleAndTableBlock(shown.rows, shown.colWidths);
       drawSectionTitle("Workforce Summary");
-      drawWrappedTable(["Trade", "Foreman", "Workers", "Notes"], manpowerTable.rows, manpowerColWidths);
+      drawWrappedTable(shown.headers, shown.rows, shown.colWidths);
+      if (shown.fromSiteLogistics) {
+        y += 3;
+        drawParagraph("Worker counts from Site Logistics.", 8.5, false, C.inkMuted);
+        y -= 6;
+      }
       if (hasMpNarrative || mpPhotos.length) drawPostTableDivider();
     } else {
       drawSectionTitle("Workforce Summary");
@@ -947,13 +1064,8 @@ async function renderDailySiteLogPdf(opts) {
       if (slTasks.blocked) parts.push(`${slTasks.blocked} could not be done`);
       if (slTasks.open) parts.push(`${slTasks.open} still open`);
       drawSubheading(`Tasks: ${parts.join(", ")}`);
-      const byCrew = new Map();
-      for (const t of slTasks.items) {
-        const label = t.company && t.trade && t.company.toLowerCase() !== t.trade.toLowerCase() ? `${t.company} (${t.trade})` : t.company || t.trade || "Anyone";
-        if (!byCrew.has(label)) byCrew.set(label, []);
-        byCrew.get(label).push(t);
-      }
-      for (const [label, list] of byCrew) {
+      const byCrew = groupByCrew(slTasks.items, "Anyone");
+      for (const { label, list } of byCrew) {
         drawTradeHeading(label);
         for (const t of list) {
           const where = t.area ? ` - ${t.area}` : "";
@@ -967,20 +1079,17 @@ async function renderDailySiteLogPdf(opts) {
         }
       }
     }
-    if (slTasks.total && siteLogistics.activities.length) drawSubheading("Scheduled work (from the look-ahead)");
-    const byCrew = new Map();
-    for (const a of siteLogistics.activities) {
-      const label = a.company && a.trade && a.company.toLowerCase() !== a.trade.toLowerCase() ? `${a.company} (${a.trade})` : a.company || a.trade;
-      if (!byCrew.has(label)) byCrew.set(label, []);
-      byCrew.get(label).push(a);
-    }
-    for (const [label, list] of byCrew) {
-      drawTradeHeading(label);
-      for (const a of list) {
-        const where = a.area ? ` - ${a.area}` : "";
-        const when = a.start === a.end ? a.start : `${a.start} to ${a.end}`;
-        drawParagraph(`  - ${a.activity || "Scheduled work"}${where} (${when})`, 10, false, C.inkBody);
+    if (siteLogistics.activities.length) {
+      // One compact table instead of a bullet list per crew; each crew is named once, on its first row.
+      const schedRows = [];
+      for (const { label, list } of groupByCrew(siteLogistics.activities, "")) {
+        list.forEach((a, i) => {
+          schedRows.push([i === 0 ? label : "", a.activity || "Scheduled work", a.area || "", a.start === a.end ? a.start : `${a.start} to ${a.end}`]);
+        });
       }
+      const schedColWidths = [118, contentW - 118 - 96 - 118, 96, 118];
+      drawSubheading("Scheduled work (from the look-ahead)");
+      drawWrappedTable(["Crew", "Activity", "Area", "Dates"], schedRows, schedColWidths);
     }
     if (siteLogistics.notes) {
       drawSubheading("Site notes");
@@ -1503,6 +1612,9 @@ module.exports = {
   buildManpowerRowsWithTotal,
   isPlaceholderText,
   hasRealRows,
+  stripAbsenceSentences,
+  groupByCrew,
+  tidyManpowerTable,
   shouldRenderWorkSummary,
   shouldRenderProjectNotes,
 };
