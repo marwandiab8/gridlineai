@@ -210,6 +210,8 @@ Open item signals:
 
 ## Daily Construction Report Rules
 
+Empty sections are left out of the PDF instead of printing a heading over placeholder text (`â€”`, dashes, `Not stated ...`, `No open items flagged ...`, `None`, `N/A`); see `isPlaceholderText` / `hasRealRows` in `functions/dailyPdfReportBuilderLegacy.js`. This applies to Workforce Summary, Work Completed / In Progress, Issues & Deficiencies, Inspections, Concrete Summary and Open Items. The executive summary and weather are always shown.
+
 The daily construction report is `dailySiteLog`.
 
 ### Source scope
@@ -321,11 +323,13 @@ Manpower rows come from:
 
 AI-extracted manpower rows take precedence for an entry. Generic trade labels such as `Journal`, `Site / General`, `General`, and `Notes` are rejected.
 
-If no manpower is stated, the table shows a placeholder row saying manpower was not stated in log entries.
+If no manpower is stated, the placeholder row stays in the report data but the PDF leaves the Workforce Summary out entirely (unless there is a real narrative or photos, in which case the heading is shown without the table).
 
 The PDF adds a total row when worker counts are parseable. Narrative text is omitted when it is redundant with the table or is a simple roll-call line.
 
 ### Work Completed / In Progress
+
+The section is omitted when there are no AI trade sections, no work blocks, and the work narrative is empty or a placeholder.
 
 Work entries are grouped by trade or scope.
 
@@ -370,7 +374,7 @@ Issue content comes from sections/buckets:
 - `delays`
 - `safety`
 
-The PDF renders `Issues & Deficiencies`, removes duplicate issue paragraphs when they already appear in work/executive content, and shows issue-linked source updates or photos when not redundant.
+The PDF renders `Issues & Deficiencies` only when there is real issue text or issue chunks (placeholder text such as `Not stated in field messages.` does not count), removes duplicate issue paragraphs when they already appear in work/executive content, and shows issue-linked source updates or photos when not redundant.
 
 ### Inspections
 
@@ -382,7 +386,7 @@ AI is instructed to include consultant/inspector name, scope inspected, result, 
 
 ### Concrete Summary
 
-The concrete section always renders a table with:
+The concrete section renders only when there is a real concrete row, a real narrative, or concrete photos. Its table has:
 
 - Pour location / scope
 - Volume
@@ -395,7 +399,7 @@ Concrete parsing rules:
 - volume recognizes `m3`, cubic meters, `cy`, yards, and similar units, including approximate quantities
 - location/scope is extracted from `for`, `re:`, `pour at`, `placed at`, `at`, `@`, `location`, `scope`, `zone`, `bay`, `grid`, `level`, and `area`
 - status recognizes complete/placed, in progress, cancelled/no pour, delayed, postponed, rescheduled, on hold, pending, done, tentative, scrubbed, and related words
-- if no concrete is stated, the table shows a placeholder row
+- if no concrete is stated, the placeholder row stays in the report data and the PDF omits the section
 
 ### Open Items / Action Required
 
@@ -417,7 +421,7 @@ Open item rows include:
 
 Owner/responsible can be parsed from `owner`, `assigned to`, `reported by`, `by`, `pm`, `super`, `gc`, `responsible`, or `action by`.
 
-If no open items are flagged, the table shows `No open items flagged in log entries.`
+If no open items are flagged (every row is a placeholder, ignoring the `#` column), the PDF omits the section, unless there is a real intro paragraph.
 
 Weak AI open-item rows can be removed when they duplicate issue, executive, work, or concrete text.
 

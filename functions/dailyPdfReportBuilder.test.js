@@ -91,3 +91,21 @@ test("shouldRenderProjectNotes only shows meaningful approved project notes", ()
     true
   );
 });
+
+test("isPlaceholderText recognises the fillers used for empty sections", () => {
+  const { isPlaceholderText } = require("./dailyPdfReportBuilder");
+  for (const empty of ["", "  ", null, undefined, "â€”", "—", "--", "Not stated in field messages.", "Not stated in log entries for this report day.", "No open items flagged in log entries.", "None", "N/A"]) {
+    assert.equal(isPlaceholderText(empty), true, `placeholder: ${JSON.stringify(empty)}`);
+  }
+  for (const real of ["ALC poured Line 4 wall", "3", "None of the pumps worked", "Not started - waiting on rebar"]) {
+    assert.equal(isPlaceholderText(real), false, `real: ${real}`);
+  }
+});
+
+test("hasRealRows is false for placeholder-only tables and true once any cell has content", () => {
+  const { hasRealRows } = require("./dailyPdfReportBuilder");
+  assert.equal(hasRealRows([["â€”", "â€”", "â€”", "Not stated in log entries for this report day."]]), false);
+  assert.equal(hasRealRows([]), false);
+  assert.equal(hasRealRows(undefined), false);
+  assert.equal(hasRealRows([["â€”", "â€”", "Not stated in log entries."], ["Line 4 wall", "â€”", "Poured"]]), true);
+});

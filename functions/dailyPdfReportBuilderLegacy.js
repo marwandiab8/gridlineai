@@ -161,6 +161,22 @@ function shouldRenderWorkSummary(execSummary, workSummary, stitchedNarrative) {
   return summ !== stitched;
 }
 
+/** True for the fillers used when a section has nothing to say ("â€”", "Not stated in ...", "No open items flagged ..."). */
+function isPlaceholderText(value) {
+  const text = String(value == null ? "" : value).trim();
+  if (!text) return true;
+  if (text === "â€”" || text === "—" || /^-+$/.test(text)) return true;
+  if (/^not stated\b/i.test(text)) return true;
+  if (/^no open items\b/i.test(text)) return true;
+  if (/^(none|n\/?a)\.?$/i.test(text)) return true;
+  return false;
+}
+
+/** A table has real content when at least one cell in some row is not a placeholder. */
+function hasRealRows(rows) {
+  return (Array.isArray(rows) ? rows : []).some((row) => (Array.isArray(row) ? row : []).some((cell) => !isPlaceholderText(cell)));
+}
+
 function shouldRenderProjectNotes(projectNotes) {
   const text = String(projectNotes || "").trim();
   if (!text) return false;
@@ -798,31 +814,40 @@ async function renderDailySiteLogPdf(opts) {
   /** Workforce */
   const manpowerColWidths = [120, 100, 56, contentW - 276];
   const manpowerTable = buildManpowerRowsWithTotal(det.manpowerRows);
-  ensureSpaceForSectionTitleAndTableBlock(manpowerTable.rows, manpowerColWidths);
-  drawSectionTitle("Workforce Summary");
-  drawWrappedTable(["Trade", "Foreman", "Workers", "Notes"], manpowerTable.rows, manpowerColWidths);
   const manNarRaw = String(merged.manpowerNarrative || "").trim();
   const manpowerChunksPdf = filterManpowerChunksForPdf(st.manpowerChunks);
-  const hasMpNarrative = manNarRaw && manNarRaw !== "â€”";
+  const hasMpNarrative = !isPlaceholderText(manNarRaw);
   const mpPhotos = manpowerChunksPdf.flatMap((ch) => ch.photos || []);
-  if (hasMpNarrative || mpPhotos.length) {
-    drawPostTableDivider();
-  }
-  if (hasMpNarrative) {
-    drawSubheading("Narrative");
-    drawParagraph(merged.manpowerNarrative, 10, false, C.inkBody);
-  }
-  if (mpPhotos.length) {
-    drawSubheading("Supporting photos");
-    await drawPhotoList(mpPhotos, {
-      model,
-      globalSeen: renderedMediaIds,
-      captionContext: manNarRaw || (manpowerChunksPdf[0] && manpowerChunksPdf[0].text) || "",
-    });
+  const hasMpRows = hasRealRows(det.manpowerRows);
+  // A section with nothing in it is left out entirely, rather than printing a heading over placeholders.
+  if (hasMpRows || hasMpNarrative || mpPhotos.length) {
+    if (hasMpRows) {
+      ensureSpaceForSectionTitleAndTableBlock(manpowerTable.rows, manpowerColWidths);
+      drawSectionTitle("Workforce Summary");
+      drawWrappedTable(["Trade", "Foreman", "Workers", "Notes"], manpowerTable.rows, manpowerColWidths);
+      if (hasMpNarrative || mpPhotos.length) drawPostTableDivider();
+    } else {
+      drawSectionTitle("Workforce Summary");
+    }
+    if (hasMpNarrative) {
+      drawSubheading("Narrative");
+      drawParagraph(merged.manpowerNarrative, 10, false, C.inkBody);
+    }
+    if (mpPhotos.length) {
+      drawSubheading("Supporting photos");
+      await drawPhotoList(mpPhotos, {
+        model,
+        globalSeen: renderedMediaIds,
+        captionContext: manNarRaw || (manpowerChunksPdf[0] && manpowerChunksPdf[0].text) || "",
+      });
+    }
   }
 
   /** Work */
-  drawSectionTitle("Work Completed / In Progress");
+  const hasStructuredWork = !!(merged.useStructuredWorkLayout && merged.workSectionsAi && merged.workSectionsAi.length);
+  const hasWorkBlocks = !!(st.workBlocks && st.workBlocks.length);
+  const hasWork = hasStructuredWork || hasWorkBlocks || !isPlaceholderText(merged.workNarrative);
+  if (hasWork) drawSectionTitle("Work Completed / In Progress");
   function normTradeLabel(s) {
     return String(s || "")
       .trim()
@@ -841,11 +866,7 @@ async function renderDailySiteLogPdf(opts) {
     return [];
   }
 
-  if (
-    merged.useStructuredWorkLayout &&
-    merged.workSectionsAi &&
-    merged.workSectionsAi.length
-  ) {
+  if (hasStructuredWork) {
     const stitched = String((model.deterministic && model.deterministic.workNarrativeBlock) || "").trim();
     const summ = String(merged.workNarrative || "").trim();
     if (shouldRenderWorkSummary(merged.execSummary, summ, stitched)) {
@@ -912,7 +933,7 @@ async function renderDailySiteLogPdf(opts) {
         });
       }
     }
-  } else {
+  } else if (hasWork) {
     drawParagraph(merged.workNarrative, 10, false);
   }
 
@@ -968,9 +989,11 @@ async function renderDailySiteLogPdf(opts) {
   }
 
   /** Issues */
-  drawSectionTitle("Issues & Deficiencies");
-  drawParagraph(merged.issuesText, 10, false, C.inkBody);
-  if (st.issueChunks && st.issueChunks.length) {
+  const hasIssueText = !isPlaceholderText(merged.issuesText);
+  const hasIssueChunks = !!(st.issueChunks && st.issueChunks.length);
+  if (hasIssueText || hasIssueChunks) drawSectionTitle("Issues & Deficiencies");
+  if (hasIssueText) drawParagraph(merged.issuesText, 10, false, C.inkBody);
+  if (hasIssueChunks) {
     for (const ch of st.issueChunks) {
       const shown = formatAttributedUpdate(ch.authorLabel, pdfDisplayLine(ch.text));
       if (shown && !issueChunkLineRedundant(shown, merged.issuesText)) {
@@ -991,10 +1014,7 @@ async function renderDailySiteLogPdf(opts) {
 
   /** Inspections â€” omit empty placeholder-only block */
   const insTextRaw = String(merged.inspectionText || "").trim();
-  const insPlaceholder =
-    !insTextRaw ||
-    insTextRaw === "â€”" ||
-    /^not stated in field messages\.?$/i.test(insTextRaw);
+  const insPlaceholder = isPlaceholderText(insTextRaw);
   const hasInsChunks = st.inspectionChunks && st.inspectionChunks.length;
   if (!insPlaceholder || hasInsChunks) {
     drawSectionTitle("Inspections");
@@ -1028,27 +1048,32 @@ async function renderDailySiteLogPdf(opts) {
     while (x.length < 3) x.push("â€”");
     return x.slice(0, 3);
   });
-  ensureSpaceForSectionTitleAndTableBlock(concreteRowsForPdf, concreteColWidths);
-  drawSectionTitle(`Concrete Summary â€” ${concreteLabel}`);
-  drawWrappedTable(["Pour location / scope", "Volume", "Status"], concreteRowsForPdf, concreteColWidths);
   const concNar = String(merged.concreteNarrative || "").trim();
   const concPhotos = (st.concreteChunks || []).flatMap((ch) => ch.photos || []);
-  const hasConcNarrative = concNar && concNar !== "â€”";
-  if (hasConcNarrative || concPhotos.length) {
-    drawPostTableDivider();
-  }
-  if (hasConcNarrative) {
-    drawSubheading("Notes");
-    drawParagraph(merged.concreteNarrative, 10, false, C.inkBody);
-  }
-  if (concPhotos.length) {
-    drawSubheading("Photos");
-    await drawPhotoList(concPhotos, {
-      indent: 14,
-      model,
-      globalSeen: renderedMediaIds,
-      captionContext: concNar || (st.concreteChunks && st.concreteChunks[0] && st.concreteChunks[0].text) || "",
-    });
+  const hasConcNarrative = !isPlaceholderText(concNar);
+  const hasConcRows = hasRealRows(det.concreteRows);
+  if (hasConcRows || hasConcNarrative || concPhotos.length) {
+    if (hasConcRows) {
+      ensureSpaceForSectionTitleAndTableBlock(concreteRowsForPdf, concreteColWidths);
+      drawSectionTitle(`Concrete Summary â€” ${concreteLabel}`);
+      drawWrappedTable(["Pour location / scope", "Volume", "Status"], concreteRowsForPdf, concreteColWidths);
+      if (hasConcNarrative || concPhotos.length) drawPostTableDivider();
+    } else {
+      drawSectionTitle(`Concrete Summary â€” ${concreteLabel}`);
+    }
+    if (hasConcNarrative) {
+      drawSubheading("Notes");
+      drawParagraph(merged.concreteNarrative, 10, false, C.inkBody);
+    }
+    if (concPhotos.length) {
+      drawSubheading("Photos");
+      await drawPhotoList(concPhotos, {
+        indent: 14,
+        model,
+        globalSeen: renderedMediaIds,
+        captionContext: concNar || (st.concreteChunks && st.concreteChunks[0] && st.concreteChunks[0].text) || "",
+      });
+    }
   }
 
   /** Open items */
@@ -1067,12 +1092,17 @@ async function renderDailySiteLogPdf(opts) {
       : det.openItemRows.length
         ? det.openItemRows
         : [["â€”", "No open items flagged in log entries.", "â€”", "â€”"]];
-  ensureSpaceForSectionTitleAndTableBlock(openRows, openItemColWidths, introExtra);
-  drawSectionTitle("Open Items / Action Required");
-  if (showOpenIntro) {
+  // The "#" column is always a number, so only the other columns say whether a row has real content.
+  const hasOpenRows = hasRealRows(openRows.map((r) => r.slice(1)));
+  if (hasOpenRows) {
+    ensureSpaceForSectionTitleAndTableBlock(openRows, openItemColWidths, introExtra);
+    drawSectionTitle("Open Items / Action Required");
+    if (showOpenIntro) drawParagraph(merged.openIntro, 10, false);
+    drawWrappedTable(["#", "Action item", "Responsible", "Status"], openRows, openItemColWidths);
+  } else if (showOpenIntro) {
+    drawSectionTitle("Open Items / Action Required");
     drawParagraph(merged.openIntro, 10, false);
   }
-  drawWrappedTable(["#", "Action item", "Responsible", "Status"], openRows, openItemColWidths);
 
   /** Site photos: any project media not already drawn in a section above */
   const remainingPhotos = selectRemainingSitePhotos(model.photos || [], renderedMediaIds);
@@ -1471,6 +1501,8 @@ module.exports = {
   selectRemainingJournalPhotos,
   wrapToLines,
   buildManpowerRowsWithTotal,
+  isPlaceholderText,
+  hasRealRows,
   shouldRenderWorkSummary,
   shouldRenderProjectNotes,
 };
