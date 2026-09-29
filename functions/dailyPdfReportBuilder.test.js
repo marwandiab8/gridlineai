@@ -154,3 +154,16 @@ test("tidyManpowerTable drops unused Foreman/Notes columns and moves the Site Lo
   assert.deepEqual(full.rows[0], ["Formwork", "Ali", "7", "West side"]);
   assert.equal(full.colWidths.reduce((a, b) => a + b, 0), 512);
 });
+
+test("shrinkPhotoForPdf resizes a full-size photo to at most 1400 px and keeps it a JPEG", async () => {
+  const sharp = require("sharp");
+  const { shrinkPhotoForPdf } = require("./dailyPdfReportBuilder");
+  const big = await sharp({ create: { width: 4032, height: 3024, channels: 3, background: { r: 120, g: 90, b: 60 } } }).jpeg({ quality: 95 }).toBuffer();
+  const small = await shrinkPhotoForPdf(big);
+  const meta = await sharp(small).metadata();
+  assert.equal(meta.format, "jpeg");
+  assert.equal(Math.max(meta.width, meta.height), 1400);
+  assert.ok(small.length < big.length);
+  const notAnImage = Buffer.from("not an image");
+  assert.equal(await shrinkPhotoForPdf(notAnImage), notAnImage, "falls back to the original bytes");
+});

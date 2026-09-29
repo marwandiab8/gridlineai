@@ -3222,7 +3222,7 @@ exports.deliverDailyPdfSms = onDocumentCreated(
     document: "dailyPdfDeliveryQueue/{docId}",
     region: "northamerica-northeast1",
     timeoutSeconds: 300,
-    memory: "512MiB",
+    memory: "1GiB", // a report with 20+ photos went past 512 MiB
     retry: true,
     secrets: [
       TWILIO_ACCOUNT_SID,
@@ -9294,7 +9294,7 @@ exports.generateDailyReportPdfCallable = onCall(
     region: "northamerica-northeast1",
     cors: true,
     timeoutSeconds: 120,
-    memory: "512MiB",
+    memory: "1GiB", // a report with 20+ photos went past 512 MiB
     secrets: [OPENAI_API_KEY],
   },
   async (request) => {

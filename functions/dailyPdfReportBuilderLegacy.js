@@ -214,6 +214,28 @@ function tidyManpowerTable(rows, contentW) {
   };
 }
 
+// Phone photos are 3-4 MB at full camera resolution. Embedded as-is, a day with 20+ photos made an ~80 MB
+// PDF and pushed the function past its 512 MiB memory limit. They are printed at most ~240 x 200 pt, so
+// 1400 px on the long side is still sharp; `rotate()` also applies the phone's EXIF orientation, which
+// pdf-lib ignores (so photos no longer come out sideways).
+const PHOTO_MAX_PX = 1400;
+const PHOTO_JPEG_QUALITY = 72;
+
+async function shrinkPhotoForPdf(buf) {
+  try {
+    const sharp = require("sharp");
+    sharp.cache(false); // one photo at a time; no decoded-image cache held between them
+    sharp.concurrency(1);
+    return await sharp(buf, { failOn: "none" })
+      .rotate()
+      .resize({ width: PHOTO_MAX_PX, height: PHOTO_MAX_PX, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: PHOTO_JPEG_QUALITY, mozjpeg: true })
+      .toBuffer();
+  } catch (_) {
+    return buf; // keep the original rather than lose the photo
+  }
+}
+
 /** Crew names that differ only in case, spacing or apostrophe style (O'Connor / O’Connor) are the same crew. */
 function crewKey(label) {
   return String(label || "")
@@ -709,8 +731,8 @@ async function renderDailySiteLogPdf(opts) {
     let img = null;
     let note = "";
     try {
-      const [buf] = await storageBucket.file(photo.storagePath).download();
-      img = await embedImageIfPossible(pdf, buf);
+      const [original] = await storageBucket.file(photo.storagePath).download();
+      img = await embedImageIfPossible(pdf, await shrinkPhotoForPdf(original));
       if (!img) note = "(Unsupported image format)";
     } catch (e) {
       if (logger)
@@ -1615,6 +1637,7 @@ module.exports = {
   stripAbsenceSentences,
   groupByCrew,
   tidyManpowerTable,
+  shrinkPhotoForPdf,
   shouldRenderWorkSummary,
   shouldRenderProjectNotes,
 };
