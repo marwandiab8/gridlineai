@@ -2278,6 +2278,30 @@ function renderAssistantComposer() {
   if (scheduleCreateReportButton) scheduleCreateReportButton.disabled = false;
   if (scheduleCreateCloseoutButton) scheduleCreateCloseoutButton.disabled = false;
 
+  const projectSelect = document.getElementById("assistantComposerProjectSelect");
+  if (projectSelect && document.activeElement !== projectSelect) {
+    // The phone's projects, with its active one selected. Switching it changes the phone's active project
+    // (the same as texting it), which is admin-only on the server.
+    const projects = user ? getAccessibleProjectsForUser(user) : [];
+    const active = user ? normalizeProjectSlugClient(user.activeProjectSlug) : "";
+    projectSelect.innerHTML = "";
+    if (!user) projectSelect.appendChild(new Option("Select a phone first...", ""));
+    else if (!projects.length) projectSelect.appendChild(new Option("No projects assigned to this phone", ""));
+    else {
+      if (!projects.some((project) => normalizeProjectSlugClient(project.slug || project.id) === active)) {
+        projectSelect.appendChild(new Option("No active project - choose one", ""));
+      }
+      for (const project of projects) {
+        const slug = normalizeProjectSlugClient(project.slug || project.id);
+        projectSelect.appendChild(new Option(`${project.name || slug} (${slug})`, slug));
+      }
+      projectSelect.value = active;
+    }
+    const canSwitch = roleAtLeastClient(currentUserRole(), "admin");
+    projectSelect.disabled = !user || !projects.length || !canSwitch;
+    projectSelect.title = canSwitch ? "Switch this phone's active project" : "Only admins can switch the active project here; text the assistant to switch it.";
+  }
+
   if (!user) {
     details.textContent = "Select a phone to use its active project context.";
   } else {
@@ -5716,6 +5740,36 @@ function initAssistantComposer() {
   const result = document.getElementById("assistantComposerResult");
   if (!phoneSelect || !bodyInput || !sendButton || !result) return;
   let lastParsedSchedule = null;
+
+  const composerProjectSelect = document.getElementById("assistantComposerProjectSelect");
+  if (composerProjectSelect) {
+    composerProjectSelect.addEventListener("change", async () => {
+      const user = resolveSmsUserForAssistant(phoneSelect.value);
+      const projectSlug = normalizeProjectSlugClient(composerProjectSelect.value);
+      const previous = user ? normalizeProjectSlugClient(user.activeProjectSlug) : "";
+      if (!user || !projectSlug || projectSlug === previous) return;
+      composerProjectSelect.disabled = true;
+      result.textContent = "Switching active project...";
+      result.className = "project-manager-result muted small";
+      try {
+        const payload = { phoneE164: phoneSelect.value, projectSlug };
+        const token = composerTokenInput ? composerTokenInput.value.trim() : "";
+        if (token) payload.token = token;
+        const data = await callDashboardFunction("setActiveProjectCallable", payload);
+        user.activeProjectSlug = data.projectSlug || projectSlug;
+        result.textContent = `Active project set to ${data.projectName || data.projectSlug || projectSlug}. Messages from this phone now go to it.`;
+        result.className = "project-manager-result ok";
+      } catch (err) {
+        composerProjectSelect.value = previous;
+        result.textContent = `Could not switch project: ${err?.message || err}`;
+        result.className = "project-manager-result err";
+      } finally {
+        composerProjectSelect.disabled = false;
+        composerProjectSelect.blur();
+        renderAssistantComposer();
+      }
+    });
+  }
 
   const refresh = () => {
     renderAssistantComposer();
