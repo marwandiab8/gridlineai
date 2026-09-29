@@ -12,10 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: npm ci --prefix functions && npm test --prefix functions
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GRIDLINEAI }}
-      - run: npx --yes firebase-tools deploy --only functions:labourPortal --project gridlineai --non-interactive
+      # Only Hosting deploys from here. Cloud Functions (labourPortal included) are deployed by hand, one at a
+      # time: they need functions/.env.gridlineai, which is deliberately kept out of the repository.
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
