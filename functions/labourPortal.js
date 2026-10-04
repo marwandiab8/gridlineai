@@ -53,7 +53,7 @@ function noticeStyle(error) {
 function activityOptions(selected) {
   const groups = LABOUR_CATEGORIES.map((category) => {
     const options = LABOUR_ACTIVITIES.filter((a) => a.category === category.id)
-      .map((a) => `<option value="${a.code}"${a.code === selected ? " selected" : ""}>${escapeHtml(a.label)}</option>`)
+      .map((a) => `<option value="${a.code}"${a.code === selected ? " selected" : ""}>${escapeHtml(a.label)} [${escapeHtml(a.keyword)}]</option>`)
       .join("");
     return `<optgroup label="${escapeHtml(`${category.label} (${category.note})`)}">${options}</optgroup>`;
   });

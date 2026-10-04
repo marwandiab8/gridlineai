@@ -28,7 +28,7 @@ import {
   getDownloadURL,
   uploadBytes,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-activity-codes";
+import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-keywords";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",

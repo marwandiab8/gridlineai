@@ -24,7 +24,7 @@ function entryMinutes(entry) {
 function activityOptions(selected) {
   const groups = LABOUR_CATEGORIES.map((c) => {
     const opts = LABOUR_ACTIVITIES.filter((a) => a.category === c.id)
-      .map((a) => `<option value="${a.code}"${a.code === selected ? " selected" : ""}>${esc(a.label)}</option>`).join("");
+      .map((a) => `<option value="${a.code}"${a.code === selected ? " selected" : ""}>${esc(a.label)} [${esc(a.keyword)}]</option>`).join("");
     return `<optgroup label="${esc(`${c.label} (${c.note})`)}">${opts}</optgroup>`;
   }).join("");
   return `<option value=""${selected ? "" : " selected"}>Needs a code</option>${groups}`;

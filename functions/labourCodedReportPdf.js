@@ -224,7 +224,7 @@ async function renderCodedLabourReportPdf(report, { title = "Labour Hours by Act
         { title: "Description", width: contentW - 108 - 140 - 60 },
         { title: "Hours", width: 60, align: "right" },
       ],
-      sheet.rows.map((r) => [r.category, { main: r.activity, sub: r.code }, { main: r.description, sub: r.note }, hoursText(r.minutes)]),
+      sheet.rows.map((r) => [r.category, { main: r.activity, sub: r.code }, { main: r.description, sub: r.note ? `Location / note: ${r.note}` : "" }, hoursText(r.minutes)]),
     );
   }
 

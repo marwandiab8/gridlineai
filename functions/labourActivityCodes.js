@@ -5,8 +5,13 @@
 // contract). Codes are permanent ids stored on labour entries - never reuse a code for a different meaning;
 // add a new one instead. Labels and descriptions may be reworded.
 //
-// Text from an SMS is matched to a code only when exactly one activity is the best match. Anything unclear
-// ("rough carpentry", "general labour and unloading rebar") stays uncoded for the supervisor to code.
+// Each activity has a `keyword` labourers type at the start of a part of their text ("5h hoarding lift east
+// windows L3"); the rest of the part is kept as their note (where / what). The report prints the activity's
+// `description`, written for the owner's reviewers: it states only what the keyword guarantees was done, so
+// where the method differs (from the slab vs from a scissor lift) there are separate keywords.
+//
+// Text without a keyword is matched to a code only when exactly one activity is clearly the best match.
+// Anything unclear ("rough carpentry", "general labour and unloading rebar") stays uncoded for the supervisor.
 
 const LABOUR_CATEGORIES = Object.freeze([
   { id: "winter-heat", label: "Winter Heat", chargeable: true, note: "Extra - charged to the owner" },
@@ -14,131 +19,213 @@ const LABOUR_CATEGORIES = Object.freeze([
   { id: "other", label: "Other Work", chargeable: false, note: "Not extra" },
 ]);
 
+const CARPENTRY = /wood|lumber|carpent|framing|2x4|plywood|cut/;
+const INSTALLING = /install|put up|erect|build|fix|secur|fasten/;
+
 // `rules`: each rule is a list of patterns that must ALL appear in the text. A rule with more patterns is more
 // specific and wins over a shorter one.
 const LABOUR_ACTIVITIES = Object.freeze([
   {
-    code: "WH-HOARD",
+    code: "WH-HOARD-PREP",
     category: "winter-heat",
-    label: "Hoarding / winter protection",
-    description: "Build and install hoarding (lumber and tarps) at curtain wall openings and windows, including the rough carpentry for it.",
-    rules: [
-      [/hoard/],
-      [/winter\s*(?:protection|enclosure)/],
-      [/curtain\s*wall|window/, /tarp|lumber|plastic|poly|enclos|protect|cover/],
-      [/wood|lumber|carpent|framing|2x4|plywood/, /winter|hoard/],
-    ],
+    keyword: "hoarding prep",
+    label: "Hoarding - prepare lumber and tarps",
+    description: "Measure curtain wall and window openings; cut and assemble dimensional lumber for hoarding frames; cut tarps to size; stage material at the openings.",
+    rules: [[CARPENTRY, /winter|hoard/], [/prep/, /hoard|winter\s*protection/]],
+  },
+  {
+    code: "WH-HOARD-INSTALL",
+    category: "winter-heat",
+    keyword: "hoarding install",
+    label: "Hoarding - install from floor",
+    description: "Install hoarding frames at curtain wall and window openings working from the floor slab; fasten frames to the structure; fit and secure tarps and seal the edges to retain heat.",
+    rules: [[INSTALLING, /hoard|winter\s*protection/], [/curtain\s*wall|window/, /tarp|plastic|poly|enclos|protect|cover/]],
+  },
+  {
+    code: "WH-HOARD-LIFT",
+    category: "winter-heat",
+    keyword: "hoarding lift",
+    label: "Hoarding - install from scissor lift",
+    description: "Install hoarding frames at curtain wall and window openings using a 47 ft scissor lift; fasten frames to the structure; fit and secure tarps and seal the edges to retain heat.",
+    rules: [[/hoard|winter\s*protection/, /scissor|\blift\b|boom/]],
+  },
+  {
+    code: "WH-HOARD-REPAIR",
+    category: "winter-heat",
+    keyword: "hoarding repair",
+    label: "Hoarding - inspect and repair",
+    description: "Inspect hoarding after wind and weather; re-secure loose frames, replace torn tarps and re-seal gaps to maintain the heated enclosure.",
+    rules: [[/hoard|winter\s*protection|tarp/, /\brepair|re-?secur|patch|\bfix|\bwind\b|torn|inspect/]],
+  },
+  {
+    code: "WH-HOARD-REMOVE",
+    category: "winter-heat",
+    keyword: "hoarding remove",
+    label: "Hoarding - remove",
+    description: "Remove hoarding frames and tarps to release openings for curtain wall and window installation; salvage reusable lumber and tarps, stockpile them and clear the debris.",
+    rules: [[/hoard|winter\s*protection/, /remov|dismantl|take\s*down|strip/]],
   },
   {
     code: "WH-TARP",
     category: "winter-heat",
-    label: "Install / remove tarps (heat)",
-    description: "Install tarps to retain heat.",
+    keyword: "tarps",
+    label: "Tarps - install / remove for heat",
+    description: "Install and remove tarps at slab edges and openings to enclose heated work areas and retain heat during heating operations.",
     rules: [[/tarp/]],
   },
   {
     code: "WH-FUEL",
     category: "winter-heat",
-    label: "Refuel heaters",
-    description: "Fuel handling and refueling.",
+    keyword: "heater fuel",
+    label: "Heaters - refuel",
+    description: "Refuel temporary heaters and exchange fuel tanks; check that each heater is running after refuelling.",
     rules: [[/refuel|propane|diesel/], [/heater/, /fill|fuel/]],
   },
   {
     code: "WH-HEATER",
     category: "winter-heat",
-    label: "Set up / move heaters",
-    description: "Set up, move and check heaters and heat ducting.",
+    keyword: "heater move",
+    label: "Heaters - set up / relocate",
+    description: "Set up and relocate temporary heaters and heat ducting to keep heated work areas at the required temperature; check heater operation.",
     rules: [[/\bheaters?\b/], [/heat(?:er)?\s*(?:duct|hose)/]],
+  },
+  {
+    code: "WH-BLANKET",
+    category: "winter-heat",
+    keyword: "blankets",
+    label: "Insulated blankets - place / remove",
+    description: "Place and remove insulated blankets to protect concrete, footings and ground from freezing.",
+    rules: [[/blanket/]],
   },
   {
     code: "WH-SNOW",
     category: "winter-heat",
-    label: "Snow / ice removal",
-    description: "Shovel and remove snow and ice.",
-    rules: [[/snow/], [/\bice\b|de-?ic|\bsalt/]],
+    keyword: "snow",
+    label: "Snow removal",
+    description: "Shovel and clear snow from work areas, slab, access routes and stairs so work can proceed safely.",
+    rules: [[/snow/]],
+  },
+  {
+    code: "WH-ICE",
+    category: "winter-heat",
+    keyword: "ice",
+    label: "Ice removal / salting",
+    description: "Break up and remove ice; apply salt and ice melt on walkways, ramps, stairs and work areas.",
+    rules: [[/\bice\b|de-?ic|\bsalt/]],
   },
   {
     code: "WH-PUMP",
     category: "winter-heat",
+    keyword: "snow pump",
     label: "Pump melted snow / ice",
-    description: "Set up pumps to remove melted snow and ice.",
+    description: "Set up pumps and discharge hoses to remove water from melted snow and ice; monitor pumps and clear blockages.",
     rules: [[/pump|water|drain/, /snow|\bice\b|melt|thaw/]],
   },
   {
     code: "WH-OTHER",
     category: "winter-heat",
+    keyword: "winter other",
     label: "Other winter heat work",
-    description: "Other winter heat work (see note).",
+    description: "Other winter heat work, as noted.",
     rules: [],
   },
   {
     code: "GC-HOUSE",
     category: "general-conditions",
+    keyword: "housekeeping",
+    aliases: ["house keeping"],
     label: "Site housekeeping",
-    description: "Maintain safe work environment.",
+    description: "General site housekeeping: collect and remove debris, sweep floors and stairs, empty bins and keep access routes clear to maintain a safe work environment.",
     rules: [[/house\s*-?\s*keep/], [/clean\s*-?\s*up|cleaning|sweep/]],
   },
   {
     code: "GC-SIGN",
     category: "general-conditions",
+    keyword: "signage",
     label: "Barricades / signage",
-    description: "Maintain barricades and signage.",
+    description: "Install and maintain barricades, safety signage and caution tape at hazards and restricted areas.",
     rules: [[/barricad|signage|\bsigns?\b/]],
   },
   {
-    code: "GC-RAIL",
+    code: "GC-RAIL-INSTALL",
     category: "general-conditions",
-    label: "Safety railing - install / reinstate",
-    description: "Install, remove and reinstate safety railing.",
-    rules: [[/\brail/]],
+    keyword: "railing install",
+    label: "Safety railing - install",
+    description: "Install perimeter and opening safety railing at slab edges, floor openings and stairs.",
+    rules: [[/\brail/, INSTALLING]],
   },
   {
-    code: "GC-CARP",
+    code: "GC-RAIL-REINSTATE",
     category: "general-conditions",
-    label: "Rough carpentry - railing / safety",
-    description: "Rough carpentry for safety railing and other safety work.",
-    rules: [[/wood|lumber|carpent|framing|2x4|plywood/, /\brail|guard|safety/]],
+    keyword: "railing reinstate",
+    label: "Safety railing - remove / reinstate",
+    description: "Remove safety railing for trade access and reinstate it after; check and re-secure railing.",
+    rules: [[/\brail/, /reinstat|re\s*and\s*re|r\s*&\s*r|remov|replac|re-?secur/]],
+  },
+  {
+    code: "GC-RAIL-CARP",
+    category: "general-conditions",
+    keyword: "railing carpentry",
+    label: "Rough carpentry - safety railing",
+    description: "Cut and prepare lumber for temporary wood safety railing and guards; build the railing sections.",
+    rules: [[CARPENTRY, /\brail|guard|safety/]],
+  },
+  {
+    code: "GC-PROTECT",
+    category: "general-conditions",
+    keyword: "protection",
+    label: "Temporary protection - stairs / floors",
+    description: "Install and maintain temporary protection on stairs, floors and finished work.",
+    rules: [[/stair|floor|finish/, /protect/]],
   },
   {
     code: "GC-SAFETY",
     category: "general-conditions",
+    keyword: "safety",
     label: "Site safety",
-    description: "Site safety checks and upkeep.",
+    description: "Site safety walk with the supervisor; inspect and correct hazards at railings, openings and access routes.",
     rules: [[/site\s*safety|safety\s*(?:check|walk|inspection|meeting|talk)/]],
   },
   {
     code: "GC-OTHER",
     category: "general-conditions",
+    keyword: "gc other",
     label: "Other general conditions",
-    description: "Other general conditions work (see note).",
+    description: "Other general conditions work, as noted.",
     rules: [],
   },
   {
     code: "OT-GEN",
     category: "other",
+    keyword: "general",
+    aliases: ["general labour", "general labor", "general labouring", "general laboring"],
     label: "General labour",
-    description: "General labour.",
+    description: "General labour assisting trades as directed by the site supervisor.",
     rules: [[/general\s*lab/]],
   },
   {
     code: "OT-MAT",
     category: "other",
+    keyword: "unloading",
+    aliases: ["unload"],
     label: "Unload / move materials",
-    description: "Unload, move and lift materials.",
+    description: "Unload deliveries and move materials to the work areas.",
     rules: [[/unload|lift(?:ing)?\s+to|move\s+material|moving\s+material|carry/]],
   },
   {
     code: "OT-CARP",
     category: "other",
+    keyword: "carpentry other",
     label: "Rough carpentry - other",
-    description: "Rough carpentry not for winter heat or safety.",
+    description: "Rough carpentry not for winter heat or safety, as noted.",
     rules: [],
   },
   {
     code: "OT-OTHER",
     category: "other",
+    keyword: "other",
     label: "Other work",
-    description: "Other work (see note).",
+    description: "Other work, as noted.",
     rules: [],
   },
 ]);
@@ -152,6 +239,27 @@ function getLabourActivity(code) {
 
 function getLabourCategory(id) {
   return CATEGORY_BY_ID.get(String(id || "")) || null;
+}
+
+const KEYWORDS = LABOUR_ACTIVITIES
+  .flatMap((activity) => [activity.keyword, ...(activity.aliases || [])].map((keyword) => ({ code: activity.code, keyword })))
+  .sort((x, y) => y.keyword.length - x.keyword.length);
+
+/**
+ * The activity whose keyword starts the text ("Hoarding-lift: east windows L3"), and the rest as the note.
+ * Longest keyword first, so "snow pump" wins over "snow". Null when the text doesn't start with a keyword.
+ */
+function matchLabourKeyword(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  const flat = raw.toLowerCase().replace(/-/g, " ");
+  for (const { code, keyword } of KEYWORDS) {
+    if (!flat.startsWith(keyword)) continue;
+    const next = flat.charAt(keyword.length);
+    if (next && /[a-z0-9]/.test(next)) continue;
+    const note = raw.slice(keyword.length).replace(/^[\s:;,.\-]+/, "").trim();
+    return { code, note };
+  }
+  return null;
 }
 
 /** The code for a piece of work text, or null when no single activity is clearly the best match. */
@@ -174,6 +282,14 @@ function suggestLabourActivityCode(text) {
   return codes.size === 1 ? [...codes][0] : null;
 }
 
+/** A keyword sets the code and leaves the rest as the note; otherwise the text is matched where clear. */
+function codeWorkText(text) {
+  const keyword = matchLabourKeyword(text);
+  if (keyword) return { code: keyword.code, text: keyword.note, codedBy: "keyword" };
+  const code = suggestLabourActivityCode(text);
+  return { code, text, codedBy: code ? "auto" : null };
+}
+
 /**
  * Coded lines from the parts of an entry's work text (`parts`: [{ hours, task }], as labourRepository's
  * parseSegmentedBreakdown gives them), adding up to exactly `minutesWorked`. When the parts don't fit the
@@ -193,14 +309,12 @@ function buildLabourLinesFromParts(parts, minutesWorked, wholeText) {
       break;
     }
     used += minutes;
-    const code = suggestLabourActivityCode(text);
-    lines.push({ code, minutes, text, codedBy: code ? "auto" : null });
+    lines.push({ ...codeWorkText(text), minutes });
   }
   if (!lines.length) {
     if (!(total > 0)) return [];
     const text = String(wholeText || "").replace(/\s+/g, " ").trim().slice(0, 300);
-    const code = suggestLabourActivityCode(text);
-    return [{ code, minutes: total, text, codedBy: code ? "auto" : null }];
+    return [{ ...codeWorkText(text), minutes: total }];
   }
   if (used < total) lines.push({ code: null, minutes: total - used, text: "Not described", codedBy: null });
   return lines;
@@ -265,6 +379,7 @@ module.exports = {
   formatMinutesAsHours,
   getLabourActivity,
   getLabourCategory,
+  matchLabourKeyword,
   normalizeLabourLines,
   suggestLabourActivityCode,
   summarizeLabourLines,
