@@ -37,6 +37,8 @@ const {
 } = require("./labourRepository");
 const { createLabourPortalHandler } = require("./labourPortal");
 const { generateLabourReportPdf } = require("./labourReportPdf");
+const { normalizeLabourLines } = require("./labourActivityCodes");
+const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labourCodedReportPdf");
 const {
   ADMIN_LABOUR_REPORT_COLLECTION,
   canAccessAdminLabourReportMetadata,
@@ -8629,6 +8631,121 @@ exports.generateLabourReportCallable = onCall(
 	      downloadURL: accessURL || null,
 	      storagePath: pdfResult.storagePath,
 	    };
+  }
+);
+
+// The supervisor's review of one labour entry: the activity code and hours of each line. Lines must add up to
+// the entry's hours exactly, so a billing report always matches the hours paid. `approve` needs every line coded.
+exports.reviewLabourEntryCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
+    const entryId = String(request.data?.entryId || "").trim();
+    if (!entryId || entryId.includes("/")) throw new HttpsError("invalid-argument", "entryId is required.");
+    const approve = request.data?.approve === true;
+    const ref = db.collection(COL_LABOUR_ENTRIES).doc(entryId);
+    return db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) throw new HttpsError("not-found", "That labour entry no longer exists.");
+      const entry = snap.data() || {};
+      const minutesWorked = Number(entry.minutesWorked) > 0
+        ? Math.round(Number(entry.minutesWorked))
+        : Math.round(Number(entry.hours || 0) * 60);
+      let lines;
+      try {
+        lines = normalizeLabourLines(request.data?.lines, { minutesWorked, requireCodes: approve, codedBy: "supervisor" });
+      } catch (error) {
+        throw new HttpsError("invalid-argument", error.message);
+      }
+      const review = approve
+        ? { status: "approved", byEmail: operator.email || null, at: FieldValue.serverTimestamp() }
+        : { status: "pending" };
+      tx.update(ref, { lines, review, updatedAt: FieldValue.serverTimestamp() });
+      return { ok: true, entryId, status: review.status, lines };
+    });
+  }
+);
+
+// Labour hours by activity code, from approved entries only: a Daily Summary sheet per labourer per day.
+exports.generateCodedLabourReportCallable = onCall(
+  {
+    region: "northamerica-northeast1",
+    cors: true,
+    timeoutSeconds: 120,
+    memory: "512MiB",
+  },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    if (!roleAtLeast(access.role, "management")) {
+      throw new HttpsError("permission-denied", "Management or admin access is required to generate labour reports.");
+    }
+    assertDashboardToken(request);
+    const { startKey, endKey } = normalizeLabourRangeKeys(request.data?.startKey, request.data?.endKey);
+    if (!startKey || !endKey || startKey > endKey) {
+      throw new HttpsError("invalid-argument", "Choose a start and end date (YYYY-MM-DD), start first.");
+    }
+    const phoneE164 = request.data?.labourerPhone ? normalizePhoneE164(String(request.data.labourerPhone).trim()) : "";
+    const projectSlug = normalizeProjectSlug(String(request.data?.projectSlug || "").trim());
+    const supervisor = String(request.data?.supervisor || "").replace(/\s+/g, " ").trim().slice(0, 80);
+    const entries = await loadLabourEntries(db, {
+      startKey,
+      endKey,
+      labourerPhone: phoneE164 || null,
+      projectSlug: projectSlug || null,
+    });
+    const report = buildCodedLabourReport(entries);
+    const rangeLabel = startKey === endKey ? startKey : `${startKey} to ${endKey}`;
+    const bytes = await renderCodedLabourReportPdf(report, {
+      rangeLabel,
+      projectLabel: projectSlug || "All projects",
+      supervisor,
+    });
+    const who = report.sheets.length === 1 ? report.sheets[0].labourer.replace(/[^A-Za-z0-9]+/g, "_") : "Labourers";
+    const fileName = `Log_${who}_${startKey === endKey ? startKey : `${startKey}_to_${endKey}`}_${Date.now().toString(36)}.pdf`;
+    const storagePath = `labour-coded/${fileName}`;
+    await admin.storage().bucket().file(storagePath).save(Buffer.from(bytes), {
+      contentType: "application/pdf",
+      contentDisposition: `attachment; filename="${fileName}"`,
+    });
+    const winterHeatMinutes = report.totals.get("winter-heat") || 0;
+    const reportRef = await db.collection(REPORT_COLLECTION_LABOUR).add({
+      type: "labourCoded",
+      reportTitle: "Labour Hours by Activity",
+      labourerPhone: phoneE164 || null,
+      labourerName: report.sheets.length === 1 ? report.sheets[0].labourer : null,
+      projectSlug: projectSlug || null,
+      startKey,
+      endKey,
+      totalHours: Math.round(report.totalMinutes / 60 * 100) / 100,
+      winterHeatHours: Math.round(winterHeatMinutes / 60 * 100) / 100,
+      totalEntries: report.sheets.length,
+      pendingEntries: report.pending.length,
+      fileName,
+      storagePath,
+      downloadURL: null,
+      createdAt: FieldValue.serverTimestamp(),
+      createdByEmail: access.email,
+    });
+    const accessURL = await createTemporaryReportAccessUrl({
+      collectionName: REPORT_COLLECTION_LABOUR,
+      reportId: reportRef.id,
+      storagePath,
+      access,
+    });
+    return {
+      ok: true,
+      reportId: reportRef.id,
+      sheets: report.sheets.length,
+      pending: report.pending.map((p) => ({ labourer: p.labourer, dateKey: p.dateKey, hours: Math.round(p.minutes / 60 * 100) / 100 })),
+      totalHours: Math.round(report.totalMinutes / 60 * 100) / 100,
+      winterHeatHours: Math.round(winterHeatMinutes / 60 * 100) / 100,
+      accessURL: accessURL || null,
+    };
   }
 );
 

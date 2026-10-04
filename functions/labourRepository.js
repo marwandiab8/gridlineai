@@ -1,5 +1,6 @@
 const { dateKeyEastern, extractExplicitReportDate } = require("./logClassifier");
 const { normalizeProjectSlug } = require("./projectAccess");
+const { buildLabourLinesFromParts, normalizeLabourLines } = require("./labourActivityCodes");
 
 const COL_LABOURERS = "labourers";
 const COL_LABOUR_ENTRIES = "labourEntries";
@@ -120,6 +121,17 @@ function parseSegmentedBreakdown(text) {
     parts.push({ hours: current.hours, task });
   }
   return parts;
+}
+
+/** Coded lines for an entry's work text, adding up to exactly `minutesWorked` (see labourActivityCodes). */
+function buildLabourLinesFromWorkOn(workOn, minutesWorked) {
+  return buildLabourLinesFromParts(parseSegmentedBreakdown(workOn), minutesWorked, workOn);
+}
+
+/** An entry's stored lines, or lines derived from its text for entries saved before activity codes. */
+function labourLinesForEntry(entry) {
+  if (Array.isArray(entry && entry.lines) && entry.lines.length) return entry.lines;
+  return buildLabourLinesFromWorkOn(entry && entry.workOn, entry && entry.minutesWorked);
 }
 
 function parseImplicitSegmentedTail(tail, declaredHours) {
@@ -839,14 +851,22 @@ function buildLabourEntryDoc(input) {
   }
   const labourerName = normalizeLabourerName(input && input.labourerName);
   const labourerPhone = normalizeLabourerPhone(input && input.labourerPhone);
+  const minutesWorked = labourMinutesFromHours(hours);
+  // Lines chosen on the web form are kept as given; otherwise they are coded from the text where clear.
+  const lines = Array.isArray(input && input.lines) && input.lines.length
+    ? normalizeLabourLines(input.lines, { minutesWorked, requireCodes: true, codedBy: "labourer" })
+    : buildLabourLinesFromWorkOn(workOn, minutesWorked);
   return {
     labourerName: labourerName || null,
     labourerPhone: labourerPhone || null,
     projectSlug: normalizeProjectSlug(input && input.projectSlug) || null,
     reportDateKey,
     hours: roundLabourHours(hours),
-    minutesWorked: labourMinutesFromHours(hours),
+    minutesWorked,
     workOn,
+    lines,
+    // Every entry waits for the supervisor before its hours go on a billing report.
+    review: { status: "pending" },
     notes: normalizeLabourEntryText(input && input.notes) || "",
     source: String(input && input.source || "dashboard").trim() || "dashboard",
     enteredByEmail: String(input && input.enteredByEmail || "").trim() || null,
@@ -1005,6 +1025,8 @@ module.exports = {
   normalizeLabourEntryText,
   normalizeLabourerPhone,
   parseLabourHoursCommand,
+  buildLabourLinesFromWorkOn,
+  labourLinesForEntry,
   validateLabourReportDateKey,
   parseLabourHoursBalanceQuery,
   parseManagementLabourTotalsQuery,

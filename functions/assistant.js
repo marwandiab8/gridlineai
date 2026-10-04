@@ -77,7 +77,9 @@ const {
   labourMinutesFromHours,
   validateLabourReportDateKey,
   startOfWeekFromDateKey,
+  buildLabourLinesFromWorkOn,
 } = require("./labourRepository");
+const { describeLabourLinesShort } = require("./labourActivityCodes");
 const {
   ADMIN_LABOUR_DENIAL_TEXT,
   executeAdminLabourQuery,
@@ -4882,11 +4884,15 @@ async function buildReply({
     const nextNotes = labourCorrectionCommand.workOn
       ? labourCorrectionCommand.rawText
       : String(targetEntry.notes || "").trim();
+    const correctedMinutes = labourMinutesFromHours(labourCorrectionCommand.hours);
     await db.collection("labourEntries").doc(String(targetEntry.id)).update({
-      minutesWorked: labourMinutesFromHours(labourCorrectionCommand.hours),
+      minutesWorked: correctedMinutes,
       hours: FieldValue.delete(),
       workOn: nextWorkOn,
       notes: nextNotes,
+      // A corrected entry is coded again from its text and goes back to the supervisor for review.
+      lines: buildLabourLinesFromWorkOn(nextWorkOn, correctedMinutes),
+      review: { status: "pending" },
       updatedAt: FieldValue.serverTimestamp(),
     });
 
@@ -4998,7 +5004,7 @@ async function buildReply({
         replyText: truncateSms(
           `Saved ${labourEntryCommand.hours}h${payNote} for ${labourerName}${
             labourProject ? ` on ${labourProject}` : ""
-          }: ${labourEntryCommand.workOn}`
+          } (${describeLabourLinesShort(entry.lines)}): ${labourEntryCommand.workOn}`
         ),
         outboundMeta: {
           ...withRoutingDecision(outboundMeta, {

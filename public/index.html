@@ -659,7 +659,7 @@
                       autocomplete="off"
                     />
                   </div>
-                  <div class="daily-pdf-actions">
+                  <div class="project-manager-actions">
                     <button type="button" class="btn-primary" id="dailyPdfBtn" disabled>
                       Generate daily PDF
                     </button>
@@ -702,7 +702,7 @@
                       placeholder="e.g. Docksteader — Week of Apr 14"
                     />
                   </div>
-                  <div class="daily-pdf-actions">
+                  <div class="project-manager-actions">
                     <button type="button" class="btn-primary" id="reportTitleSaveBtn">Save title</button>
                   </div>
                   <div id="reportTitleEditResult" class="daily-pdf-result muted small" aria-live="polite"></div>
@@ -895,6 +895,14 @@
                     <button type="button" class="btn-secondary" id="labourReportPayBtn">This pay period</button>
                     <button type="button" class="btn-primary" id="labourReportGenerateBtn">Generate labour report</button>
                   </div>
+                  <div class="form-row">
+                    <label for="labourCodedSupervisor">Supervisor (for the activity report)</label>
+                    <input type="text" id="labourCodedSupervisor" value="Marwan Diab" maxlength="80" />
+                  </div>
+                  <div class="project-manager-actions">
+                    <button type="button" class="btn-primary" id="labourCodedReportBtn">Activity report (approved hours)</button>
+                  </div>
+                  <p class="muted small">Daily Summary per labourer per day, by category and activity, with Winter Heat totals. Uses the labourer and dates above; only approved hours are included.</p>
                   <div id="labourReportResult" class="daily-pdf-result muted small" aria-live="polite"></div>
                 </div>
               </article>
@@ -921,6 +929,16 @@
                 <div id="labourReports" class="scroll-list scroll-list-tall"></div>
               </article>
             </div>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <h3>Review hours by activity</h3>
+                  <p class="muted small">Check each labourer's hours against an activity code. Winter Heat is extra and billed to the owner; General Conditions and Other Work are not. Only approved hours go on the activity report.</p>
+                </div>
+              </div>
+              <div id="labourReview" class="scroll-list scroll-list-tall"></div>
+            </article>
 
             <article class="card">
               <div class="card-head">
@@ -1426,6 +1444,6 @@ arrive_location, leave_location, traffic_jam</pre>
     </div>
 
     <script src="./runtime-config.js?v=2026-05-14-runtime-1"></script>
-    <script type="module" src="./app.js?v=2026-09-29-project-switch"></script>
+    <script type="module" src="./app.js?v=2026-10-04-activity-codes"></script>
   </body>
 </html>

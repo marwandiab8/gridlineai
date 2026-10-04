@@ -1970,3 +1970,37 @@ code {
 .place-radius-input {
   width: 70px;
 }
+
+/* Labour review by activity code */
+.labour-line {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 80px minmax(0, 2fr) 36px;
+  gap: 6px;
+  margin-top: 6px;
+}
+.labour-line select,
+.labour-line input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #3a404c;
+  background: #1b1f27;
+  color: inherit;
+  font: inherit;
+}
+.labour-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.labour-review-sum { flex: 1 1 auto; }
+.labour-review-sum.ok, .labour-review-result.ok { color: #81c995; }
+.labour-review-sum.err, .labour-review-result.err { color: #f28b82; }
+@media (max-width: 640px) {
+  .labour-line { grid-template-columns: minmax(0, 1fr) 80px 36px; }
+  .labour-line .labour-line-text { grid-column: 1 / -1; grid-row: 2; }
+}

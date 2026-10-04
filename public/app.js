@@ -28,6 +28,7 @@ import {
   getDownloadURL,
   uploadBytes,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-activity-codes";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
@@ -2135,6 +2136,7 @@ function renderLabourEntriesList() {
           <div><span class="pill pill-issue">${hourPill}</span><span class="pill pill-ai">${esc(entry.reportDateKey || "-")}</span></div>
           <div><strong>${esc(title)}</strong> · ${project}</div>
           <div class="muted small">${esc(String(entry.workOn || "").slice(0, 260))}</div>
+          ${labourLinesSummary(entry) ? `<div class="small">${esc(labourLinesSummary(entry))}</div>` : ""}
           ${notes}
           <div class="muted small mono">${fmtTime(entry.createdAt)} · ${esc(entry.source || "dashboard")} · ${esc(entry.labourerPhone || "")}</div>
         </div>`;
@@ -2185,6 +2187,7 @@ function renderLabourPanel() {
   renderLabourersList();
   renderLabourEntriesList();
   renderLabourReportsList();
+  renderLabourReview(document.getElementById("labourReview"), labourEntriesCache, { labourerLabel: (e) => labourerLabelClient(e) || e.labourerPhone || "Unknown" });
 }
 
 function syncLabourReportDateDefaults() {
@@ -4852,6 +4855,45 @@ function initLabourPage() {
   if (!phoneInput || !nameInput || !saveButton || !deleteButton || !labourReportGenerateBtn || !labourReportResult) return;
 
   syncLabourReportDateDefaults();
+  bindLabourReview(document.getElementById("labourReview"), callDashboardFunction);
+  const labourCodedReportBtn = document.getElementById("labourCodedReportBtn");
+  if (labourCodedReportBtn) {
+    labourCodedReportBtn.addEventListener("click", async () => {
+      const startKey = String(labourReportStartInput?.value || "").trim() || todayDateKeyEastern();
+      const endKey = String(labourReportEndInput?.value || "").trim() || startKey;
+      if (startKey > endKey) {
+        labourReportResult.textContent = "Start date must be before end date.";
+        labourReportResult.className = "daily-pdf-result err";
+        return;
+      }
+      const payload = { startKey, endKey, supervisor: String(document.getElementById("labourCodedSupervisor")?.value || "").trim() };
+      const labourerPhone = String(labourReportPhoneSelect?.value || "").trim();
+      const projectSlug = normalizeProjectSlugClient(String(labourReportProjectInput?.value || "").trim());
+      const token = String(labourReportTokenInput?.value || "").trim();
+      if (labourerPhone) payload.labourerPhone = labourerPhone;
+      if (projectSlug) payload.projectSlug = projectSlug;
+      if (token) payload.token = token;
+      labourCodedReportBtn.disabled = true;
+      labourReportResult.textContent = "Generating activity report...";
+      labourReportResult.className = "daily-pdf-result muted small";
+      try {
+        const data = await callDashboardFunction("generateCodedLabourReportCallable", payload);
+        const lines = [`Activity report for ${startKey === endKey ? startKey : `${startKey} to ${endKey}`}.`];
+        lines.push(`Daily sheets: ${Number(data.sheets) || 0} · Hours: ${formatHoursClient(Number(data.totalHours) || 0)}h · Winter Heat (extra): ${formatHoursClient(Number(data.winterHeatHours) || 0)}h`);
+        if (Array.isArray(data.pending) && data.pending.length) {
+          lines.push(`Not included, still waiting for review: ${data.pending.map((p) => `${p.labourer} ${p.dateKey} (${formatHoursClient(p.hours)}h)`).join(", ")}`);
+        }
+        if (data.accessURL) lines.push(`Download: ${data.accessURL}`);
+        labourReportResult.textContent = lines.join("\n");
+        labourReportResult.className = "daily-pdf-result ok";
+      } catch (err) {
+        labourReportResult.textContent = `Failed: ${formatUiError(err)}`;
+        labourReportResult.className = "daily-pdf-result err";
+      } finally {
+        labourCodedReportBtn.disabled = false;
+      }
+    });
+  }
   if (!String(labourReportTitleInput?.value || "").trim()) {
     labourReportTitleInput.value = "Labour Hours Report";
   }
