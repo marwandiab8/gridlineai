@@ -74,8 +74,12 @@ left), provided the new spot is outside that place's radius. It logs a `leave_lo
 ("Stayed 1 h 39 min at GoodLife (ended automatically when you arrived at Costco)") and the response
 lists them as `closedStays`. Places close enough to overlap (a plaza's gas station and store) stay
 open together. This is why a place learned by "Log this place" - which has no leave automation of its
-own - no longer stays "here now" forever. The last stay of the day still needs a real "leave" (or the
-next day's first arrival) to close.
+own - no longer stays "here now" forever.
+
+A stay that has been open for 12 hours or more is treated as a forgotten "leave", not a long visit: the
+next arrival closes it quietly, with no `leave_location` event and no duration (when you really left is
+unknown). It is listed in `closedStays` as `{"name":"Quick Oil Change","durationMinutes":null,"forgotten":true}`.
+So the last stay of the day still needs a real "leave" to be timed.
 
 **Shortcut:** duplicate "Log this place", delete the Ask for Text step, and replace the `name`
 field in the body with `action` = `leave`. Show the response's `duration` in a notification.

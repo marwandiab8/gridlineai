@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hashShortcutToken } = require("./iosShortcutsIntegration");
 const { handlePlaceLogRequest } = require("./placesIntegration");
+const { openVisitStartMs } = require("./placeLearning");
 
 const FieldValue = {
   serverTimestamp: () => new Date("2026-09-22T12:00:00.000Z"),
@@ -402,6 +403,43 @@ test("arriving somewhere new closes a stay you never left, timed to the arrival 
   const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
   assert.equal(leave.locationLabel, "GoodLife");
   assert.ok(calls.some((c) => /ended automatically when you arrived at Costco/.test(c.body)));
+});
+
+test("arriving somewhere new quietly closes a forgotten stay instead of timing it (the Quick Oil case)", async () => {
+  // 2026-10-03: Quick Oil Change was logged on Sep 23 and never left; logging Raging Bull at 7:02 PM
+  // used to log "left Quick Oil Change" at 7:02 PM with "Stayed 245 h 11 min".
+  const db = seededDb("stay-token-5");
+  db._set("knownPlaces", "quick-oil", {
+    memberEmail: "user@example.com",
+    name: "Quick Oil Change",
+    latitude: HERE.latitude,
+    longitude: HERE.longitude,
+    radiusMeters: 120,
+    visitCount: 1,
+    lastVisitAt: { toMillis: () => Date.parse("2026-09-23T17:52:00Z") },
+  });
+  const ragingBull = { latitude: HERE.latitude + 0.2, longitude: HERE.longitude };
+  const { response, calls } = await call({
+    db,
+    request: req({ token: "stay-token-5", body: { ...ragingBull, name: "Raging Bull", timestamp: "2026-10-03T23:02:57Z" } }),
+  });
+  assert.equal(response.body.name, "Raging Bull");
+  assert.deepEqual(response.body.closedStays, [{ name: "Quick Oil Change", durationMinutes: null, forgotten: true }]);
+  const events = [...db.rows.get("iosShortcutEvents").values()];
+  assert.equal(events.some((e) => e.eventType === "leave_location"), false, "no departure is logged at the new arrival");
+  assert.equal(calls.some((c) => /Stayed .* at Quick Oil Change/.test(c.body)), false);
+  const quickOil = db.rows.get("knownPlaces").get("quick-oil");
+  assert.equal(openVisitStartMs(quickOil), null, "the forgotten stay is no longer open");
+  assert.equal(quickOil.lastVisitDurationMinutes, undefined, "the gap is not counted as time spent there");
+  assert.equal(quickOil.totalMinutesSpent, undefined);
+});
+
+test("a stay logged 12 or more hours before the next arrival is treated as forgotten", async () => {
+  const db = seededDb("stay-token-6");
+  await call({ db, request: req({ token: "stay-token-6", body: { ...HERE, name: "Gym", timestamp: "2026-09-26T08:00:00Z" } }) });
+  const far = { latitude: HERE.latitude + 0.02, longitude: HERE.longitude };
+  const { response } = await call({ db, request: req({ token: "stay-token-6", body: { ...far, name: "Cafe", timestamp: "2026-09-26T20:00:00Z" } }) });
+  assert.deepEqual(response.body.closedStays, [{ name: "Gym", durationMinutes: null, forgotten: true }]);
 });
 
 test("arriving at a place inside another open place's radius (a plaza) leaves both open", async () => {

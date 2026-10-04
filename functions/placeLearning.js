@@ -54,6 +54,16 @@ function openVisitStartMs(place) {
   return lastVisit;
 }
 
+/**
+ * True when the open stay at `place` began STALE_OPEN_VISIT_MS or more before `atTime`: the leave was
+ * forgotten, so when the member actually left is unknown and the gap must not be counted as a stay.
+ */
+function isStaleOpenStay(place, atTime) {
+  const startMs = openVisitStartMs(place);
+  const atMs = toMillis(atTime);
+  return startMs != null && atMs != null && atMs - startMs >= STALE_OPEN_VISIT_MS;
+}
+
 /** The currentVisitStartedAt to write for an arrival at `arrivedAt`, given the place's prior state. */
 function nextVisitStart(place, arrivedAt) {
   const arrivedMs = toMillis(arrivedAt);
@@ -285,10 +295,13 @@ async function findStayToCloseOnRegionLeave(db, memberEmail, { name, latitude, l
  * running totals. `durationMinutes` is null when there was no open stay to close (e.g. a second
  * "leave" in a row) - the departure is still recorded, it just has nothing to measure.
  */
-async function leaveKnownPlace({ db, FieldValue, place, leftAt = new Date() }) {
+// durationUnknown closes the stay without timing it: leftAt is only "left by then", not when.
+async function leaveKnownPlace({ db, FieldValue, place, leftAt = new Date(), durationUnknown = false }) {
   const startMs = openVisitStartMs(place);
   const leftMs = toMillis(leftAt);
-  const durationMinutes = startMs != null && leftMs != null && leftMs >= startMs ? Math.round((leftMs - startMs) / 60000) : null;
+  const durationMinutes = !durationUnknown && startMs != null && leftMs != null && leftMs >= startMs
+    ? Math.round((leftMs - startMs) / 60000)
+    : null;
   const totalMinutesSpent = (Number.isFinite(place.totalMinutesSpent) ? place.totalMinutesSpent : 0) + (durationMinutes || 0);
   const timedVisitCount = (Number.isFinite(place.timedVisitCount) ? place.timedVisitCount : 0) + (durationMinutes != null ? 1 : 0);
   const update = {
@@ -317,6 +330,7 @@ module.exports = {
   haversineMeters,
   normalizePlaceName,
   openVisitStartMs,
+  isStaleOpenStay,
   findNearbyKnownPlace,
   findNearbyKnownPlaces,
   nameAndVisitPlace,

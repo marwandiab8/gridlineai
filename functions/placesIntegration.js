@@ -28,6 +28,7 @@ const {
   findPlaceToLeave,
   findStaysLeftByArrival,
   leaveKnownPlace,
+  isStaleOpenStay,
 } = require("./placeLearning");
 
 function jsonError(res, status, code, message) {
@@ -104,6 +105,13 @@ async function closeStaysLeftBehind({ db, FieldValue, req, member, payload, arri
   try {
     const stays = await findStaysLeftByArrival(db, member.email, arrival);
     for (const place of stays) {
+      // A stay open 12+ hours is a forgotten leave, not a long visit: close it quietly instead of
+      // logging a "left" at this arrival with days counted as time spent there.
+      if (isStaleOpenStay(place, arrival.arrivedAt)) {
+        const stay = await leaveKnownPlace({ db, FieldValue, place, leftAt: arrival.arrivedAt, durationUnknown: true });
+        closed.push({ name: stay.name, durationMinutes: null, forgotten: true });
+        continue;
+      }
       const stay = await leaveKnownPlace({ db, FieldValue, place, leftAt: arrival.arrivedAt });
       const parsed = parseShortcutEventPayload(
         buildVisitBody({
