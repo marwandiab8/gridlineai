@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12233f">
+<title>Hours Keyword Guide</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef2f7; color: #172033; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1.45; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+  .brand { font-size: 14px; font-weight: 800; letter-spacing: .12em; color: #3564a8; text-transform: uppercase; }
+  .card { margin-top: 12px; background: #fff; border-radius: 18px; padding: 20px; box-shadow: 0 12px 35px #17203318; }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  h2 { margin: 0 0 4px; font-size: 19px; }
+  p { margin: 0 0 12px; color: #4d586b; }
+  .example { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 15px; background: #f3f6fa; border: 1px solid #d8dfe9; border-radius: 10px; padding: 12px; overflow-wrap: anywhere; color: #172033; }
+  ol { margin: 0; padding-left: 20px; }
+  ol li { margin: 6px 0; }
+  .kw { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-weight: 700; white-space: nowrap; background: #eef3fb; color: #1d3f73; border-radius: 6px; padding: 2px 7px; }
+  .rows { margin-top: 10px; }
+  .row { display: grid; grid-template-columns: minmax(150px, 190px) 1fr; gap: 10px; padding: 10px 0; border-top: 1px solid #e3e8ef; }
+  .row:first-child { border-top: 0; }
+  .row .when { color: #2b3446; }
+  .row .label { display: block; font-size: 13px; color: #6a7486; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; border-radius: 999px; padding: 3px 10px; margin-bottom: 6px; }
+  .tag.winter-heat { background: #e3effd; color: #1d4f91; }
+  .tag.general-conditions { background: #e6f4ea; color: #17643a; }
+  .tag.other { background: #f0f1f4; color: #4d586b; }
+  .pairs .row { grid-template-columns: 1fr; gap: 4px; }
+  .back { display: inline-block; margin-top: 16px; color: #3564a8; font-weight: 700; }
+  @media (max-width: 480px) {
+    .row { grid-template-columns: 1fr; gap: 4px; }
+  }
+  @media print {
+    body { background: #fff; font-size: 11px; }
+    .wrap { max-width: none; padding: 0; }
+    .card { box-shadow: none; border: 1px solid #ccd3dd; border-radius: 8px; padding: 8px 12px; margin-top: 6px; }
+    .row { break-inside: avoid; }
+    .row .label { font-size: 9px; }
+    p { margin-bottom: 6px; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 14px; }
+    .row { grid-template-columns: 150px 1fr; padding: 3px 0; }
+    .example { font-size: 11px; padding: 6px; }
+    .back, .print-hide { display: none; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand">GridlineAI</div>
+
+  <section class="card">
+    <h1>Hours keyword guide</h1>
+    <p>Start each job with a <strong>keyword</strong> so your hours go to the right activity. Winter work (hoarding, tarps, heaters, snow) is tracked separately, so always use a winter keyword when it applies.</p>
+    <p><strong>By text:</strong> hours, keyword, then where. Put a dash between jobs.</p>
+    <div class="example">5h hoarding prep east side - 3h hoarding lift L3 windows - 1h housekeeping</div>
+    <p style="margin-top:12px"><strong>On the web form:</strong> pick the activity. Its keyword is shown in [brackets].</p>
+  </section>
+
+  <section class="card">
+    <h2>Four rules</h2>
+    <ol>
+      <li><strong>One job per part.</strong> Split "general labour and unloading" into two parts with their own hours.</li>
+      <li><strong>Keyword first,</strong> then where: <span class="kw">snow</span> ramp, <span class="kw">railing reinstate</span> stair 2.</li>
+      <li><strong>Say what carpentry was for:</strong> <span class="kw">hoarding prep</span> or <span class="kw">railing carpentry</span>, never just "rough carpentry".</li>
+      <li><strong>Another day?</strong> Start with the date, no spaces: <span class="kw">2026-10-01</span> 5h hoarding prep - 4h housekeeping</li>
+    </ol>
+  </section>
+
+  <div id="categories"></div>
+
+  <section class="card pairs">
+    <h2>Easy to mix up</h2>
+    <div class="rows">
+      <div class="row"><div><span class="kw">hoarding prep</span> / <span class="kw">hoarding install</span> / <span class="kw">hoarding lift</span></div><div class="when">Prep is cutting and getting material ready. Install is putting it up from the floor or a ladder. Lift is putting it up from the scissor lift. A day with all three is three parts.</div></div>
+      <div class="row"><div><span class="kw">tarps</span> / <span class="kw">hoarding install</span></div><div class="when">Tarps is loose tarps to hold heat. If you are building or fixing the hoarding frame, use a hoarding keyword.</div></div>
+      <div class="row"><div><span class="kw">railing install</span> / <span class="kw">railing reinstate</span></div><div class="when">Install is new railing. Reinstate is putting back railing that was taken down, or re-securing it.</div></div>
+      <div class="row"><div><span class="kw">snow</span> / <span class="kw">snow pump</span></div><div class="when">Snow is shovelling. Snow pump is pumping out water from melted snow or ice.</div></div>
+    </div>
+  </section>
+
+  <p class="print-hide" style="margin-top:16px">Not sure which one? Use the closest one and add a note. Your supervisor checks every day before anything is final.</p>
+  <a class="back print-hide" href="/labour">Back to submit hours</a>
+</main>
+<script type="module">
+  import { LABOUR_ACTIVITIES, LABOUR_CATEGORIES } from "./labour-activity-codes.js";
+  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const titles = { "winter-heat": "Winter work", "general-conditions": "Site upkeep and safety", other: "Other work" };
+  document.getElementById("categories").innerHTML = LABOUR_CATEGORIES.map((c) => `
+    <section class="card">
+      <span class="tag ${esc(c.id)}">${esc(c.label)}</span>
+      <h2>${esc(titles[c.id] || c.label)}</h2>
+      <div class="rows">${LABOUR_ACTIVITIES.filter((a) => a.category === c.id).map((a) => `
+        <div class="row"><div><span class="kw">${esc(a.keyword)}</span></div><div class="when">${esc(a.hint)}<span class="label">${esc(a.label)}</span></div></div>`).join("")}
+      </div>
+    </section>`).join("");
+</script>
+</body>
+</html>

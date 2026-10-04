@@ -80,6 +80,7 @@ const {
   buildLabourLinesFromWorkOn,
 } = require("./labourRepository");
 const { describeLabourLinesShort } = require("./labourActivityCodes");
+const LABOUR_GUIDE_URL = "https://gridlineai.web.app/labour-guide.html";
 const {
   ADMIN_LABOUR_DENIAL_TEXT,
   executeAdminLabourQuery,
@@ -5004,7 +5005,9 @@ async function buildReply({
         replyText: truncateSms(
           `Saved ${labourEntryCommand.hours}h${payNote} for ${labourerName}${
             labourProject ? ` on ${labourProject}` : ""
-          } (${describeLabourLinesShort(entry.lines)}): ${labourEntryCommand.workOn}`
+          } (${describeLabourLinesShort(entry.lines)})${
+            entry.lines.some((line) => !line.code) ? `. Start each part with a keyword: ${LABOUR_GUIDE_URL}` : ""
+          }: ${labourEntryCommand.workOn}`
         ),
         outboundMeta: {
           ...withRoutingDecision(outboundMeta, {

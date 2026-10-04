@@ -117,7 +117,7 @@ test("the web form turns its rows into coded lines and a readable work text", ()
 test("the browser's code list matches the server's", async () => {
   const browser = await import(pathToFileURL(path.resolve(__dirname, "../public/labour-activity-codes.js")).href);
   assert.deepEqual(browser.LABOUR_CATEGORIES, LABOUR_CATEGORIES.map(({ id, label, chargeable, note }) => ({ id, label, chargeable, note })));
-  assert.deepEqual(browser.LABOUR_ACTIVITIES, LABOUR_ACTIVITIES.map(({ code, category, keyword, label, description }) => ({ code, category, keyword, label, description })));
+  assert.deepEqual(browser.LABOUR_ACTIVITIES, LABOUR_ACTIVITIES.map(({ code, category, keyword, label, hint, description }) => ({ code, category, keyword, label, hint, description })));
   assert.equal(new Set(LABOUR_ACTIVITIES.map((a) => a.code)).size, LABOUR_ACTIVITIES.length);
 });
 
