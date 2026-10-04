@@ -260,6 +260,11 @@ service cloud.firestore {
       allow read: if isManagementApp();
       allow write: if false;
     }
+    // Labourer daily summaries and the Winter Heat workbook: pay hours and owner billing, management only.
+    match /labourBillingReports/{reportId} {
+      allow read: if isManagementApp();
+      allow write: if false;
+    }
     match /labourReports/{reportId} {
       allow read: if isAdminFast() ||
         (

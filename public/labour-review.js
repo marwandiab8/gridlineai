@@ -136,10 +136,13 @@ export function bindLabourReview(container, call) {
     result.textContent = approve ? "Approving..." : "Saving...";
     result.className = "labour-review-result small muted";
     try {
-      await call("reviewLabourEntryCallable", { entryId: card.dataset.reviewEntryId, lines: readLines(card), approve });
+      const data = await call("reviewLabourEntryCallable", { entryId: card.dataset.reviewEntryId, lines: readLines(card), approve });
       delete card.dataset.dirty;
-      result.textContent = approve ? "Approved." : "Saved. Still waiting for approval.";
-      result.className = "labour-review-result small ok";
+      const warnings = (data && Array.isArray(data.warnings) && data.warnings) || [];
+      result.textContent = approve
+        ? `Approved. ${warnings.length ? warnings.join(" ") : "Daily Summary saved under Reports; Winter Heat workbook updated."}`
+        : "Saved. Still waiting for approval.";
+      result.className = `labour-review-result small ${warnings.length ? "err" : "ok"}`;
     } catch (err) {
       result.textContent = `Not saved: ${err && err.message ? err.message : err}`;
       result.className = "labour-review-result small err";

@@ -28,7 +28,7 @@ import {
   getDownloadURL,
   uploadBytes,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-keywords";
+import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-daily-summaries";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
@@ -2144,6 +2144,29 @@ function renderLabourEntriesList() {
     .join("");
 }
 
+/** Reports page: the Winter Heat workbook first, then labourer Daily Summaries, newest work day first. */
+function renderLabourBillingReports(docs) {
+  const workbooks = docs.filter((d) => d.type === "winterHeatWorkbook");
+  const daily = docs.filter((d) => d.type === "labourDailySummary")
+    .sort((a, b) => String(b.dateKey || "").localeCompare(String(a.dateKey || "")) || String(a.labourerName || "").localeCompare(String(b.labourerName || "")));
+  const open = (d, label) => `<a href="#" data-report-collection="labourBillingReports" data-report-id="${esc(d.id)}" onclick="return window.gridlineOpenProtectedReport(this)">${label}</a>`;
+  const rows = [
+    ...workbooks.map((d) => `
+      <div class="row-item">
+        <div><strong>Winter Heat workbook</strong> · ${esc(d.projectSlug || "all projects")}</div>
+        <div class="muted small">From ${esc(d.seasonStartKey || "")} · ${esc(formatHoursClient(d.winterHeatHours))}h Winter Heat over ${esc(String(d.days || 0))} days · ${esc(String(d.pendingEntries || 0))} entries waiting for review · updated ${fmtTime(d.updatedAt)}</div>
+        <div>${open(d, "Open Excel")}</div>
+      </div>`),
+    ...daily.map((d) => `
+      <div class="row-item">
+        <div><span class="pill pill-ai">${esc(d.dateKey || "-")}</span> <strong>${esc(d.labourerName || "-")}</strong> · ${esc(d.projectSlug || "-")}</div>
+        <div class="muted small">${esc(formatHoursClient(d.totalHours))}h total · Winter Heat ${esc(formatHoursClient(d.winterHeatHours))}h${d.approvedByEmail ? ` · approved by ${esc(d.approvedByEmail)}` : ""}</div>
+        <div>${open(d, "Open PDF")}</div>
+      </div>`),
+  ];
+  return rows.length ? rows.join("") : '<div class="row-item muted">None yet. Approve a labourer\'s day in Labour → Review hours by activity.</div>';
+}
+
 function renderLabourReportsList() {
   if (!labourReportsEl) return;
   if (!labourReportsCache.length) {
@@ -3581,6 +3604,19 @@ function startAdminListeners() {
         }
       )
     );
+
+    const labourBillingEl = document.getElementById("labourBillingReports");
+    if (labourBillingEl) {
+      appUnsubscribers.push(
+        bindQuery(
+          query(collection(db, "labourBillingReports"), orderBy("updatedAt", "desc"), limit(200)),
+          labourBillingEl,
+          renderLabourBillingReports,
+          null,
+          "labourBillingReports"
+        )
+      );
+    }
 
     appUnsubscribers.push(
       onSnapshot(

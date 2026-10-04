@@ -40,6 +40,12 @@ const { generateLabourReportPdf } = require("./labourReportPdf");
 const { normalizeLabourLines } = require("./labourActivityCodes");
 const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labourCodedReportPdf");
 const {
+  COL_LABOUR_BILLING_REPORTS,
+  publishLabourDailySummary,
+  rebuildWinterHeatWorkbook,
+  withdrawLabourDailySummary,
+} = require("./labourBilling");
+const {
   ADMIN_LABOUR_REPORT_COLLECTION,
   canAccessAdminLabourReportMetadata,
   generateAdminLabourReportPdf,
@@ -777,7 +783,9 @@ const REPORT_COLLECTION_DAILY = "dailyReports";
 const REPORT_COLLECTION_LABOUR = "labourReports";
 const REPORT_COLLECTION_ADMIN_LABOUR = ADMIN_LABOUR_REPORT_COLLECTION;
 const REPORT_COLLECTION_TODO = "todoReports";
+const REPORT_COLLECTION_LABOUR_BILLING = COL_LABOUR_BILLING_REPORTS;
 const REPORT_COLLECTIONS = new Set([
+  REPORT_COLLECTION_LABOUR_BILLING,
   REPORT_COLLECTION_DAILY,
   REPORT_COLLECTION_LABOUR,
   REPORT_COLLECTION_ADMIN_LABOUR,
@@ -922,6 +930,12 @@ function canAccessStoredReport(access, collectionName, reportData) {
   }
   if (collection === REPORT_COLLECTION_ADMIN_LABOUR) {
     return canAccessAdminLabourReportMetadata(access);
+  }
+  if (collection === REPORT_COLLECTION_LABOUR_BILLING) {
+    // Labourer daily summaries and the Winter Heat workbook: pay hours and owner billing, management only.
+    if (!roleAtLeast(access.role, "management")) return false;
+    const projectSlug = normalizeProjectSlug(String(reportData.projectSlug || "").trim());
+    return projectSlug ? canAccessProject(access, projectSlug) : true;
   }
   return false;
 }
@@ -8640,8 +8654,8 @@ exports.reviewLabourEntryCallable = onCall(
   {
     region: "northamerica-northeast1",
     cors: true,
-    timeoutSeconds: 60,
-    memory: "256MiB",
+    timeoutSeconds: 120,
+    memory: "512MiB",
   },
   async (request) => {
     const operator = await getOperatorAccess(db, request, { minimumRole: "management" });
@@ -8649,7 +8663,7 @@ exports.reviewLabourEntryCallable = onCall(
     if (!entryId || entryId.includes("/")) throw new HttpsError("invalid-argument", "entryId is required.");
     const approve = request.data?.approve === true;
     const ref = db.collection(COL_LABOUR_ENTRIES).doc(entryId);
-    return db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists) throw new HttpsError("not-found", "That labour entry no longer exists.");
       const entry = snap.data() || {};
@@ -8666,8 +8680,44 @@ exports.reviewLabourEntryCallable = onCall(
         ? { status: "approved", byEmail: operator.email || null, at: FieldValue.serverTimestamp() }
         : { status: "pending" };
       tx.update(ref, { lines, review, updatedAt: FieldValue.serverTimestamp() });
-      return { ok: true, entryId, status: review.status, lines };
+      return {
+        ok: true,
+        entryId,
+        status: review.status,
+        lines,
+        wasApproved: Boolean(entry.review && entry.review.status === "approved"),
+        entry: { ...entry, lines, review: { ...review, at: new Date() } },
+      };
     });
+
+    // After approval: the day's Daily Summary is stored under Reports and the Winter Heat workbook rebuilt.
+    // A failure here leaves the approval in place and is reported back so it can be retried by approving again.
+    const bucket = admin.storage().bucket();
+    const followUp = { dailySummary: null, workbook: null, warnings: [] };
+    try {
+      if (result.status === "approved") {
+        const supervisor = String(operator.memberData?.displayName || operator.email || "").trim();
+        followUp.dailySummary = await publishLabourDailySummary({
+          db, bucket, FieldValue, entryId, entry: result.entry, supervisor, approvedByEmail: operator.email || null,
+        });
+      } else if (result.wasApproved) {
+        await withdrawLabourDailySummary({ db, bucket, entryId });
+      }
+    } catch (error) {
+      logger.error("reviewLabourEntry: daily summary failed", { entryId, message: error.message });
+      followUp.warnings.push("The Daily Summary PDF could not be created. Approve again to retry.");
+    }
+    if (result.status === "approved" || result.wasApproved) {
+      try {
+        const built = await rebuildWinterHeatWorkbook({ db, bucket, FieldValue, projectSlug: result.entry.projectSlug || "" });
+        followUp.workbook = { winterHeatHours: built.winterHeatHours, pendingEntries: built.pendingEntries };
+      } catch (error) {
+        logger.error("reviewLabourEntry: winter heat workbook failed", { entryId, message: error.message });
+        followUp.warnings.push("The Winter Heat workbook could not be updated. Approve again to retry.");
+      }
+    }
+    const { entry: _entry, wasApproved: _was, ...reply } = result;
+    return { ...reply, dailySummary: followUp.dailySummary ? { dateKey: followUp.dailySummary.dateKey, winterHeatHours: followUp.dailySummary.winterHeatHours } : null, workbook: followUp.workbook, warnings: followUp.warnings };
   }
 );
 
