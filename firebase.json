@@ -107,6 +107,19 @@
             "value": "no-cache"
           }
         ]
+      },
+      {
+        "source": "/labour-activity-codes.json",
+        "headers": [
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "https://site-logistics.web.app"
+          },
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ]
   },

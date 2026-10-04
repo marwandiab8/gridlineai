@@ -1974,7 +1974,7 @@ code {
 /* Labour review by activity code */
 .labour-line {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) 80px minmax(0, 2fr) 36px;
+  grid-template-columns: minmax(0, 2fr) 70px minmax(0, 1.5fr) minmax(0, 1.5fr) 36px;
   gap: 6px;
   margin-top: 6px;
 }
@@ -2001,6 +2001,7 @@ code {
 .labour-review-sum.ok, .labour-review-result.ok { color: #81c995; }
 .labour-review-sum.err, .labour-review-result.err { color: #f28b82; }
 @media (max-width: 640px) {
-  .labour-line { grid-template-columns: minmax(0, 1fr) 80px 36px; }
-  .labour-line .labour-line-text { grid-column: 1 / -1; grid-row: 2; }
+  .labour-line { grid-template-columns: minmax(0, 1fr) 70px 36px; }
+  .labour-line .labour-line-location { grid-column: 1 / -1; grid-row: 2; }
+  .labour-line .labour-line-text { grid-column: 1 / -1; grid-row: 3; }
 }

@@ -360,7 +360,9 @@ function normalizeLabourLines(lines, { minutesWorked = null, requireCodes = fals
     if (requireCodes && !activity) throw new Error(`Line ${i + 1}: choose an activity.`);
     const text = String((line && line.text) || "").replace(/\s+/g, " ").trim().slice(0, 300);
     if (activity && /-OTHER$/.test(activity.code) && !text) throw new Error(`Line ${i + 1}: say what the "${activity.label}" work was.`);
-    return { code: activity ? activity.code : null, minutes, text, codedBy: activity ? codedBy : null };
+    // Where the work was, e.g. a Site Logistics work area ("Z1 East Wing - L2"). Kept only when given.
+    const location = String((line && line.location) || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    return { code: activity ? activity.code : null, minutes, text, codedBy: activity ? codedBy : null, ...(location ? { location } : {}) };
   });
   const sum = out.reduce((total, line) => total + line.minutes, 0);
   if (minutesWorked != null && sum !== Math.round(Number(minutesWorked))) {

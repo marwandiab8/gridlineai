@@ -36,6 +36,7 @@ const {
   normalizeLabourRangeKeys,
 } = require("./labourRepository");
 const { createLabourPortalHandler } = require("./labourPortal");
+const { createSiteLogisticsLabourHandler, normalizeSiteLogisticsIds } = require("./siteLogisticsLabour");
 const { generateLabourReportPdf } = require("./labourReportPdf");
 const { normalizeLabourLines } = require("./labourActivityCodes");
 const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labourCodedReportPdf");
@@ -4978,6 +4979,17 @@ exports.labourPortal = onRequest(
   createLabourPortalHandler({ db, FieldValue, logger })
 );
 
+// Hours labourers send from Site Logistics (Tasks -> My hours). Only Site Logistics' server can call it.
+exports.siteLogisticsLabourHours = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 30,
+    memory: "256MiB",
+  },
+  createSiteLogisticsLabourHandler({ db, FieldValue, logger, audience: () => getPublicFunctionBaseUrl("siteLogisticsLabourHours") })
+);
+
 exports.inboundSms = onRequest(
   {
     region: "northamerica-northeast1",
@@ -7898,6 +7910,22 @@ exports.upsertLabourerCallable = onCall(
       ? request.data.projectSlugs.map((slug) => normalizeProjectSlug(String(slug || "").trim())).filter(Boolean)
       : [];
     const active = request.data?.active !== false;
+    // How this labourer signs in to Site Logistics (email, or phone when they sign in by text), so hours
+    // they send from there are matched to them. Left as is when the caller doesn't send the field.
+    let siteLogisticsIds;
+    if (Array.isArray(request.data?.siteLogisticsIds)) {
+      try {
+        siteLogisticsIds = normalizeSiteLogisticsIds(request.data.siteLogisticsIds);
+      } catch (error) {
+        throw new HttpsError("invalid-argument", error.message);
+      }
+      for (const id of siteLogisticsIds) {
+        const taken = await db.collection(COL_LABOURERS).where("siteLogisticsIds", "array-contains", id).get();
+        if (taken.docs.some((d) => d.id !== phoneE164)) {
+          throw new HttpsError("already-exists", `${id} is already linked to another labourer.`);
+        }
+      }
+    }
 
     await db.collection(COL_LABOURERS).doc(phoneE164).set(
       {
@@ -7906,6 +7934,7 @@ exports.upsertLabourerCallable = onCall(
         displayName: name,
         projectSlugs,
         active,
+        ...(siteLogisticsIds ? { siteLogisticsIds } : {}),
         updatedAt: FieldValue.serverTimestamp(),
         updatedByEmail: operator.email,
         ...(request.data?.createdAt ? {} : { createdAt: FieldValue.serverTimestamp(), createdByEmail: operator.email }),

@@ -34,6 +34,7 @@ function lineRow(line) {
   return `<div class="labour-line">
       <select class="labour-line-code" aria-label="Activity">${activityOptions(line.code || "")}</select>
       <input class="labour-line-hours" type="number" min="0.25" max="24" step="0.25" value="${esc(line.minutes ? hoursText(line.minutes) : "")}" aria-label="Hours">
+      <input class="labour-line-location" type="text" maxlength="120" value="${esc(line.location || "")}" placeholder="Location" aria-label="Location">
       <input class="labour-line-text" type="text" maxlength="300" value="${esc(line.text || "")}" placeholder="Note" aria-label="Note">
       <button type="button" class="btn-secondary labour-line-remove" aria-label="Remove line">×</button>
     </div>`;
@@ -67,6 +68,7 @@ function readLines(card) {
     code: row.querySelector(".labour-line-code").value,
     hours: Number(row.querySelector(".labour-line-hours").value),
     text: row.querySelector(".labour-line-text").value.trim(),
+    location: row.querySelector(".labour-line-location").value.trim(),
   }));
 }
 

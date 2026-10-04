@@ -115,6 +115,7 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
         code: activity.code,
         activity: activity.label,
         description: activity.description,
+        location: String(line.location || ""),
         note: String(line.text || ""),
         hours: hours(line.minutes),
         approvedBy: (entry.review && entry.review.byEmail) || "",
@@ -140,7 +141,7 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
   const DATE = col("A");
   const WHO = col("B");
   const CAT = col("C");
-  const HRS = col("J");
+  const HRS = col("K");
 
   // Daily Winter Heat (first sheet: what the owner's reviewer opens).
   const daily = wb.addWorksheet("Daily Winter Heat", { views: [{ state: "frozen", ySplit: 4 }] });
@@ -205,14 +206,14 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
 
   // Detail: one row per approved line.
   const detail = wb.addWorksheet("Detail", { views: [{ state: "frozen", ySplit: 1 }] });
-  headerRow(detail, ["Date", "Labourer", "Category", "Charged to owner", "Keyword", "Code", "Activity", "Description", "Location / note", "Hours", "Approved by", "Approved at", "Entry id"]);
+  headerRow(detail, ["Date", "Labourer", "Category", "Charged to owner", "Keyword", "Code", "Activity", "Description", "Location", "Note", "Hours", "Approved by", "Approved at", "Entry id"]);
   for (const d of details) {
-    detail.addRow([d.date, d.labourer, d.category, d.chargeable, d.keyword, d.code, d.activity, d.description, d.note, d.hours, d.approvedBy, d.approvedAt, d.entryId]);
+    detail.addRow([d.date, d.labourer, d.category, d.chargeable, d.keyword, d.code, d.activity, d.description, d.location, d.note, d.hours, d.approvedBy, d.approvedAt, d.entryId]);
   }
-  [11, 18, 18, 9, 18, 18, 30, 60, 26, 8, 26, 17, 22].forEach((w, i) => { detail.getColumn(i + 1).width = w; });
+  [11, 18, 18, 9, 18, 18, 30, 60, 28, 24, 8, 26, 17, 22].forEach((w, i) => { detail.getColumn(i + 1).width = w; });
   detail.getColumn(8).alignment = { wrapText: true, vertical: "top" };
-  detail.getColumn(10).numFmt = "0.00";
-  if (n) detail.autoFilter = { from: "A1", to: `M${n + 1}` };
+  detail.getColumn(11).numFmt = "0.00";
+  if (n) detail.autoFilter = { from: "A1", to: `N${n + 1}` };
 
   // Waiting for review: not counted anywhere above.
   const waiting = wb.addWorksheet("Waiting for Review", { views: [{ state: "frozen", ySplit: 1 }] });

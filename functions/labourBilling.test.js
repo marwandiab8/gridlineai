@@ -9,7 +9,7 @@ const approved = (byEmail = "boss@example.com") => ({ status: "approved", byEmai
 const ENTRIES = [
   {
     id: "shawn-1002", labourerName: "Shawn Jones", reportDateKey: "2026-10-02", projectSlug: "docksteader", minutesWorked: 540, review: approved(), workOn: "",
-    lines: [{ code: "WH-HOARD-PREP", minutes: 300, text: "east side" }, { code: "WH-HOARD-LIFT", minutes: 60, text: "L2 east windows" }, { code: "OT-GEN", minutes: 180, text: "" }],
+    lines: [{ code: "WH-HOARD-PREP", minutes: 300, text: "east side" }, { code: "WH-HOARD-LIFT", minutes: 60, text: "east windows", location: "Z1 East Wing - L2" }, { code: "OT-GEN", minutes: 180, text: "" }],
   },
   {
     id: "kevin-1001", labourerName: "Kevin Ashdown", reportDateKey: "2026-10-01", projectSlug: "docksteader", minutesWorked: 540, review: approved(), workOn: "",
@@ -50,19 +50,21 @@ test("the Winter Heat workbook totals approved Winter Heat hours by day and labo
   assert.deepEqual(row(5), ["2026-10-01", "Thu", 0, 0, 0, 0]);
   assert.deepEqual(row(6), ["2026-10-02", "Fri", 3.5, 6, 9.5, 9.5]);
   assert.deepEqual(row(7), ["Total", "", 3.5, 6, 9.5, ""]);
-  assert.match(daily.getCell("C6").value.formula, /^SUMIFS\(Detail!\$J\$2:\$J\$10,Detail!\$A\$2:\$A\$10,\$A6,Detail!\$B\$2:\$B\$10,C\$4,Detail!\$C\$2:\$C\$10,"Winter Heat"\)$/);
+  assert.match(daily.getCell("C6").value.formula, /^SUMIFS\(Detail!\$K\$2:\$K\$10,Detail!\$A\$2:\$A\$10,\$A6,Detail!\$B\$2:\$B\$10,C\$4,Detail!\$C\$2:\$C\$10,"Winter Heat"\)$/);
   assert.equal(daily.getCell("F6").value.formula, "F5+E6");
   assert.equal(value(daily.getCell("E6")), 9.5);
 
   const detail = wb.getWorksheet("Detail");
   assert.equal(detail.rowCount, 10); // header + 9 lines
-  assert.deepEqual(detail.getRow(1).values.slice(1, 11), ["Date", "Labourer", "Category", "Charged to owner", "Keyword", "Code", "Activity", "Description", "Location / note", "Hours"]);
+  assert.deepEqual(detail.getRow(1).values.slice(1, 12), ["Date", "Labourer", "Category", "Charged to owner", "Keyword", "Code", "Activity", "Description", "Location", "Note", "Hours"]);
   const lift = detail.getRows(2, 9).find((r) => r.getCell(6).value === "WH-HOARD-LIFT");
   assert.equal(lift.getCell(5).value, "hoarding lift");
   assert.equal(lift.getCell(4).value, "Yes");
   assert.match(lift.getCell(8).value, /47 ft scissor lift/);
-  assert.equal(lift.getCell(9).value, "L2 east windows");
-  assert.equal(lift.getCell(11).value, "boss@example.com");
+  assert.equal(lift.getCell(9).value, "Z1 East Wing - L2");
+  assert.equal(lift.getCell(10).value, "east windows");
+  assert.equal(lift.getCell(11).value, 1);
+  assert.equal(lift.getCell(12).value, "boss@example.com");
 
   const byLabourer = wb.getWorksheet("By Labourer");
   assert.deepEqual(byLabourer.getRow(2).values.slice(1).map((v) => (v && typeof v === "object" ? v.result : v)), ["Kevin Ashdown", 3.5, 11.5, 4, 19]);

@@ -102,6 +102,7 @@ test("reviewed lines must be coded to approve and must add up to the entry", () 
   assert.throws(() => normalizeLabourLines([{ code: "", hours: 9 }], { minutesWorked: 540, requireCodes: true }), /choose an activity/);
   assert.throws(() => normalizeLabourLines([{ code: "XX-1", hours: 9 }], { minutesWorked: 540 }), /unknown activity code/);
   assert.throws(() => normalizeLabourLines([{ code: "WH-OTHER", hours: 9 }], { minutesWorked: 540 }), /say what/);
+  assert.equal(normalizeLabourLines([{ code: "WH-SNOW", hours: 9, location: " Roof  B " }], { minutesWorked: 540 })[0].location, "Roof B");
   // Saving without approval may leave lines uncoded.
   assert.equal(normalizeLabourLines([{ code: "", hours: 9 }], { minutesWorked: 540 })[0].code, null);
 });
@@ -141,7 +142,7 @@ test("the activity report bills approved, fully coded entries only", async () =>
   assert.deepEqual(report.pending.map((p) => p.labourer), ["Joseph Diab", "Wael Ibrahim", "Shawn Jones"]);
   assert.deepEqual(report.sheets[0].rows[0], {
     category: "Winter Heat", activity: "Hoarding - install from scissor lift", code: "WH-HOARD-LIFT",
-    description: LABOUR_ACTIVITIES.find((a) => a.code === "WH-HOARD-LIFT").description, note: "east windows 😀", minutes: 330,
+    description: LABOUR_ACTIVITIES.find((a) => a.code === "WH-HOARD-LIFT").description, location: "", note: "east windows 😀", minutes: 330,
   });
 
   const bytes = await renderCodedLabourReportPdf(report, { rangeLabel: "2026-11-02", supervisor: "Marwan Diab" });

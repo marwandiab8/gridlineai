@@ -28,7 +28,7 @@ import {
   getDownloadURL,
   uploadBytes,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-daily-summaries";
+import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-site-logistics-hours";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
@@ -2102,6 +2102,7 @@ function renderLabourersList() {
           <div><strong>${esc(labourerLabelClient(item) || phone || "-")}</strong></div>
           <div class="muted small mono">${esc(phone || "-")}</div>
           <div>Projects: ${esc(projects || "-")}</div>
+          <div class="muted small">Site Logistics: ${esc(Array.isArray(item.siteLogisticsIds) && item.siteLogisticsIds.length ? item.siteLogisticsIds.join(", ") : "not linked")}</div>
           <div class="muted small">Updated: ${fmtTime(item.updatedAt)}</div>
           <div class="project-manager-actions">
             <button type="button" class="btn-secondary" data-labourer-edit="${esc(phone)}">Edit</button>
@@ -2255,6 +2256,8 @@ function loadLabourerIntoForm(phone) {
   if (phoneInput) phoneInput.value = target;
   if (nameInput) nameInput.value = String(item.displayName || item.name || "").trim();
   if (projectsInput) projectsInput.value = Array.isArray(item.projectSlugs) ? item.projectSlugs.join(", ") : "";
+  const siteLogisticsInput = document.getElementById("labourerSiteLogistics");
+  if (siteLogisticsInput) siteLogisticsInput.value = Array.isArray(item.siteLogisticsIds) ? item.siteLogisticsIds.join(", ") : "";
   if (activeInput) activeInput.checked = item.active !== false;
   if (result) {
     result.textContent = `Editing ${item.displayName || item.name || target}`;
@@ -2270,6 +2273,8 @@ function clearLabourerForm() {
   if (phoneInput) phoneInput.value = "";
   if (nameInput) nameInput.value = "";
   if (projectsInput) projectsInput.value = "";
+  const siteLogisticsInput = document.getElementById("labourerSiteLogistics");
+  if (siteLogisticsInput) siteLogisticsInput.value = "";
   if (activeInput) activeInput.checked = true;
 }
 
@@ -5010,6 +5015,10 @@ function initLabourPage() {
           .map((value) => normalizeProjectSlugClient(value))
           .filter(Boolean),
         active: !!activeInput.checked,
+        siteLogisticsIds: String(document.getElementById("labourerSiteLogistics")?.value || "")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
       };
       const data = await callDashboardFunction("upsertLabourerCallable", payload);
       if (labourerResult) {
