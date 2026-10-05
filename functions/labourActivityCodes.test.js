@@ -100,7 +100,7 @@ test("reviewed lines must be coded to approve and must add up to the entry", () 
   ]);
   assert.throws(() => normalizeLabourLines([{ code: "GC-HOUSE", hours: 8 }], { minutesWorked: 540 }), /add up to 8h but the entry is 9h/);
   assert.throws(() => normalizeLabourLines([{ code: "", hours: 9 }], { minutesWorked: 540, requireCodes: true }), /choose an activity/);
-  assert.throws(() => normalizeLabourLines([{ code: "XX-1", hours: 9 }], { minutesWorked: 540 }), /unknown activity code/);
+  assert.throws(() => normalizeLabourLines([{ code: "XX-1", hours: 9 }], { minutesWorked: 540 }), /no longer an activity\. The activity list has changed since this page was opened - reload the page/);
   assert.throws(() => normalizeLabourLines([{ code: "WH-OTHER", hours: 9 }], { minutesWorked: 540 }), /say what/);
   assert.equal(normalizeLabourLines([{ code: "WH-SNOW", hours: 9, location: " Roof  B " }], { minutesWorked: 540 })[0].location, "Roof B");
   // Saving without approval may leave lines uncoded.

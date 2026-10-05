@@ -356,7 +356,8 @@ function normalizeLabourLines(lines, { minutesWorked = null, requireCodes = fals
     if (!(minutes > 0) || minutes > 24 * 60) throw new Error(`Line ${i + 1}: enter hours between 0.25 and 24.`);
     const rawCode = String((line && line.code) || "").trim();
     const activity = rawCode ? getLabourActivity(rawCode) : null;
-    if (rawCode && !activity) throw new Error(`Line ${i + 1}: unknown activity code ${rawCode}.`);
+    // An unknown code almost always means a page opened before the activity list changed.
+    if (rawCode && !activity) throw new Error(`Line ${i + 1}: "${rawCode}" is no longer an activity. The activity list has changed since this page was opened - reload the page and choose again.`);
     if (requireCodes && !activity) throw new Error(`Line ${i + 1}: choose an activity.`);
     const text = String((line && line.text) || "").replace(/\s+/g, " ").trim().slice(0, 300);
     if (activity && /-OTHER$/.test(activity.code) && !text) throw new Error(`Line ${i + 1}: say what the "${activity.label}" work was.`);
