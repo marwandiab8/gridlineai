@@ -8,8 +8,8 @@ const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labour
 const { labourLinesForEntry, loadLabourEntries } = require("./labourRepository");
 
 const COL_LABOUR_BILLING_REPORTS = "labourBillingReports";
-// Winter heat season the workbook covers; entries before this date are not in it.
-const WINTER_HEAT_SEASON_START = "2026-10-01";
+// Winter heat season the workbook covers; entries before this date are not in it. Extra work started Oct 2, 2026.
+const WINTER_HEAT_SEASON_START = "2026-10-02";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function safeName(value) {

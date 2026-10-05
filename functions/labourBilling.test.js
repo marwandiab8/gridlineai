@@ -33,7 +33,7 @@ async function load(buffer) {
 }
 
 test("the Winter Heat workbook totals approved Winter Heat hours by day and labourer, as traceable formulas", async () => {
-  const built = await buildWinterHeatWorkbook(ENTRIES, { projectSlug: "docksteader", now: new Date("2026-10-04T18:00:00Z") });
+  const built = await buildWinterHeatWorkbook(ENTRIES, { projectSlug: "docksteader", seasonStartKey: "2026-10-01", now: new Date("2026-10-04T18:00:00Z") });
   assert.equal(built.winterHeatHours, 9.5); // Shawn 5 + 1, Kevin 2 + 1.5
   assert.equal(built.approvedEntries, 3);
   assert.equal(built.pendingEntries, 1);
@@ -72,6 +72,14 @@ test("the Winter Heat workbook totals approved Winter Heat hours by day and labo
   const waiting = wb.getWorksheet("Waiting for Review");
   assert.deepEqual(waiting.getRow(2).values.slice(1), ["2026-10-03", "Shawn Jones", 9, "9h snow", "shawn-1003"]);
   assert.equal(waiting.rowCount, 2);
+});
+
+test("the season starts on the day the extra work started (Oct 2), so earlier days aren't in the workbook", async () => {
+  const built = await buildWinterHeatWorkbook(ENTRIES, { projectSlug: "docksteader" });
+  const wb = await load(built.buffer);
+  assert.equal(wb.getWorksheet("Daily Winter Heat").getCell("A5").value, "2026-10-02");
+  assert.equal(built.approvedEntries, 2);
+  assert.match(wb.getWorksheet("Daily Winter Heat").getCell("A2").value, /^Approved hours from 2026-10-02\./);
 });
 
 test("an empty season still produces a readable workbook", async () => {
