@@ -5,7 +5,7 @@ export const LABOUR_CATEGORIES = [
     "id": "winter-heat",
     "label": "Winter Heat",
     "chargeable": true,
-    "note": "Extra - charged to the owner"
+    "note": "Extra"
   },
   {
     "id": "general-conditions",

@@ -56,7 +56,7 @@ test("the Winter Heat workbook totals approved Winter Heat hours by day and labo
 
   const detail = wb.getWorksheet("Detail");
   assert.equal(detail.rowCount, 10); // header + 9 lines
-  assert.deepEqual(detail.getRow(1).values.slice(1, 12), ["Date", "Labourer", "Category", "Charged to owner", "Keyword", "Code", "Activity", "Description", "Location", "Note", "Hours"]);
+  assert.deepEqual(detail.getRow(1).values.slice(1, 12), ["Date", "Labourer", "Category", "Extra", "Keyword", "Code", "Activity", "Description", "Location", "Note", "Hours"]);
   const lift = detail.getRows(2, 9).find((r) => r.getCell(6).value === "WH-HOARD-LIFT");
   assert.equal(lift.getCell(5).value, "hoarding lift");
   assert.equal(lift.getCell(4).value, "Yes");

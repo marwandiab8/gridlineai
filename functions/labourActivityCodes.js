@@ -15,7 +15,7 @@
 // Anything unclear ("rough carpentry", "general labour and unloading rebar") stays uncoded for the supervisor.
 
 const LABOUR_CATEGORIES = Object.freeze([
-  { id: "winter-heat", label: "Winter Heat", chargeable: true, note: "Extra - charged to the owner" },
+  { id: "winter-heat", label: "Winter Heat", chargeable: true, note: "Extra" },
   { id: "general-conditions", label: "General Conditions", chargeable: false, note: "In contract" },
   { id: "other", label: "Other Work", chargeable: false, note: "Not extra" },
 ]);

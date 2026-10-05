@@ -145,7 +145,7 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
 
   // Daily Winter Heat (first sheet: what the owner's reviewer opens).
   const daily = wb.addWorksheet("Daily Winter Heat", { views: [{ state: "frozen", ySplit: 4 }] });
-  daily.addRow([`Winter Heat (extra, charged to the owner) - ${projectSlug || "all projects"}`]).font = { bold: true, size: 14 };
+  daily.addRow([`Winter Heat (extra) - ${projectSlug || "all projects"}`]).font = { bold: true, size: 14 };
   daily.addRow([`Approved hours from ${seasonStartKey}. Updated ${timestampText(now)}. Each hour traces to a line on the Detail sheet.`]);
   daily.addRow([]);
   headerRow(daily, ["Date", "Day", ...labourers, "Day total", "Running total"]);
@@ -206,7 +206,7 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
 
   // Detail: one row per approved line.
   const detail = wb.addWorksheet("Detail", { views: [{ state: "frozen", ySplit: 1 }] });
-  headerRow(detail, ["Date", "Labourer", "Category", "Charged to owner", "Keyword", "Code", "Activity", "Description", "Location", "Note", "Hours", "Approved by", "Approved at", "Entry id"]);
+  headerRow(detail, ["Date", "Labourer", "Category", "Extra", "Keyword", "Code", "Activity", "Description", "Location", "Note", "Hours", "Approved by", "Approved at", "Entry id"]);
   for (const d of details) {
     detail.addRow([d.date, d.labourer, d.category, d.chargeable, d.keyword, d.code, d.activity, d.description, d.location, d.note, d.hours, d.approvedBy, d.approvedAt, d.entryId]);
   }
