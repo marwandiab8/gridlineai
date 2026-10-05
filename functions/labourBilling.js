@@ -28,6 +28,13 @@ function workbookId(projectSlug) {
   return `winter-heat-${projectSlug || "all"}`;
 }
 
+/** Who approved: their name when known, else their email. */
+function approverName(review, approverNames = {}) {
+  if (!review) return "";
+  const email = String(review.byEmail || "");
+  return String(review.byName || approverNames[email.toLowerCase()] || email).trim();
+}
+
 /** Builds and stores the Daily Summary PDF for one approved entry. Returns the report record. */
 async function publishLabourDailySummary({ db, bucket, FieldValue, entryId, entry, supervisor = "", approvedByEmail = null }) {
   const report = buildCodedLabourReport([{ ...entry, id: entryId }]);
@@ -94,7 +101,8 @@ function timestampText(value) {
  * The Winter Heat verification workbook. Every number on "Daily Winter Heat" and "By Labourer" is a SUMIFS
  * formula over the "Detail" sheet (with its value cached), so a reviewer can trace each hour to a line.
  */
-async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartKey = WINTER_HEAT_SEASON_START, now = new Date() } = {}) {
+// `approverNames` (email -> name) names the approver on entries approved before the name was kept on the review.
+async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartKey = WINTER_HEAT_SEASON_START, now = new Date(), approverNames = {} } = {}) {
   const inSeason = (entries || []).filter((e) => e && e.review && String(e.reportDateKey || "") >= seasonStartKey);
   const approvedIds = new Set();
   const details = [];
@@ -118,7 +126,7 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
         location: String(line.location || ""),
         note: String(line.text || ""),
         hours: hours(line.minutes),
-        approvedBy: (entry.review && entry.review.byEmail) || "",
+        approvedBy: approverName(entry.review, approverNames),
         approvedAt: timestampText(entry.review && entry.review.at),
         entryId: entry.id,
       });
@@ -236,7 +244,14 @@ async function buildWinterHeatWorkbook(entries, { projectSlug = "", seasonStartK
 /** Rebuilds the project's season workbook from Firestore and stores it. */
 async function rebuildWinterHeatWorkbook({ db, bucket, FieldValue, projectSlug, now = new Date() }) {
   const entries = await loadLabourEntries(db, { startKey: WINTER_HEAT_SEASON_START, endKey: "9999-12-31", projectSlug: projectSlug || null });
-  const built = await buildWinterHeatWorkbook(entries, { projectSlug, now });
+  // Names the Daily Summaries already hold, for entries approved before the review kept the name.
+  const approverNames = {};
+  const summaries = await db.collection(COL_LABOUR_BILLING_REPORTS).where("type", "==", "labourDailySummary").get();
+  summaries.forEach((doc) => {
+    const d = doc.data() || {};
+    if (d.approvedByEmail && d.supervisor && !String(d.supervisor).includes("@")) approverNames[String(d.approvedByEmail).toLowerCase()] = d.supervisor;
+  });
+  const built = await buildWinterHeatWorkbook(entries, { projectSlug, now, approverNames });
   const fileName = `Winter_Heat_${safeName(projectSlug || "all")}.xlsx`;
   const storagePath = `labour-winter-heat/${projectSlug || "all"}/${fileName}`;
   await bucket.file(storagePath).save(built.buffer, {

@@ -4,7 +4,7 @@ const ExcelJS = require("exceljs");
 
 const { buildWinterHeatWorkbook, publishLabourDailySummary, withdrawLabourDailySummary } = require("./labourBilling");
 
-const approved = (byEmail = "boss@example.com") => ({ status: "approved", byEmail, at: new Date("2026-10-03T13:00:00Z") });
+const approved = (byEmail = "boss@example.com", byName) => ({ status: "approved", byEmail, ...(byName ? { byName } : {}), at: new Date("2026-10-03T13:00:00Z") });
 
 const ENTRIES = [
   {
@@ -64,7 +64,7 @@ test("the Winter Heat workbook totals approved Winter Heat hours by day and labo
   assert.equal(lift.getCell(9).value, "Z1 East Wing - L2");
   assert.equal(lift.getCell(10).value, "east windows");
   assert.equal(lift.getCell(11).value, 1);
-  assert.equal(lift.getCell(12).value, "boss@example.com");
+  assert.equal(lift.getCell(12).value, "boss@example.com", "no name known: the email");
 
   const byLabourer = wb.getWorksheet("By Labourer");
   assert.deepEqual(byLabourer.getRow(2).values.slice(1).map((v) => (v && typeof v === "object" ? v.result : v)), ["Kevin Ashdown", 3.5, 11.5, 4, 19]);
@@ -80,6 +80,17 @@ test("the season starts on the day the extra work started (Oct 2), so earlier da
   assert.equal(wb.getWorksheet("Daily Winter Heat").getCell("A5").value, "2026-10-02");
   assert.equal(built.approvedEntries, 2);
   assert.match(wb.getWorksheet("Daily Winter Heat").getCell("A2").value, /^Approved hours from 2026-10-02\./);
+});
+
+test("Approved by shows the approver's name, from the review or from earlier Daily Summaries", async () => {
+  const entries = [
+    { ...ENTRIES[0], review: approved("marwandiab8@gmail.com", "Marwan Diab") },
+    { ...ENTRIES[2], review: approved("Marwandiab8@gmail.com") },
+  ];
+  const built = await buildWinterHeatWorkbook(entries, { projectSlug: "docksteader", approverNames: { "marwandiab8@gmail.com": "Marwan Diab" } });
+  const detail = (await load(built.buffer)).getWorksheet("Detail");
+  const names = new Set(detail.getRows(2, detail.rowCount - 1).map((r) => r.getCell(12).value));
+  assert.deepEqual([...names], ["Marwan Diab"]);
 });
 
 test("an empty season still produces a readable workbook", async () => {

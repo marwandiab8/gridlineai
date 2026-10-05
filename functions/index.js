@@ -8705,8 +8705,9 @@ exports.reviewLabourEntryCallable = onCall(
       } catch (error) {
         throw new HttpsError("invalid-argument", error.message);
       }
+      const approverName = String(operator.memberData?.displayName || request.auth?.token?.name || "").trim();
       const review = approve
-        ? { status: "approved", byEmail: operator.email || null, at: FieldValue.serverTimestamp() }
+        ? { status: "approved", byEmail: operator.email || null, byName: approverName || null, at: FieldValue.serverTimestamp() }
         : { status: "pending" };
       tx.update(ref, { lines, review, updatedAt: FieldValue.serverTimestamp() });
       return {
@@ -8725,7 +8726,7 @@ exports.reviewLabourEntryCallable = onCall(
     const followUp = { dailySummary: null, workbook: null, warnings: [] };
     try {
       if (result.status === "approved") {
-        const supervisor = String(operator.memberData?.displayName || operator.email || "").trim();
+        const supervisor = String(result.entry.review.byName || operator.email || "").trim();
         followUp.dailySummary = await publishLabourDailySummary({
           db, bucket, FieldValue, entryId, entry: result.entry, supervisor, approvedByEmail: operator.email || null,
         });

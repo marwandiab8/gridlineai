@@ -2161,7 +2161,7 @@ function renderLabourBillingReports(docs) {
     ...daily.map((d) => `
       <div class="row-item">
         <div><span class="pill pill-ai">${esc(d.dateKey || "-")}</span> <strong>${esc(d.labourerName || "-")}</strong> · ${esc(d.projectSlug || "-")}</div>
-        <div class="muted small">${esc(formatHoursClient(d.totalHours))}h total · Winter Heat ${esc(formatHoursClient(d.winterHeatHours))}h${d.approvedByEmail ? ` · approved by ${esc(d.approvedByEmail)}` : ""}</div>
+        <div class="muted small">${esc(formatHoursClient(d.totalHours))}h total · Winter Heat ${esc(formatHoursClient(d.winterHeatHours))}h${d.supervisor || d.approvedByEmail ? ` · approved by ${esc(d.supervisor && !String(d.supervisor).includes("@") ? d.supervisor : d.approvedByEmail || d.supervisor)}` : ""}</div>
         <div>${open(d, "Open PDF")}</div>
       </div>`),
   ];
