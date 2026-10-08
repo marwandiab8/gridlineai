@@ -20,6 +20,20 @@ const {
   recordShortcutEvent,
 } = require("./iosShortcutsIntegration");
 const { findStayToCloseOnRegionLeave, leaveKnownPlace } = require("./placeLearning");
+const { closeStaysFromEvidence } = require("./stayClosing");
+
+/**
+ * The location evidence in an OwnTracks message (a ping or a crossing): where and when, and how
+ * accurate the fix was. Null when it has no usable position.
+ */
+function ownTracksEvidence(payload) {
+  const latitude = Number(payload.lat);
+  const longitude = Number(payload.lon);
+  const tst = Number(payload.tst);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || !Number.isFinite(tst) || tst <= 0) return null;
+  const acc = Number(payload.acc);
+  return { latitude, longitude, at: new Date(tst * 1000), accuracyMeters: Number.isFinite(acc) && acc > 0 ? acc : 0 };
+}
 
 /**
  * OwnTracks' iOS app has changed which auth fields it exposes across versions (custom HTTP
@@ -166,8 +180,13 @@ async function handleOwnTracksEventRequest({
     }
 
     const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const deps = { processAssistantMessage, openaiKey, runId, logger, timeLeftLifeEventDelivery };
     if (isIgnorableOwnTracksPayload(payload)) {
-      // Regular location pings and waypoint dumps: acknowledge, nothing to record.
+      // Regular location pings are not recorded as events, but each one is evidence of where you are:
+      // it ends a "Log this place" stay you have driven away from, at about when you left
+      // (stayEvidence.js). Waypoint dumps and the rest carry nothing to use.
+      const evidence = payload && payload._type === "location" ? ownTracksEvidence(payload) : null;
+      if (evidence) await closeStaysFromEvidence({ db, FieldValue, req, member, evidence, deviceName: payload.tid || null, deps });
       res.status(200).json([]);
       return;
     }
@@ -245,6 +264,19 @@ async function handleOwnTracksEventRequest({
         if (logger && typeof logger.warn === "function") {
           logger.warn("ownTracksEvents: could not close the matching known place", { runId, message: err && err.message });
         }
+      }
+    }
+
+    // The crossing's position is evidence for every other open stay too (arriving home ends a stay
+    // across town that was never left).
+    if (!result.duplicate) {
+      const evidence = ownTracksEvidence(payload);
+      if (evidence) {
+        await closeStaysFromEvidence({
+          db, FieldValue, req, member, deps,
+          deviceName: payload.tid || null,
+          evidence: { ...evidence, eventType: parsed.event.eventType, label: payload.desc || null },
+        });
       }
     }
 

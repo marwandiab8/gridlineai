@@ -68,14 +68,27 @@ optional:
 - The Known Places page shows "here now since …" during a stay, and last stay / average stay
   after.
 
-**Stays close themselves.** Logging an arrival somewhere new also ends any stay you never left: an
-open stay at another place is closed at the moment of the new arrival (the latest you could have
-left), provided the new spot is outside that place's radius. It logs a `leave_location` event
+**Stays close themselves, from any sign of where you are** (`functions/stayEvidence.js`). Every event
+that carries your coordinates counts: a "Log this place" arrival, OwnTracks crossings (Home, Work, Gym)
+and OwnTracks location pings, drive start/finish, Spotify. When one shows you more than 300 m outside an
+open stay's radius (plus the fix's own accuracy), the stay is closed and a `leave_location` event is
+logged at the time you actually left:
+
+- **a drive that started at the place** (a `start_drive` event within its radius) is the departure, exactly;
+- otherwise it is **estimated**: the time of the event elsewhere minus the drive from the place at about
+  50 km/h, never before the last event that showed you still there, and at most 12 hours after it.
+  The note says so, e.g. "Stayed 3 h 20 min at Raging Bull (left about 10:22 pm, estimated from your
+  next location when you were at home, 19.3 km away)", and the place gets `lastLeaveEstimated: true`;
+- a departure **already recorded** another way (a Shortcut leave, a manual fix) is reused - the place is
+  closed at that time and nothing is logged twice.
+
+Events at the place keep the stay open and are remembered as `lastSeenAt` (rewritten at most every 5
+minutes, so pings cost no extra writes) and `driveStartedAt`. Before this, only the next "Log this
+place" arrival closed a stay, timed to that arrival - Raging Bull was logged as 107 hours, closed four
+days later from Newmarket. It logs a `leave_location` event
 ("Stayed 1 h 39 min at GoodLife (ended automatically when you arrived at Costco)") and the response
-lists them as `closedStays`. Places close enough to overlap (a plaza's gas station and store) stay
-open together. This is why a place learned by "Log this place" - which has no leave automation of its
-own - no longer stays "here now" forever. The last stay of the day still needs a real "leave" (or the
-next day's first arrival) to close.
+lists them as `closedStays` (`name`, `durationMinutes`, `leftAt`, `estimated`). Places close enough to
+overlap (a plaza's gas station and store) stay open together.
 
 **Shortcut:** duplicate "Log this place", delete the Ask for Text step, and replace the `name`
 field in the body with `action` = `leave`. Show the response's `duration` in a notification.

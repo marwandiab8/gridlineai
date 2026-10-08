@@ -19,16 +19,15 @@ const {
   checkShortcutRateLimit,
   findShortcutMemberByTokenHash,
   parseShortcutEventPayload,
-  recordShortcutEvent,
 } = require("./iosShortcutsIntegration");
 const {
   findNearbyKnownPlace,
   nameAndVisitPlace,
   visitKnownPlace,
   findPlaceToLeave,
-  findStaysLeftByArrival,
   leaveKnownPlace,
 } = require("./placeLearning");
+const { buildVisitBody, closeStaysFromEvidence, formatStay, recordAndDeliver } = require("./stayClosing");
 
 function jsonError(res, status, code, message) {
   res.status(status).json({ ok: false, error: code, message });
@@ -40,33 +39,9 @@ function parseCoordinate(value) {
   return Number.isFinite(num) ? num : NaN; // NaN signals "present but not a number"
 }
 
-/** Builds the arrive_location-shaped body recordShortcutEvent's pipeline already understands. */
-function buildVisitBody({ latitude, longitude, name, timestamp, timezone, deviceName, eventType = "arrive_location", notes }) {
-  return {
-    event_type: eventType,
-    timestamp,
-    timezone,
-    location_label: name,
-    latitude,
-    longitude,
-    device_name: deviceName || null,
-    source: "quick_log",
-    ...(notes ? { notes } : {}),
-  };
-}
-
 function isLeaveRequest(payload) {
   const action = String(payload.action || payload.event || "").trim().toLowerCase();
   return ["leave", "left", "leaving", "depart", "departed", "exit"].includes(action);
-}
-
-/** "1 h 5 min", "42 min", "0 min". */
-function formatStay(minutes) {
-  const total = Math.max(0, Math.round(minutes));
-  const hours = Math.floor(total / 60);
-  const mins = total % 60;
-  if (!hours) return `${mins} min`;
-  return mins ? `${hours} h ${mins} min` : `${hours} h`;
 }
 
 /**
@@ -78,54 +53,29 @@ function requestEventDate(payload, eventType) {
   return parsed.ok ? parsed.event.eventDate : new Date();
 }
 
-/** Records a parsed event through the shared Shortcuts pipeline and forwards it to Time Left. */
-async function recordAndDeliver({ db, FieldValue, req, member, event, processAssistantMessage, openaiKey, runId, logger, timeLeftLifeEventDelivery }) {
-  const result = await recordShortcutEvent({ db, FieldValue, req, member, event, processAssistantMessage, openaiKey, runId });
-  if (!result.duplicate && typeof timeLeftLifeEventDelivery === "function") {
-    try {
-      await timeLeftLifeEventDelivery({ event: { ...event, id: result.shortcutEventId }, eventId: result.shortcutEventId });
-    } catch (err) {
-      if (logger && typeof logger.warn === "function") {
-        logger.warn("placesEvents: TimeLeft delivery failed", { runId, message: err && err.message });
-      }
-    }
-  }
-  return result;
-}
-
 /**
- * Logging an arrival somewhere new ends any stay elsewhere that you have clearly left, timed to this
- * arrival (the latest you could have left). This is what closes a stay when no "leave" was ever sent
- * - e.g. a place learned by "Log this place" has no leave automation of its own. It never fails the
- * arrival: problems are logged and the arrival still succeeds.
+ * Logging an arrival somewhere new is evidence you have left anywhere else: stays you clearly left are
+ * closed at the best departure time the evidence supports (stayClosing.js / stayEvidence.js). It never
+ * fails the arrival.
  */
-async function closeStaysLeftBehind({ db, FieldValue, req, member, payload, arrival, deps }) {
-  const closed = [];
-  try {
-    const stays = await findStaysLeftByArrival(db, member.email, arrival);
-    for (const place of stays) {
-      const stay = await leaveKnownPlace({ db, FieldValue, place, leftAt: arrival.arrivedAt });
-      const parsed = parseShortcutEventPayload(
-        buildVisitBody({
-          eventType: "leave_location",
-          latitude: place.latitude,
-          longitude: place.longitude,
-          name: stay.name,
-          timestamp: arrival.arrivedAt.toISOString(),
-          timezone: payload.timezone,
-          deviceName: payload.device_name,
-          notes: `${stay.durationMinutes != null ? `Stayed ${formatStay(stay.durationMinutes)} at ${stay.name}` : `Left ${stay.name}`} (ended automatically when you arrived at ${arrival.name})`,
-        })
-      );
-      if (parsed.ok) await recordAndDeliver({ db, FieldValue, req, member, event: parsed.event, ...deps });
-      closed.push({ name: stay.name, durationMinutes: stay.durationMinutes });
-    }
-  } catch (err) {
-    if (deps.logger && typeof deps.logger.warn === "function") {
-      deps.logger.warn("placesEvents: could not close earlier stays", { runId: deps.runId, message: err && err.message });
-    }
-  }
-  return closed;
+function closeStaysLeftBehind({ db, FieldValue, req, member, payload, arrival, deps }) {
+  return closeStaysFromEvidence({
+    db,
+    FieldValue,
+    req,
+    member,
+    timezone: payload.timezone,
+    deviceName: payload.device_name,
+    deps,
+    evidence: {
+      latitude: arrival.latitude,
+      longitude: arrival.longitude,
+      at: arrival.arrivedAt,
+      eventType: "arrive_location",
+      exceptPlaceId: arrival.exceptPlaceId,
+      label: arrival.name,
+    },
+  });
 }
 
 async function handlePlaceLeave({ db, FieldValue, req, res, member, payload, deps }) {

@@ -406,3 +406,43 @@ test("a leave for a region with no matching open stay is still recorded normally
   assert.equal(response.statusCode, 200);
   assert.ok([...db.rows.get("iosShortcutEvents").values()].some((e) => e.eventType === "leave_location"));
 });
+
+// --- every position is evidence: pings and crossings end "Log this place" stays you drove away from ---
+
+test("a location ping far from an open stay ends it at about when you left, and logs the departure", async () => {
+  const start = new Date("2026-10-03T23:02:57Z");
+  const db = dbWithStay("ot-ping", { name: "Raging Bull", latitude: 43.5471, longitude: -80.2968, radiusMeters: 120, currentVisitStartedAt: start, lastVisitAt: start });
+  const tst = Math.floor(new Date("2026-10-04T02:45:48Z").getTime() / 1000);
+  const { response, calls } = await callHandler({
+    db,
+    request: req({ token: "ot-ping", body: { _type: "location", lat: 43.7064, lon: -80.3934, acc: 12, tst, tid: "MD" } }),
+  });
+  assert.deepEqual(response.body, [], "pings are still acknowledged the OwnTracks way");
+  const place = db.rows.get("knownPlaces").get("p1");
+  assert.equal(place.currentVisitStartedAt, undefined, "the stay is closed");
+  const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
+  assert.equal(leave.locationLabel, "Raging Bull");
+  assert.ok(leave.eventAtIso > "2026-10-04T02:20:00Z" && leave.eventAtIso < "2026-10-04T02:23:00Z", leave.eventAtIso);
+  assert.ok(calls.some((c) => /Stayed 3 h (19|20) min at Raging Bull \(left about 10:2\d pm, estimated/.test(c.body)), JSON.stringify(calls.map((c) => c.body)));
+});
+
+test("a ping near the open stay keeps it open and records nothing", async () => {
+  const start = new Date("2026-10-03T23:02:57Z");
+  const db = dbWithStay("ot-ping-near", { name: "Raging Bull", latitude: 43.5471, longitude: -80.2968, radiusMeters: 120, currentVisitStartedAt: start, lastVisitAt: start });
+  const tst = Math.floor(new Date("2026-10-04T00:00:00Z").getTime() / 1000);
+  await callHandler({ db, request: req({ token: "ot-ping-near", body: { _type: "location", lat: 43.5472, lon: -80.2968, tst } }) });
+  const place = db.rows.get("knownPlaces").get("p1");
+  assert.ok(place.currentVisitStartedAt, "still there");
+  assert.equal(new Date(place.lastSeenAt).toISOString(), "2026-10-04T00:00:00.000Z");
+  assert.equal(db.rows.get("iosShortcutEvents"), undefined, "no events recorded");
+});
+
+test("arriving home (a Home region crossing) ends a stay across town", async () => {
+  const start = new Date("2026-10-03T23:02:57Z");
+  const db = dbWithStay("ot-home", { name: "Raging Bull", latitude: 43.5471, longitude: -80.2968, radiusMeters: 120, currentVisitStartedAt: start, lastVisitAt: start });
+  const tst = Math.floor(new Date("2026-10-04T02:45:48Z").getTime() / 1000);
+  await callHandler({ db, request: req({ token: "ot-home", body: { _type: "transition", event: "enter", desc: "Home", lat: 43.7064, lon: -80.3934, tst, t: "c" } }) });
+  assert.equal(db.rows.get("knownPlaces").get("p1").currentVisitStartedAt, undefined);
+  const types = [...db.rows.get("iosShortcutEvents").values()].map((e) => e.eventType).sort();
+  assert.deepEqual(types, ["arrive_home", "leave_location"]);
+});

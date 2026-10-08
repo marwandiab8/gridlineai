@@ -285,7 +285,7 @@ async function findStayToCloseOnRegionLeave(db, memberEmail, { name, latitude, l
  * running totals. `durationMinutes` is null when there was no open stay to close (e.g. a second
  * "leave" in a row) - the departure is still recorded, it just has nothing to measure.
  */
-async function leaveKnownPlace({ db, FieldValue, place, leftAt = new Date() }) {
+async function leaveKnownPlace({ db, FieldValue, place, leftAt = new Date(), estimated = false }) {
   const startMs = openVisitStartMs(place);
   const leftMs = toMillis(leftAt);
   const durationMinutes = startMs != null && leftMs != null && leftMs >= startMs ? Math.round((leftMs - startMs) / 60000) : null;
@@ -293,7 +293,12 @@ async function leaveKnownPlace({ db, FieldValue, place, leftAt = new Date() }) {
   const timedVisitCount = (Number.isFinite(place.timedVisitCount) ? place.timedVisitCount : 0) + (durationMinutes != null ? 1 : 0);
   const update = {
     lastLeftAt: leftAt,
+    // True when the departure time was worked out from later evidence (see stayEvidence.js).
+    lastLeaveEstimated: estimated === true,
     currentVisitStartedAt: FieldValue.delete(),
+    // Evidence about this stay (stayEvidence.js) ends with it.
+    lastSeenAt: FieldValue.delete(),
+    driveStartedAt: FieldValue.delete(),
     updatedAt: FieldValue.serverTimestamp(),
   };
   if (durationMinutes != null) {

@@ -53,8 +53,12 @@ these your Settings screen actually has:
 
 OwnTracks posts two kinds of message in HTTP mode; only one of them matters here:
 
-- `_type: "location"` — a routine location ping (sent periodically or on movement). **Ignored**:
-  acknowledged with `200 []` and not recorded, so these never spam the log or count as tracked time.
+- `_type: "location"` — a routine location ping (sent periodically or on movement). **Not recorded**
+  as an event (acknowledged with `200 []`, so they never spam the log or count as tracked time), but
+  each one is **evidence of where you are**: a ping well away from an open "Log this place" stay ends
+  it at about when you left, and a ping at the place keeps it open (see "Stays close themselves" in
+  `docs/quick-log-shortcuts.md`). Use OwnTracks' *Significant changes* or *Move* monitoring mode so
+  pings arrive as you drive; fixes with poor accuracy (`acc`) are not trusted to close anything.
 - `_type: "transition"` — sent the moment you enter or leave a defined Region:
   ```json
   {

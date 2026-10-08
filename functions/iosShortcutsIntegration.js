@@ -947,6 +947,31 @@ async function handleShortcutEventRequest({
       }
     }
 
+    // Every event that carries your coordinates (drive start/finish, Spotify, arrivals) is evidence of
+    // where you are: a drive starting at an open "Log this place" stay marks when you left it, and an
+    // event elsewhere ends it (stayEvidence.js). Required here, not at the top, because stayClosing.js
+    // itself builds on this module. Never fails the request.
+    if (!result.duplicate && Number.isFinite(parsed.event.latitude) && Number.isFinite(parsed.event.longitude)) {
+      const { closeStaysFromEvidence } = require("./stayClosing");
+      const label = String(parsed.event.locationLabel || "");
+      await closeStaysFromEvidence({
+        db,
+        FieldValue,
+        req,
+        member,
+        timezone: parsed.event.timezone,
+        deviceName: parsed.event.deviceName,
+        deps: { processAssistantMessage, openaiKey, runId, logger, timeLeftLifeEventDelivery },
+        evidence: {
+          latitude: parsed.event.latitude,
+          longitude: parsed.event.longitude,
+          at: parsed.event.eventDate,
+          eventType: parsed.event.eventType,
+          label: /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(label) ? null : label || null,
+        },
+      });
+    }
+
     res.status(200).json({
       ok: true,
       event_id: result.eventId,

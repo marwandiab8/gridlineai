@@ -384,7 +384,7 @@ test("leaving by name picks that place, and an unknown leave reports nothing to 
   assert.deepEqual(unknown.response.body, { ok: true, known: false, left: false });
 });
 
-test("arriving somewhere new closes a stay you never left, timed to the arrival (the Guelph gym case)", async () => {
+test("arriving somewhere new closes a stay you never left, at about when you left (the Guelph gym case)", async () => {
   const db = seededDb("stay-token-1");
   await call({ db, request: req({ token: "stay-token-1", body: { ...HERE, name: "GoodLife", timestamp: "2026-09-26T17:27:58Z" } }) });
   const costco = { latitude: HERE.latitude + 0.02, longitude: HERE.longitude }; // ~2.2km away
@@ -392,16 +392,19 @@ test("arriving somewhere new closes a stay you never left, timed to the arrival 
     db,
     request: req({ token: "stay-token-1", body: { ...costco, name: "Costco", timestamp: "2026-09-26T19:47:00Z" } }),
   });
-  assert.deepEqual(response.body.closedStays, [{ name: "GoodLife", durationMinutes: 139 }]);
+  // Costco is ~2.2 km away: about 2.7 min of driving at 50 km/h, so the stay ended about then, not at the arrival.
+  assert.deepEqual(response.body.closedStays, [{ name: "GoodLife", durationMinutes: 136, leftAt: "2026-09-26T19:44:20.000Z", estimated: true }]);
   const places = [...db.rows.get("knownPlaces").values()];
   const gym = places.find((p) => p.name === "GoodLife");
   assert.equal(gym.currentVisitStartedAt, undefined, "the gym stay is closed");
-  assert.equal(gym.lastVisitDurationMinutes, 139);
+  assert.equal(gym.lastVisitDurationMinutes, 136);
+  assert.equal(gym.lastLeaveEstimated, true);
   const costcoPlace = places.find((p) => p.name === "Costco");
   assert.ok(costcoPlace.currentVisitStartedAt, "the new place is now the open stay");
   const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
   assert.equal(leave.locationLabel, "GoodLife");
-  assert.ok(calls.some((c) => /ended automatically when you arrived at Costco/.test(c.body)));
+  assert.equal(leave.eventAtIso, "2026-09-26T19:44:20.000Z", "the departure is logged when you left, not when you arrived");
+  assert.ok(calls.some((c) => /Stayed 2 h 16 min at GoodLife \(left about 3:44 pm, estimated from your next location when you were at Costco, 2\.2 km away\)/.test(c.body)));
 });
 
 test("arriving at a place inside another open place's radius (a plaza) leaves both open", async () => {
@@ -429,4 +432,29 @@ test("re-logging the place you are already at does not close it", async () => {
   assert.deepEqual(response.body.closedStays, []);
   const gym = [...db.rows.get("knownPlaces").values()][0];
   assert.ok(gym.currentVisitStartedAt, "still open");
+});
+
+test("iOS Shortcuts events are evidence too: a drive started at the place is when you left it", async () => {
+  const { handleShortcutEventRequest } = require("./iosShortcutsIntegration");
+  const db = seededDb("drive-token");
+  await call({ db, request: req({ token: "drive-token", body: { ...HERE, name: "Raging Bull", timestamp: "2026-10-03T23:02:57Z" } }) });
+  const shortcut = async (body) => {
+    const response = res();
+    await handleShortcutEventRequest({
+      db, FieldValue, req: req({ token: "drive-token", body }), res: response, logger: { warn() {}, info() {}, error() {} }, openaiKey: null,
+      processAssistantMessage: async () => ({ inboundRef: { id: "in" }, outboundRef: { id: "out" }, outboundMeta: { logEntryId: "log-1", projectSlug: "home", command: "log_note" } }),
+    });
+    return response;
+  };
+  const lot = { latitude: HERE.latitude + 0.0005, longitude: HERE.longitude };
+  assert.equal((await shortcut({ event_type: "start_drive", timestamp: "2026-10-04T02:21:30Z", timezone: "America/Toronto", ...lot })).statusCode, 200);
+  const raging = () => [...db.rows.get("knownPlaces").values()].find((p) => p.name === "Raging Bull");
+  assert.ok(raging().currentVisitStartedAt, "still there when the drive starts");
+  await shortcut({ event_type: "finish_drive", timestamp: "2026-10-04T02:44:00Z", timezone: "America/Toronto", latitude: HERE.latitude + 0.17, longitude: HERE.longitude });
+  assert.equal(raging().currentVisitStartedAt, undefined, "closed");
+  assert.equal(new Date(raging().lastLeftAt).toISOString(), "2026-10-04T02:21:30.000Z", "at the drive start, not an estimate");
+  assert.equal(raging().lastLeaveEstimated, false);
+  const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
+  assert.equal(leave.eventAtIso, "2026-10-04T02:21:30.000Z");
+  assert.match(leave.notes, /Stayed 3 h 19 min at Raging Bull \(left at 10:21 pm, when you started driving\)/);
 });
