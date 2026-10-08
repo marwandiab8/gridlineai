@@ -83,7 +83,7 @@ test("resolveSiteRef only knows Docksteader and honours SITE_LOGISTICS_SITE_ID",
   assert.equal(resolveSiteRef("docksteader", { SITE_LOGISTICS_SITE_ID: " abc123 " }).siteId, "abc123");
 });
 
-function fakeDb({ sites, days = {}, bookings = [], items = [], tasks = [], fail = false }) {
+function fakeDb({ sites, days = {}, bookings = [], items = [], tasks = [], records = null, fail = false }) {
   const doc = (id, data) => ({ id, exists: data != null, data: () => data, get: (k) => (data ? data[k] : undefined) });
   return {
     collection(name) {
@@ -96,6 +96,10 @@ function fakeDb({ sites, days = {}, bookings = [], items = [], tasks = [], fail 
             if (sub === "days") return { doc: (k) => ({ get: async () => doc(k, days[k] || null) }) };
             if (sub === "bookings") return { where: () => ({ get: async () => ({ docs: bookings.map((b) => doc(b.id, b)) }) }) };
             if (sub === "tasks") return { get: async () => ({ docs: tasks.map((t) => doc(t.id, t)) }) };
+            if (sub === "dailyRecords") {
+              if (!records) throw new Error("no dailyRecords here"); // like a project that has none
+              return { doc: (k) => ({ get: async () => doc(k, records[k] || null) }) };
+            }
             return { get: async () => ({ docs: items.map((i) => doc(i.id, i)) }) };
           },
         }),
@@ -179,4 +183,33 @@ test("loadSiteLogisticsForReport includes the tasks, and tasks alone are enough 
   assert.equal(day.tasks.done, 1);
   assert.equal(day.tasks.open, 1);
   assert.equal(day.crews.length, 0);
+});
+
+test("equipment on site comes from Site Logistics' daily record, sorted, with the crew and rental", () => {
+  const { buildSiteLogisticsDay, equipmentFromRecord } = require("./siteLogisticsReport");
+  const record = {
+    equipment: {
+      list: [
+        { typeLabel: "Scissor lift", label: "SL1", unitNumber: "SL-9", rentalCompany: "Sunbelt", trade: "Electrical", company: "Sparky Ltd", drawing: "Level 1", onRent: true },
+        { typeLabel: "Heater 2.5M BTU", label: "", unitNumber: "", rentalCompany: "", trade: "", company: "", drawing: "Site plan", onRent: false },
+      ],
+    },
+  };
+  assert.deepEqual(equipmentFromRecord(record), [
+    { type: "Heater 2.5M BTU", name: "", unit: "", rental: "", crew: "", drawing: "Site plan", onRent: false },
+    { type: "Scissor lift", name: "SL1", unit: "SL-9", rental: "Sunbelt", crew: "Sparky Ltd (Electrical)", drawing: "Level 1", onRent: true },
+  ]);
+  assert.deepEqual(equipmentFromRecord(null), []);
+  const day = buildSiteLogisticsDay({ dayDoc: null, bookings: [], items: [], tasks: [], record, dateKey: "2026-10-08" });
+  assert.equal(day.equipment.length, 2, "a day with only equipment still has something for the report");
+});
+
+test("loadSiteLogisticsForReport adds the day's equipment, and carries on without a record", async () => {
+  const base = { sites: [{ id: "s1", name: "Docksteader Rd" }], days: { "2026-10-08": { crews: [{ trade: "Electrical", company: "Sparky", workers: 5 }] } } };
+  const records = { "2026-10-08": { equipment: { list: [{ typeLabel: "Scissor lift", label: "SL1", onRent: true }] } } };
+  const withRecord = await loadSiteLogisticsForReport({ projectSlug: "docksteader", dateKey: "2026-10-08", logger: silent, db: fakeDb({ ...base, records }) });
+  assert.deepEqual(withRecord.equipment.map((e) => e.type), ["Scissor lift"]);
+  const without = await loadSiteLogisticsForReport({ projectSlug: "docksteader", dateKey: "2026-10-08", logger: silent, db: fakeDb(base) });
+  assert.equal(without.totalWorkers, 5, "headcount still there");
+  assert.deepEqual(without.equipment, []);
 });

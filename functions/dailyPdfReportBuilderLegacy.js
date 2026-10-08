@@ -1079,8 +1079,9 @@ async function renderDailySiteLogPdf(opts) {
   /** Site Logistics: scheduled activities and the day's site notes (only when Site Logistics had data). */
   const siteLogistics = merged.siteLogistics;
   const slTasks = (siteLogistics && siteLogistics.tasks) || { total: 0, items: [] };
-  if (siteLogistics && (siteLogistics.activities.length || siteLogistics.notes || slTasks.total)) {
-    drawSectionTitle("Site Logistics - Tasks, Scheduled Work & Notes");
+  const slEquipment = (siteLogistics && siteLogistics.equipment) || [];
+  if (siteLogistics && (siteLogistics.activities.length || siteLogistics.notes || slTasks.total || slEquipment.length)) {
+    drawSectionTitle(slEquipment.length ? "Site Logistics - Tasks, Scheduled Work, Equipment & Notes" : "Site Logistics - Tasks, Scheduled Work & Notes");
     if (slTasks.total) {
       const parts = [`${slTasks.done} completed today`];
       if (slTasks.blocked) parts.push(`${slTasks.blocked} could not be done`);
@@ -1116,6 +1117,19 @@ async function renderDailySiteLogPdf(opts) {
     if (siteLogistics.notes) {
       drawSubheading("Site notes");
       drawParagraph(siteLogistics.notes, 10, false, C.inkBody);
+    }
+    if (slEquipment.length) {
+      // What was on site that day (Site Logistics' daily record): one row per piece, off-rent ones marked.
+      const offRent = slEquipment.filter((e) => !e.onRent).length;
+      drawSubheading(`Equipment on site (${slEquipment.length}${offRent ? `, ${offRent} off rent awaiting pickup` : ""})`);
+      const eqRows = slEquipment.map((e) => [
+        e.type,
+        [e.name && e.name !== e.type ? e.name : "", e.unit ? `#${e.unit}` : ""].filter(Boolean).join(" ") || "-",
+        e.crew || "-",
+        [e.rental, e.onRent ? "" : "off rent"].filter(Boolean).join(", ") || "-",
+        e.drawing || "-",
+      ]);
+      drawWrappedTable(["Equipment", "Name / unit", "Trade", "Rental", "Drawing"], eqRows, [110, contentW - 110 - 118 - 100 - 90, 118, 100, 90]);
     }
   }
 

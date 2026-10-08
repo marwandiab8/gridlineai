@@ -5,6 +5,8 @@
 //   sites/{siteId}/bookings           { areaId, trade, company, start, end, notes, activity }
 //   sites/{siteId}/items              work areas etc. ({ type, label })
 //   sites/{siteId}/tasks              { text, day, areaId, trade, company, status: open|done|blocked, note, doneAt, doneBy }
+//   sites/{siteId}/dailyRecords/{day} the server's record of the day; its equipment.list is what was on site:
+//                                     { typeLabel, label, unitNumber, rentalCompany, trade, company, drawing, onRent }
 // This module reads the report day from there, read-only, and folds it into the daily site log:
 // crews go into the Workforce Summary and the day's activities and notes get their own section.
 // Everything the report already gets from field entries is kept. Reading needs the Cloud
@@ -130,10 +132,27 @@ function tasksForReport(tasks, items, dateKey) {
   return { total: list.length, done, blocked, open: list.length - done - blocked, items: list };
 }
 
+/** Equipment on site that day, from Site Logistics' daily record (empty when there is none). */
+function equipmentFromRecord(record) {
+  const list = record && record.equipment && Array.isArray(record.equipment.list) ? record.equipment.list : [];
+  return list
+    .map((e) => ({
+      type: clean(e.typeLabel) || "Equipment",
+      name: clean(e.label),
+      unit: clean(e.unitNumber),
+      rental: clean(e.rentalCompany),
+      crew: crewLabel({ trade: clean(e.trade), company: clean(e.company) }),
+      drawing: clean(e.drawing),
+      onRent: e.onRent !== false,
+    }))
+    .sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+}
+
 /** The day as the report needs it. */
-function buildSiteLogisticsDay({ dayDoc, bookings, items, tasks, dateKey }) {
+function buildSiteLogisticsDay({ dayDoc, bookings, items, tasks, record = null, dateKey }) {
   const crews = crewsFromDay(dayDoc);
   return {
+    equipment: equipmentFromRecord(record),
     dateKey,
     crews,
     totalWorkers: crews.reduce((sum, c) => sum + c.workers, 0),
@@ -209,20 +228,26 @@ async function loadSiteLogisticsForReport({ projectSlug, dateKey, logger = conso
       return null;
     }
     const site = store.collection("sites").doc(siteId);
-    const [dayDoc, bookingsSnap, itemsSnap, tasksSnap] = await Promise.all([
+    const [dayDoc, bookingsSnap, itemsSnap, tasksSnap, recordDoc] = await Promise.all([
       site.collection("days").doc(dateKey).get(),
       site.collection("bookings").where("start", "<=", dateKey).get(),
       site.collection("items").get(),
       site.collection("tasks").get(),
+      // Written nightly by Site Logistics; a day without one (or a record that can't be read) just has no
+      // equipment section - it never costs the report its headcount.
+      Promise.resolve()
+        .then(() => site.collection("dailyRecords").doc(dateKey).get())
+        .catch(() => null),
     ]);
     const day = buildSiteLogisticsDay({
       dayDoc: dayDoc.exists ? dayDoc.data() : null,
       bookings: bookingsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
       items: itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
       tasks: tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      record: recordDoc && recordDoc.exists ? recordDoc.data() : null,
       dateKey,
     });
-    if (!day.crews.length && !day.notes && !day.activities.length && !day.tasks.total) return null;
+    if (!day.crews.length && !day.notes && !day.activities.length && !day.tasks.total && !day.equipment.length) return null;
     return day;
   } catch (error) {
     logger.warn && logger.warn("siteLogistics: could not read Site Logistics, report continues without it", { message: error && error.message });
@@ -234,6 +259,7 @@ module.exports = {
   activitiesForDay,
   buildSiteLogisticsDay,
   crewsFromDay,
+  equipmentFromRecord,
   loadSiteLogisticsForReport,
   mergeManpowerRows,
   resolveSiteRef,
