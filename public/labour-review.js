@@ -1,6 +1,8 @@
 // Supervisor review of labour hours by activity code. Each entry waiting for review shows its lines (activity,
 // hours, note); the supervisor fixes codes or splits hours, then saves or approves. Lines must add up to the
-// entry's hours, so the billing report always matches the hours paid. Only approved entries go on the report.
+// entry's hours, so the billing report always matches the hours paid. When the labourer entered the wrong hours,
+// the supervisor ticks "change their entry" and the entry takes the lines' total; the server keeps what the
+// labourer first entered. Only approved entries go on the report.
 import { LABOUR_ACTIVITIES, LABOUR_CATEGORIES } from "./labour-activity-codes.js";
 
 const ACTIVITY_BY_CODE = new Map(LABOUR_ACTIVITIES.map((a) => [a.code, a]));
@@ -47,10 +49,19 @@ export function labourEntriesToReview(entries) {
     .sort((a, b) => String(a.reportDateKey || "").localeCompare(String(b.reportDateKey || "")) || String(a.labourerName || "").localeCompare(String(b.labourerName || "")));
 }
 
+/** "Corrected from 6h by Marwan", when the supervisor changed the hours the labourer entered. */
+export function labourHoursCorrectionText(entry) {
+  const c = entry && entry.hoursCorrection;
+  if (!c || !(Number(c.fromMinutes) > 0)) return "";
+  const who = c.byName || c.byEmail;
+  return `Corrected from ${hoursText(c.fromMinutes)}h${who ? ` by ${who}` : ""}`;
+}
+
 function entryCard(entry, labourerLabel) {
   const lines = Array.isArray(entry.lines) && entry.lines.length ? entry.lines : [{ code: "", minutes: entryMinutes(entry), text: entry.workOn || "" }];
+  const corrected = labourHoursCorrectionText(entry);
   return `<div class="row-item labour-review-entry" data-review-entry-id="${esc(entry.id)}" data-review-minutes="${entryMinutes(entry)}">
-      <div><span class="pill pill-issue">${esc(hoursText(entryMinutes(entry)))}h</span><span class="pill pill-ai">${esc(entry.reportDateKey || "-")}</span> <strong>${esc(labourerLabel(entry))}</strong> <span class="muted small">· ${esc(entry.source || "")}</span></div>
+      <div><span class="pill pill-issue labour-review-hours">${esc(hoursText(entryMinutes(entry)))}h</span><span class="pill pill-ai">${esc(entry.reportDateKey || "-")}</span> <strong>${esc(labourerLabel(entry))}</strong> <span class="muted small">· ${esc(entry.source || "")}</span>${corrected ? ` <span class="labour-review-corrected small">· ${esc(corrected)}</span>` : ""}</div>
       <div class="muted small">They wrote: ${esc(String(entry.workOn || "").slice(0, 400))}</div>
       <div class="labour-lines">${lines.map(lineRow).join("")}</div>
       <div class="labour-review-actions">
@@ -59,6 +70,7 @@ function entryCard(entry, labourerLabel) {
         <button type="button" class="btn-secondary labour-review-save">Save</button>
         <button type="button" class="btn-primary labour-review-approve">Approve</button>
       </div>
+      <label class="labour-review-correct small" hidden><input type="checkbox" class="labour-review-correct-box"> <span></span></label>
       <div class="labour-review-result small" aria-live="polite"></div>
     </div>`;
 }
@@ -72,16 +84,33 @@ function readLines(card) {
   }));
 }
 
+function linesMinutes(lines) {
+  return lines.reduce((s, l) => s + (Number.isFinite(l.hours) ? Math.round(l.hours * 60) : 0), 0);
+}
+
+// The lines' total against the entry's hours. When they differ, the supervisor can tick "change their entry"
+// to correct the labourer's hours to the lines' total.
 function updateSum(card) {
   const total = Number(card.dataset.reviewMinutes) || 0;
   const lines = readLines(card);
-  const sum = lines.reduce((s, l) => s + (Number.isFinite(l.hours) ? Math.round(l.hours * 60) : 0), 0);
+  const sum = linesMinutes(lines);
   const uncoded = lines.filter((l) => !ACTIVITY_BY_CODE.has(l.code)).length;
+  const correct = card.querySelector(".labour-review-correct");
+  const box = card.querySelector(".labour-review-correct-box");
+  const canCorrect = sum !== total && sum > 0 && sum <= 24 * 60;
+  correct.hidden = !canCorrect;
+  if (!canCorrect) box.checked = false;
+  correct.querySelector("span").textContent = `They entered the wrong hours: change their entry from ${hoursText(total)}h to ${hoursText(sum)}h`;
+  const ok = sum === total || (canCorrect && box.checked);
   const el = card.querySelector(".labour-review-sum");
-  const ok = sum === total;
-  el.textContent = `Lines: ${hoursText(sum)}h of ${hoursText(total)}h${uncoded ? ` · ${uncoded} need a code` : ""}`;
+  el.textContent = sum === total
+    ? `Lines: ${hoursText(sum)}h of ${hoursText(total)}h${uncoded ? ` · ${uncoded} need a code` : ""}`
+    : box.checked
+      ? `Lines: ${hoursText(sum)}h · their ${hoursText(total)}h will be corrected${uncoded ? ` · ${uncoded} need a code` : ""}`
+      : `Lines: ${hoursText(sum)}h of ${hoursText(total)}h. Match their hours, or tick below if they entered the wrong hours${uncoded ? ` · ${uncoded} need a code` : ""}`;
   el.className = `labour-review-sum small ${ok && !uncoded ? "ok" : "err"}`;
   card.querySelector(".labour-review-approve").disabled = !ok || uncoded > 0;
+  card.querySelector(".labour-review-save").disabled = !ok;
 }
 
 /**
@@ -138,12 +167,23 @@ export function bindLabourReview(container, call) {
     result.textContent = approve ? "Approving..." : "Saving...";
     result.className = "labour-review-result small muted";
     try {
-      const data = await call("reviewLabourEntryCallable", { entryId: card.dataset.reviewEntryId, lines: readLines(card), approve });
+      const lines = readLines(card);
+      const correcting = card.querySelector(".labour-review-correct-box").checked;
+      const payload = { entryId: card.dataset.reviewEntryId, lines, approve };
+      if (correcting) payload.correctedMinutes = linesMinutes(lines);
+      const data = await call("reviewLabourEntryCallable", payload);
       delete card.dataset.dirty;
+      const corrected = correcting && data && Number(data.minutesWorked) > 0;
+      if (corrected) {
+        card.dataset.reviewMinutes = String(data.minutesWorked);
+        card.querySelector(".labour-review-hours").textContent = `${hoursText(data.minutesWorked)}h`;
+        card.querySelector(".labour-review-correct-box").checked = false;
+      }
       const warnings = (data && Array.isArray(data.warnings) && data.warnings) || [];
+      const correctedText = corrected ? `Hours corrected to ${hoursText(data.minutesWorked)}h. ` : "";
       result.textContent = approve
-        ? `Approved. ${warnings.length ? warnings.join(" ") : "Daily Summary saved under Reports; Winter Heat workbook updated."}`
-        : "Saved. Still waiting for approval.";
+        ? `${correctedText}Approved. ${warnings.length ? warnings.join(" ") : "Daily Summary saved under Reports; Winter Heat workbook updated."}`
+        : `${correctedText}Saved. Still waiting for approval.`;
       result.className = `labour-review-result small ${warnings.length ? "err" : "ok"}`;
     } catch (err) {
       result.textContent = `Not saved: ${err && err.message ? err.message : err}`;

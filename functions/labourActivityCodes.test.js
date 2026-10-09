@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const path = require("path");
 const { pathToFileURL } = require("url");
 
-const {
+const { correctLabourHours,
   LABOUR_ACTIVITIES,
   LABOUR_CATEGORIES,
   describeLabourLinesShort,
@@ -105,6 +105,25 @@ test("reviewed lines must be coded to approve and must add up to the entry", () 
   assert.equal(normalizeLabourLines([{ code: "WH-SNOW", hours: 9, location: " Roof  B " }], { minutesWorked: 540 })[0].location, "Roof B");
   // Saving without approval may leave lines uncoded.
   assert.equal(normalizeLabourLines([{ code: "", hours: 9 }], { minutesWorked: 540 })[0].code, null);
+});
+
+test("the supervisor can correct the hours a labourer entered; what they entered is kept", () => {
+  const entry = { minutesWorked: 360 };
+  const by = { byEmail: "boss@x.com", byName: "Marwan" };
+  assert.deepEqual(correctLabourHours(entry, null, by), { minutesWorked: 360, hoursCorrection: null, changed: false }, "no correction asked");
+  assert.deepEqual(correctLabourHours(entry, 360, by), { minutesWorked: 360, hoursCorrection: null, changed: false });
+  const fixed = correctLabourHours(entry, 480, by);
+  assert.deepEqual(fixed, { minutesWorked: 480, hoursCorrection: { fromMinutes: 360, toMinutes: 480, byEmail: "boss@x.com", byName: "Marwan" }, changed: true });
+  // The lines then have to add up to the corrected hours.
+  assert.equal(normalizeLabourLines([{ code: "WH-HOARD-LIFT", hours: 4 }, { code: "GC-HOUSE", hours: 4 }], { minutesWorked: fixed.minutesWorked }).length, 2);
+  // Corrected again: still remembers the labourer's 6h.
+  const after = { minutesWorked: 480, hoursCorrection: fixed.hoursCorrection };
+  assert.equal(correctLabourHours(after, 450, by).hoursCorrection.fromMinutes, 360);
+  assert.deepEqual(correctLabourHours(after, 480, by), { minutesWorked: 480, hoursCorrection: fixed.hoursCorrection, changed: false }, "saving again keeps the correction");
+  assert.deepEqual(correctLabourHours(after, 360, by), { minutesWorked: 360, hoursCorrection: null, changed: true }, "back to their own figure: no correction");
+  assert.equal(correctLabourHours({ hours: 7.5 }, 480, by).hoursCorrection.fromMinutes, 450, "older entries kept hours, not minutes");
+  assert.throws(() => correctLabourHours(entry, 0, by), /between 0.25 and 24/);
+  assert.throws(() => correctLabourHours(entry, 25 * 60, by), /between 0.25 and 24/);
 });
 
 test("the web form turns its rows into coded lines and a readable work text", () => {

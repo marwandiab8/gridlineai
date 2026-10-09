@@ -6,7 +6,8 @@
 // (email, or phone for text sign-in), which a supervisor links in Labour -> Labourer manager.
 //
 // One entry per labourer per day, as everywhere else. A day first entered by text or the web form is not
-// overwritten from Site Logistics, and once approved a day can only be changed by the supervisor.
+// overwritten from Site Logistics, and once approved, or once the supervisor has corrected its hours, a day can
+// only be changed by the supervisor.
 const { OAuth2Client } = require("google-auth-library");
 const { getLabourActivity, normalizeLabourLines, formatMinutesAsHours } = require("./labourActivityCodes");
 const {
@@ -131,6 +132,9 @@ async function saveSiteLogisticsLabourDay({ db, FieldValue, body, now = new Date
   const mine = existing.find((e) => e.id === id);
   if (mine && mine.review && mine.review.status === "approved") {
     return fail(409, "approved", `Your supervisor already approved ${dateKey}. Ask them to make any change.`);
+  }
+  if (mine && mine.hoursCorrection) {
+    return fail(409, "corrected", `Your supervisor corrected your hours for ${dateKey}. Ask them to make any change.`);
   }
 
   const workOn = normalizeLabourEntryText(workOnFromSiteLines(lines));

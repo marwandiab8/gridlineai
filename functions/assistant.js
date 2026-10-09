@@ -4894,6 +4894,7 @@ async function buildReply({
       // A corrected entry is coded again from its text and goes back to the supervisor for review.
       lines: buildLabourLinesFromWorkOn(nextWorkOn, correctedMinutes),
       review: { status: "pending" },
+      hoursCorrection: FieldValue.delete(),
       updatedAt: FieldValue.serverTimestamp(),
     });
 

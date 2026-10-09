@@ -372,6 +372,25 @@ function normalizeLabourLines(lines, { minutesWorked = null, requireCodes = fals
   return out;
 }
 
+/**
+ * The entry's hours after the supervisor's review. Normally they stay as the labourer entered them; when the
+ * supervisor corrects them (`toMinutes`: what the reviewed lines add up to), the entry takes the new hours and
+ * `hoursCorrection` remembers what the labourer first entered, through any later corrections. Correcting back
+ * to the labourer's own figure removes the correction. Returns { minutesWorked, hoursCorrection, changed }:
+ * hoursCorrection is null when there is none, and `changed` says whether a new correction was just made.
+ */
+function correctLabourHours(entry, toMinutes, { byEmail = null, byName = null } = {}) {
+  const stored = Number(entry && entry.minutesWorked);
+  const current = Number.isFinite(stored) && stored > 0 ? Math.round(stored) : Math.round(Number(entry && entry.hours || 0) * 60);
+  const earlier = entry && entry.hoursCorrection && Number(entry.hoursCorrection.fromMinutes) > 0 ? entry.hoursCorrection : null;
+  const entered = earlier ? Math.round(Number(earlier.fromMinutes)) : current;
+  const to = toMinutes == null ? current : Math.round(Number(toMinutes));
+  if (!(to > 0) || to > 24 * 60) throw new Error("Enter hours between 0.25 and 24.");
+  if (to === entered) return { minutesWorked: to, hoursCorrection: null, changed: to !== current };
+  if (to === current) return { minutesWorked: to, hoursCorrection: earlier, changed: false };
+  return { minutesWorked: to, hoursCorrection: { fromMinutes: entered, toMinutes: to, byEmail: byEmail || null, byName: byName || null }, changed: true };
+}
+
 function formatMinutesAsHours(minutes) {
   const hours = Math.round((Number(minutes) || 0) / 60 * 100) / 100;
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
@@ -405,6 +424,7 @@ module.exports = {
   LABOUR_ACTIVITIES,
   LABOUR_CATEGORIES,
   buildLabourLinesFromParts,
+  correctLabourHours,
   formatMinutesAsHours,
   getLabourActivity,
   getLabourCategory,

@@ -28,7 +28,7 @@ import {
   getDownloadURL,
   uploadBytes,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { bindLabourReview, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-04-site-logistics-hours";
+import { bindLabourReview, labourHoursCorrectionText, labourLinesSummary, renderLabourReview } from "./labour-review.js?v=2026-10-09-correct-hours";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
@@ -2138,6 +2138,7 @@ function renderLabourEntriesList() {
           <div><strong>${esc(title)}</strong> · ${project}</div>
           <div class="muted small">${esc(String(entry.workOn || "").slice(0, 260))}</div>
           ${labourLinesSummary(entry) ? `<div class="small">${esc(labourLinesSummary(entry))}</div>` : ""}
+          ${labourHoursCorrectionText(entry) ? `<div class="small labour-review-corrected">${esc(labourHoursCorrectionText(entry))}</div>` : ""}
           ${notes}
           <div class="muted small mono">${fmtTime(entry.createdAt)} · ${esc(entry.source || "dashboard")} · ${esc(entry.labourerPhone || "")}</div>
         </div>`;

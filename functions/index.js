@@ -38,7 +38,7 @@ const {
 const { createLabourPortalHandler } = require("./labourPortal");
 const { createSiteLogisticsLabourHandler, normalizeSiteLogisticsIds } = require("./siteLogisticsLabour");
 const { generateLabourReportPdf } = require("./labourReportPdf");
-const { normalizeLabourLines } = require("./labourActivityCodes");
+const { correctLabourHours, normalizeLabourLines } = require("./labourActivityCodes");
 const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labourCodedReportPdf");
 const {
   COL_LABOUR_BILLING_REPORTS,
@@ -8679,6 +8679,8 @@ exports.generateLabourReportCallable = onCall(
 
 // The supervisor's review of one labour entry: the activity code and hours of each line. Lines must add up to
 // the entry's hours exactly, so a billing report always matches the hours paid. `approve` needs every line coded.
+// When the labourer entered the wrong hours, `correctedMinutes` (the lines' total) changes the entry's hours;
+// what they first entered is kept in hoursCorrection.
 exports.reviewLabourEntryCallable = onCall(
   {
     region: "northamerica-northeast1",
@@ -8696,27 +8698,35 @@ exports.reviewLabourEntryCallable = onCall(
       const snap = await tx.get(ref);
       if (!snap.exists) throw new HttpsError("not-found", "That labour entry no longer exists.");
       const entry = snap.data() || {};
-      const minutesWorked = Number(entry.minutesWorked) > 0
-        ? Math.round(Number(entry.minutesWorked))
-        : Math.round(Number(entry.hours || 0) * 60);
+      const approverName = String(operator.memberData?.displayName || request.auth?.token?.name || "").trim();
+      const correctedMinutes = request.data?.correctedMinutes == null ? null : Number(request.data.correctedMinutes);
+      let hours;
       let lines;
       try {
-        lines = normalizeLabourLines(request.data?.lines, { minutesWorked, requireCodes: approve, codedBy: "supervisor" });
+        hours = correctLabourHours(entry, correctedMinutes, { byEmail: operator.email || null, byName: approverName || null });
+        lines = normalizeLabourLines(request.data?.lines, { minutesWorked: hours.minutesWorked, requireCodes: approve, codedBy: "supervisor" });
       } catch (error) {
         throw new HttpsError("invalid-argument", error.message);
       }
-      const approverName = String(operator.memberData?.displayName || request.auth?.token?.name || "").trim();
       const review = approve
         ? { status: "approved", byEmail: operator.email || null, byName: approverName || null, at: FieldValue.serverTimestamp() }
         : { status: "pending" };
-      tx.update(ref, { lines, review, updatedAt: FieldValue.serverTimestamp() });
+      const update = { lines, review, minutesWorked: hours.minutesWorked, updatedAt: FieldValue.serverTimestamp() };
+      if (hours.changed) {
+        update.hours = FieldValue.delete();
+        update.hoursCorrection = hours.hoursCorrection ? { ...hours.hoursCorrection, at: FieldValue.serverTimestamp() } : FieldValue.delete();
+      }
+      tx.update(ref, update);
+      const hoursCorrection = hours.changed ? (hours.hoursCorrection ? { ...hours.hoursCorrection, at: new Date() } : null) : entry.hoursCorrection || null;
       return {
         ok: true,
         entryId,
         status: review.status,
         lines,
+        minutesWorked: hours.minutesWorked,
+        hoursCorrection,
         wasApproved: Boolean(entry.review && entry.review.status === "approved"),
-        entry: { ...entry, lines, review: { ...review, at: new Date() } },
+        entry: { ...entry, lines, minutesWorked: hours.minutesWorked, hoursCorrection, review: { ...review, at: new Date() } },
       };
     });
 

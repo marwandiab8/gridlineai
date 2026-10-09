@@ -95,6 +95,13 @@ test("Site Logistics never overwrites a texted day or an approved day", async ()
   const locked = await saveSiteLogisticsLabourDay({ db: approved, FieldValue, body: BODY, now: NOW, env: {} });
   assert.equal(locked.status, 409);
   assert.equal(locked.body.code, "approved");
+
+  const corrected = fakeDb({ labourers: LABOURERS, labourEntries: { "sl_19057164743_2026-10-05": { labourerPhone: "+19057164743", reportDateKey: "2026-10-05", source: "site-logistics", minutesWorked: 480, review: { status: "pending" }, hoursCorrection: { fromMinutes: 360, toMinutes: 480 } } } });
+  const kept = await saveSiteLogisticsLabourDay({ db: corrected, FieldValue, body: BODY, now: NOW, env: {} });
+  assert.equal(kept.status, 409, "the supervisor's correction isn't overwritten by sending again");
+  assert.equal(kept.body.code, "corrected");
+  assert.match(kept.body.message, /supervisor corrected your hours for 2026-10-05/);
+  assert.equal(corrected.data.labourEntries.get("sl_19057164743_2026-10-05").minutesWorked, 480);
 });
 
 test("hours are refused with a clear reason when something is wrong", async () => {
