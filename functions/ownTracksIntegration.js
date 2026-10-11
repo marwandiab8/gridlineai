@@ -40,11 +40,12 @@ async function knownPlaceRegionVisit({ db, member, payload, body, logger, runId 
       const open = await findStayToCloseOnRegionLeave(db, member.email, { name: payload.desc, latitude, longitude, leftAt: at });
       if (open) {
         const startMs = openVisitStartMs(open);
-        return { place: open, body: { activity: placeActivity(open), ...(startMs != null ? { stay_started_at: new Date(startMs).toISOString() } : {}) } };
+        return { place: open, body: { location_label: open.name, activity: placeActivity(open), ...(startMs != null ? { stay_started_at: new Date(startMs).toISOString() } : {}) } };
       }
     }
     const place = await findKnownPlaceForRegion(db, member.email, { name: payload.desc, latitude, longitude });
-    return place ? { place, body: { activity: placeActivity(place) } } : null;
+    // The visit is logged under the place's own name ("Layal's house"), not the region's ("Layal_House").
+    return place ? { place, body: { location_label: place.name, activity: placeActivity(place) } } : null;
   } catch (err) {
     if (logger && typeof logger.warn === "function") logger.warn("ownTracksEvents: known place lookup failed", { runId, message: err && err.message });
     return null;

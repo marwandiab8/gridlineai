@@ -49,8 +49,9 @@ function radiusOf(place) {
   return Number.isFinite(place.radiusMeters) && place.radiusMeters > 0 ? place.radiusMeters : DEFAULT_RADIUS_METERS;
 }
 
+// Same comparison as placeLearning.js: "Layal_House" and "Layal's house" are one place.
 function placeNameKey(name) {
-  return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return String(name || "").toLowerCase().replace(/['’]s\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 /**

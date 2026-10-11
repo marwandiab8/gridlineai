@@ -242,8 +242,11 @@ async function findStaysLeftByArrival(db, memberEmail, { latitude, longitude, ex
   return left.sort((a, b) => a.startMs - b.startMs).map((x) => x.place);
 }
 
+// How names are compared with OwnTracks region names, which are often typed without spaces or
+// apostrophes: case, punctuation, underscores and a possessive 's don't matter, so "Layal_House",
+// "Layal House" and "Layal's house" are the same place, as are "Costco_Guelph" and "Costco Guelph".
 function placeNameKey(name) {
-  return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return String(name || "").toLowerCase().replace(/['’]s\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 /**

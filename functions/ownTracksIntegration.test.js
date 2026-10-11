@@ -449,14 +449,14 @@ test("arriving home (a Home region crossing) ends a stay across town", async () 
 
 // --- a region named after a known place is a visit there, like "Log this place" ---
 
-test("entering and leaving a known place's region counts as a visit with its activity and length", async () => {
+test("entering and leaving a known place's region (typed \"Layal_House\") counts as a visit with its activity and length", async () => {
   const { mapShortcutEventToTimeLeftLifeEvent } = require("./timeLeftLifeEventMapper");
   const HOUSE = { latitude: 43.5536958, longitude: -79.642663 };
   const db = seededDb("ot-visit");
   db.rows.set("knownPlaces", new Map([["layal", { memberEmail: "user@example.com", name: "Layal's house", ...HOUSE, radiusMeters: 120, visitCount: 0, activity: "Visit", activitySource: "suggested" }]]));
   const enterAt = Math.floor(Date.parse("2026-10-11T19:02:00Z") / 1000);
   const leaveAt = Math.floor(Date.parse("2026-10-11T23:31:00Z") / 1000);
-  const cross = (event, tst, extra = {}) => req({ token: "ot-visit", body: { _type: "transition", event, desc: "Layal's house", tst, lat: HOUSE.latitude + 0.0004, lon: HOUSE.longitude, ...extra } });
+  const cross = (event, tst, extra = {}) => req({ token: "ot-visit", body: { _type: "transition", event, desc: "Layal_House", tst, lat: HOUSE.latitude + 0.0004, lon: HOUSE.longitude, ...extra } });
 
   await callHandler({ db, request: cross("enter", enterAt) });
   let place = db.rows.get("knownPlaces").get("layal");
@@ -477,6 +477,7 @@ test("entering and leaving a known place's region counts as a visit with its act
   const leave = mapped.find((e) => e.eventType === "leave_location");
   assert.deepEqual([leave.title, leave.startAt, leave.endAt], ["Visit at Layal's house", "2026-10-11T19:02:00.000Z", "2026-10-11T23:31:00.000Z"]);
   assert.ok(mapped.filter((e) => e.eventType === "arrive_location").every((e) => e.title === "Visit at Layal's house"));
+  assert.ok(events.every((e) => e.locationLabel === "Layal's house"), "logged under the place's own name");
 });
 
 test("a region that isn't one of your places records as before, with no activity", async () => {
