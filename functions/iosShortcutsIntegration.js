@@ -505,6 +505,26 @@ function parseTimezoneNaiveTimestamp(raw, timezone) {
   return new Date(eventMs);
 }
 
+const VISIT_EVENT_TYPES = new Set(["arrive_location", "leave_location"]);
+const MAX_STAY_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * A place visit's activity ("Grocery shopping") and, for a departure, when the stay began - both optional
+ * (see placeActivities.js). A start time that isn't a real time before the departure is left out.
+ */
+function visitFields(payload, eventType, eventDate) {
+  if (!VISIT_EVENT_TYPES.has(eventType)) return {};
+  const out = {};
+  const activity = String(payload.activity == null ? "" : payload.activity).replace(/\s+/g, " ").trim().slice(0, 40);
+  if (activity) out.placeActivity = activity;
+  if (eventType === "leave_location" && payload.stay_started_at) {
+    const started = new Date(String(payload.stay_started_at));
+    const ms = started.getTime();
+    if (Number.isFinite(ms) && ms < eventDate.getTime() && eventDate.getTime() - ms <= MAX_STAY_MS) out.stayStartedAtIso = started.toISOString();
+  }
+  return out;
+}
+
 function parseShortcutEventPayload(body, now = new Date()) {
   const payload = body && typeof body === "object" ? body : {};
   const eventType = normalizeShortcutEventType(payload.event_type);
@@ -573,6 +593,7 @@ function parseShortcutEventPayload(body, now = new Date()) {
       latitude,
       longitude,
       notes: String(payload.notes || "").trim().slice(0, 500),
+      ...visitFields(payload, eventType, eventDate),
     },
   };
 }
@@ -610,6 +631,7 @@ function shortcutEventToAssistantBody(event) {
   if (event.projectSlug) parts.push(`Project: ${event.projectSlug}.`);
   if (event.timezone) parts.push(`Timezone: ${event.timezone}.`);
   if (event.locationLabel) parts.push(`Location: ${event.locationLabel}.`);
+  if (event.placeActivity) parts.push(`Activity: ${event.placeActivity}.`);
   if (event.deviceName) parts.push(`Device: ${event.deviceName}.`);
   if (event.latitude != null && event.longitude != null) {
     parts.push(`Coordinates: ${event.latitude}, ${event.longitude}.`);
@@ -783,6 +805,8 @@ async function recordShortcutEvent({
     latitude: event.latitude,
     longitude: event.longitude,
     notes: event.notes || null,
+    placeActivity: event.placeActivity || null,
+    stayStartedAtIso: event.stayStartedAtIso || null,
     idempotencyKey: idempotencyKey || null,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),

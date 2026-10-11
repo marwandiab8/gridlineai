@@ -8,6 +8,7 @@
 // own.
 const { HttpsError } = require("firebase-functions/v2/https");
 const { COL_KNOWN_PLACES, normalizePlaceName, DEFAULT_RADIUS_METERS } = require("./placeLearning");
+const { normalizePlaceActivity, suggestPlaceActivity } = require("./placeActivities");
 
 const MIN_RADIUS_METERS = 20;
 const MAX_RADIUS_METERS = 1000;
@@ -29,9 +30,28 @@ async function loadOwnedPlace(db, memberEmail, placeId) {
 async function renameKnownPlace({ db, FieldValue, memberEmail, placeId, name }) {
   const cleanName = normalizePlaceName(name);
   if (!cleanName) throw new HttpsError("invalid-argument", "A name is required.");
-  const { ref } = await loadOwnedPlace(db, memberEmail, placeId);
-  await ref.set({ name: cleanName, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  return { id: placeId, name: cleanName };
+  const { ref, data } = await loadOwnedPlace(db, memberEmail, placeId);
+  // A suggested activity follows the new name; one you chose yourself stays.
+  const activity = data.activitySource === "set" ? null : suggestPlaceActivity(cleanName);
+  await ref.set(
+    { name: cleanName, ...(activity ? { activity, activitySource: "suggested" } : {}), updatedAt: FieldValue.serverTimestamp() },
+    { merge: true }
+  );
+  return { id: placeId, name: cleanName, activity: activity || normalizePlaceActivity(data.activity) };
+}
+
+/**
+ * What you do at a place, for visits from now on ("Visit", "Grocery shopping", ...). An empty activity
+ * goes back to the one the name suggests.
+ */
+async function updateKnownPlaceActivity({ db, FieldValue, memberEmail, placeId, activity }) {
+  const clean = normalizePlaceActivity(activity);
+  const { ref, data } = await loadOwnedPlace(db, memberEmail, placeId);
+  const fields = clean
+    ? { activity: clean, activitySource: "set" }
+    : { activity: suggestPlaceActivity(data.name), activitySource: "suggested" };
+  await ref.set({ ...fields, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { id: placeId, ...fields };
 }
 
 async function updateKnownPlaceRadius({ db, FieldValue, memberEmail, placeId, radiusMeters }) {
@@ -97,6 +117,7 @@ module.exports = {
   MAX_RADIUS_METERS,
   DEFAULT_RADIUS_METERS,
   renameKnownPlace,
+  updateKnownPlaceActivity,
   updateKnownPlaceRadius,
   deleteKnownPlace,
   mergeKnownPlaces,

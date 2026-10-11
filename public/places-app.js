@@ -1,4 +1,5 @@
-// Known Places dashboard: list, rename, retune matching radius, delete, and merge the places
+// Known Places dashboard: list, rename, set what you do there (activity), retune matching radius, delete,
+// and merge the places
 // learned by the "Log this place" Shortcut (see docs/quick-log-shortcuts.md and
 // functions/placeLearning.js). Mirrors public/issues-app.js's auth/App Check/Firestore setup.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -25,6 +26,7 @@ import {
   getFunctions,
   httpsCallable,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+import { PLACE_ACTIVITY_CHOICES } from "./place-activity-choices.js?v=2026-10-11-activities";
 
 const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
@@ -80,6 +82,7 @@ const db = getFirestore(app);
 const functions = getFunctions(app, "northamerica-northeast1");
 const getDashboardAccessCallable = httpsCallable(functions, "getDashboardAccessCallable");
 const renameKnownPlaceCallable = httpsCallable(functions, "renameKnownPlaceCallable");
+const updateKnownPlaceActivityCallable = httpsCallable(functions, "updateKnownPlaceActivityCallable");
 const updateKnownPlaceRadiusCallable = httpsCallable(functions, "updateKnownPlaceRadiusCallable");
 const deleteKnownPlaceCallable = httpsCallable(functions, "deleteKnownPlaceCallable");
 const mergeKnownPlacesCallable = httpsCallable(functions, "mergeKnownPlacesCallable");
@@ -218,6 +221,12 @@ function renderPlaces() {
           ${Number(place.latitude).toFixed(5)}, ${Number(place.longitude).toFixed(5)}
         </div>
         <div class="place-radius-row muted small">
+          Activity:
+          <input type="text" class="place-activity-input" data-id="${esc(place.id)}" list="placeActivityChoices" maxlength="40" value="${esc(place.activity || "")}" placeholder="Visit" />
+          <button type="button" class="btn-inline place-save-activity" data-id="${esc(place.id)}">Save</button>
+          <span class="muted">${place.activitySource === "set" ? "" : "(suggested from the name) "}what a visit here is - Time Left counts your time here as this. A change applies from the next visit.</span>
+        </div>
+        <div class="place-radius-row muted small">
           Matching radius:
           <input type="number" class="place-radius-input" data-id="${esc(place.id)}" min="${MIN_RADIUS_METERS}" max="${MAX_RADIUS_METERS}" step="10" value="${Number(place.radiusMeters) || 120}" />
           m
@@ -255,6 +264,19 @@ document.addEventListener("click", async (event) => {
       () => renameKnownPlaceCallable({ placeId: id, name }),
       "Saving name…",
       "Saved."
+    );
+    return;
+  }
+
+  const saveActivityBtn = event.target.closest(".place-save-activity");
+  if (saveActivityBtn) {
+    const id = saveActivityBtn.dataset.id;
+    const input = document.querySelector(`.place-activity-input[data-id="${CSS.escape(id)}"]`);
+    const activity = String(input?.value || "").trim();
+    await withBusyMessage(
+      () => updateKnownPlaceActivityCallable({ placeId: id, activity }),
+      "Saving activity…",
+      activity ? "Saved. Visits from now on count as this." : "Back to the activity the name suggests."
     );
     return;
   }
@@ -319,6 +341,12 @@ document.addEventListener("change", (event) => {
 });
 
 byId("filterSearch")?.addEventListener("input", renderPlaces);
+
+// The activity choices offered as you type (any other short text works too).
+const activityChoices = document.createElement("datalist");
+activityChoices.id = "placeActivityChoices";
+activityChoices.innerHTML = PLACE_ACTIVITY_CHOICES.map((choice) => `<option value="${esc(choice)}"></option>`).join("");
+document.body.appendChild(activityChoices);
 
 async function bootstrapSignedInUser(user) {
   if (!user) return;

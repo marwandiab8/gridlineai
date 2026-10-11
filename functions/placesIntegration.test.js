@@ -170,10 +170,11 @@ function seededDb(token = "secret-token") {
 
 const HERE = { latitude: 43.7615, longitude: -79.4111 };
 
-async function call({ db = seededDb(), request } = {}) {
+async function call({ db = seededDb(), request, deliveries = null } = {}) {
   const response = res();
   const calls = [];
   await handlePlaceLogRequest({
+    ...(deliveries ? { timeLeftLifeEventDelivery: async ({ event }) => deliveries.push(event) } : {}),
     db,
     FieldValue,
     req: request,
@@ -457,4 +458,38 @@ test("iOS Shortcuts events are evidence too: a drive started at the place is whe
   const leave = [...db.rows.get("iosShortcutEvents").values()].find((e) => e.eventType === "leave_location");
   assert.equal(leave.eventAtIso, "2026-10-04T02:21:30.000Z");
   assert.match(leave.notes, /Stayed 3 h 19 min at Raging Bull \(left at 10:21 pm, when you started driving\)/);
+});
+
+test("every visit to a place carries its activity, and leaving sends the whole stay to Time Left", async () => {
+  const { mapShortcutEventToTimeLeftLifeEvent } = require("./timeLeftLifeEventMapper");
+  const db = seededDb();
+  const deliveries = [];
+  const named = await call({ db, deliveries, request: req({ token: "secret-token", body: { ...HERE, name: "Layal's house", timestamp: "2026-10-11T19:00:00Z" } }) });
+  assert.equal(named.response.body.activity, "Visit");
+  const place = [...db.rows.get("knownPlaces").values()][0];
+  assert.deepEqual([place.activity, place.activitySource], ["Visit", "suggested"]);
+
+  const left = await call({ db, deliveries, request: req({ token: "secret-token", body: { ...HERE, action: "leave", timestamp: "2026-10-11T23:30:00Z" } }) });
+  assert.equal(left.response.body.activity, "Visit");
+  const stored = [...db.rows.get("iosShortcutEvents").values()];
+  assert.deepEqual(stored.map((e) => [e.eventType, e.placeActivity, e.stayStartedAtIso]), [
+    ["arrive_location", "Visit", null],
+    ["leave_location", "Visit", "2026-10-11T19:00:00.000Z"],
+  ]);
+  const mapped = deliveries.map((e) => mapShortcutEventToTimeLeftLifeEvent(e).event);
+  assert.deepEqual(mapped.map((e) => [e.eventType, e.title, e.startAt || null, e.endAt || null]), [
+    ["arrive_location", "Visit at Layal's house", null, null],
+    ["leave_location", "Visit at Layal's house", "2026-10-11T19:00:00.000Z", "2026-10-11T23:30:00.000Z"],
+  ]);
+  assert.match(left.calls[0].body, /Activity: Visit\./);
+});
+
+test("a place saved before activities existed gets the one its name suggests; a chosen one is used from then on", async () => {
+  const db = seededDb();
+  db._set("knownPlaces", "costco", { memberEmail: "user@example.com", name: "Costco Guelph", ...HERE, radiusMeters: 120, visitCount: 3 });
+  const first = await call({ db, request: req({ token: "secret-token", body: { ...HERE, timestamp: "2026-10-11T15:00:00Z" } }) });
+  assert.equal(first.response.body.activity, "Grocery shopping");
+  db._set("knownPlaces", "costco", { ...db._get("knownPlaces", "costco"), activity: "Errand", activitySource: "set" });
+  const later = await call({ db, request: req({ token: "secret-token", body: { ...HERE, timestamp: "2026-10-12T15:00:00Z" } }) });
+  assert.equal(later.response.body.activity, "Errand");
 });

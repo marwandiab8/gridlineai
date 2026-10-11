@@ -324,6 +324,22 @@ function mapShortcutEventToTimeLeftLifeEvent(event) {
   if (driveLocationLabel) {
     metadata = { ...(metadata || {}), driveLocationLabel };
   }
+
+  // A place visit carries what you do there ("Grocery shopping at Costco Guelph"), and a departure the
+  // stay it ends, so Time Left counts the whole stay as that activity (gridlineai placeActivities.js).
+  if (eventType === "arrive_location" || eventType === "leave_location") {
+    const activity = trimOrEmpty(event.placeActivity).slice(0, 40);
+    const label = location && location.label;
+    if (activity) {
+      metadata = { ...(metadata || {}), placeActivity: activity };
+      if (label) eventBody.event.title = `${activity} at ${label}`;
+    }
+    const stayStartedAt = eventType === "leave_location" ? parseIso(event.stayStartedAtIso) : null;
+    if (stayStartedAt && stayStartedAt < occurredAt) {
+      eventBody.event.startAt = stayStartedAt;
+      eventBody.event.endAt = occurredAt;
+    }
+  }
   if (metadata) {
     eventBody.event.metadata = metadata;
   }

@@ -112,6 +112,8 @@ async function handlePlaceLeave({ db, FieldValue, req, res, member, payload, dep
       timezone: payload.timezone,
       deviceName: payload.device_name,
       notes: stay.durationMinutes != null ? `Stayed ${formatStay(stay.durationMinutes)} at ${stay.name}` : "",
+      activity: stay.activity,
+      stayStartedAt: stay.arrivedAt,
     })
   );
   if (!parsed.ok) {
@@ -124,6 +126,7 @@ async function handlePlaceLeave({ db, FieldValue, req, res, member, payload, dep
     known: true,
     left: true,
     name: stay.name,
+    activity: stay.activity,
     arrivedAt: stay.arrivedAt,
     leftAt: leftAt.toISOString(),
     durationMinutes: stay.durationMinutes,
@@ -207,6 +210,7 @@ async function handlePlaceLogRequest({
           timestamp: payload.timestamp,
           timezone: payload.timezone,
           deviceName: payload.device_name,
+          activity: visit.activity,
         })
       );
       if (parsed.ok) {
@@ -223,6 +227,7 @@ async function handlePlaceLogRequest({
         known: true,
         isNew: false,
         name: visit.name,
+        activity: visit.activity,
         visitCount: visit.visitCount,
         closedStays: closed,
         distanceMeters: match.distanceMeters,
@@ -244,6 +249,7 @@ async function handlePlaceLogRequest({
         timestamp: payload.timestamp,
         timezone: payload.timezone,
         deviceName: payload.device_name,
+        activity: saved.activity,
       })
     );
     if (!parsed.ok) {
@@ -255,7 +261,7 @@ async function handlePlaceLogRequest({
       db, FieldValue, req, member, payload, deps,
       arrival: { latitude, longitude, exceptPlaceId: saved.id, arrivedAt, name: saved.name },
     });
-    res.status(200).json({ ok: true, known: true, isNew: saved.isNew, name: saved.name, visitCount: saved.visitCount, closedStays: closed });
+    res.status(200).json({ ok: true, known: true, isNew: saved.isNew, name: saved.name, activity: saved.activity, visitCount: saved.visitCount, closedStays: closed });
   } catch (err) {
     const status = Number(err && err.status) || 500;
     const code = String((err && err.code) || "place_log_failed");

@@ -154,7 +154,7 @@ const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
 const { closeStaleDrives } = require("./driveDetection");
 const { handlePlaceLogRequest } = require("./placesIntegration");
 const { handleHealthExportEventRequest } = require("./healthExportIntegration");
-const { renameKnownPlace, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
+const { renameKnownPlace, updateKnownPlaceActivity, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
 const {
   createTimeLeftDeliveryRepository,
 } = require("./timeLeftDeliveryRepository");
@@ -7134,6 +7134,11 @@ const PLACES_CALLABLE_OPTIONS = { region: "northamerica-northeast1", cors: true,
 exports.renameKnownPlaceCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
   const access = await getAppAccess(db, request);
   return renameKnownPlace({ db, FieldValue, memberEmail: access.email, placeId: request.data?.placeId, name: request.data?.name });
+});
+
+exports.updateKnownPlaceActivityCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  const access = await getAppAccess(db, request);
+  return updateKnownPlaceActivity({ db, FieldValue, memberEmail: access.email, placeId: request.data?.placeId, activity: request.data?.activity });
 });
 
 exports.updateKnownPlaceRadiusCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {

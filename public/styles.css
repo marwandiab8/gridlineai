@@ -1970,6 +1970,10 @@ code {
 .place-radius-input {
   width: 70px;
 }
+.place-activity-input {
+  width: 170px;
+  max-width: 100%;
+}
 
 /* Labour review by activity code */
 .labour-line {

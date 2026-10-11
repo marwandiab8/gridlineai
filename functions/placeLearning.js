@@ -7,6 +7,7 @@
 // server round-trip - see docs/quick-log-shortcuts.md - so a place is only ever written here once
 // its name is already known; there is no separate "pending, unnamed" state to manage.
 const COL_KNOWN_PLACES = "knownPlaces";
+const { placeActivity, suggestedActivityFields } = require("./placeActivities");
 
 // A GPS fix drifts by tens of meters even standing still; 120m (roughly a block) is loose enough
 // to recognize "the same parking lot" but tight enough not to merge two nearby, distinct places.
@@ -133,7 +134,7 @@ async function nameAndVisitPlace({ db, FieldValue, memberEmail, latitude, longit
       },
       { merge: true }
     );
-    return { id: existing.id, name: cleanName, isNew: false, visitCount: (existing.visitCount || 0) + 1 };
+    return { id: existing.id, name: cleanName, isNew: false, visitCount: (existing.visitCount || 0) + 1, activity: placeActivity({ ...existing, name: cleanName }) };
   }
   const ref = db.collection(COL_KNOWN_PLACES).doc();
   await ref.set({
@@ -146,10 +147,12 @@ async function nameAndVisitPlace({ db, FieldValue, memberEmail, latitude, longit
     firstVisitAt: now,
     lastVisitAt: now,
     currentVisitStartedAt: arrivedAt,
+    // What you do there, suggested from the name until you set it (placeActivities.js).
+    ...suggestedActivityFields(cleanName),
     createdAt: now,
     updatedAt: now,
   });
-  return { id: ref.id, name: cleanName, isNew: true, visitCount: 1 };
+  return { id: ref.id, name: cleanName, isNew: true, visitCount: 1, activity: placeActivity({ name: cleanName }) };
 }
 
 /** Records another visit to an already-known place (no naming involved). */
@@ -168,7 +171,7 @@ async function visitKnownPlace({ db, FieldValue, place, arrivedAt = new Date() }
       },
       { merge: true }
     );
-  return { id: place.id, name: place.name, isNew: false, visitCount: nextVisitCount };
+  return { id: place.id, name: place.name, isNew: false, visitCount: nextVisitCount, activity: placeActivity(place) };
 }
 
 /**
@@ -308,6 +311,7 @@ async function leaveKnownPlace({ db, FieldValue, place, leftAt = new Date(), est
   return {
     id: place.id,
     name: place.name,
+    activity: placeActivity(place),
     arrivedAt: startMs != null ? new Date(startMs).toISOString() : null,
     durationMinutes,
     totalMinutesSpent,

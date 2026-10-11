@@ -5,6 +5,7 @@ const {
   MIN_RADIUS_METERS,
   MAX_RADIUS_METERS,
   renameKnownPlace,
+  updateKnownPlaceActivity,
   updateKnownPlaceRadius,
   deleteKnownPlace,
   mergeKnownPlaces,
@@ -123,4 +124,18 @@ test("rejects a merge with no other place ids", async () => {
   const db = seeded();
   await assert.rejects(mergeKnownPlaces({ db, FieldValue, memberEmail: "user@example.com", survivorId: "place-1", mergeIds: [] }), HttpsError);
   await assert.rejects(mergeKnownPlaces({ db, FieldValue, memberEmail: "user@example.com", survivorId: "place-1", mergeIds: ["place-1"] }), HttpsError, "the survivor listed as its own merge target is not another place");
+});
+
+test("you can set what a place is for; renaming re-suggests only an activity you didn't choose", async () => {
+  const db = seeded();
+  const doc = () => db.rows.get("place-1");
+  await renameKnownPlace({ db, FieldValue, memberEmail: "user@example.com", placeId: "place-1", name: "Esso Guelph" });
+  assert.deepEqual([doc().activity, doc().activitySource], ["Fueling up", "suggested"]);
+  const set = await updateKnownPlaceActivity({ db, FieldValue, memberEmail: "user@example.com", placeId: "place-1", activity: "  Car  wash " });
+  assert.deepEqual([set.activity, doc().activity, doc().activitySource], ["Car wash", "Car wash", "set"]);
+  await renameKnownPlace({ db, FieldValue, memberEmail: "user@example.com", placeId: "place-1", name: "Esso on Gordon" });
+  assert.equal(doc().activity, "Car wash", "your own choice stays through a rename");
+  await updateKnownPlaceActivity({ db, FieldValue, memberEmail: "user@example.com", placeId: "place-1", activity: "" });
+  assert.deepEqual([doc().activity, doc().activitySource], ["Fueling up", "suggested"], "empty goes back to the suggestion");
+  await assert.rejects(updateKnownPlaceActivity({ db, FieldValue, memberEmail: "user@example.com", placeId: "someone-elses-place", activity: "Visit" }), HttpsError);
 });

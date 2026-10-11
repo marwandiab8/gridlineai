@@ -33,8 +33,12 @@ function formatDistance(meters) {
   return meters >= 1000 ? `${Math.round(meters / 100) / 10} km` : `${Math.round(meters)} m`;
 }
 
-/** The arrive_location / leave_location body recordShortcutEvent's pipeline understands. */
-function buildVisitBody({ latitude, longitude, name, timestamp, timezone, deviceName, eventType = "arrive_location", notes }) {
+/**
+ * The arrive_location / leave_location body recordShortcutEvent's pipeline understands. `activity` is what
+ * you do at the place (placeActivities.js); a departure's `stayStartedAt` is when that stay began, so Time
+ * Left counts the whole stay as the activity.
+ */
+function buildVisitBody({ latitude, longitude, name, timestamp, timezone, deviceName, eventType = "arrive_location", notes, activity, stayStartedAt }) {
   return {
     event_type: eventType,
     timestamp,
@@ -45,6 +49,8 @@ function buildVisitBody({ latitude, longitude, name, timestamp, timezone, device
     device_name: deviceName || null,
     source: "quick_log",
     ...(notes ? { notes } : {}),
+    ...(activity ? { activity } : {}),
+    ...(stayStartedAt ? { stay_started_at: stayStartedAt } : {}),
   };
 }
 
@@ -91,6 +97,8 @@ async function closeStaysFromEvidence({ db, FieldValue, req, member, evidence, t
           timezone: timezone || DEFAULT_TIMEZONE,
           deviceName,
           notes: closedStayNote({ ...c, evidenceLabel: evidence.label, timezone }),
+          activity: c.stay.activity,
+          stayStartedAt: c.stay.arrivedAt,
         })
       );
       if (parsed.ok) await recordAndDeliver({ db, FieldValue, req, member, event: parsed.event, ...deps });
