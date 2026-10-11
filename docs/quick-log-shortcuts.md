@@ -24,6 +24,23 @@ the phone (Shortcuts' own "Ask for Text" prompt), and traffic logging is a singl
 - Every visit — known or newly named — is recorded exactly like an `arrive_location` Shortcut
   event: same dashboard log note, same Time Left To Live delivery, `source: "quick_log"`.
 
+### What you do there (activity)
+
+Every known place also has an **activity** - what a visit there is: "Visit", "Grocery shopping",
+"Fueling up", "Car service", "Work", "Home", "Gym", "Eating out", "Appointment", "Errand", "Worship", or
+anything else you type (`functions/placeActivities.js`).
+
+- When you name a new place, its activity is suggested from the name: "Costco Guelph" is grocery
+  shopping, "Petro-Canada" fueling up, "Quick Oil Change" car service, "6 Docksteader" work, a place
+  named just "Home" home, and anything the name doesn't explain - "Layal's house" - a visit.
+- Change it on the **Known Places** page (Activity → Save). Your choice is used for every visit from
+  then on and is kept if you rename the place; clearing it goes back to the suggestion.
+- Every arrival and departure carries it (`activity` on the event; the dashboard note says
+  "Activity: ..."), and a departure also carries when the stay began (`stay_started_at`). Time Left To
+  Live shows the stay as "Grocery shopping at Costco Guelph" and counts its whole length on the activity
+  wheel: Work, Home and Gym join those slices, every other activity is a slice of its own.
+- The responses include `activity` too, so a Shortcut can show "Logged: Costco Guelph (Grocery shopping)".
+
 ### Shortcut setup
 
 1. **Automation → Create Personal Automation** (or a plain Shortcut you trigger by voice/tap —
