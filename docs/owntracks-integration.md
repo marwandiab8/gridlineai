@@ -97,6 +97,33 @@ A region you create while you are already standing inside it has no *enter* even
 that visit's arrival is missing in Time Left ("Arrival was not recorded"); later visits are paired
 normally.
 
+## Drives are detected from movement (replaces the CarPlay automations)
+
+The CarPlay "connects"/"disconnects" Shortcuts automations fire on their own: on 2026-10-10 the phone
+logged six "Finished driving" events between 9:03 and 10:25 am while it sat at home, with no matching
+start. So drives are now worked out from the OwnTracks pings this endpoint already receives
+(`functions/driveDetection.js`), and recorded as the same `start_drive` / `finish_drive` events, through
+the same pipeline and TimeLeft delivery, with `source: "owntracks_motion"`:
+
+- **Start:** two pings in a row at 20 km/h or more that have taken you at least 300 m from where you
+  were (or one that has already taken you 1 km). Speed is OwnTracks' own `vel` when the ping has it,
+  otherwise the distance and time from the previous ping. The drive is backdated to when you must have
+  set off, and starts where the previous ping put you.
+- **Finish:** no driving speed for 7 minutes (a red light or a drive-thru does not end it), or no pings
+  for 20 minutes. It ends when you stopped, not when that was noticed. Entering an OwnTracks region
+  (Home/Work/Gym) marks the arrival time and place. The `closeStaleDrives` scheduled function (every
+  5 minutes) finishes drives whose pings have stopped.
+- **Not a drive:** pings while you are still - GPS drift stays under 150 m and has no speed - and fixes
+  with accuracy worse than 100 m.
+- A start or finish already recorded within 5 minutes (for example by a CarPlay Shortcut that is still
+  switched on) is not recorded again. A passenger ride counts as a drive.
+- Detector state lives in `driveDetection/{memberEmail}`. To switch it off for a member, set
+  `appMembers/{email}.driveDetection.enabled` to `false`.
+
+Phone setup: keep OwnTracks in **Significant changes** mode (start/finish times can be a few minutes
+off) or **Move** mode (precise, more battery). Once a few drives show up correctly, turn off the two
+CarPlay automations in Shortcuts → Automation.
+
 ## Verifying it works
 
 Trigger a Region manually (walk in/out, or use OwnTracks' own "Reconnect"/simulate options if

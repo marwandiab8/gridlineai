@@ -21,6 +21,7 @@ const {
 } = require("./iosShortcutsIntegration");
 const { findStayToCloseOnRegionLeave, leaveKnownPlace } = require("./placeLearning");
 const { closeStaysFromEvidence } = require("./stayClosing");
+const { applyOwnTracksToDrive } = require("./driveDetection");
 
 /**
  * The location evidence in an OwnTracks message (a ping or a crossing): where and when, and how
@@ -187,6 +188,8 @@ async function handleOwnTracksEventRequest({
       // (stayEvidence.js). Waypoint dumps and the rest carry nothing to use.
       const evidence = payload && payload._type === "location" ? ownTracksEvidence(payload) : null;
       if (evidence) await closeStaysFromEvidence({ db, FieldValue, req, member, evidence, deviceName: payload.tid || null, deps });
+      // Each ping is also how drives are detected now - movement, not CarPlay (driveDetection.js).
+      if (payload && payload._type === "location") await applyOwnTracksToDrive({ db, FieldValue, member, payload, deps });
       res.status(200).json([]);
       return;
     }
@@ -279,6 +282,9 @@ async function handleOwnTracksEventRequest({
         });
       }
     }
+
+    // A crossing is a position too: entering Home/Work/Gym marks where and when a drive arrived.
+    if (!result.duplicate) await applyOwnTracksToDrive({ db, FieldValue, member, payload, deps });
 
     // OwnTracks' HTTP protocol expects a JSON array in the response body (normally used to push
     // config/card/waypoint updates back to the device); an empty array is the correct "nothing to

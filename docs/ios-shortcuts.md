@@ -104,6 +104,11 @@ For retry protection, set an `Idempotency-Key` header to a unique Shortcut run i
 
 ## Drive tracking (CarPlay / car Bluetooth)
 
+> **Superseded:** drives are now detected from OwnTracks movement - see "Drives are detected from
+> movement" in `docs/owntracks-integration.md`. The CarPlay "disconnects" trigger was found firing on
+> its own while the phone sat at home. The automations below still work, and a drive they already
+> logged is not recorded twice, but they can be switched off.
+
 `start_drive` and `finish_drive` record each drive as one timed session. TimeLeftToLive shows it
 under **Transportation**, the same kind of segment Donut labels "Transport". The trigger is your
 phone connecting to and disconnecting from the car. Unlike Shortcuts location triggers ("Arrive"/

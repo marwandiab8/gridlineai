@@ -151,6 +151,7 @@ const {
   tokenLast4,
 } = require("./iosShortcutsIntegration");
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
+const { closeStaleDrives } = require("./driveDetection");
 const { handlePlaceLogRequest } = require("./placesIntegration");
 const { handleHealthExportEventRequest } = require("./healthExportIntegration");
 const { renameKnownPlace, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
@@ -7054,6 +7055,34 @@ exports.ownTracksEvents = onRequest(
       openaiKey: OPENAI_API_KEY.value() || null,
       timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
     })
+);
+
+// Drives are detected from OwnTracks movement (driveDetection.js). Once you park, OwnTracks can go
+// quiet, so this sweep finishes any drive whose pings have stopped - at the time you stopped.
+exports.closeStaleDrives = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    region: "northamerica-northeast1",
+    timeZone: "America/Toronto",
+    timeoutSeconds: 120,
+    memory: "256MiB",
+    secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
+  },
+  async () => {
+    const runId = `drive-sweep-${Date.now()}`;
+    const finished = await closeStaleDrives({
+      db,
+      FieldValue,
+      deps: {
+        processAssistantMessage,
+        openaiKey: OPENAI_API_KEY.value() || null,
+        runId,
+        logger,
+        timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
+      },
+    });
+    if (finished) logger.info("closeStaleDrives: finished drives", { runId, finished });
+  }
 );
 
 // "Log this place" Shortcut: coordinates-only first call recognizes an already-named place and
