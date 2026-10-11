@@ -493,3 +493,12 @@ test("a place saved before activities existed gets the one its name suggests; a 
   const later = await call({ db, request: req({ token: "secret-token", body: { ...HERE, timestamp: "2026-10-12T15:00:00Z" } }) });
   assert.equal(later.response.body.activity, "Errand");
 });
+
+test("a name written differently from a nearby place's (\"Layal_house\" for \"Layal's house\") is that place, keeping its name", async () => {
+  const db = seededDb();
+  db._set("knownPlaces", "layal", { memberEmail: "user@example.com", name: "Layal's house", ...HERE, radiusMeters: 120, visitCount: 0, activity: "Visit", activitySource: "suggested" });
+  const { response } = await call({ db, request: req({ token: "secret-token", body: { ...HERE, latitude: HERE.latitude + 0.0002, name: "Layal_house" } }) });
+  assert.deepEqual([response.body.isNew, response.body.name, response.body.activity], [false, "Layal's house", "Visit"]);
+  assert.equal(db.rows.get("knownPlaces").size, 1, "no duplicate place");
+  assert.equal(db._get("knownPlaces", "layal").name, "Layal's house");
+});

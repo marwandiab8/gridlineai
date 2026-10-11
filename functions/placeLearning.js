@@ -119,14 +119,17 @@ async function nameAndVisitPlace({ db, FieldValue, memberEmail, latitude, longit
   // Reuse a nearby place only when the name matches one already there (a revisit). A different
   // name nearby - the convenience store next to a gas station already saved - is a different
   // place, not a rename of the closest one, even though they're a few meters apart.
+  // The same name written differently ("Layal_house" for "Layal's house") is the same place, and keeps
+  // the name it was saved with.
   const nearby = await findNearbyKnownPlaces(db, memberEmail, latitude, longitude);
-  const existing = nearby.find((place) => normalizePlaceName(place.name).toLowerCase() === cleanName.toLowerCase());
+  const existing = nearby.find((place) => placeNameKey(place.name) === placeNameKey(cleanName));
   const now = FieldValue.serverTimestamp();
   if (existing) {
+    const keptName = normalizePlaceName(existing.name) || cleanName;
     const ref = db.collection(COL_KNOWN_PLACES).doc(existing.id);
     await ref.set(
       {
-        name: cleanName,
+        name: keptName,
         visitCount: (Number.isFinite(existing.visitCount) ? existing.visitCount : 0) + 1,
         lastVisitAt: now,
         currentVisitStartedAt: nextVisitStart(existing, arrivedAt),
@@ -134,7 +137,7 @@ async function nameAndVisitPlace({ db, FieldValue, memberEmail, latitude, longit
       },
       { merge: true }
     );
-    return { id: existing.id, name: cleanName, isNew: false, visitCount: (existing.visitCount || 0) + 1, activity: placeActivity({ ...existing, name: cleanName }) };
+    return { id: existing.id, name: keptName, isNew: false, visitCount: (existing.visitCount || 0) + 1, activity: placeActivity({ ...existing, name: keptName }) };
   }
   const ref = db.collection(COL_KNOWN_PLACES).doc();
   await ref.set({

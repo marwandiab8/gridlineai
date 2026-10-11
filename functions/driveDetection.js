@@ -306,7 +306,12 @@ async function recordDriveEmission({ db, FieldValue, member, emission, deviceNam
   const eventType = emission.kind === "start" ? "start_drive" : "finish_drive";
   try {
     const existing = await findNearbyDriveEvent(db, member.email, eventType, emission.atMs);
-    if (existing) return { recorded: false, skipped: "already_recorded", shortcutEventId: existing };
+    if (existing) {
+      if (deps.logger && typeof deps.logger.info === "function") {
+        deps.logger.info("driveDetection: drive event already recorded, skipped", { runId: deps.runId, eventType, atMs: emission.atMs, driveId: emission.driveId });
+      }
+      return { recorded: false, skipped: "already_recorded", shortcutEventId: existing };
+    }
 
     const timezone = memberTimezone(member);
     const parsed = parseShortcutEventPayload({
@@ -324,6 +329,9 @@ async function recordDriveEmission({ db, FieldValue, member, emission, deviceNam
 
     const req = idempotentRequest(`drive-${emission.kind}-${emission.driveId}`);
     const result = await recordAndDeliver({ db, FieldValue, req, member, event: parsed.event, ...deps });
+    if (deps.logger && typeof deps.logger.info === "function") {
+      deps.logger.info("driveDetection: drive event recorded", { runId: deps.runId, eventType, atMs: emission.atMs, driveId: emission.driveId, duplicate: !!result.duplicate });
+    }
 
     // Setting off ends any "Log this place" stay you drove away from, at the moment you left.
     if (emission.kind === "start" && !result.duplicate) {
