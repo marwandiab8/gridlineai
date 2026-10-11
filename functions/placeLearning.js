@@ -246,6 +246,30 @@ function placeNameKey(name) {
   return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+/**
+ * The known place an OwnTracks region stands for: the one whose name matches the region's ("Layal's
+ * house", ignoring case, spaces and punctuation), nearest the crossing if several do; otherwise the place
+ * the crossing is inside. Null when the region isn't one of your places.
+ */
+async function findKnownPlaceForRegion(db, memberEmail, { name, latitude, longitude }) {
+  const key = placeNameKey(name);
+  if (key) {
+    const snap = await db.collection(COL_KNOWN_PLACES).where("memberEmail", "==", memberEmail).get();
+    const named = [];
+    snap.forEach((doc) => {
+      const place = { id: doc.id, ...(doc.data() || {}) };
+      if (placeNameKey(place.name) !== key) return;
+      const distance = Number.isFinite(latitude) && Number.isFinite(longitude) && Number.isFinite(place.latitude) && Number.isFinite(place.longitude)
+        ? haversineMeters(latitude, longitude, place.latitude, place.longitude)
+        : 0;
+      named.push({ place, distance });
+    });
+    if (named.length) return named.sort((a, b) => a.distance - b.distance)[0].place;
+  }
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return findNearbyKnownPlace(db, memberEmail, latitude, longitude);
+}
+
 // An OwnTracks exit is reported just outside the region's edge, so the phone can be a little past
 // the saved place's own radius when it fires.
 const REGION_LEAVE_MARGIN_METERS = 300;
@@ -331,6 +355,7 @@ module.exports = {
   nameAndVisitPlace,
   visitKnownPlace,
   findPlaceToLeave,
+  findKnownPlaceForRegion,
   findStayToCloseOnRegionLeave,
   findStaysLeftByArrival,
   leaveKnownPlace,

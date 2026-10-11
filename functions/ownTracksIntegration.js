@@ -19,7 +19,37 @@ const {
   parseShortcutEventPayload,
   recordShortcutEvent,
 } = require("./iosShortcutsIntegration");
-const { findStayToCloseOnRegionLeave, leaveKnownPlace } = require("./placeLearning");
+const { findKnownPlaceForRegion, findStayToCloseOnRegionLeave, leaveKnownPlace, openVisitStartMs, visitKnownPlace } = require("./placeLearning");
+const { placeActivity } = require("./placeActivities");
+
+const REOPEN_STAY_AFTER_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * A crossing of a region named after one of your known places (or drawn around one) is a visit there,
+ * the same as "Log this place": it carries the place's activity, and a leave also carries when the stay
+ * began, so Time Left counts the visit ("Visit at Layal's house"). Returns { place, body } with the
+ * fields to add to the event, or null when the region isn't a known place. Never throws.
+ */
+async function knownPlaceRegionVisit({ db, member, payload, body, logger, runId }) {
+  if (body.event_type !== "arrive_location" && body.event_type !== "leave_location") return null;
+  try {
+    const latitude = Number(payload.lat);
+    const longitude = Number(payload.lon);
+    const at = Number(payload.tst) > 0 ? new Date(Number(payload.tst) * 1000) : new Date();
+    if (body.event_type === "leave_location") {
+      const open = await findStayToCloseOnRegionLeave(db, member.email, { name: payload.desc, latitude, longitude, leftAt: at });
+      if (open) {
+        const startMs = openVisitStartMs(open);
+        return { place: open, body: { activity: placeActivity(open), ...(startMs != null ? { stay_started_at: new Date(startMs).toISOString() } : {}) } };
+      }
+    }
+    const place = await findKnownPlaceForRegion(db, member.email, { name: payload.desc, latitude, longitude });
+    return place ? { place, body: { activity: placeActivity(place) } } : null;
+  } catch (err) {
+    if (logger && typeof logger.warn === "function") logger.warn("ownTracksEvents: known place lookup failed", { runId, message: err && err.message });
+    return null;
+  }
+}
 const { closeStaysFromEvidence } = require("./stayClosing");
 const { applyOwnTracksToDrive } = require("./driveDetection");
 
@@ -195,6 +225,8 @@ async function handleOwnTracksEventRequest({
     }
 
     const translatedBody = mapOwnTracksTransitionToShortcutBody(payload);
+    const regionVisit = await knownPlaceRegionVisit({ db, member, payload, body: translatedBody, logger, runId });
+    if (regionVisit) Object.assign(translatedBody, regionVisit.body);
     const parsed = parseShortcutEventPayload(translatedBody);
     if (!parsed.ok) {
       if (logger && typeof logger.warn === "function") {
@@ -246,6 +278,19 @@ async function handleOwnTracksEventRequest({
             code: err && err.code,
           });
         }
+      }
+    }
+
+    // Entering a known place's region starts a stay there, like "Log this place" (unless one is already
+    // open from a check-in in the last 12 hours); leaving it ends the stay below.
+    if (!result.duplicate && regionVisit && parsed.event.eventType === "arrive_location") {
+      try {
+        const startMs = openVisitStartMs(regionVisit.place);
+        if (startMs == null || parsed.event.eventAtMs - startMs > REOPEN_STAY_AFTER_MS) {
+          await visitKnownPlace({ db, FieldValue, place: regionVisit.place, arrivedAt: parsed.event.eventDate });
+        }
+      } catch (err) {
+        if (logger && typeof logger.warn === "function") logger.warn("ownTracksEvents: could not start the known place stay", { runId, message: err && err.message });
       }
     }
 

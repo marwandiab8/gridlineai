@@ -446,3 +446,42 @@ test("arriving home (a Home region crossing) ends a stay across town", async () 
   const types = [...db.rows.get("iosShortcutEvents").values()].map((e) => e.eventType).sort();
   assert.deepEqual(types, ["arrive_home", "leave_location"]);
 });
+
+// --- a region named after a known place is a visit there, like "Log this place" ---
+
+test("entering and leaving a known place's region counts as a visit with its activity and length", async () => {
+  const { mapShortcutEventToTimeLeftLifeEvent } = require("./timeLeftLifeEventMapper");
+  const HOUSE = { latitude: 43.5536958, longitude: -79.642663 };
+  const db = seededDb("ot-visit");
+  db.rows.set("knownPlaces", new Map([["layal", { memberEmail: "user@example.com", name: "Layal's house", ...HOUSE, radiusMeters: 120, visitCount: 0, activity: "Visit", activitySource: "suggested" }]]));
+  const enterAt = Math.floor(Date.parse("2026-10-11T19:02:00Z") / 1000);
+  const leaveAt = Math.floor(Date.parse("2026-10-11T23:31:00Z") / 1000);
+  const cross = (event, tst, extra = {}) => req({ token: "ot-visit", body: { _type: "transition", event, desc: "Layal's house", tst, lat: HOUSE.latitude + 0.0004, lon: HOUSE.longitude, ...extra } });
+
+  await callHandler({ db, request: cross("enter", enterAt) });
+  let place = db.rows.get("knownPlaces").get("layal");
+  assert.equal(new Date(place.currentVisitStartedAt).toISOString(), "2026-10-11T19:02:00.000Z", "the enter starts the stay");
+  assert.equal(place.visitCount, 1);
+
+  // OwnTracks repeating the same enter does not count a second visit.
+  await callHandler({ db, request: cross("enter", enterAt + 30) });
+  assert.equal(db.rows.get("knownPlaces").get("layal").visitCount, 1);
+
+  await callHandler({ db, request: cross("leave", leaveAt) });
+  place = db.rows.get("knownPlaces").get("layal");
+  assert.equal(place.currentVisitStartedAt, undefined, "the leave ends it");
+  assert.equal(place.lastVisitDurationMinutes, 269);
+
+  const events = [...db.rows.get("iosShortcutEvents").values()].sort((a, b) => a.eventAtMs - b.eventAtMs);
+  const mapped = events.map((e) => mapShortcutEventToTimeLeftLifeEvent({ ...e, id: e.eventType }).event);
+  const leave = mapped.find((e) => e.eventType === "leave_location");
+  assert.deepEqual([leave.title, leave.startAt, leave.endAt], ["Visit at Layal's house", "2026-10-11T19:02:00.000Z", "2026-10-11T23:31:00.000Z"]);
+  assert.ok(mapped.filter((e) => e.eventType === "arrive_location").every((e) => e.title === "Visit at Layal's house"));
+});
+
+test("a region that isn't one of your places records as before, with no activity", async () => {
+  const db = seededDb("ot-plain");
+  await callHandler({ db, request: req({ token: "ot-plain", body: { _type: "transition", event: "enter", desc: "Trailhead", tst: EXIT_AT, lat: 44.1, lon: -80.1 } }) });
+  const event = [...db.rows.get("iosShortcutEvents").values()][0];
+  assert.deepEqual([event.eventType, event.placeActivity], ["arrive_location", null]);
+});
