@@ -46,22 +46,24 @@ function roundNumber(value, decimals = 2) {
 /**
  * Sleep can arrive "aggregated" (one row per night, with sleepStart/sleepEnd/totalSleep etc.)
  * or "unaggregated" (many rows per night, one per sleep stage segment, each still carrying the
- * same overall sleepStart/sleepEnd). Either way, every row belonging to the same night shares
- * the same sleepStart+sleepEnd pair, so deduping on that pair yields exactly one session per
- * night regardless of which export mode is configured.
+ * same overall sleepStart). A night is its bedtime: Apple Health can first report a night as
+ * ending at a brief 4 am wake-up and later, with the same sleepStart, as the whole night. So one
+ * session per sleepStart, the latest-ending one, preferring an aggregated row at the same end.
  */
 function dedupeSleepDataPoints(dataPoints) {
   const byNight = new Map();
+  const endMs = (point) => {
+    const iso = toIso(point.sleepEnd);
+    return iso ? Date.parse(iso) : 0;
+  };
   for (const point of Array.isArray(dataPoints) ? dataPoints : []) {
     const start = point && point.sleepStart;
     const end = point && point.sleepEnd;
     if (!start || !end) continue;
-    const key = `${start}|${end}`;
-    const existing = byNight.get(key);
-    // Prefer an aggregated row (has totalSleep) over a bare stage segment, if both appear.
-    if (!existing || (point.totalSleep !== undefined && existing.totalSleep === undefined)) {
-      byNight.set(key, point);
-    }
+    const existing = byNight.get(start);
+    const later = existing && endMs(point) > endMs(existing);
+    const sameEndAggregated = existing && endMs(point) === endMs(existing) && point.totalSleep !== undefined && existing.totalSleep === undefined;
+    if (!existing || later || sameEndAggregated) byNight.set(start, point);
   }
   return [...byNight.values()];
 }
@@ -70,7 +72,9 @@ function buildSleepLifeEvent(point) {
   const startAt = toIso(point.sleepStart);
   const endAt = toIso(point.sleepEnd);
   if (!startAt || !endAt) return null;
-  const sourceRecordId = `sleep:${point.sleepStart}|${point.sleepEnd}`;
+  // Keyed by bedtime, so a later export of the same night ending later updates it in Time Left
+  // (sleep_session is revisable there) instead of adding a second night.
+  const sourceRecordId = `sleep:${point.sleepStart}`;
   const metrics = {};
   if (Number.isFinite(Number(point.totalSleep))) metrics.totalSleepHours = roundNumber(point.totalSleep);
   if (Number.isFinite(Number(point.core))) metrics.coreHours = roundNumber(point.core);

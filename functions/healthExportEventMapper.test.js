@@ -199,3 +199,13 @@ test("parseHealthExportPayload tolerates a payload with no data section", () => 
   const result = parseHealthExportPayload({});
   assert.deepEqual(result, { sleepEvents: [], workoutEvents: [], stepsEvents: [] });
 });
+
+test("a night first reported ending at a 4 am wake-up and later in full is one night, keyed by bedtime", () => {
+  const early = { sleepStart: "2026-10-10 23:26:42 -0400", sleepEnd: "2026-10-11 03:59:57 -0400", totalSleep: 4.16 };
+  const full = { sleepStart: "2026-10-10 23:26:42 -0400", sleepEnd: "2026-10-11 07:58:49 -0400", totalSleep: 8.03 };
+  const nights = dedupeSleepDataPoints([early, full]);
+  assert.deepEqual(nights, [full], "the latest-ending one, in either order");
+  assert.deepEqual(dedupeSleepDataPoints([full, early]), [full]);
+  assert.equal(buildSleepLifeEvent(early).sourceRecordId, buildSleepLifeEvent(full).sourceRecordId, "the same record, updated");
+  assert.equal(buildSleepLifeEvent(full).sourceRecordId, "sleep:2026-10-10 23:26:42 -0400");
+});
