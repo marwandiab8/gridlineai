@@ -37,6 +37,7 @@ const {
 } = require("./labourRepository");
 const { createLabourPortalHandler } = require("./labourPortal");
 const { createSiteLogisticsLabourHandler, normalizeSiteLogisticsIds } = require("./siteLogisticsLabour");
+const { createSiteLogisticsTaskNotifyHandler } = require("./siteLogisticsTaskNotify");
 const { generateLabourReportPdf } = require("./labourReportPdf");
 const { correctLabourHours, normalizeLabourLines } = require("./labourActivityCodes");
 const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labourCodedReportPdf");
@@ -4989,6 +4990,31 @@ exports.siteLogisticsLabourHours = onRequest(
     memory: "256MiB",
   },
   createSiteLogisticsLabourHandler({ db, FieldValue, logger, audience: () => getPublicFunctionBaseUrl("siteLogisticsLabourHours") })
+);
+
+// Texts to labourers about tasks just added in Site Logistics; Site Logistics writes them, this sends them from our
+// Twilio number. Only Site Logistics' server can call it.
+exports.siteLogisticsTaskNotify = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
+  },
+  createSiteLogisticsTaskNotifyHandler({
+    db,
+    FieldValue,
+    logger,
+    audience: () => getPublicFunctionBaseUrl("siteLogisticsTaskNotify"),
+    messageSchemaVersion: MESSAGE_SCHEMA_VERSION,
+    getTwilio: () => {
+      const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+      const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+      const fromPhone = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+      return { smsClient: accountSid && authToken ? twilio(accountSid, authToken) : null, fromPhone };
+    },
+  })
 );
 
 exports.inboundSms = onRequest(
