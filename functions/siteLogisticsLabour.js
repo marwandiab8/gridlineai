@@ -190,6 +190,7 @@ module.exports = {
   SITE_LOGISTICS_CALLER,
   createSiteLogisticsLabourHandler,
   entryIdFor,
+  normalizeSiteLogisticsId,
   normalizeSiteLogisticsIds,
   projectSlugForSite,
   saveSiteLogisticsLabourDay,
