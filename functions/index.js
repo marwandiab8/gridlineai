@@ -38,6 +38,7 @@ const {
 const { createLabourPortalHandler } = require("./labourPortal");
 const { createSiteLogisticsLabourHandler, normalizeSiteLogisticsIds } = require("./siteLogisticsLabour");
 const { createSiteLogisticsTaskNotifyHandler } = require("./siteLogisticsTaskNotify");
+const { awaitInboundReply } = require("./inboundReplyTiming");
 const { generateLabourReportPdf } = require("./labourReportPdf");
 const { correctLabourHours, normalizeLabourLines } = require("./labourActivityCodes");
 const { buildCodedLabourReport, renderCodedLabourReportPdf } = require("./labourCodedReportPdf");
@@ -2517,6 +2518,8 @@ async function transcribeAudioBufferWithFallback({
 
 /** Twilio HTTP webhook must respond with TwiML in ~15s; keep AI path under this. */
 const BUILD_REPLY_TIMEOUT_MS = 12_000;
+// inboundSms: how much longer a slow reply is waited for after Twilio has been answered (see inboundReplyTiming.js).
+const LATE_REPLY_TIMEOUT_MS = 60_000;
 
 /**
  * Twilio signs the exact webhook URL. Cloud Run may report path as "/" while the public URL
@@ -2606,6 +2609,12 @@ function sendTwiml(res, text) {
   twiml.message(text);
   res.set("Content-Type", "text/xml; charset=utf-8");
   res.status(200).send(twiml.toString());
+}
+
+/** Answers Twilio without a message (the reply is texted later, when it's ready). */
+function sendEmptyTwiml(res) {
+  res.set("Content-Type", "text/xml; charset=utf-8");
+  res.status(200).send(new twilio.twiml.MessagingResponse().toString());
 }
 
 function sendVoiceTwiml(res, builder) {
@@ -5492,6 +5501,7 @@ exports.inboundSms = onRequest(
           : null
       );
 
+      let answeredEarly = false; // Twilio already answered (reply was slow): text the reply instead
       let replyText;
       let outboundMeta = {};
       let deferredCaptionDecision = null;
@@ -5588,7 +5598,7 @@ exports.inboundSms = onRequest(
           replyText = deferredCaptionDecision.replyText;
           outboundMeta = deferredCaptionDecision.outboundMeta || {};
         } else {
-        const out = await Promise.race([
+        const out = await awaitInboundReply(
           buildReply({
             db,
             openaiApiKey: openaiKey,
@@ -5604,13 +5614,17 @@ exports.inboundSms = onRequest(
             },
             messageIdempotencyKey: labourAdminRequestKey || null,
           }),
-          new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error("__BUILD_REPLY_TIMEOUT__")),
-              BUILD_REPLY_TIMEOUT_MS
-            )
-          ),
-        ]);
+          {
+            fastMs: BUILD_REPLY_TIMEOUT_MS,
+            slowMs: LATE_REPLY_TIMEOUT_MS,
+            // Twilio won't wait any longer: answer it now and text the reply once it's ready.
+            onSlow: () => {
+              answeredEarly = true;
+              logger.info("inboundSms: reply is slow; answered Twilio, will text the reply", { runId });
+              sendEmptyTwiml(res);
+            },
+          }
+        );
         replyText = out.replyText;
         outboundMeta = out.outboundMeta || {};
         if (outboundMeta.routingDecision) {
@@ -5872,8 +5886,19 @@ exports.inboundSms = onRequest(
         });
       }
 
-      // Twilio waits ~15s for this HTTP response — reply must be sent before that.
-      sendTwiml(res, safeReply);
+      // Twilio waits ~15s for this HTTP response — reply must be sent before that. A slow reply already answered
+      // Twilio (with no message), so it is texted now, from the number that was texted.
+      let lateReplySid = null;
+      if (answeredEarly) {
+        try {
+          const sent = await twilio(accountSid, authToken).messages.create({ to: from, from: to || configuredFrom, body: safeReply });
+          lateReplySid = sent.sid || null;
+        } catch (lateErr) {
+          logger.error("inboundSms: late reply could not be texted", { runId, message: lateErr.message });
+        }
+      } else {
+        sendTwiml(res, safeReply);
+      }
 
       try {
         // Queue PDF SMS first. Later steps (MMS attach, etc.) can throw — must not skip delivery.
@@ -5928,8 +5953,8 @@ exports.inboundSms = onRequest(
           from: configuredFrom,
           to: from,
           body: safeReply,
-          messageSid: null,
-          delivery: "twiml",
+          messageSid: lateReplySid,
+          delivery: answeredEarly ? "twilio_api_late_reply" : "twiml",
           replyToInboundDocId: inboundRef.id,
           threadKey: from,
           phoneE164: from,
