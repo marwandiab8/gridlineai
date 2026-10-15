@@ -125,3 +125,102 @@ test("renderJournalPdf draws a two-person storytelling journal with captioned ph
   assert.ok(pdf.getPageCount() >= 1);
   assert.ok((await pdf.save()).length > 1000);
 });
+
+test("renderJournalPdf never splits a workout across pages and keeps the WORKOUT label with it", async () => {
+  const { PDFDocument, PDFPage, StandardFonts } = require("pdf-lib");
+  const { renderJournalPdf } = require("./journalPdfReportBuilder");
+  const { normalizeGymWorkout } = require("./gymK2Workouts");
+  const exercises = ["Back Pulldown Single Arm", "Pull-ups", "T-Bar row", "MTS Front Pulldown", "Abdominal Crunch", "Seated Row"];
+  const workout = normalizeGymWorkout("w1", {
+    status: "final",
+    routineName: "Back",
+    focus: ["Back"],
+    unit: "lb",
+    startedAt: "2026-10-14T09:09:00Z",
+    finishedAt: "2026-10-14T10:07:00Z",
+    exercises: exercises.map((name, i) => ({ name, note: i === 3 ? "Seat elevation number 6" : "", sets: [{ weight: "140", reps: "5" }, { weight: "140", reps: "5" }, { weight: "140", reps: "4" }] })),
+  });
+  const realDrawText = PDFPage.prototype.drawText;
+  try {
+    // Every amount of story before the workout, so the workout lands at every height on the page.
+    for (let paragraphs = 0; paragraphs <= 14; paragraphs += 1) {
+      const pdf = await PDFDocument.create();
+      const pageOf = new Map();
+      PDFPage.prototype.drawText = function drawText(text, options) {
+        if (!pageOf.has(text)) pageOf.set(text, pdf.getPages().indexOf(this));
+        return realDrawText.call(this, text, options);
+      };
+      await renderJournalPdf({
+        pdf,
+        font: await pdf.embedFont(StandardFonts.Helvetica),
+        fontBold: await pdf.embedFont(StandardFonts.HelveticaBold),
+        fontItalic: await pdf.embedFont(StandardFonts.HelveticaOblique),
+        storageBucket: null,
+        titleStr: "Daily Journal - Wed, Oct 14, 2026",
+        footerBrand: "Gridline",
+        coverMeta: { titleMain: "Daily Journal" },
+        merged: {
+          storylines: [{
+            author: "Marwan Diab",
+            headline: "",
+            story: Array.from({ length: paragraphs }, () => "A full paragraph of the day's story that runs across the page and onto a second and third line so it takes real room on the page before the workout."),
+            highs: [], struggles: [], activities: [], notes: [], photos: [],
+            workouts: [workout],
+          }],
+        },
+        logger: { warn() {} },
+        runId: "test",
+      });
+      const pages = ["WORKOUT", "Back", ...exercises].map((text) => pageOf.get(text));
+      assert.ok(pages.every((p) => p === pages[0] && p >= 0), `with ${paragraphs} paragraphs the workout spread over pages ${pages.join(", ")}`);
+    }
+  } finally {
+    PDFPage.prototype.drawText = realDrawText;
+  }
+});
+
+test("renderJournalPdf keeps the closing note on the page of the journal's last photo", async () => {
+  const { PDFDocument, PDFPage, StandardFonts } = require("pdf-lib");
+  const sharp = require("sharp");
+  const { renderJournalPdf } = require("./journalPdfReportBuilder");
+  const jpeg = await sharp({ create: { width: 1200, height: 900, channels: 3, background: { r: 120, g: 90, b: 60 } } }).jpeg().toBuffer();
+  const realDrawText = PDFPage.prototype.drawText;
+  try {
+    for (let paragraphs = 0; paragraphs <= 14; paragraphs += 1) {
+      const pdf = await PDFDocument.create();
+      const pageOf = new Map();
+      PDFPage.prototype.drawText = function drawText(text, options) {
+        if (!pageOf.has(text)) pageOf.set(text, pdf.getPages().indexOf(this));
+        return realDrawText.call(this, text, options);
+      };
+      await renderJournalPdf({
+        pdf,
+        font: await pdf.embedFont(StandardFonts.Helvetica),
+        fontBold: await pdf.embedFont(StandardFonts.HelveticaBold),
+        fontItalic: await pdf.embedFont(StandardFonts.HelveticaOblique),
+        storageBucket: { file: () => ({ download: async () => [jpeg] }) },
+        titleStr: "Daily Journal - Wed, Oct 14, 2026",
+        footerBrand: "Gridline",
+        coverMeta: { titleMain: "Daily Journal" },
+        merged: {
+          storylines: [{
+            author: "Marwan Diab",
+            headline: "",
+            story: Array.from({ length: paragraphs }, () => "A full paragraph of the day's story that runs across the page and onto a second and third line so it takes real room on the page before the photo."),
+            highs: [], struggles: [], activities: [], workouts: [], photos: [],
+            notes: [{ time: "11:27 AM EDT", text: "Chuck steak and 3 boiled eggs.", photos: [{ mediaId: "m1", storagePath: "meal.jpg", captionText: "" }] }],
+          }],
+          closingNote: "Good night.",
+        },
+        logger: { warn() {} },
+        runId: "test",
+      });
+      const photoPage = pageOf.get("Chuck steak and 3 boiled eggs.");
+      const closingPage = pageOf.get("Good night.");
+      assert.ok(photoPage >= 0, "the photo caption was drawn");
+      assert.equal(closingPage, photoPage, `with ${paragraphs} paragraphs the closing note went to page ${closingPage + 1}, the photo is on ${photoPage + 1}`);
+    }
+  } finally {
+    PDFPage.prototype.drawText = realDrawText;
+  }
+});

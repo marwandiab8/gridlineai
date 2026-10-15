@@ -6,6 +6,8 @@ const { wrapToLines } = require("./dailyPdfReportBuilderLegacy");
 const { formatSetParts, formatTimeRange, formatMinutes } = require("./gymK2Workouts");
 
 const LEADING = 3;
+// A photo is shrunk to fit what's left of a page down to this height (about 2 inches), never smaller.
+const MIN_PHOTO_H = 150;
 const HIDDEN_SHORTCUT_EVENT_TYPES = new Set([
   "start_spotify",
   "arrive_home",
@@ -301,6 +303,11 @@ async function renderJournalPdf(opts) {
     return y - (margin + footerReserve) - (pendingLabel ? LABEL_H : 0);
   }
 
+  /** Room on a fresh page, after a waiting label. */
+  function fullPageRoom() {
+    return pageH - margin - headerReserve - (margin + footerReserve) - (pendingLabel ? LABEL_H : 0);
+  }
+
   function drawRule(yy, thickness = 0.6, color = C.rule, left = margin, width = contentW) {
     page.drawLine({ start: { x: left, y: yy }, end: { x: left + width, y: yy }, thickness, color });
   }
@@ -359,6 +366,7 @@ async function renderJournalPdf(opts) {
    * even when it has no caption of its own.
    */
   async function drawPhotoWithCaption(photo, { author, color, caption, time }) {
+    const tail = photo === lastPhoto ? lastPhotoTailH : 0;
     let buf = null;
     try {
       if (storageBucket) [buf] = await storageBucket.file(photo.storagePath).download();
@@ -388,8 +396,8 @@ async function renderJournalPdf(opts) {
       imgW = img.width * scale;
       imgH = img.height * scale;
       // Shrink a little rather than leave the rest of the page empty.
-      const room = roomLeft() - cardH - 12;
-      if (imgH > room && room >= 170) {
+      const room = roomLeft() - cardH - 12 - tail;
+      if (imgH > room && room >= MIN_PHOTO_H) {
         imgW *= room / imgH;
         imgH = room;
       }
@@ -470,14 +478,21 @@ async function renderJournalPdf(opts) {
       time: formatTimeRange(exercise.startMs, exercise.endMs),
     }));
     const rowH = (row) => Math.max(row.nameLines.length * 12, row.setLines.length * 12 + row.noteLines.length * 11, 12) + 8;
+    const focusText = workout.focus.length ? `Focus: ${workout.focus.join(", ")}` : "";
+    const introH =
+      15 +
+      (focusText ? linesFor(focusText, font, 8.5, contentW).length * 11.5 : 0) +
+      (workout.notes ? linesFor(workout.notes, fontItalic, 9.5, contentW).length * 12.5 : 0) +
+      2;
+    const totalH = introH + rows.reduce((sum, row) => sum + rowH(row), 0) + 8;
 
-    ensureSpace(18 + (workout.focus.length ? 12 : 0) + (rows.length ? rowH(rows[0]) : 0));
+    // A workout is kept in one piece: if it fits on a page but not in what's left of this one, it starts on the next.
+    if (totalH > roomLeft() && totalH <= fullPageRoom()) newPage();
+    ensureSpace(introH + (rows.length ? rowH(rows[0]) : 0));
     drawRichText(page, workout.routineName, { x: margin, y, size: 12.5, font: fontBold, color: C.ink });
     drawRightText([range, minutes].filter(Boolean).join(" · "), 8.5, font, C.muted, y + 1);
     y -= 15;
-    if (workout.focus.length) {
-      drawText(`Focus: ${workout.focus.join(", ")}`, { size: 8.5, color: C.muted, leading: 3 });
-    }
+    if (focusText) drawText(focusText, { size: 8.5, color: C.muted, leading: 3 });
     if (workout.notes) drawText(workout.notes, { size: 9.5, f: fontItalic, color: C.body, leading: 3 });
     y -= 2;
 
@@ -508,6 +523,21 @@ async function renderJournalPdf(opts) {
     page.drawRectangle({ x: margin, y: y - 6, width: 4, height: 22, color });
     drawRichText(page, title, { x: margin + 12, y, size: 15, font: fontBold, color: C.ink });
     y -= 26;
+  }
+
+  /** The photos each note shows (each picture once) and the ones left over for "More from ...". */
+  function storylinePhotoPlan(line) {
+    const shown = new Set();
+    const notes = storylineNotes(line);
+    const notePhotos = notes.map((note) =>
+      (note.photos || []).filter((photo) => {
+        if (!photo || shown.has(String(photo.mediaId))) return false;
+        shown.add(String(photo.mediaId));
+        return true;
+      })
+    );
+    const morePhotos = (line.photos || []).filter((photo) => photo && !shown.has(String(photo.mediaId)));
+    return { notes, notePhotos, morePhotos };
   }
 
   async function drawStoryline(line, color) {
@@ -547,12 +577,11 @@ async function renderJournalPdf(opts) {
       }
     }
 
-    const notes = storylineNotes(line);
-    const shownPhotoIds = new Set();
+    const { notes, notePhotos, morePhotos } = storylinePhotoPlan(line);
     if (notes.length) {
       drawLabel(`In ${name}'s own words`, color);
-      for (const note of notes) {
-        const photos = (note.photos || []).filter((photo) => photo && !shownPhotoIds.has(String(photo.mediaId)));
+      for (const [noteIndex, note] of notes.entries()) {
+        const photos = notePhotos[noteIndex];
         const firstCaption = photos.length ? String(photos[0].captionText || "").trim() : "";
         // When a note came with a photo, the note is that photo's caption: show it once, under the picture.
         const noteIsCaption = photos.length > 0 && (!firstCaption || sameText(firstCaption, note.text));
@@ -566,7 +595,6 @@ async function renderJournalPdf(opts) {
         }
         for (let i = 0; i < photos.length; i += 1) {
           const photo = photos[i];
-          shownPhotoIds.add(String(photo.mediaId));
           const caption = i === 0 && noteIsCaption ? note.text : photoCaption(photo, "");
           await drawPhotoWithCaption(photo, { author: line.author, color, caption, time: note.time });
         }
@@ -574,11 +602,9 @@ async function renderJournalPdf(opts) {
       }
     }
 
-    const morePhotos = (line.photos || []).filter((photo) => photo && !shownPhotoIds.has(String(photo.mediaId)));
     if (morePhotos.length) {
       drawLabel(`More from ${name}`, color);
       for (const photo of morePhotos) {
-        shownPhotoIds.add(String(photo.mediaId));
         const linkedNote = (line.notes || []).find((note) => String(note.entryId || "") === String(photo.linkedLogEntryId || ""));
         await drawPhotoWithCaption(photo, { author: line.author, color, caption: photoCaption(photo, linkedNote && linkedNote.text) });
       }
@@ -588,6 +614,23 @@ async function renderJournalPdf(opts) {
 
   // ----- Cover -----
   const storylines = Array.isArray(merged.storylines) ? merged.storylines : [];
+  const orphanPhotos = Array.isArray(merged.orphanPhotos) ? merged.orphanPhotos : [];
+
+  // When the journal ends on a photo, that photo shrinks a little if that keeps the closing note on its page
+  // rather than leaving the note alone on a new one.
+  let lastPhoto = null;
+  let lastPhotoTailH = 0;
+  if (merged.closingNote) {
+    const closingLines = linesFor(merged.closingNote, fontItalic, 11, contentW).length;
+    lastPhotoTailH = 18 + Math.max(50, 14 + closingLines * 16);
+    if (orphanPhotos.length) {
+      lastPhoto = orphanPhotos[orphanPhotos.length - 1];
+    } else if (!merged.sharedThread && storylines.length) {
+      const plan = storylinePhotoPlan(storylines[storylines.length - 1]);
+      const lastNotePhotos = plan.notePhotos[plan.notePhotos.length - 1] || [];
+      lastPhoto = plan.morePhotos.length ? plan.morePhotos[plan.morePhotos.length - 1] : lastNotePhotos[lastNotePhotos.length - 1] || null;
+    }
+  }
   const logoBand = await drawCoverLogo(y);
   const textLeft = margin + (logoBand.leftW ? logoBand.leftW + 18 : 0);
   const textWidth = pageW - margin - textLeft;
@@ -629,7 +672,6 @@ async function renderJournalPdf(opts) {
     drawText(merged.sharedThread, { size: 10.5, f: fontItalic, color: C.ink, leading: 5 });
   }
 
-  const orphanPhotos = Array.isArray(merged.orphanPhotos) ? merged.orphanPhotos : [];
   if (orphanPhotos.length) {
     ensureSpace(360);
     drawChapterHeading("More photos from the day", C.muted);
