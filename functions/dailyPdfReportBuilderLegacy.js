@@ -4,6 +4,11 @@
 
 const { rgb } = require("pdf-lib");
 const { sanitizePdfText } = require("./pdfWinAnsiText");
+const { drawRichText, emojiRuns, richTextWidth } = require("./pdfEmoji");
+
+// Text as Helvetica can draw it, with emojis kept: drawRichText draws them as pictures.
+const keepEmojiText = (text) => emojiRuns(text).map((run) => run.emoji || sanitizePdfText(run.text)).join("");
+const graphemes = (text) => Array.from(new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text), (g) => g.segment);
 const { parsePipeRows, reportLineText, lineText } = require("./dailyReportContent");
 const { formatWallDateTimeEt } = require("./logClassifier");
 const {
@@ -29,19 +34,20 @@ const MAX_CELL_LINES = 8;
 const PHOTO_ROW_MAX_H = 200; // two per row: about three rows of photos fit on a page
 
 function splitOversizeToken(token, font, size, maxWidth) {
-  const raw = sanitizePdfText(String(token || "").trim());
+  const raw = keepEmojiText(String(token || "").trim());
   if (!raw) return [""];
-  if (font.widthOfTextAtSize(raw, size) <= maxWidth) return [raw];
+  const width = (t) => richTextWidth(font, t, size);
+  if (width(raw) <= maxWidth) return [raw];
 
   const parts = [];
   let rest = raw;
-  while (rest && font.widthOfTextAtSize(rest, size) > maxWidth) {
+  while (rest && width(rest) > maxWidth) {
     let splitAt = -1;
     for (let i = rest.length - 1; i > 0; i--) {
       const ch = rest[i];
       const left = rest.slice(0, i + 1);
       if (!/[-/_,.;:)]/.test(ch)) continue;
-      if (font.widthOfTextAtSize(left, size) <= maxWidth) {
+      if (width(left) <= maxWidth) {
         splitAt = i + 1;
         break;
       }
@@ -54,9 +60,9 @@ function splitOversizeToken(token, font, size, maxWidth) {
     }
 
     let chunk = "";
-    for (const ch of rest) {
+    for (const ch of graphemes(rest)) {
       const next = chunk + ch;
-      if (font.widthOfTextAtSize(next, size) > maxWidth && chunk) break;
+      if (width(next) > maxWidth && chunk) break;
       chunk = next;
     }
     if (!chunk) chunk = rest.slice(0, 1);
@@ -83,18 +89,19 @@ const COVER_TITLE_FONT = 18;
 const COVER_BRAND_TITLE_GAP = 9;
 
 function wrapToLines(text, font, size, maxWidth) {
-  const s = sanitizePdfText(String(text || "").trim());
+  const s = keepEmojiText(String(text || "").trim());
   if (!s) return [""];
+  const width = (t) => richTextWidth(font, t, size);
   const words = s.split(/\s+/);
   const lines = [];
   let cur = "";
   for (const w of words) {
     const tryLine = cur ? `${cur} ${w}` : w;
-    if (font.widthOfTextAtSize(tryLine, size) <= maxWidth) {
+    if (width(tryLine) <= maxWidth) {
       cur = tryLine;
     } else {
       if (cur) lines.push(cur);
-      if (font.widthOfTextAtSize(w, size) <= maxWidth) {
+      if (width(w) <= maxWidth) {
         cur = w;
       } else {
         const chunks = splitOversizeToken(w, font, size, maxWidth);
@@ -383,7 +390,7 @@ async function renderDailySiteLogPdf(opts) {
     const lh = size + LEADING;
     for (const line of lines) {
       ensureSpace(lh);
-      page.drawText(sanitizePdfText(line), {
+      drawRichText(page, line, {
         x: leftX,
         y,
         size,
@@ -492,7 +499,7 @@ async function renderDailySiteLogPdf(opts) {
         const lines = wrapToLines(hlab, fontBold, TABLE_HEADER_FONT, colWidths[i] - CELL_PAD * 2).slice(0, 4);
         let ly = y - headerH + 6;
         for (const ln of lines) {
-          page.drawText(sanitizePdfText(ln), {
+          drawRichText(page, ln, {
             x: cx,
             y: ly,
             size: TABLE_HEADER_FONT,
@@ -537,7 +544,7 @@ async function renderDailySiteLogPdf(opts) {
       for (let c = 0; c < colWidths.length; c++) {
         let ly = y - CELL_PAD - TABLE_FONT;
         for (const ln of cellLinesArr[c]) {
-          page.drawText(sanitizePdfText(ln), {
+          drawRichText(page, ln, {
             x: cx,
             y: ly,
             size: TABLE_FONT,
@@ -590,14 +597,14 @@ async function renderDailySiteLogPdf(opts) {
       thickness: 0.35,
       color: rgb(0.88, 0.89, 0.92),
     });
-    page.drawText(sanitizePdfText("Company logo"), {
+    drawRichText(page, "Company logo", {
       x: leftX + 10,
       y: topY - h + 20,
       size: 7.5,
       font: fontBold,
       color: rgb(0.48, 0.5, 0.55),
     });
-    page.drawText(sanitizePdfText("Optional â€” set in project settings"), {
+    drawRichText(page, "Optional â€” set in project settings", {
       x: leftX + 10,
       y: topY - h + 8,
       size: 6.5,
@@ -610,7 +617,7 @@ async function renderDailySiteLogPdf(opts) {
   function drawCoverTitleBlock(leftX, maxW, topY, titleMain, titleDate, projectLine, brandLine) {
     let yy = topY;
     if (brandLine) {
-      page.drawText(sanitizePdfText(String(brandLine).slice(0, 80)), {
+      drawRichText(page, String(brandLine).slice(0, 80), {
         x: leftX,
         y: yy,
         size: COVER_BRAND_FONT,
@@ -623,7 +630,7 @@ async function renderDailySiteLogPdf(opts) {
     const linesMain = wrapToLines(main, fontBold, COVER_TITLE_FONT, maxW);
     const lh = COVER_TITLE_FONT + LEADING;
     for (const line of linesMain) {
-      page.drawText(sanitizePdfText(line), {
+      drawRichText(page, line, {
         x: leftX,
         y: yy,
         size: COVER_TITLE_FONT,
@@ -633,7 +640,7 @@ async function renderDailySiteLogPdf(opts) {
       yy -= lh;
     }
     if (titleDate) {
-      page.drawText(sanitizePdfText(String(titleDate)), {
+      drawRichText(page, String(titleDate), {
         x: leftX,
         y: yy,
         size: 11,
@@ -643,7 +650,7 @@ async function renderDailySiteLogPdf(opts) {
       yy -= 11 + LEADING + 2;
     }
     if (projectLine) {
-      page.drawText(sanitizePdfText(String(projectLine).slice(0, 120)), {
+      drawRichText(page, String(projectLine).slice(0, 120), {
         x: leftX,
         y: yy,
         size: 10.5,
@@ -674,7 +681,7 @@ async function renderDailySiteLogPdf(opts) {
       const rowH = Math.max(20, lines.length * lh + 10);
       ensureSpace(rowH);
       const ty = y - 12;
-      page.drawText(sanitizePdfText(lab), {
+      drawRichText(page, lab, {
         x: margin,
         y: ty,
         size: 8.5,
@@ -683,7 +690,7 @@ async function renderDailySiteLogPdf(opts) {
       });
       let vy = ty;
       for (const ln of lines) {
-        page.drawText(sanitizePdfText(ln), {
+        drawRichText(page, ln, {
           x: valX,
           y: vy,
           size: 9.5,
@@ -781,7 +788,7 @@ async function renderDailySiteLogPdf(opts) {
       cy -= cell.h + 6;
     }
     for (const ln of cell.captionLines) {
-      page.drawText(sanitizePdfText(ln), {
+      drawRichText(page, ln, {
         x,
         y: cy - PHOTO_CAPTION_SIZE,
         size: PHOTO_CAPTION_SIZE,
@@ -889,8 +896,8 @@ async function renderDailySiteLogPdf(opts) {
       tiles.forEach(([label, value], i) => {
         const x = margin + i * (tileW + tileGap);
         page.drawRectangle({ x, y: y - tileH, width: tileW, height: tileH, color: C.rowB, borderColor: C.rowBorder, borderWidth: 0.6 });
-        page.drawText(sanitizePdfText(value), { x: x + 8, y: y - 22, size: 16, font: fontBold, color: C.ink });
-        page.drawText(sanitizePdfText(label), { x: x + 8, y: y - 36, size: 7.5, font, color: C.inkMuted });
+        drawRichText(page, value, { x: x + 8, y: y - 22, size: 16, font: fontBold, color: C.ink });
+        drawRichText(page, label, { x: x + 8, y: y - 36, size: 7.5, font, color: C.inkMuted });
       });
       y -= tileH + 16;
     }
@@ -1275,7 +1282,7 @@ async function renderDailySiteLogPdf(opts) {
     const fr = `Page ${i + 1} of ${totalPages}`;
     const fw = font.widthOfTextAtSize(fr, 8);
     pg.drawText(footL, { x: margin, y: 16, size: 8, font, color: C.inkMuted });
-    pg.drawText(sanitizePdfText(fr), {
+    drawRichText(pg, fr, {
       x: pageW - margin - fw,
       y: 16,
       size: 8,
@@ -1352,7 +1359,7 @@ async function renderJournalPdf(opts) {
     const lh = size + LEADING;
     for (const line of lines) {
       ensureSpace(lh + 2);
-      page.drawText(sanitizePdfText(line), {
+      drawRichText(page, line, {
         x: left,
         y,
         size,
@@ -1386,7 +1393,7 @@ async function renderJournalPdf(opts) {
       });
       let bulletY = y;
       for (const line of lines) {
-        page.drawText(sanitizePdfText(line), {
+        drawRichText(page, line, {
           x: margin + 14,
           y: bulletY,
           size: 10,
@@ -1420,7 +1427,7 @@ async function renderJournalPdf(opts) {
       const value = String(row.value || "").trim();
       if (!label && !value) continue;
       ensureSpace(26);
-      page.drawText(sanitizePdfText(label), {
+      drawRichText(page, label, {
         x: margin,
         y,
         size: 8.5,
@@ -1620,7 +1627,7 @@ async function renderJournalPdf(opts) {
     const fr = `Page ${i + 1} of ${totalPages}`;
     const fw = font.widthOfTextAtSize(fr, 8);
     pg.drawText(footL, { x: margin, y: 16, size: 8, font, color: C.muted });
-    pg.drawText(sanitizePdfText(fr), {
+    drawRichText(pg, fr, {
       x: pageW - margin - fw,
       y: 16,
       size: 8,

@@ -1,5 +1,6 @@
 const { rgb } = require("pdf-lib");
 const { sanitizePdfText } = require("./pdfWinAnsiText");
+const { drawRichText } = require("./pdfEmoji");
 const { refineCaptionForPdf } = require("./dailyPdfCompact");
 const {
   wrapToLines,
@@ -298,7 +299,7 @@ async function renderJournalPdf(opts) {
     const lh = size + leading;
     for (const line of linesFor(text, f, size, maxW)) {
       ensureSpace(lh + 2);
-      page.drawText(sanitizePdfText(line), { x: left, y, size, font: f, color });
+      drawRichText(page, line, { x: left, y, size, font: f, color });
       y -= lh;
     }
   }
@@ -318,7 +319,7 @@ async function renderJournalPdf(opts) {
       page.drawCircle({ x: margin + 3, y: y + 3.2, size: 1.8, color });
       let lineY = y;
       for (const line of lines) {
-        page.drawText(sanitizePdfText(line), { x: margin + 12, y: lineY, size: 10, font, color: C.body });
+        drawRichText(page, line, { x: margin + 12, y: lineY, size: 10, font, color: C.body });
         lineY -= 10 + LEADING;
       }
       y = lineY - 2;
@@ -384,7 +385,7 @@ async function renderJournalPdf(opts) {
       y -= imgH;
     } else {
       page.drawRectangle({ x: margin, y: y - placeholderH, width: contentW, height: placeholderH, color: C.card });
-      page.drawText(sanitizePdfText("Photo unavailable"), { x: margin + pad, y: y - 14, size: 8.5, font: fontItalic, color: C.muted });
+      drawRichText(page, "Photo unavailable", { x: margin + pad, y: y - 14, size: 8.5, font: fontItalic, color: C.muted });
       y -= placeholderH;
     }
 
@@ -393,12 +394,12 @@ async function renderJournalPdf(opts) {
       page.drawRectangle({ x: margin, y: y - cardH, width: 3, height: cardH, color });
       let lineY = y - pad - 7;
       for (const line of metaLines) {
-        page.drawText(sanitizePdfText(line), { x: margin + pad + 4, y: lineY, size: 8, font: fontBold, color });
+        drawRichText(page, line, { x: margin + pad + 4, y: lineY, size: 8, font: fontBold, color });
         lineY -= 11;
       }
       if (metaLines.length && captionLines.length) lineY -= 2;
       for (const line of captionLines) {
-        page.drawText(sanitizePdfText(line), { x: margin + pad + 4, y: lineY, size: 10, font: fontItalic, color: C.ink });
+        drawRichText(page, line, { x: margin + pad + 4, y: lineY, size: 10, font: fontItalic, color: C.ink });
         lineY -= 13.5;
       }
       y -= cardH;
@@ -428,7 +429,7 @@ async function renderJournalPdf(opts) {
     const range = formatTimeRange(workout.startMs, workout.endMs);
     const minutes = formatMinutes(workout.startMs, workout.endMs);
     ensureSpace(60);
-    page.drawText(sanitizePdfText(workout.routineName), { x: margin, y, size: 12.5, font: fontBold, color: C.ink });
+    drawRichText(page, workout.routineName, { x: margin, y, size: 12.5, font: fontBold, color: C.ink });
     drawRightText([range, minutes].filter(Boolean).join(" · "), 8.5, font, C.muted, y + 1);
     y -= 15;
     if (workout.focus.length) {
@@ -444,7 +445,7 @@ async function renderJournalPdf(opts) {
       const exerciseRange = formatTimeRange(exercise.startMs, exercise.endMs);
       if (exerciseRange) drawRightText(exerciseRange, 8, font, C.muted, y);
       for (const line of nameLines) {
-        page.drawText(sanitizePdfText(line), { x: margin, y, size: 10, font: fontBold, color: C.ink });
+        drawRichText(page, line, { x: margin, y, size: 10, font: fontBold, color: C.ink });
         y -= 13;
       }
       y -= 1;
@@ -454,10 +455,10 @@ async function renderJournalPdf(opts) {
         const top = y + 10;
         page.drawRectangle({ x: margin, y: top - rowH, width: contentW, height: rowH, color: C.card });
         const baseY = top - rowH + 4.5;
-        page.drawText(sanitizePdfText(`Set ${index + 1}`), { x: margin + 8, y: baseY, size: 8.5, font, color: C.muted });
-        page.drawText(sanitizePdfText(weight), { x: margin + 62, y: baseY, size: 9, font: fontBold, color: C.ink });
+        drawRichText(page, `Set ${index + 1}`, { x: margin + 8, y: baseY, size: 8.5, font, color: C.muted });
+        drawRichText(page, weight, { x: margin + 62, y: baseY, size: 9, font: fontBold, color: C.ink });
         if (reps) {
-          page.drawText(sanitizePdfText(`× ${reps}`), { x: margin + 150, y: baseY, size: 9, font, color });
+          drawRichText(page, `× ${reps}`, { x: margin + 150, y: baseY, size: 9, font, color });
         }
         y -= rowH + 2;
       });
@@ -470,7 +471,7 @@ async function renderJournalPdf(opts) {
     y -= 14;
     ensureSpace(60);
     page.drawRectangle({ x: margin, y: y - 6, width: 4, height: 22, color });
-    page.drawText(sanitizePdfText(title), { x: margin + 12, y, size: 15, font: fontBold, color: C.ink });
+    drawRichText(page, title, { x: margin + 12, y, size: 15, font: fontBold, color: C.ink });
     y -= 26;
   }
 
@@ -583,7 +584,7 @@ async function renderJournalPdf(opts) {
     const value = String(row.value || "").trim();
     if (!label && !value) continue;
     ensureSpace(18);
-    page.drawText(sanitizePdfText(label), { x: margin, y, size: 8, font: fontBold, color: C.muted });
+    drawRichText(page, label, { x: margin, y, size: 8, font: fontBold, color: C.muted });
     drawText(value || "Not specified", { size: 8.5, color: C.muted, left: margin + 90, maxW: contentW - 90 });
     y -= 2;
   }
@@ -629,7 +630,7 @@ async function renderJournalPdf(opts) {
     const fr = `Page ${i + 1} of ${totalPages}`;
     const fw = font.widthOfTextAtSize(fr, 8);
     pg.drawText(footL, { x: margin, y: 16, size: 8, font, color: C.muted });
-    pg.drawText(sanitizePdfText(fr), { x: pageW - margin - fw, y: 16, size: 8, font, color: C.muted });
+    drawRichText(pg, fr, { x: pageW - margin - fw, y: 16, size: 8, font, color: C.muted });
     if (i > 0) {
       pg.drawText(headerTxt, { x: margin, y: pageH - 28, size: 9, font: fontBold, color: C.ink });
     }

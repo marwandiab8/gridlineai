@@ -317,7 +317,8 @@ Rules:
 - If concrete activity exists, surface location/scope, quantity when stated, and whether the pour was completed, delayed, or scheduled.
 - If INPUT has no fact for a subsection, use empty array or "Not stated in field messages." for that string field.
 - weather.weeklyForecastRows must remain an empty array [].
-- manpower.summaryNote: omit or use a short superintendent note; do not paste the raw INPUT block. If INPUT is already tabular, summaryNote may be empty.`;
+- manpower.summaryNote: omit or use a short superintendent note; do not paste the raw INPUT block. If INPUT is already tabular, summaryNote may be empty.
+- Keep any emoji that appears in INPUT exactly as written, next to the fact it goes with; the PDF shows them.`;
 
   const params = {
     model: models.primary,
@@ -382,6 +383,7 @@ Rules:
 - highs and struggles are short, specific phrases drawn from that person's day. Leave a list empty rather than padding it.
 - sharedThread only connects things both people actually mentioned. Leave it empty for a single contributor.
 - If a person's INPUT is sparse, keep their story short and honest rather than inventing detail.
+- Keep every emoji a person used (for example 🧗, ❤️, 😂) exactly as written, next to the words it goes with; the PDF shows them.
 - Do not output section labels inside the text fields.`;
 
   const params = {

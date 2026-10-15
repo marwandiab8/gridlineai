@@ -30,6 +30,7 @@ const {
 } = require("./dailyReportWeather");
 const { buildReportAppUrl } = require("./reportPushConfig");
 const { loadSiteLogisticsForReport, mergeManpowerRows } = require("./siteLogisticsReport");
+const { prepareEmojiImages } = require("./pdfEmoji");
 
 /** PDF cover — fixed values (Docksteader); no “default” wording on cover. */
 const COVER_LOCATION_DOCKSTEADER = "6 Docksteader Rd, Brampton, ON L6R 3Y2";
@@ -959,6 +960,12 @@ async function generateDailyReportPdf(opts) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  // Emojis in the report are drawn as pictures (pdfEmoji.js); without them the report is drawn as before.
+  try {
+    await prepareEmojiImages(pdf, [titleStr, coverMeta, projectNotes, merged, model], { logger });
+  } catch (emojiErr) {
+    if (logger && logger.warn) logger.warn("Daily report: emoji pictures skipped", { runId, message: emojiErr.message });
+  }
 
   if (reportType === "journal") {
     const fontItalic = await pdf.embedFont(StandardFonts.HelveticaOblique);
