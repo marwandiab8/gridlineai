@@ -31,6 +31,7 @@ const {
 const { buildReportAppUrl } = require("./reportPushConfig");
 const { loadSiteLogisticsForReport, mergeManpowerRows } = require("./siteLogisticsReport");
 const { prepareEmojiImages } = require("./pdfEmoji");
+const { resolvePeopleNames } = require("./reportPresentation");
 
 /** PDF cover — fixed values (Docksteader); no “default” wording on cover. */
 const COVER_LOCATION_DOCKSTEADER = "6 Docksteader Rd, Brampton, ON L6R 3Y2";
@@ -928,6 +929,13 @@ async function generateDailyReportPdf(opts) {
     const siteLogisticsDay = await loadSiteLogisticsForReport({ projectSlug: projectKey, dateKey: dk, logger });
     if (siteLogisticsDay) {
       model.deterministic.manpowerRows = mergeManpowerRows(model.deterministic.manpowerRows, siteLogisticsDay.crews);
+      // Who finished each task: their name (Labourer manager / app members), not their sign-in.
+      try {
+        const names = await resolvePeopleNames(db, siteLogisticsDay.tasks.items.map((t) => t.doneById));
+        for (const t of siteLogisticsDay.tasks.items) if (t.doneById && names.has(t.doneById)) t.doneBy = names.get(t.doneById);
+      } catch (nameErr) {
+        if (logger && logger.warn) logger.warn("dailyReportPdf: task names unavailable", { runId, message: nameErr.message });
+      }
       merged.siteLogistics = siteLogisticsDay;
     }
 
@@ -950,9 +958,17 @@ async function generateDailyReportPdf(opts) {
       lines: [],
       grid: [
         { label: "Project", value: resolvedProjectName || projectKey || "Not assigned" },
-        { label: "Location", value: coverLocationLine },
-        { label: "Report day", value: dk },
         { label: "Prepared by", value: preparedByLine },
+        { label: "Location", value: coverLocationLine },
+        { label: "Report day", value: formatCoverDateEastern(dayStart) },
+        {
+          label: "Weather",
+          full: true,
+          value:
+            weatherSnapshot && weatherSnapshot.ok
+              ? `${weatherSnapshot.summaryLine}${weatherSnapshot.resolvedLabel ? ` - ${weatherSnapshot.resolvedLabel}` : ""}`
+              : (weatherSnapshot && weatherSnapshot.message) || "Weather was not available for this report.",
+        },
       ],
     };
   }
@@ -1117,6 +1133,11 @@ async function generateDailyReportPdf(opts) {
     projectSlug: projectKey,
     reportDateKey: dk,
     reportType,
+    // Nothing from the day went into it: no entries, photos or (site report) Site Logistics data.
+    isEmpty:
+      curatedEntries.length === 0 &&
+      mediaForReport.length === 0 &&
+      !(reportType === "dailySiteLog" && merged && merged.siteLogistics),
     fileName,
     reportSequence,
     downloadURL,

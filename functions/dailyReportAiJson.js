@@ -190,7 +190,7 @@ function sanitizeStructuredDailyReportJson(parsed) {
 
 const JSON_SCHEMA_HINT = `Return a single JSON object with this shape (all keys required; use empty strings or empty arrays when unknown):
 {
-  "executiveSummary": "string - 3-6 sentences, superintendent/site coordinator voice, summarize major trades, key progress, constraints, inspections, and critical next actions from INPUT only. Describe only what happened: never write sentences about categories that had no information (no 'not stated', 'were not provided', 'no updates were reported')",
+  "executiveSummary": "string - 3-6 sentences, superintendent/site coordinator voice, summarize major trades, key progress, constraints, inspections, and critical next actions from INPUT only. Describe only what happened: never write sentences about categories that had no information (no 'not stated', 'were not provided', 'no updates were reported'). Do not describe the weather here - the report has its own weather line - unless it affected the work. If INPUT has no field facts, return an empty string",
   "weather": { "todaySummary": "string - report day only", "weeklyForecastRows": [] },
   "manpower": {
     "rows": [ { "trade": "", "foreman": "", "workers": "", "notes": "" } ],

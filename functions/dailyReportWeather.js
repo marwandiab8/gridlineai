@@ -72,6 +72,20 @@ function kmhToMph(kmh) {
   return Math.round(Number(kmh) * 0.621371);
 }
 
+/** Precipitation as the report shows it (metric, as in Ontario): "0 mm", "2.5 mm", "14 mm". */
+function mmText(mm) {
+  if (mm == null || Number.isNaN(Number(mm))) return null;
+  const x = Number(mm);
+  if (x < 0.05) return "0 mm";
+  return `${x < 10 ? Math.round(x * 10) / 10 : Math.round(x)} mm`;
+}
+
+const kmhRound = (kmh) => (kmh == null || Number.isNaN(Number(kmh)) ? null : Math.round(Number(kmh)));
+/** A forecast day's peak wind in km/h (older stored days only carry mph). */
+const windKmhOf = (row) =>
+  row.windKmhMax != null ? Number(row.windKmhMax) : row.windMphMax != null ? Math.round(Number(row.windMphMax) / 0.621371) : null;
+const HIGH_WIND_KMH = 32; // about 20 mph: worth coordinating exposed work
+
 /** WMO weather code → short English (subset). */
 function weatherCodeSummary(code) {
   const c = Number(code);
@@ -218,13 +232,13 @@ function summarizeWeeklyWeather(rows) {
   const highs = days.map((row) => row.highC).filter((v) => v != null);
   const lows = days.map((row) => row.lowC).filter((v) => v != null);
   const precips = days.map((row) => Number(row.precipMm || 0)).filter((v) => Number.isFinite(v));
-  const winds = days.map((row) => row.windMphMax).filter((v) => v != null);
+  const winds = days.map(windKmhOf).filter((v) => v != null);
   const rainyDays = days.filter((row) => Number(row.precipMm || 0) >= 1);
   const coldestLow = lows.length ? Math.min(...lows) : null;
   const warmestHigh = highs.length ? Math.max(...highs) : null;
   const coolestHigh = highs.length ? Math.min(...highs) : null;
   const totalPrecipMm = precips.reduce((sum, value) => sum + value, 0);
-  const maxWindMph = winds.length ? Math.max(...winds) : null;
+  const maxWindKmh = winds.length ? Math.max(...winds) : null;
 
   const conditionCounts = new Map();
   for (const row of days) {
@@ -246,11 +260,11 @@ function summarizeWeeklyWeather(rows) {
     summaryItems.push("No meaningful rain is expected across the report window.");
   } else if (rainyDays.length === 1) {
     summaryItems.push(
-      `One wetter day stands out on ${rainyDays[0].dateKey} with about ${mmToIn(totalPrecipMm)} in of precipitation for the week.`
+      `One wetter day stands out on ${rainyDays[0].dateKey} with about ${mmText(totalPrecipMm)} of precipitation for the week.`
     );
   } else {
     summaryItems.push(
-      `${rainyDays.length} days show measurable precipitation, totaling about ${mmToIn(totalPrecipMm)} in for the week.`
+      `${rainyDays.length} days show measurable precipitation, totaling about ${mmText(totalPrecipMm)} for the week.`
     );
   }
 
@@ -258,8 +272,8 @@ function summarizeWeeklyWeather(rows) {
     summaryItems.push(`Cold snap risk is present, with overnight lows near ${coldestLow}°C.`);
   }
 
-  if (maxWindMph != null && maxWindMph >= 20) {
-    summaryItems.push(`Peak wind may reach about ${maxWindMph} mph, so exposed work should be coordinated accordingly.`);
+  if (maxWindKmh != null && maxWindKmh >= HIGH_WIND_KMH) {
+    summaryItems.push(`Peak wind may reach about ${maxWindKmh} km/h, so exposed work should be coordinated accordingly.`);
   }
 
   return {
@@ -273,7 +287,7 @@ function summarizeWeatherChunk(rows, prefix = "") {
   const highs = days.map((row) => row.highC).filter((v) => v != null);
   const lows = days.map((row) => row.lowC).filter((v) => v != null);
   const totalPrecipMm = days.reduce((sum, row) => sum + (Number(row.precipMm || 0) || 0), 0);
-  const maxWindMph = days.reduce((max, row) => Math.max(max, Number(row.windMphMax || 0) || 0), 0);
+  const maxWindKmh = days.reduce((max, row) => Math.max(max, Number(windKmhOf(row) || 0) || 0), 0);
   const rainyDays = days.filter((row) => Number(row.precipMm || 0) >= 1).length;
   const conditionCounts = new Map();
   for (const row of days) {
@@ -290,10 +304,10 @@ function summarizeWeatherChunk(rows, prefix = "") {
   if (totalPrecipMm < 1) {
     parts.push("no meaningful rain");
   } else {
-    parts.push(`${rainyDays} wet day${rainyDays === 1 ? "" : "s"}, ~${mmToIn(totalPrecipMm)} in total precip`);
+    parts.push(`${rainyDays} wet day${rainyDays === 1 ? "" : "s"}, ~${mmText(totalPrecipMm)} in total`);
   }
-  if (maxWindMph >= 20) {
-    parts.push(`wind up to ${maxWindMph} mph`);
+  if (maxWindKmh >= HIGH_WIND_KMH) {
+    parts.push(`wind up to ${maxWindKmh} km/h`);
   }
   return parts.join(" - ");
 }
@@ -390,9 +404,9 @@ async function fetchDailyWeatherSnapshot(opts) {
 
     const summaryLine = [
       conditions,
-      hi != null && lo != null ? `High ${hi}°C / Low ${lo}°C` : null,
-      precipIn != null ? `Precip ~${precipIn} in` : null,
-      windMph != null ? `Wind (max) ~${windMph} mph` : null,
+      hi != null && lo != null ? `High ${hi}°C, low ${lo}°C` : null,
+      mmText(precipMm) != null ? `${mmText(precipMm)} precipitation` : null,
+      kmhRound(windKmh) != null ? `wind up to ${kmhRound(windKmh)} km/h` : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -413,6 +427,8 @@ async function fetchDailyWeatherSnapshot(opts) {
       lowC: lo,
       precipInches: precipIn,
       windMphMax: windMph,
+      precipMm: Number.isFinite(Number(precipMm)) ? Number(precipMm) : null,
+      windKmhMax: kmhRound(windKmh),
       summaryLine,
       rawDaily: {
         weathercode: code,
@@ -519,6 +535,7 @@ async function fetchWeatherRangeSummary(opts) {
         precipMm: Number.isFinite(Number(precipMm)) ? Number(precipMm) : 0,
         precipInches: mmToIn(precipMm),
         windMphMax: kmhToMph(windKmh),
+        windKmhMax: kmhRound(windKmh),
       };
     });
 

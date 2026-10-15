@@ -35,7 +35,7 @@ test("events the journal already shows from Gridline are skipped", () => {
 test("other sources become readable lines", () => {
   const steps = glanceItemFromLifeEvent({ sourceApp: "gridlineai", eventType: "daily_steps", metrics: { steps: 6137 }, occurredAt: ts("2026-09-23T12:00:00Z") });
   assert.equal(steps.kind, "steps");
-  assert.equal(steps.text, "Walked 6,137 steps so far today.");
+  assert.equal(steps.text, "Walked 6,137 steps.");
 
   const bot = glanceItemFromLifeEvent({
     sourceApp: "DartstRacker2026", eventType: "dartsRecord", title: "Bot practice: 201 vs Club (won)",
@@ -63,7 +63,7 @@ test("the glance starts with sleep, keeps activities in time order, and ends wit
       { time: "4:28 AM EDT", atMs: Date.parse("2026-09-23T08:28:00Z"), text: "Left home at 4:28 AM." },
     ],
     [
-      { kind: "steps", atMs: Date.parse("2026-09-23T12:00:00Z"), text: "Walked 6,137 steps so far today." },
+      { kind: "steps", atMs: Date.parse("2026-09-23T12:00:00Z"), text: "Walked 6,137 steps." },
       { kind: "activity", atMs: Date.parse("2026-09-24T00:00:00Z"), text: "Won a 201 bot game vs Club at 8:00 PM." },
       { kind: "sleep", atMs: Date.parse("2026-09-23T02:42:07Z"), text: "Went to bed at 10:42 PM, slept for 5 h 7 min." },
     ]
@@ -73,7 +73,7 @@ test("the glance starts with sleep, keeps activities in time order, and ends wit
     "Left home at 4:28 AM.",
     "Was at work from 7:06 AM to 1:13 PM.",
     "Won a 201 bot game vs Club at 8:00 PM.",
-    "Walked 6,137 steps so far today.",
+    "Walked 6,137 steps.",
   ]);
 });
 

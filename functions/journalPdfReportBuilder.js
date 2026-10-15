@@ -2,10 +2,7 @@ const { rgb } = require("pdf-lib");
 const { sanitizePdfText } = require("./pdfWinAnsiText");
 const { drawRichText } = require("./pdfEmoji");
 const { refineCaptionForPdf } = require("./dailyPdfCompact");
-const {
-  wrapToLines,
-  selectRemainingJournalPhotos,
-} = require("./dailyPdfReportBuilderLegacy");
+const { wrapToLines } = require("./dailyPdfReportBuilderLegacy");
 const { formatSetParts, formatTimeRange, formatMinutes } = require("./gymK2Workouts");
 
 const LEADING = 3;
@@ -283,8 +280,25 @@ async function renderJournalPdf(opts) {
     y = pageH - margin - headerReserve;
   }
 
+  // A section label waits for its first piece of content and goes on whichever page that lands on, so a label is
+  // never left alone at the bottom of a page.
+  const LABEL_H = 20;
+  let pendingLabel = null;
+
   function ensureSpace(need) {
-    if (y - need < margin + footerReserve) newPage();
+    const label = pendingLabel;
+    if (y - need - (label ? LABEL_H : 0) < margin + footerReserve) newPage();
+    if (label) {
+      pendingLabel = null;
+      y -= 4;
+      drawText(String(label.text || "").toUpperCase(), { size: 7.5, f: fontBold, color: label.color, leading: 4 });
+      y -= 2;
+    }
+  }
+
+  /** Room left on this page below `y`, after a waiting label. */
+  function roomLeft() {
+    return y - (margin + footerReserve) - (pendingLabel ? LABEL_H : 0);
   }
 
   function drawRule(yy, thickness = 0.6, color = C.rule, left = margin, width = contentW) {
@@ -305,10 +319,7 @@ async function renderJournalPdf(opts) {
   }
 
   function drawLabel(text, color = C.muted) {
-    y -= 4;
-    ensureSpace(24);
-    drawText(String(text || "").toUpperCase(), { size: 7.5, f: fontBold, color, leading: 4 });
-    y -= 2;
+    pendingLabel = { text, color };
   }
 
   function drawBulletList(items, color) {
@@ -373,9 +384,15 @@ async function renderJournalPdf(opts) {
     let imgW = 0;
     let imgH = 0;
     if (img) {
-      const scale = Math.min((contentW * 0.85) / img.width, 290 / img.height, 1.5);
+      const scale = Math.min((contentW * 0.8) / img.width, 250 / img.height, 1.5);
       imgW = img.width * scale;
       imgH = img.height * scale;
+      // Shrink a little rather than leave the rest of the page empty.
+      const room = roomLeft() - cardH - 12;
+      if (imgH > room && room >= 170) {
+        imgW *= room / imgH;
+        imgH = room;
+      }
     }
     const placeholderH = img ? 0 : 22;
     ensureSpace(imgH + placeholderH + cardH + 12);
@@ -421,14 +438,40 @@ async function renderJournalPdf(opts) {
     return width;
   }
 
+  /** "80 lb × 30", "Bodyweight × 6 wide handle". */
+  function setInline(set, unit) {
+    const { weight, reps } = formatSetParts(set, unit);
+    const count = String(reps || "").replace(/^(\d+) reps?$/, "$1");
+    return count ? `${weight} × ${count}` : weight;
+  }
+
+  /** Every set on one line: "80 lb × 30 · 180 lb × 11", or "135 lb × 8 (3 sets)" when they were all the same. */
+  function setsInline(sets, unit) {
+    const parts = sets.map((set) => setInline(set, unit));
+    if (parts.length > 1 && parts.every((part) => part === parts[0])) return `${parts[0]} (${parts.length} sets)`;
+    return parts.join("  ·  ");
+  }
+
   /**
-   * One workout laid out like the gym app's "Workout Details" screen: the routine and
-   * its time, the focus, then each exercise with the time it was worked on and every set.
+   * One workout: the routine with its time and focus, then a row per exercise - its name, every set
+   * (weight × reps) and when it was worked on, with the exercise's note under its sets.
    */
   function drawWorkout(workout, color) {
     const range = formatTimeRange(workout.startMs, workout.endMs);
     const minutes = formatMinutes(workout.startMs, workout.endMs);
-    ensureSpace(60);
+    const nameW = 168;
+    const timeW = 84;
+    const setsX = margin + nameW + 16;
+    const setsW = contentW - nameW - 16 - timeW - 8;
+    const rows = workout.exercises.map((exercise) => ({
+      nameLines: linesFor(exercise.name, fontBold, 9.5, nameW),
+      setLines: exercise.sets.length ? linesFor(setsInline(exercise.sets, workout.unit), font, 9, setsW) : [],
+      noteLines: exercise.note ? linesFor(exercise.note, fontItalic, 8.5, setsW) : [],
+      time: formatTimeRange(exercise.startMs, exercise.endMs),
+    }));
+    const rowH = (row) => Math.max(row.nameLines.length * 12, row.setLines.length * 12 + row.noteLines.length * 11, 12) + 8;
+
+    ensureSpace(18 + (workout.focus.length ? 12 : 0) + (rows.length ? rowH(rows[0]) : 0));
     drawRichText(page, workout.routineName, { x: margin, y, size: 12.5, font: fontBold, color: C.ink });
     drawRightText([range, minutes].filter(Boolean).join(" · "), 8.5, font, C.muted, y + 1);
     y -= 15;
@@ -436,35 +479,27 @@ async function renderJournalPdf(opts) {
       drawText(`Focus: ${workout.focus.join(", ")}`, { size: 8.5, color: C.muted, leading: 3 });
     }
     if (workout.notes) drawText(workout.notes, { size: 9.5, f: fontItalic, color: C.body, leading: 3 });
-    y -= 4;
+    y -= 2;
 
-    const rowH = 15;
-    for (const exercise of workout.exercises) {
-      const nameLines = linesFor(exercise.name, fontBold, 10, contentW - 120);
-      ensureSpace(nameLines.length * 13 + 8 + Math.min(exercise.sets.length, 3) * (rowH + 2));
-      const exerciseRange = formatTimeRange(exercise.startMs, exercise.endMs);
-      if (exerciseRange) drawRightText(exerciseRange, 8, font, C.muted, y);
-      for (const line of nameLines) {
-        drawRichText(page, line, { x: margin, y, size: 10, font: fontBold, color: C.ink });
-        y -= 13;
-      }
-      y -= 1;
-      exercise.sets.forEach((set, index) => {
-        ensureSpace(rowH + 4);
-        const { weight, reps } = formatSetParts(set, workout.unit);
-        const top = y + 10;
-        page.drawRectangle({ x: margin, y: top - rowH, width: contentW, height: rowH, color: C.card });
-        const baseY = top - rowH + 4.5;
-        drawRichText(page, `Set ${index + 1}`, { x: margin + 8, y: baseY, size: 8.5, font, color: C.muted });
-        drawRichText(page, weight, { x: margin + 62, y: baseY, size: 9, font: fontBold, color: C.ink });
-        if (reps) {
-          drawRichText(page, `× ${reps}`, { x: margin + 150, y: baseY, size: 9, font, color });
-        }
-        y -= rowH + 2;
+    rows.forEach((row, index) => {
+      const h = rowH(row);
+      ensureSpace(h);
+      const top = y + 9;
+      if (index % 2 === 0) page.drawRectangle({ x: margin, y: top - h, width: contentW, height: h, color: C.card });
+      const firstBaseline = top - 4 - 8.5;
+      row.nameLines.forEach((line, i) => {
+        drawRichText(page, line, { x: margin + 8, y: firstBaseline - i * 12, size: 9.5, font: fontBold, color: C.ink });
       });
-      if (exercise.note) drawText(exercise.note, { size: 8.5, f: fontItalic, color: C.muted, leading: 3 });
-      y -= 6;
-    }
+      row.setLines.forEach((line, i) => {
+        drawRichText(page, line, { x: setsX, y: firstBaseline - i * 12, size: 9, font, color: C.ink });
+      });
+      row.noteLines.forEach((line, i) => {
+        drawRichText(page, line, { x: setsX, y: firstBaseline - row.setLines.length * 12 - i * 11, size: 8.5, font: fontItalic, color: C.muted });
+      });
+      if (row.time) drawRightText(row.time, 8, font, C.muted, firstBaseline);
+      y = top - h - 9;
+    });
+    y -= 8;
   }
 
   function drawChapterHeading(title, color) {
@@ -541,7 +576,6 @@ async function renderJournalPdf(opts) {
 
     const morePhotos = (line.photos || []).filter((photo) => photo && !shownPhotoIds.has(String(photo.mediaId)));
     if (morePhotos.length) {
-      ensureSpace(330); // keep the label on the same page as the first photo
       drawLabel(`More from ${name}`, color);
       for (const photo of morePhotos) {
         shownPhotoIds.add(String(photo.mediaId));
@@ -549,6 +583,7 @@ async function renderJournalPdf(opts) {
         await drawPhotoWithCaption(photo, { author: line.author, color, caption: photoCaption(photo, linkedNote && linkedNote.text) });
       }
     }
+    pendingLabel = null;
   }
 
   // ----- Cover -----
@@ -579,15 +614,6 @@ async function renderJournalPdf(opts) {
   y = Math.min(y, logoBand.bottomY) - 6;
   drawRule(y + 4, 0.8);
   y -= 10;
-  for (const row of coverMeta.grid || []) {
-    const label = String(row.label || "").trim();
-    const value = String(row.value || "").trim();
-    if (!label && !value) continue;
-    ensureSpace(18);
-    drawRichText(page, label, { x: margin, y, size: 8, font: fontBold, color: C.muted });
-    drawText(value || "Not specified", { size: 8.5, color: C.muted, left: margin + 90, maxW: contentW - 90 });
-    y -= 2;
-  }
 
   // ----- Storylines -----
   if (!storylines.length) {

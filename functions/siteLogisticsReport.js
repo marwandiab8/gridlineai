@@ -121,6 +121,8 @@ function tasksForReport(tasks, items, dateKey) {
       status,
       note: status === "blocked" ? clean(t.note) : "",
       doneBy: status === "done" ? clean(String(t.doneBy || "").split("@")[0]) : "",
+      // The full sign-in (email, or +1 phone), so the report can show the person's name (dailyReportPdf.js).
+      doneById: status === "done" ? clean(String(t.doneBy || "")).toLowerCase() : "",
       doneTime: status === "done" ? formatTimeEastern(doneMs) : "",
       since: createdDay,
       overdueDays: status !== "done" && due && due < dateKey ? Math.round((Date.parse(dateKey) - Date.parse(due)) / 86400000) : 0,

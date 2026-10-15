@@ -4663,6 +4663,16 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       }).catch(() => {});
       return;
     }
+    if (pdfResult.isEmpty) {
+      // Nothing was logged for the project that day: don't text an empty report.
+      await markQueue({
+        status: "skipped",
+        skippedAt: FieldValue.serverTimestamp(),
+        lastError: "empty_report",
+        reportId: pdfResult.reportId || null,
+      }).catch(() => {});
+      return;
+    }
 
     const fanout = await sendSmsNotificationFanout({
       db,

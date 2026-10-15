@@ -173,7 +173,7 @@ function glanceItemFromLifeEvent(event, { skipGymWorkouts = false } = {}) {
   if (type === "daily_steps") {
     const steps = num(event.metrics && event.metrics.steps);
     return steps && steps > 0
-      ? { kind: "steps", atMs, text: `Walked ${Math.round(steps).toLocaleString("en-US")} steps so far today.` }
+      ? { kind: "steps", atMs, text: `Walked ${Math.round(steps).toLocaleString("en-US")} steps.` }
       : null;
   }
   if (type === "completed_workout") return { kind: "activity", atMs, text: healthWorkoutLine(event) };

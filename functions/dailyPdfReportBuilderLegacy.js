@@ -1,10 +1,11 @@
 ﻿/**
- * Formal Daily Site Log PDF â€” wrapped tables, cover block, inline photos by log entry.
+ * Formal Daily Site Log PDF - wrapped tables, cover block, inline photos by log entry.
  */
 
 const { rgb } = require("pdf-lib");
 const { sanitizePdfText } = require("./pdfWinAnsiText");
 const { drawRichText, emojiRuns, richTextWidth } = require("./pdfEmoji");
+const { groupEquipment, isWeatherOnlySummary, shortDate, shortDateRange, siteFactsSummary, taskStatusText } = require("./reportPresentation");
 
 // Text as Helvetica can draw it, with emojis kept: drawRichText draws them as pictures.
 const keepEmojiText = (text) => emojiRuns(text).map((run) => run.emoji || sanitizePdfText(run.text)).join("");
@@ -119,14 +120,6 @@ function wrapToLines(text, font, size, maxWidth) {
 }
 
 function selectRemainingSitePhotos(photos, renderedMediaIds) {
-  const seen = renderedMediaIds instanceof Set ? renderedMediaIds : new Set(renderedMediaIds || []);
-  return (photos || []).filter((p) => {
-    if (!p || p.mediaId == null) return false;
-    return !seen.has(String(p.mediaId));
-  });
-}
-
-function selectRemainingJournalPhotos(photos, renderedMediaIds) {
   const seen = renderedMediaIds instanceof Set ? renderedMediaIds : new Set(renderedMediaIds || []);
   return (photos || []).filter((p) => {
     if (!p || p.mediaId == null) return false;
@@ -336,7 +329,7 @@ async function renderDailySiteLogPdf(opts) {
   const contentW = pageW - 2 * margin;
   const footerReserve = 42;
   const headerReserve2 = 54;
-  /** Professional construction-report palette â€” navy/slate, restrained */
+  /** Professional construction-report palette - navy/slate, restrained */
   const C = {
     ink: rgb(0.1, 0.14, 0.24),
     inkBody: rgb(0.12, 0.15, 0.21),
@@ -401,7 +394,7 @@ async function renderDailySiteLogPdf(opts) {
     }
   }
 
-  /** Rule + heading + spacing â€” must match ensureSpaceForSectionTitleAndTableBlock reserve (allows 1â€“2 title lines) */
+  /** Rule + heading + spacing - must match ensureSpaceForSectionTitleAndTableBlock reserve (allows 1-2 title lines) */
   const SECTION_TITLE_BLOCK_RESERVE = 64;
 
   function drawSectionTitle(title) {
@@ -444,7 +437,7 @@ async function renderDailySiteLogPdf(opts) {
   /**
    * Keep section heading + table header + first row chunk on one page when practical
    * (avoids a section title alone with the table starting on the next page).
-   * @param {number} [extraBeforeTable] â€” e.g. intro paragraph height before the table
+   * @param {number} [extraBeforeTable] - e.g. intro paragraph height before the table
    */
   function ensureSpaceForSectionTitleAndTableBlock(rows, colWidths, extraBeforeTable = 0) {
     const headerH = 20;
@@ -515,6 +508,7 @@ async function renderDailySiteLogPdf(opts) {
 
     drawHeader(false);
 
+    let rowsOnPage = 0;
     for (let r = 0; r < safeRows.length; r++) {
       const row = safeRows[r];
       const cellLinesArr = [];
@@ -526,10 +520,15 @@ async function renderDailySiteLogPdf(opts) {
         maxLines = Math.max(maxLines, lines.length);
       }
       const rowH = maxLines * (TABLE_FONT + 2) + CELL_PAD * 2;
-      if (y - margin - footerReserve < rowH + 8) {
+      // The last row (often a total) never goes over to a new page on its own: if it won't fit, the row before it goes too.
+      const keepLastTwo = r === safeRows.length - 2 && rowsOnPage > 1;
+      const need = rowH + 8 + (keepLastTwo ? rowHeights[r + 1] : 0);
+      if (y - margin - footerReserve < need) {
         newPage();
         drawHeader(true);
+        rowsOnPage = 0;
       }
+      rowsOnPage += 1;
       const fill = r % 2 === 0 ? C.rowA : C.rowB;
       page.drawRectangle({
         x: x0,
@@ -581,37 +580,8 @@ async function renderDailySiteLogPdf(opts) {
         return { bottomY: topY - h - 10, leftW: boxW };
       }
     }
-    const h = 52;
-    page.drawRectangle({
-      x: leftX,
-      y: topY - h,
-      width: boxW,
-      height: h,
-      borderWidth: 1,
-      borderColor: rgb(0.68, 0.7, 0.76),
-      color: rgb(0.96, 0.97, 0.99),
-    });
-    page.drawLine({
-      start: { x: leftX + 4, y: topY - 8 },
-      end: { x: leftX + boxW - 4, y: topY - h + 8 },
-      thickness: 0.35,
-      color: rgb(0.88, 0.89, 0.92),
-    });
-    drawRichText(page, "Company logo", {
-      x: leftX + 10,
-      y: topY - h + 20,
-      size: 7.5,
-      font: fontBold,
-      color: rgb(0.48, 0.5, 0.55),
-    });
-    drawRichText(page, "Optional â€” set in project settings", {
-      x: leftX + 10,
-      y: topY - h + 8,
-      size: 6.5,
-      font,
-      color: rgb(0.58, 0.6, 0.64),
-    });
-    return { bottomY: topY - h - 10, leftW: boxW };
+    // No logo set (or it couldn't be read): the title takes the full width - no placeholder box on a report people receive.
+    return { bottomY: topY, leftW: 0 };
   }
 
   function drawCoverTitleBlock(leftX, maxW, topY, titleMain, titleDate, projectLine, brandLine) {
@@ -662,50 +632,42 @@ async function renderDailySiteLogPdf(opts) {
     return yy;
   }
 
+  /**
+   * The report's particulars as a compact two-column block (label above value), with full-width rows (weather) on
+   * their own line. Empty values read "Not specified".
+   */
   function drawCoverMetaGrid(meta) {
     if (!meta) return;
-    const rows = meta.grid || [];
-    const labelW = 96;
-    const gap = 10;
-    const valX = margin + labelW + gap;
-    const valW = Math.max(120, contentW - labelW - gap);
-    for (const row of rows) {
-      const lab = String(row.label || "");
-      let val = String(row.value ?? "");
-      const trimmed = val.trim();
-      const isPlaceholder = !trimmed || trimmed === "â€”";
-      if (isPlaceholder) val = "Not specified";
-      const valColor = isPlaceholder ? C.inkMuted : C.inkBody;
-      const lines = wrapToLines(val, font, 9.5, valW);
-      const lh = 9.5 + 2;
-      const rowH = Math.max(20, lines.length * lh + 10);
-      ensureSpace(rowH);
-      const ty = y - 12;
-      drawRichText(page, lab, {
-        x: margin,
-        y: ty,
-        size: 8.5,
-        font: fontBold,
-        color: C.subhead,
-      });
-      let vy = ty;
-      for (const ln of lines) {
-        drawRichText(page, ln, {
-          x: valX,
-          y: vy,
-          size: 9.5,
-          font,
-          color: valColor,
-        });
+    const rows = (meta.grid || []).map((row) => {
+      const value = String(row.value ?? "").trim();
+      const empty = !value || value === "—" || value === "-";
+      return { label: String(row.label || ""), value: empty ? "Not specified" : value, empty, full: row.full === true };
+    });
+    const colGap = 20;
+    const colW = (contentW - colGap) / 2;
+    const valueSize = 9.5;
+    const lh = valueSize + 2.5;
+    const drawCell = (row, x, w, top) => {
+      drawRichText(page, row.label.toUpperCase(), { x, y: top - 8, size: 7, font: fontBold, color: C.subhead });
+      let vy = top - 8 - lh;
+      for (const ln of wrapToLines(row.value, font, valueSize, w)) {
+        drawRichText(page, ln, { x, y: vy, size: valueSize, font, color: row.empty ? C.inkMuted : C.inkBody });
         vy -= lh;
       }
-      y = vy - 8;
+      return top - vy;
+    };
+    const cellHeight = (row, w) => 8 + lh * wrapToLines(row.value, font, valueSize, w).length + 4;
+    for (let i = 0; i < rows.length; ) {
+      const pair = rows[i].full || !rows[i + 1] || rows[i + 1].full ? [rows[i]] : [rows[i], rows[i + 1]];
+      const w = pair.length === 1 && pair[0].full ? contentW : colW;
+      const rowH = Math.max(...pair.map((r) => cellHeight(r, w))) + 6;
+      ensureSpace(rowH);
+      pair.forEach((row, j) => drawCell(row, margin + j * (colW + colGap), w, y));
+      y -= rowH;
+      i += pair.length;
     }
     if (meta.lines && meta.lines.length) {
-      y -= 2;
-      for (const ln of meta.lines) {
-        drawParagraphInColumn(margin, contentW, ln, 8.5, false, C.inkMuted);
-      }
+      for (const ln of meta.lines) drawParagraphInColumn(margin, contentW, ln, 8.5, false, C.inkMuted);
     }
   }
 
@@ -887,7 +849,9 @@ async function renderDailySiteLogPdf(opts) {
     const photoCount = (model.photos || []).length;
     const tiles = [["Workers on site", String(workers)]];
     if (slTasksGlance.total) tiles.push(["Tasks done", `${slTasksGlance.done} of ${slTasksGlance.total}`]);
-    tiles.push(["Issues logged", String(issues)], ["Concrete pours", String(pours)], ["Photos", String(photoCount)]);
+    tiles.push(["Issues logged", String(issues)]);
+    if (pours) tiles.push(["Concrete pours", String(pours)]);
+    if (photoCount) tiles.push(["Photos", String(photoCount)]);
     if (workers || slTasksGlance.total || issues || pours || photoCount) {
       const tileGap = 8;
       const tileH = 44;
@@ -907,11 +871,32 @@ async function renderDailySiteLogPdf(opts) {
     return stripSourceLogArtifacts(String(s || ""));
   }
 
-  const execSummary = stripAbsenceSentences(merged.execSummary);
-  if (execSummary) {
-    drawSectionTitle("Executive summary");
-    drawParagraph(execSummary, 10, false);
-    y -= 10;
+  // Executive summary: the field notes' summary (when they said more than the weather), then the day's facts from the
+  // report's own numbers - so a day without field notes still opens with what happened on site.
+  {
+    const aiSummary = stripAbsenceSentences(merged.execSummary);
+    const sl = merged.siteLogistics || null;
+    const manpower = hasRealRows(det.manpowerRows) ? buildManpowerRowsWithTotal(det.manpowerRows) : null;
+    const facts = siteFactsSummary({
+      workers: manpower ? manpower.totalWorkers : 0,
+      trades: manpower ? manpower.rows.filter((r) => !/^total/i.test(String(r[0] || ""))).length : 0,
+      tasks: sl && sl.tasks,
+      activities: (sl && sl.activities) || [],
+      equipment: (sl && sl.equipment) || [],
+      issues: (st.issueChunks || []).length,
+      inspections: (st.inspectionChunks || []).length,
+      pours: (det.concreteRows || []).filter((r) => hasRealRows([r])).length,
+    });
+    const work = aiSummary && !isWeatherOnlySummary(aiSummary) ? aiSummary : "";
+    if (work || facts) {
+      drawSectionTitle("Executive summary");
+      if (work) {
+        drawParagraph(work, 10, false);
+        y -= 4;
+      }
+      if (facts) drawParagraph(facts, work ? 9.5 : 10, false, work ? C.inkMuted : C.inkBody);
+      y -= 8;
+    }
   }
 
   if (shouldRenderProjectNotes(projectNotes)) {
@@ -919,38 +904,6 @@ async function renderDailySiteLogPdf(opts) {
     drawParagraph(projectNotes, 10, false, C.inkBody);
     y -= 8;
   }
-
-  /** Weather â€” report day only (no weekly table) */
-  drawSectionTitle("Weather");
-  const wd = merged.weatherDaily;
-  const snap = wd && wd.snapshot;
-  drawSubheading("Report day conditions");
-  if (snap && snap.ok) {
-    if (snap.resolvedLabel) {
-      let locLine;
-      if (snap.usedFallbackLocation && snap.siteAddressUnresolved) {
-        locLine = `Location (approx., Brampton area): ${snap.resolvedLabel}`;
-      } else if (snap.usedFallbackLocation) {
-        locLine = `Location: ${snap.resolvedLabel}`;
-      } else {
-        locLine = `Location (geocoded): ${snap.resolvedLabel}`;
-      }
-      drawParagraph(locLine, 9.5, false, rgb(0.18, 0.2, 0.24));
-    }
-    if (snap.usedFallbackLocation) {
-      const note = snap.siteAddressUnresolved
-        ? "Forecast uses Brampton-area coordinates; the weather geocoder did not match the full street address to a point."
-        : "Forecast location: Brampton, Ontario, Canada (no project site address on file).";
-      drawParagraph(note, 8.5, false, rgb(0.32, 0.33, 0.38));
-    }
-    drawParagraph(snap.summaryLine || "â€”", 10, false);
-  } else {
-    const msg =
-      (snap && snap.message) ||
-      "Automated weather was not available for this report (service error or network).";
-    drawParagraph(msg, 9.5, false, rgb(0.35, 0.28, 0.22));
-  }
-  y -= 6;
 
   /** Workforce */
   const manpowerTable = buildManpowerRowsWithTotal(det.manpowerRows);
@@ -1083,60 +1036,54 @@ async function renderDailySiteLogPdf(opts) {
     drawParagraph(merged.workNarrative, 10, false);
   }
 
-  /** Site Logistics: scheduled activities and the day's site notes (only when Site Logistics had data). */
+  /** Site Logistics: tasks, scheduled work, equipment and the day's site notes (only when Site Logistics had data). */
   const siteLogistics = merged.siteLogistics;
   const slTasks = (siteLogistics && siteLogistics.tasks) || { total: 0, items: [] };
   const slEquipment = (siteLogistics && siteLogistics.equipment) || [];
   if (siteLogistics && (siteLogistics.activities.length || siteLogistics.notes || slTasks.total || slEquipment.length)) {
-    drawSectionTitle(slEquipment.length ? "Site Logistics - Tasks, Scheduled Work, Equipment & Notes" : "Site Logistics - Tasks, Scheduled Work & Notes");
+    drawSectionTitle("Site Logistics");
     if (slTasks.total) {
-      const parts = [`${slTasks.done} completed today`];
+      const parts = [`${slTasks.done} of ${slTasks.total} completed`];
       if (slTasks.blocked) parts.push(`${slTasks.blocked} could not be done`);
-      if (slTasks.open) parts.push(`${slTasks.open} still open`);
-      drawSubheading(`Tasks: ${parts.join(", ")}`);
-      const byCrew = groupByCrew(slTasks.items, "Anyone");
-      for (const { label, list } of byCrew) {
-        drawTradeHeading(label);
-        for (const t of list) {
-          const where = t.area ? ` - ${t.area}` : "";
-          const tail =
-            t.status === "done"
-              ? ` (done${t.doneTime ? ` ${t.doneTime}` : ""}${t.doneBy ? ` by ${t.doneBy}` : ""})`
-              : t.status === "blocked"
-                ? ` (could not be done: ${t.note || "no reason given"})`
-                : ` (still open${t.since ? `, added ${t.since}` : ""}${t.overdueDays ? `, ${t.overdueDays} day${t.overdueDays === 1 ? "" : "s"} overdue` : ""})`;
-          drawParagraph(`  - ${t.text}${where}${tail}`, 10, false, C.inkBody);
-        }
-      }
+      if (slTasks.open) parts.push(`${slTasks.open} open`);
+      const taskRows = slTasks.items.map((t) => [t.text, crewKey(t.company || t.trade) ? [t.company, t.trade && t.trade !== t.company ? `(${t.trade})` : ""].filter(Boolean).join(" ") : "Anyone", t.area || "-", taskStatusText(t)]);
+      const taskCols = [contentW - 110 - 96 - 130, 110, 96, 130];
+      ensureSpaceForSectionTitleAndTableBlock(taskRows, taskCols, -SECTION_TITLE_BLOCK_RESERVE + 24);
+      drawSubheading(`Tasks - ${parts.join(", ")}`);
+      drawWrappedTable(["Task", "Crew", "Area", "Status"], taskRows, taskCols);
     }
     if (siteLogistics.activities.length) {
-      // One compact table instead of a bullet list per crew; each crew is named once, on its first row.
+      // One compact table; each crew is named once, on its first row.
       const schedRows = [];
       for (const { label, list } of groupByCrew(siteLogistics.activities, "")) {
         list.forEach((a, i) => {
-          schedRows.push([i === 0 ? label : "", a.activity || "Scheduled work", a.area || "", a.start === a.end ? a.start : `${a.start} to ${a.end}`]);
+          schedRows.push([i === 0 ? label : "", a.activity || "Scheduled work", a.area || "", shortDateRange(a.start, a.end)]);
         });
       }
-      const schedColWidths = [118, contentW - 118 - 96 - 118, 96, 118];
-      drawSubheading("Scheduled work (from the look-ahead)");
+      const schedColWidths = [118, contentW - 118 - 110 - 86, 110, 86];
+      ensureSpaceForSectionTitleAndTableBlock(schedRows, schedColWidths, -SECTION_TITLE_BLOCK_RESERVE + 24);
+      drawSubheading(`Scheduled work - ${siteLogistics.activities.length} ${siteLogistics.activities.length === 1 ? "activity" : "activities"} from the look-ahead`);
       drawWrappedTable(["Crew", "Activity", "Area", "Dates"], schedRows, schedColWidths);
+    }
+    if (slEquipment.length) {
+      // What was on site that day (Site Logistics' daily record), one row per kind of item, owner and supplier.
+      const offRent = slEquipment.filter((e) => e.onRent === false).length;
+      const groups = groupEquipment(slEquipment);
+      const eqRows = groups.map((g) => [
+        g.type,
+        String(g.count),
+        g.units.join(", ") || "-",
+        g.crew || "-",
+        g.offRent ? `Off rent - awaiting pickup${g.supplier ? ` (${g.supplier})` : ""}` : g.supplier || "-",
+      ]);
+      const eqCols = [104, 34, contentW - 104 - 34 - 112 - 118, 112, 118];
+      ensureSpaceForSectionTitleAndTableBlock(eqRows, eqCols, -SECTION_TITLE_BLOCK_RESERVE + 24);
+      drawSubheading(`Equipment on site - ${slEquipment.length} ${slEquipment.length === 1 ? "piece" : "pieces"}${offRent ? `, ${offRent} off rent awaiting pickup` : ""}`);
+      drawWrappedTable(["Equipment", "Qty", "Units", "Owner", "Supplier"], eqRows, eqCols);
     }
     if (siteLogistics.notes) {
       drawSubheading("Site notes");
       drawParagraph(siteLogistics.notes, 10, false, C.inkBody);
-    }
-    if (slEquipment.length) {
-      // What was on site that day (Site Logistics' daily record): one row per piece, off-rent ones marked.
-      const offRent = slEquipment.filter((e) => !e.onRent).length;
-      drawSubheading(`Equipment on site (${slEquipment.length}${offRent ? `, ${offRent} off rent awaiting pickup` : ""})`);
-      const eqRows = slEquipment.map((e) => [
-        e.type,
-        [e.name && e.name !== e.type ? e.name : "", e.unit ? `#${e.unit}` : ""].filter(Boolean).join(" ") || "-",
-        e.crew || "-",
-        [e.rental, e.onRent ? "" : "off rent"].filter(Boolean).join(", ") || "-",
-        e.drawing || "-",
-      ]);
-      drawWrappedTable(["Equipment", "Name / unit", "Trade", "Rental", "Drawing"], eqRows, [110, contentW - 110 - 118 - 100 - 90, 118, 100, 90]);
     }
   }
 
@@ -1164,7 +1111,7 @@ async function renderDailySiteLogPdf(opts) {
     }
   }
 
-  /** Inspections â€” omit empty placeholder-only block */
+  /** Inspections - omit empty placeholder-only block */
   const insTextRaw = String(merged.inspectionText || "").trim();
   const insPlaceholder = isPlaceholderText(insTextRaw);
   const hasInsChunks = st.inspectionChunks && st.inspectionChunks.length;
@@ -1207,11 +1154,11 @@ async function renderDailySiteLogPdf(opts) {
   if (hasConcRows || hasConcNarrative || concPhotos.length) {
     if (hasConcRows) {
       ensureSpaceForSectionTitleAndTableBlock(concreteRowsForPdf, concreteColWidths);
-      drawSectionTitle(`Concrete Summary â€” ${concreteLabel}`);
+      drawSectionTitle(`Concrete Summary - ${concreteLabel}`);
       drawWrappedTable(["Pour location / scope", "Volume", "Status"], concreteRowsForPdf, concreteColWidths);
       if (hasConcNarrative || concPhotos.length) drawPostTableDivider();
     } else {
-      drawSectionTitle(`Concrete Summary â€” ${concreteLabel}`);
+      drawSectionTitle(`Concrete Summary - ${concreteLabel}`);
     }
     if (hasConcNarrative) {
       drawSubheading("Notes");
@@ -1301,356 +1248,9 @@ async function renderDailySiteLogPdf(opts) {
   }
 }
 
-async function renderJournalPdf(opts) {
-  const {
-    pdf,
-    font,
-    fontBold,
-    storageBucket,
-    pageW = 612,
-    pageH = 792,
-    margin = 50,
-    titleStr,
-    footerBrand,
-    coverMeta,
-    logoStoragePath,
-    projectNotes,
-    merged,
-    model,
-    logger,
-    runId,
-  } = opts;
-
-  const contentW = pageW - 2 * margin;
-  const footerReserve = 42;
-  const headerReserve = 44;
-  const C = {
-    ink: rgb(0.14, 0.15, 0.2),
-    body: rgb(0.17, 0.18, 0.22),
-    muted: rgb(0.43, 0.45, 0.5),
-    rule: rgb(0.78, 0.8, 0.84),
-    accent: rgb(0.3, 0.37, 0.48),
-  };
-
-  let page = pdf.addPage([pageW, pageH]);
-  let y = pageH - margin - 8;
-
-  function newPage() {
-    page = pdf.addPage([pageW, pageH]);
-    y = pageH - margin - headerReserve;
-  }
-
-  function ensureSpace(need) {
-    if (y - need < margin + footerReserve) newPage();
-  }
-
-  function drawLine(yy, thickness = 0.6, color = C.rule) {
-    page.drawLine({
-      start: { x: margin, y: yy },
-      end: { x: pageW - margin, y: yy },
-      thickness,
-      color,
-    });
-  }
-
-  function drawParagraph(text, size = 10, bold = false, color = C.body, left = margin, maxW = contentW) {
-    const f = bold ? fontBold : font;
-    const lines = wrapToLines(String(text || "").trim(), f, size, maxW);
-    const lh = size + LEADING;
-    for (const line of lines) {
-      ensureSpace(lh + 2);
-      drawRichText(page, line, {
-        x: left,
-        y,
-        size,
-        font: f,
-        color,
-      });
-      y -= lh;
-    }
-  }
-
-  function drawSectionTitle(title) {
-    y -= 10;
-    ensureSpace(34);
-    drawLine(y + 4, 0.8, C.rule);
-    y -= 12;
-    drawParagraph(title, 12, true, C.ink);
-    y -= 6;
-  }
-
-  function drawBullets(items, color = C.body) {
-    for (const item of items || []) {
-      const lines = wrapToLines(String(item || "").trim(), font, 10, contentW - 18);
-      if (!lines.length) continue;
-      ensureSpace(lines.length * (10 + LEADING) + 2);
-      page.drawText("•", {
-        x: margin,
-        y,
-        size: 10,
-        font: fontBold,
-        color,
-      });
-      let bulletY = y;
-      for (const line of lines) {
-        drawRichText(page, line, {
-          x: margin + 14,
-          y: bulletY,
-          size: 10,
-          font,
-          color,
-        });
-        bulletY -= 10 + LEADING;
-      }
-      y = bulletY - 2;
-    }
-  }
-
-  function drawJournalTimelineEntry(row) {
-    const timeLabel = String(row && row.time ? row.time : "").trim();
-    const authorLabel = String(row && row.authorLabel ? row.authorLabel : "").trim();
-    const text = String(row && row.text ? row.text : "").trim();
-    if (!timeLabel && !text) return;
-    const metaLabel = [timeLabel, authorLabel].filter(Boolean).join(" · ");
-    if (metaLabel) {
-      drawParagraph(metaLabel, 8.5, true, C.accent);
-    }
-    if (text) {
-      drawParagraph(text, 10, false, C.body);
-    }
-    y -= 4;
-  }
-
-  function drawMetaGrid(grid) {
-    for (const row of grid || []) {
-      const label = String(row.label || "").trim();
-      const value = String(row.value || "").trim();
-      if (!label && !value) continue;
-      ensureSpace(26);
-      drawRichText(page, label, {
-        x: margin,
-        y,
-        size: 8.5,
-        font: fontBold,
-        color: C.accent,
-      });
-      drawParagraph(value || "Not specified", 9.5, false, value ? C.body : C.muted, margin + 100, contentW - 100);
-      y -= 4;
-    }
-  }
-
-  async function drawJournalCoverLogo(topY) {
-    const boxW = 132;
-    const maxH = 52;
-    const leftX = margin;
-    if (logoStoragePath && storageBucket) {
-      let buf;
-      try {
-        [buf] = await storageBucket.file(logoStoragePath).download();
-      } catch (_) {
-        buf = null;
-      }
-      const img = buf ? await embedImageIfPossible(pdf, buf) : null;
-      if (img) {
-        const scale = boxW / img.width;
-        const h = Math.min(img.height * scale, maxH);
-        const w = img.width * (h / img.height);
-        page.drawImage(img, { x: leftX, y: topY - h, width: w, height: h });
-        return { bottomY: topY - h - 10, leftW: boxW };
-      }
-    }
-    return { bottomY: topY, leftW: 0 };
-  }
-
-  async function drawJournalPhoto(photo, captionContext) {
-    let buf;
-    try {
-      [buf] = await storageBucket.file(photo.storagePath).download();
-    } catch (e) {
-      if (logger) {
-        logger.warn("dailyPdfReportBuilder: journal photo download failed", {
-          runId,
-          path: photo.storagePath,
-          message: e.message,
-        });
-      }
-      drawParagraph("(Photo unavailable)", 8.5, false, C.muted);
-      return;
-    }
-    const img = await embedImageIfPossible(pdf, buf);
-    if (!img) {
-      drawParagraph("(Unsupported image format)", 8.5, false, C.muted);
-      return;
-    }
-    const maxW = contentW;
-    const maxH = 420;
-    const scale = Math.min(maxW / img.width, maxH / img.height);
-    const w = img.width * scale;
-    const h = img.height * scale;
-    ensureSpace(h + 40);
-    page.drawImage(img, {
-      x: margin,
-      y: y - h,
-      width: w,
-      height: h,
-    });
-    y -= h + 6;
-
-    let ts = "";
-    try {
-      if (photo.createdAt && typeof photo.createdAt.toDate === "function") {
-        ts = formatWallDateTimeEt(photo.createdAt.toDate());
-      }
-    } catch (_) {}
-    const body = refineCaptionForPdf(
-      String(photo.captionText || "").trim() || String(captionContext || "").trim(),
-      captionContext || "",
-      ""
-    );
-    const cap = [ts, body].filter(Boolean).join(" - ");
-    if (cap) {
-      drawParagraph(cap, 8.5, false, C.muted);
-    }
-    y -= 4;
-  }
-
-  const overview = String(merged.overview || model.deterministic.overview || "").trim();
-  const keyMoments = Array.isArray(merged.keyMoments) && merged.keyMoments.length
-    ? merged.keyMoments
-    : model.deterministic.keyMoments || [];
-  const reflections = Array.isArray(merged.reflections) && merged.reflections.length
-    ? merged.reflections
-    : model.deterministic.reflections || [];
-  const closingNote = String(merged.closingNote || model.deterministic.closingNote || "").trim();
-
-  const coverTopY = y;
-  const logoBand = await drawJournalCoverLogo(coverTopY);
-  const gap = logoBand.leftW > 0 ? 18 : 0;
-  const textLeft = margin + logoBand.leftW + gap;
-  const textWidth = pageW - margin - textLeft;
-  const drawJournalCoverText = (text, size, bold, color) => {
-    drawParagraph(text, size, bold, color, textLeft, textWidth);
-  };
-
-  drawJournalCoverText(coverMeta.brandLine || `Personal daily journal - ${footerBrand}`, 8.5, false, C.muted);
-  y -= 10;
-  drawJournalCoverText(coverMeta.titleMain || titleStr, 20, true, C.ink);
-  if (coverMeta.titleDate) {
-    y -= 2;
-    drawJournalCoverText(coverMeta.titleDate, 11, false, C.accent);
-  }
-  y = Math.min(y, logoBand.bottomY) - 4;
-  drawLine(y + 4, 1, C.rule);
-  y -= 12;
-  drawMetaGrid(coverMeta.grid || []);
-  if (coverMeta.lines && coverMeta.lines.length) {
-    for (const line of coverMeta.lines) {
-      drawParagraph(line, 8.5, false, C.muted);
-    }
-  }
-  y -= 8;
-
-  if (overview) {
-    drawSectionTitle("Day Overview");
-    drawParagraph(overview, 10, false, C.body);
-  }
-
-  const renderedPhotoIds = new Set();
-  const timelineRows = Array.isArray(model.timeline) ? model.timeline : [];
-  const trackedActivityRows = timelineRows.filter((row) => {
-    const entry = model && model.entryById instanceof Map
-      ? model.entryById.get(String(row.entryId || ""))
-      : null;
-    if (/^auto log\s*:/i.test(String(row.text || "").trim())) return false;
-    return (
-      String(entry && entry.source || "").trim() === "ios_shortcuts" ||
-      String(entry && entry.shortcutEventType || "").trim() !== "" ||
-      /iOS Shortcuts|iPhone tracking|tracking event|via iPhone/i.test(String(row.text || ""))
-    );
-  });
-  if (trackedActivityRows.length) {
-    drawSectionTitle("Tracked Activity");
-    drawBullets(
-      trackedActivityRows.map((row) => `${row.time ? `${row.time} - ` : ""}${row.text || ""}`),
-      C.body
-    );
-  }
-
-  if (timelineRows.length) {
-    drawSectionTitle("Chronological Journal");
-    for (const row of timelineRows) {
-      drawJournalTimelineEntry(row);
-      const linkedPhotos = Array.isArray(row.photos) ? row.photos : [];
-      for (const photo of linkedPhotos) {
-        if (!photo || renderedPhotoIds.has(String(photo.mediaId))) continue;
-        renderedPhotoIds.add(String(photo.mediaId));
-        await drawJournalPhoto(photo, row.text || "");
-      }
-    }
-  }
-
-  if (keyMoments.length) {
-    drawSectionTitle("Key Moments");
-    drawBullets(keyMoments, C.body);
-  }
-
-  if (reflections.length) {
-    drawSectionTitle("Reflections");
-    drawBullets(reflections, C.body);
-  }
-
-  const photos = Array.isArray(model.photos) ? model.photos : [];
-  const remainingPhotos = selectRemainingJournalPhotos(photos, renderedPhotoIds);
-  if (remainingPhotos.length) {
-    drawSectionTitle("Additional Photos");
-    for (const photo of remainingPhotos) {
-      if (!photo || renderedPhotoIds.has(String(photo.mediaId))) continue;
-      renderedPhotoIds.add(String(photo.mediaId));
-      const linkedMoment = (model.timeline || []).find(
-        (row) => String(row.entryId || "") === String(photo.linkedLogEntryId || "")
-      );
-      await drawJournalPhoto(photo, linkedMoment ? linkedMoment.text : "");
-    }
-  }
-
-  if (closingNote) {
-    drawSectionTitle("Closing Note");
-    drawParagraph(closingNote, 10, false, C.body);
-  }
-
-  const pages = pdf.getPages();
-  const totalPages = pages.length;
-  const headerTxt = sanitizePdfText(titleStr);
-  const footL = sanitizePdfText(`Powered by ${footerBrand}`);
-  for (let i = 0; i < totalPages; i++) {
-    const pg = pages[i];
-    const fr = `Page ${i + 1} of ${totalPages}`;
-    const fw = font.widthOfTextAtSize(fr, 8);
-    pg.drawText(footL, { x: margin, y: 16, size: 8, font, color: C.muted });
-    drawRichText(pg, fr, {
-      x: pageW - margin - fw,
-      y: 16,
-      size: 8,
-      font,
-      color: C.muted,
-    });
-    if (i > 0) {
-      pg.drawText(headerTxt, {
-        x: margin,
-        y: pageH - 28,
-        size: 9,
-        font: fontBold,
-        color: C.ink,
-      });
-    }
-  }
-}
-
 module.exports = {
   renderDailySiteLogPdf,
-  renderJournalPdf,
   selectRemainingSitePhotos,
-  selectRemainingJournalPhotos,
   wrapToLines,
   buildManpowerRowsWithTotal,
   isPlaceholderText,

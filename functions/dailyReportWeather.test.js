@@ -90,7 +90,7 @@ test("summarizeWeeklyWeather highlights wet and windy windows", () => {
     "expected wet-week summary"
   );
   assert.ok(
-    summary.summaryItems.some((item) => /24 mph/i.test(item)),
+    summary.summaryItems.some((item) => /39 km\/h/i.test(item)),
     "expected wind summary"
   );
 });

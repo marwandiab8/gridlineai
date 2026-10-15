@@ -94,10 +94,21 @@ function sameLocation(a, b) {
   return Boolean(clean(a)) && clean(a) === clean(b);
 }
 
+const COORDINATES_RE = /^-?\d{1,3}(?:\.\d+)?\s*,\s*-?\d{1,3}(?:\.\d+)?$/;
+
+/** The place's name; "" when there is none, or only GPS coordinates (which mean nothing to a reader). */
 function locationLabel(entry) {
-  return String(
+  const label = String(
     entry && (entry.shortcutLocationLabel || entry.locationLabel || entry.location || "")
   ).trim();
+  return COORDINATES_RE.test(label) ? "" : label;
+}
+
+/** " from home to the gym", " home", " to Costco", " from work", or "" - whichever ends are known. */
+function driveRoute(from, to) {
+  if (from && to && sameLocation(from, to)) return "";
+  const dest = !to ? "" : /^home$/i.test(to) ? " home" : ` to ${/^(gym|office)$/i.test(to) ? `the ${to}` : to}`;
+  return `${from ? ` from ${from}` : ""}${dest}`;
 }
 
 function makeSummary(first, text, sourceEntries) {
@@ -233,7 +244,7 @@ function summarizeJournalTrackingEntries(entries, options = {}) {
       const duration = durationLabel(row.ms, driveEnd.ms);
       const from = locationLabel(row.entry);
       const to = locationLabel(driveEnd.entry);
-      const route = from && to && !sameLocation(from, to) ? ` from ${from} to ${to}` : "";
+      const route = driveRoute(from, to);
       summariesFor(
         row,
         `${person} drove${route} ${atTime(row.ms, tz)}${duration ? ` (${duration})` : ""}.`,
