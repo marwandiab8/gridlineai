@@ -355,6 +355,7 @@ module.exports = {
   DEFAULT_RADIUS_METERS,
   haversineMeters,
   normalizePlaceName,
+  placeNameKey,
   openVisitStartMs,
   findNearbyKnownPlace,
   findNearbyKnownPlaces,

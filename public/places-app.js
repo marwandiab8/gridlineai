@@ -1,6 +1,6 @@
-// Known Places dashboard: list, rename, set what you do there (activity), retune matching radius, delete,
-// and merge the places
-// learned by the "Log this place" Shortcut (see docs/quick-log-shortcuts.md and
+// Known Places dashboard: add places from an address, coordinates or a spreadsheet (functions/placesAdd.js),
+// then list, rename, set what you do there (activity), retune matching radius, delete, and merge them -
+// including the places learned by the "Log this place" Shortcut (see docs/quick-log-shortcuts.md and
 // functions/placeLearning.js). Mirrors public/issues-app.js's auth/App Check/Firestore setup.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
@@ -86,9 +86,14 @@ const updateKnownPlaceActivityCallable = httpsCallable(functions, "updateKnownPl
 const updateKnownPlaceRadiusCallable = httpsCallable(functions, "updateKnownPlaceRadiusCallable");
 const deleteKnownPlaceCallable = httpsCallable(functions, "deleteKnownPlaceCallable");
 const mergeKnownPlacesCallable = httpsCallable(functions, "mergeKnownPlacesCallable");
+const lookupPlaceAddressCallable = httpsCallable(functions, "lookupPlaceAddressCallable");
+const addKnownPlaceCallable = httpsCallable(functions, "addKnownPlaceCallable");
+// Address-only rows are looked up about one a second on the server, so allow the callable its full time.
+const importKnownPlacesCallable = httpsCallable(functions, "importKnownPlacesCallable", { timeout: 310000 });
 
 const MIN_RADIUS_METERS = 20;
 const MAX_RADIUS_METERS = 1000;
+const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
 let places = [];
 let selectedIds = new Set();
@@ -195,7 +200,7 @@ function renderPlaces() {
   updateMergeButtonState();
 
   if (!places.length) {
-    list.innerHTML = `<p class="muted small">No places learned yet. Run the "Log this place" Shortcut somewhere new to get started.</p>`;
+    list.innerHTML = `<p class="muted small">No places yet. Add one above, import a spreadsheet, or run the "Log this place" Shortcut somewhere new.</p>`;
     return;
   }
   if (!visible.length) {
@@ -341,6 +346,263 @@ document.addEventListener("change", (event) => {
 });
 
 byId("filterSearch")?.addEventListener("input", renderPlaces);
+
+// --- Add a place from an address or coordinates ---------------------------------------------------
+
+let addCandidates = [];
+
+function setAddMsg(text, isError = false) {
+  const el = byId("addMsg");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("form-error", !!isError);
+}
+
+function selectedAddCandidate() {
+  const checked = document.querySelector('input[name="addCandidate"]:checked');
+  return checked ? addCandidates[Number(checked.value)] : null;
+}
+
+function renderAddCandidates() {
+  const list = byId("addCandidates");
+  list.innerHTML = addCandidates
+    .map(
+      (candidate, index) => `
+    <label class="places-candidate">
+      <input type="radio" name="addCandidate" value="${index}" ${index === 0 ? "checked" : ""} />
+      <span>${esc(candidate.label)}<br /><span class="muted small">${candidate.latitude.toFixed(5)}, ${candidate.longitude.toFixed(5)}
+        · <a href="https://www.openstreetmap.org/?mlat=${candidate.latitude}&mlon=${candidate.longitude}#map=18/${candidate.latitude}/${candidate.longitude}" target="_blank" rel="noopener">check on map</a></span></span>
+    </label>`
+    )
+    .join("");
+  byId("addSave").disabled = !addCandidates.length;
+}
+
+function resetAddCandidates() {
+  addCandidates = [];
+  renderAddCandidates();
+}
+
+async function findAddCandidates() {
+  const query = String(byId("addQuery").value || "").trim();
+  if (!query) {
+    setAddMsg("Type an address or coordinates first.", true);
+    return;
+  }
+  setAddMsg("Looking up…");
+  resetAddCandidates();
+  try {
+    const res = await lookupPlaceAddressCallable({ query });
+    addCandidates = (res.data && res.data.candidates) || [];
+    renderAddCandidates();
+    setAddMsg(
+      addCandidates.length
+        ? addCandidates.length > 1
+          ? "Pick the right match, then add the place."
+          : "Check the match, then add the place."
+        : "No match found. Try a fuller address (street, city), or paste coordinates.",
+      !addCandidates.length
+    );
+  } catch (err) {
+    setAddMsg(formatUiError(err), true);
+  }
+}
+
+async function saveAddedPlace() {
+  const name = String(byId("addName").value || "").trim();
+  const candidate = selectedAddCandidate();
+  const radiusMeters = Number(byId("addRadius").value);
+  if (!name) {
+    setAddMsg("Give the place a name.", true);
+    return;
+  }
+  if (!candidate) {
+    setAddMsg("Find the address or coordinates first.", true);
+    return;
+  }
+  if (!Number.isFinite(radiusMeters) || radiusMeters < MIN_RADIUS_METERS || radiusMeters > MAX_RADIUS_METERS) {
+    setAddMsg(`Radius must be between ${MIN_RADIUS_METERS} and ${MAX_RADIUS_METERS} meters.`, true);
+    return;
+  }
+  setAddMsg("Saving…");
+  byId("addSave").disabled = true;
+  try {
+    const res = await addKnownPlaceCallable({
+      name,
+      latitude: candidate.latitude,
+      longitude: candidate.longitude,
+      activity: String(byId("addActivity").value || "").trim(),
+      radiusMeters,
+      address: candidate.fromCoordinates ? "" : candidate.label,
+    });
+    const saved = res.data || {};
+    setAddMsg(
+      saved.action === "updated"
+        ? `"${saved.name}" was already saved there - updated it.`
+        : `Added "${saved.name}"${saved.activity ? ` (${saved.activity})` : ""}. Your next visit there will be recognized.`
+    );
+    byId("addName").value = "";
+    byId("addQuery").value = "";
+    byId("addActivity").value = "";
+    resetAddCandidates();
+  } catch (err) {
+    setAddMsg(formatUiError(err), true);
+    byId("addSave").disabled = false;
+  }
+}
+
+byId("addFind")?.addEventListener("click", findAddCandidates);
+byId("addQuery")?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    findAddCandidates();
+  }
+});
+byId("addQuery")?.addEventListener("input", resetAddCandidates);
+byId("addSave")?.addEventListener("click", saveAddedPlace);
+
+// --- Import from a spreadsheet ------------------------------------------------------------------------
+
+const IMPORT_STATUS_LABELS = {
+  add: "Will add",
+  update: "Will update",
+  lookup: "Will look up address",
+  added: "Added",
+  updated: "Updated",
+  error: "Skipped",
+};
+
+let importFilePayload = null;
+
+function setImportMsg(text, isError = false) {
+  const el = byId("importMsg");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("form-error", !!isError);
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || "").replace(/^data:[^,]*,/, ""));
+    reader.onerror = () => reject(reader.error || new Error("Could not read the file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderImportRows(rows) {
+  const el = byId("importRows");
+  if (!rows || !rows.length) {
+    el.innerHTML = "";
+    return;
+  }
+  el.innerHTML = `
+    <table class="places-import-table">
+      <thead><tr><th>Row</th><th>Name</th><th>Result</th><th>Details</th></tr></thead>
+      <tbody>
+        ${rows
+          .map((row) => {
+            const details =
+              row.message ||
+              (row.foundAddress ? `Found: ${row.foundAddress}` : "") ||
+              (row.status === "lookup" ? row.address : "") ||
+              (Number.isFinite(row.latitude) ? `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}` : "");
+            return `<tr class="import-${esc(row.status)}">
+              <td>${esc(row.rowNumber)}</td>
+              <td>${esc(row.name || "—")}</td>
+              <td>${esc(IMPORT_STATUS_LABELS[row.status] || row.status)}</td>
+              <td>${esc(details)}${row.activity ? ` <span class="muted">· ${esc(row.activity)}</span>` : ""}</td>
+            </tr>`;
+          })
+          .join("")}
+      </tbody>
+    </table>`;
+}
+
+function resetImport() {
+  importFilePayload = null;
+  byId("importRun").classList.add("hidden");
+  renderImportRows([]);
+  setImportMsg("");
+}
+
+byId("importFile")?.addEventListener("change", () => {
+  resetImport();
+  byId("importPreview").disabled = !byId("importFile").files.length;
+});
+
+byId("importPreview")?.addEventListener("click", async () => {
+  const file = byId("importFile").files[0];
+  if (!file) return;
+  resetImport();
+  if (!/\.(xlsx|csv)$/i.test(file.name)) {
+    setImportMsg("Choose an .xlsx or .csv file. (An older .xls file can be saved as .xlsx from Excel.)", true);
+    return;
+  }
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    setImportMsg("That file is larger than 2 MB. Split it into smaller files.", true);
+    return;
+  }
+  setImportMsg("Reading the spreadsheet…");
+  try {
+    importFilePayload = { fileName: file.name, fileBase64: await readFileAsBase64(file) };
+    const res = await importKnownPlacesCallable({ ...importFilePayload, dryRun: true });
+    const { summary, rows } = res.data || {};
+    renderImportRows(rows);
+    const ready = summary.toAdd + summary.toUpdate + summary.toLookUp;
+    const parts = [
+      summary.toAdd && `${summary.toAdd} to add`,
+      summary.toUpdate && `${summary.toUpdate} to update`,
+      summary.toLookUp && `${summary.toLookUp} address${summary.toLookUp === 1 ? "" : "es"} to look up`,
+      summary.errors && `${summary.errors} with problems (skipped)`,
+    ].filter(Boolean);
+    setImportMsg(`${summary.rows} row${summary.rows === 1 ? "" : "s"}: ${parts.join(", ")}.`, !ready);
+    if (ready) {
+      const run = byId("importRun");
+      run.textContent = `Import ${ready} place${ready === 1 ? "" : "s"}`;
+      run.classList.remove("hidden");
+    }
+  } catch (err) {
+    importFilePayload = null;
+    setImportMsg(formatUiError(err), true);
+  }
+});
+
+byId("importRun")?.addEventListener("click", async () => {
+  if (!importFilePayload) return;
+  const run = byId("importRun");
+  run.disabled = true;
+  setImportMsg("Importing… addresses take about a second each to look up.");
+  try {
+    const res = await importKnownPlacesCallable({ ...importFilePayload, dryRun: false });
+    const { summary, rows } = res.data || {};
+    renderImportRows(rows);
+    setImportMsg(
+      `Done: ${summary.added} added, ${summary.updated} updated${summary.errors ? `, ${summary.errors} skipped (see below)` : ""}.`,
+      summary.errors > 0 && !summary.added && !summary.updated
+    );
+    importFilePayload = null;
+    run.classList.add("hidden");
+  } catch (err) {
+    setImportMsg(formatUiError(err), true);
+  } finally {
+    run.disabled = false;
+  }
+});
+
+byId("importTemplate")?.addEventListener("click", (event) => {
+  event.preventDefault();
+  const csv = [
+    "Name,Latitude,Longitude,Address,Activity,Radius",
+    "Raging Bull,43.5471,-80.2968,,Eating out,120",
+    "Cottage,,,\"12 Lake Rd, Muskoka, ON\",Visit,",
+  ].join("\r\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  link.download = "known-places-template.csv";
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+});
 
 // The activity choices offered as you type (any other short text works too).
 const activityChoices = document.createElement("datalist");

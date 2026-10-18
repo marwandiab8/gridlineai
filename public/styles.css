@@ -1975,6 +1975,81 @@ code {
   max-width: 100%;
 }
 
+.places-add + .places-add {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2f3a;
+}
+.places-add summary {
+  cursor: pointer;
+}
+.places-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.places-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+.places-form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.places-form input[type="text"],
+.places-form input[type="number"] {
+  background: #12141a;
+  border: 1px solid #3d4450;
+  color: #e8eaed;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color-scheme: dark;
+  min-width: 0;
+}
+#addQuery {
+  flex: 1 1 260px;
+}
+#addRadius {
+  width: 90px;
+}
+.places-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.places-candidate {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 8px !important;
+  padding: 8px 10px;
+  border: 1px solid #2a2f3a;
+  border-radius: 8px;
+}
+.places-import-rows {
+  overflow-x: auto;
+}
+.places-import-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.places-import-table th,
+.places-import-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #2a2f3a;
+  vertical-align: top;
+}
+.places-import-table tr.import-error td {
+  color: #f28b82;
+}
+
 /* Labour review by activity code */
 .labour-line {
   display: grid;
