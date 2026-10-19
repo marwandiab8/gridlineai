@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "docksteaderBriefings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "memberEmail", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION",
       "fields": [

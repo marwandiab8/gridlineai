@@ -573,6 +573,8 @@ const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // straight from process.env, and Cloud Functions v2 only injects a secret into process.env for
 // the functions that list it in their own `secrets` array.
 const TIME_LEFT_INGESTION_TOKEN = defineSecret("TIME_LEFT_INGESTION_TOKEN");
+// Shared with the Procore Inbox Apps Script, which posts the day's Docksteader email and Todoist (docksteaderBriefing.js).
+const DOCKSTEADER_BRIEFING_TOKEN = defineSecret("DOCKSTEADER_BRIEFING_TOKEN");
 const COL_VOICE_MESSAGE_QUEUE = "voiceMessageProcessingQueue";
 const COL_AUDIO_MESSAGE_QUEUE = "audioMessageProcessingQueue";
 
@@ -10221,6 +10223,40 @@ exports.createLookaheadCloseoutReportCallable = onCall(
 	      reportFileName: report.reportFileName,
 	      summary: report.summary,
 	    };
+  }
+);
+
+// Docksteader morning briefing and evening wrap-up (docksteaderBriefing.js): the Apps Script posts the day's email and
+// Todoist here, the queue trigger adds Site Logistics and writes the report, the Reports page shows it.
+const { createBriefingRequestHandler, writeQueuedBriefing, COL_QUEUE: COL_BRIEFING_QUEUE } = require("./docksteaderBriefing");
+
+// Site Logistics' Firestore, read-only: the runtime service account has datastore.viewer on the site-logistics project.
+let siteLogisticsFirestore = null;
+function siteLogisticsDb() {
+  if (!siteLogisticsFirestore) siteLogisticsFirestore = admin.initializeApp({ projectId: "site-logistics" }, "siteLogistics").firestore();
+  return siteLogisticsFirestore;
+}
+
+exports.docksteaderBriefing = onRequest(
+  { region: "northamerica-northeast1", invoker: "public", timeoutSeconds: 60, memory: "256MiB", secrets: [DOCKSTEADER_BRIEFING_TOKEN] },
+  createBriefingRequestHandler({ db, FieldValue, logger, token: () => DOCKSTEADER_BRIEFING_TOKEN.value() })
+);
+
+exports.writeDocksteaderBriefing = onDocumentCreated(
+  { document: `${COL_BRIEFING_QUEUE}/{runId}`, region: "northamerica-northeast1", timeoutSeconds: 300, memory: "512MiB", secrets: [OPENAI_API_KEY] },
+  async (event) => {
+    if (!event.data) return;
+    await writeQueuedBriefing({
+      db,
+      FieldValue,
+      logger,
+      siteLogisticsDb: siteLogisticsDb(),
+      createCompletion: (params) => new OpenAI({ apiKey: OPENAI_API_KEY.value() }).chat.completions.create(params),
+      model: OPENAI_MODEL_PRIMARY.value(),
+      appUrl: "https://gridlineai.web.app/#reports",
+      runRef: event.data.ref,
+      run: event.data.data(),
+    });
   }
 );
 

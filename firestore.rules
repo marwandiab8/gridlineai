@@ -252,6 +252,16 @@ service cloud.firestore {
       allow read: if hasAppAccess() && resource.data.memberEmail == operatorEmail();
       allow write: if false;
     }
+    // Docksteader morning briefings and evening wrap-ups (functions/docksteaderBriefing.js): written by the server
+    // only, and read only by the member they're for - they quote that member's email and Todoist.
+    match /docksteaderBriefings/{briefingId} {
+      allow read: if hasAppAccess() && resource.data.memberEmail == operatorEmail();
+      allow write: if false;
+    }
+    // Queued runs hold the raw day (email, Todoist) until the report is written: no client access at all.
+    match /docksteaderBriefingQueue/{runId} {
+      allow read, write: if false;
+    }
     match /labourers/{labourerId} {
       allow read: if isManagementApp();
       allow write: if false;
