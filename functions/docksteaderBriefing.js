@@ -19,15 +19,18 @@ const SITE_ID = "viWiEkc1KoPBnRds0zzh";
 const MEMBER_EMAIL = "marwandiab8@gmail.com";
 const MAX_MAIL_BODY = 700;
 // Other automated summaries of the same mail (the hourly Docksteader digest): never a source of facts.
-const AUTOMATED_SUMMARY = /Docksteader\/Matheson digest|Hourly Email (&|&amp;|and) Drive Check|scheduled task completed/i;
+// Other automated summaries of the same mail, never a source of facts: the hourly Docksteader digest, the Claude
+// routines' wrap-up and brief, and these reports themselves.
+const AUTOMATED_SUMMARY = /Docksteader\/Matheson digest|Hourly Email (&|&amp;|and) Drive Check|scheduled task completed|Docksteader (wrap-up|briefing|evening wrap-up|morning briefing)\b|morning brief/i;
 const MAX_INPUT_CHARS = 70000;
 
 const KINDS = {
   briefing: {
     label: "Morning briefing",
-    sections: ["Today on site", "Needs your reply", "Watch today", "Slipping or overdue"],
+    // Email that only needs a reply is in Marwan's 6:35 AM morning brief (a Claude routine); this one is the site.
+    sections: ["Today on site", "Watch today", "Slipping or overdue"],
     focus:
-      "the day ahead: who is on site today and doing what (grouped by sub), what is due or happening today (meetings, inspections, pours, deliveries, deadlines), what came in since last evening that needs Marwan's answer, and what is slipping.",
+      "the day ahead on site: who is on site today and doing what (grouped by sub), what is due or happening today (meetings, inspections, pours, deliveries, deadlines), and what is slipping. Email that only needs a reply is covered by Marwan's 6:35 AM brief: use email only where it changes today's site work (a moved inspection, a delivery change, a meeting today).",
   },
   wrapup: {
     label: "Evening wrap-up",
@@ -204,6 +207,9 @@ function buildBriefingInput({ kind, dayKey, nowLabel, payload, site }) {
 
 function promptFor(kind, dayKey) {
   const k = KINDS[kind];
+  const needsReplyRule = k.sections.includes("Needs your reply")
+    ? "- Needs your reply: messages to or copying Marwan (mdiab@mathesonconstructors.com, marwandiab8@gmail.com) that ask him for something - an answer, a confirmation, an approval, a form, an invoice or pay application to review - and drafts (draft: true) that still need finishing. Leave out newsletters, marketing, automated notices that ask nothing, security alerts and the hourly digest emails."
+    : "- No section for email replies: the 6:35 AM brief covers those.";
   return `Write Marwan Diab's ${k.label.toLowerCase()} for ${dayLabel(dayKey)}. Marwan is the Senior Project Superintendent for Matheson Constructors on the Docksteader PRPS Reporting Station (project 2025-048, 6 Docksteader Rd, Brampton). Cover ${k.focus}
 
 Return JSON only:
@@ -216,7 +222,7 @@ Rules:
 - "Done" means confirmed: an email, Procore notice or saved file, the daily note, labour hours, a Site Logistics task marked done, or a Todoist completion. Work that was only scheduled is not done; call it scheduled.
 - todoist.batchClosed lists tasks closed together in one minute: that is clearing old items, not work done. Say so in one item if it matters.
 - Compare the look-ahead and bookings with submittals, RFIs, deliveries and email, and flag conflicts (work scheduled before material arrives or before an approval or RFI answer is due back).
-- Needs your reply: messages to or copying Marwan (mdiab@mathesonconstructors.com, marwandiab8@gmail.com) that ask him for something - an answer, a confirmation, an approval, a form, an invoice or pay application to review - and drafts (draft: true) that still need finishing. Leave out newsletters, marketing, automated notices that ask nothing, security alerts and the hourly digest emails.
+${needsReplyRule}
 - A message with blanks in square brackets ("[confirm: April 2027]", "[list required certs]") is an unfinished draft, even if not marked draft: list it under Needs your reply as a draft to finish, never as sent.
 - A message from "Marwan Diab <mdiab@mathesonconstructors.com>" to marwandiab8@gmail.com is a forward from his work inbox: treat it as the original message. Don't list the same thread twice.
 - Schedule sections: group by sub ("Kolostat", "O'Connor", "Matheson"...) and name the zone or area. For the wrap-up, "Tomorrow" is the next working day; if that isn't ${addDays(dayKey, 1)}, say which day it is.
@@ -355,7 +361,8 @@ async function writeQueuedBriefing({ db, FieldValue, logger, siteLogisticsDb, cr
     const payload = JSON.parse(run.payload || "{}");
     const input = buildBriefingInput({ kind, dayKey, nowLabel: writtenAt, payload, site });
     const report = await writeReport({ createCompletion, model, kind, dayKey, input });
-    const title = `Docksteader ${KINDS[kind].label.toLowerCase()} - ${dayLabel(dayKey)}`;
+    // "Docksteader briefing – Tue Oct 20" / "Docksteader wrap-up – Mon Oct 19": the names Marwan's routines already skip.
+    const title = `Docksteader ${kind === "wrapup" ? "wrap-up" : "briefing"} – ${dayLabel(dayKey)}`;
     const html = renderBriefingHtml({ title, report, writtenAt, appUrl });
     await db.collection(COL_BRIEFINGS).doc(reportId).set({
       memberEmail: MEMBER_EMAIL,
