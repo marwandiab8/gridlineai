@@ -251,6 +251,32 @@ test("an import stops looking up addresses after the per-import limit", async ()
   assert.match(result.rows.at(-1).message, /Only 40 addresses/);
 });
 
+test("a preview matches the import: a name listed twice is one add and one update, and addresses past the limit are skipped", async () => {
+  const db = seeded();
+  const { fetchImpl, calls } = fakeFetch({});
+  const lines = ["Name,Latitude,Longitude,Address", "Raging Bull,43.5471,-80.2968,", "Raging Bull,43.5472,-80.2968,", ",,,Street with no name"];
+  for (let i = 0; i < MAX_IMPORT_LOOKUPS + 1; i += 1) lines.push(`Place ${i},,,Street ${i}`);
+  const result = await importKnownPlaces({
+    db, FieldValue, memberEmail: ME, fileName: "p.csv", fileBase64: Buffer.from(lines.join("\n")).toString("base64"), dryRun: true, fetchImpl,
+  });
+  assert.deepEqual(result.rows.slice(0, 3).map((row) => row.status), ["add", "update", "error"]);
+  assert.equal(result.summary.toLookUp, MAX_IMPORT_LOOKUPS, "the nameless row does not use up a lookup");
+  assert.match(result.rows.at(-1).message, /Only 40 addresses/);
+  assert.equal(db.rows.size, 2, "nothing saved");
+  assert.equal(calls.length, 0, "nothing looked up");
+});
+
+test("an import says the lookup service failed rather than that the address was not found", async () => {
+  const db = seeded();
+  const result = await importKnownPlaces({
+    db, FieldValue, memberEmail: ME, fileName: "p.csv", fileBase64: Buffer.from("Name,Address\nCabin,12 Lake Rd\n").toString("base64"),
+    fetchImpl: async () => ({ ok: false }), sleep: async () => {},
+  });
+  assert.equal(result.rows[0].status, "error");
+  assert.match(result.rows[0].message, /did not answer/);
+  assert.equal(db.rows.size, 2, "nothing saved");
+});
+
 test("rejects an empty, unreadable or oversized file", async () => {
   const db = seeded();
   await assert.rejects(importKnownPlaces({ db, FieldValue, memberEmail: ME, fileName: "p.xlsx", fileBase64: "" }), /empty/);

@@ -393,22 +393,29 @@ async function importKnownPlaces({
     }
     let { latitude, longitude, address } = row;
     if (needsLookup) {
-      if (dryRun) {
-        const checked = validatePlaceInput({ ...row, latitude: 0.0001, longitude: 0.0001 });
-        results.push(checked.error ? { ...result, status: "error", message: checked.error } : { ...result, status: "lookup", address });
+      // The rest of the row is checked first, so a row skipped anyway uses none of the lookups - and the
+      // preview counts lookups the same way, so it shows the rows past the limit as skipped too.
+      const precheck = validatePlaceInput({ ...row, latitude: 0.0001, longitude: 0.0001 });
+      if (precheck.error) {
+        results.push({ ...result, status: "error", message: precheck.error });
         continue;
       }
       if (lookups >= MAX_IMPORT_LOOKUPS) {
         results.push({ ...result, status: "error", message: `Only ${MAX_IMPORT_LOOKUPS} addresses are looked up per import; add coordinates or import the rest separately.` });
         continue;
       }
-      if (lookups > 0) await sleep(GEOCODE_INTERVAL_MS);
       lookups += 1;
-      let candidates = [];
+      if (dryRun) {
+        results.push({ ...result, status: "lookup", address });
+        continue;
+      }
+      if (lookups > 1) await sleep(GEOCODE_INTERVAL_MS);
+      let candidates;
       try {
         candidates = await geocodeAddress(address, { fetchImpl, limit: 1 });
       } catch (_) {
-        candidates = [];
+        results.push({ ...result, status: "error", message: `The address lookup service did not answer for: ${address}. Try again later, or add coordinates.` });
+        continue;
       }
       if (!candidates.length) {
         results.push({ ...result, status: "error", message: `Address not found: ${address}` });
@@ -424,6 +431,10 @@ async function importKnownPlaces({
     }
     if (dryRun) {
       const existing = findSameNamedPlace(places, checked.place.name, latitude, longitude);
+      // Remembered as if added, so a later row naming it again previews as the update the import makes.
+      if (!existing) {
+        places.push({ name: checked.place.name, latitude, longitude, radiusMeters: checked.place.radiusMeters || DEFAULT_RADIUS_METERS });
+      }
       results.push({ ...result, status: existing ? "update" : "add", latitude, longitude });
       continue;
     }
