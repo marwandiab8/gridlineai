@@ -18,6 +18,8 @@ const TIME_ZONE = "America/Toronto";
 const SITE_ID = "viWiEkc1KoPBnRds0zzh";
 const MEMBER_EMAIL = "marwandiab8@gmail.com";
 const MAX_MAIL_BODY = 700;
+// Other automated summaries of the same mail (the hourly Docksteader digest): never a source of facts.
+const AUTOMATED_SUMMARY = /Docksteader\/Matheson digest|Hourly Email (&|&amp;|and) Drive Check|scheduled task completed/i;
 const MAX_INPUT_CHARS = 70000;
 
 const KINDS = {
@@ -166,7 +168,7 @@ function shapeTodoist(todoist, dayKey) {
 
 /** The INPUT block for the model, as compact JSON, cut to MAX_INPUT_CHARS by shortening email bodies. */
 function buildBriefingInput({ kind, dayKey, nowLabel, payload, site }) {
-  const mail = (payload.mail || []).map((thread) => ({
+  const mail = (payload.mail || []).filter((thread) => !AUTOMATED_SUMMARY.test(String(thread.subject || ""))).map((thread) => ({
     subject: clip(thread.subject, 200),
     link: thread.link || "",
     unread: Boolean(thread.unread),
@@ -210,10 +212,12 @@ Use exactly these sections, in this order: ${k.sections.map((s) => `"${s}"`).joi
 
 Rules:
 - Use only facts in INPUT. Never invent dates, names, quantities, statuses or links; a link must be copied exactly from INPUT.
+- Take facts from the original emails, Procore notices and records, not from summaries or digests of them.
 - "Done" means confirmed: an email, Procore notice or saved file, the daily note, labour hours, a Site Logistics task marked done, or a Todoist completion. Work that was only scheduled is not done; call it scheduled.
 - todoist.batchClosed lists tasks closed together in one minute: that is clearing old items, not work done. Say so in one item if it matters.
 - Compare the look-ahead and bookings with submittals, RFIs, deliveries and email, and flag conflicts (work scheduled before material arrives or before an approval or RFI answer is due back).
 - Needs your reply: messages to or copying Marwan (mdiab@mathesonconstructors.com, marwandiab8@gmail.com) that ask him for something - an answer, a confirmation, an approval, a form, an invoice or pay application to review - and drafts (draft: true) that still need finishing. Leave out newsletters, marketing, automated notices that ask nothing, security alerts and the hourly digest emails.
+- A message with blanks in square brackets ("[confirm: April 2027]", "[list required certs]") is an unfinished draft, even if not marked draft: list it under Needs your reply as a draft to finish, never as sent.
 - A message from "Marwan Diab <mdiab@mathesonconstructors.com>" to marwandiab8@gmail.com is a forward from his work inbox: treat it as the original message. Don't list the same thread twice.
 - Schedule sections: group by sub ("Kolostat", "O'Connor", "Matheson"...) and name the zone or area. For the wrap-up, "Tomorrow" is the next working day; if that isn't ${addDays(dayKey, 1)}, say which day it is.
 - Plain, direct language for a superintendent reading on a phone. No emojis, no filler, no advice he didn't ask for.`;

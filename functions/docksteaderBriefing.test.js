@@ -117,6 +117,16 @@ test("the input is cut to size by shortening email bodies, keeping every thread"
   assert.ok(input.includes("Thread 119"));
 });
 
+test("the hourly digest and other automated summaries are not part of the input", () => {
+  const mail = [
+    { subject: "Docksteader/Matheson digest – Oct 19, 2026 (3:11 PM run)", messages: [{ body: "RFI #93 overdue" }] },
+    { subject: "Docksteader Hourly Email &amp; Drive Check — scheduled task completed", messages: [{ body: "done" }] },
+    { subject: "Docksteader - RJC Site Review #4", messages: [{ body: "Wednesday?" }] },
+  ];
+  const input = JSON.parse(buildBriefingInput({ kind: "briefing", dayKey: "2026-10-20", nowLabel: "now", payload: { mail }, site: null }));
+  assert.deepEqual(input.mail.map((t) => t.subject), ["Docksteader - RJC Site Review #4"]);
+});
+
 test("the model's JSON is held to the sections, and links not in the input are dropped", () => {
   const allowed = new Set(["https://mail.google.com/mail/u/0/#all/abc"]);
   const raw = 'Here you go: {"headline":"Vault dates won\'t hold","sections":[{"title":"Done today","items":[{"lead":"RFI 320","text":"Issued.","link":"https://mail.google.com/mail/u/0/#all/abc"},{"lead":"Made up","text":"x","link":"https://evil.example/"}]},{"title":"Something else","items":[{"lead":"","text":""}]}]}';
