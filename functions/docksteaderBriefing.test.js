@@ -121,10 +121,17 @@ test("the hourly digest and other automated summaries are not part of the input"
   const mail = [
     { subject: "Docksteader/Matheson digest – Oct 19, 2026 (3:11 PM run)", messages: [{ body: "RFI #93 overdue" }] },
     { subject: "Docksteader Hourly Email &amp; Drive Check — scheduled task completed", messages: [{ body: "done" }] },
+    { subject: "Docksteader wrap-up – Mon Oct 19", messages: [{ body: "yesterday" }] },
+    { subject: "Docksteader briefing – Tue Oct 20", messages: [{ body: "this morning" }] },
     { subject: "Docksteader - RJC Site Review #4", messages: [{ body: "Wednesday?" }] },
   ];
   const input = JSON.parse(buildBriefingInput({ kind: "briefing", dayKey: "2026-10-20", nowLabel: "now", payload: { mail }, site: null }));
   assert.deepEqual(input.mail.map((t) => t.subject), ["Docksteader - RJC Site Review #4"]);
+});
+
+test("the morning briefing is the site only; the wrap-up keeps the replies", () => {
+  assert.deepEqual(KINDS.briefing.sections, ["Today on site", "Watch today", "Slipping or overdue"]);
+  assert.ok(KINDS.wrapup.sections.includes("Needs your reply"));
 });
 
 test("the model's JSON is held to the sections, and links not in the input are dropped", () => {
@@ -141,7 +148,7 @@ test("the model's JSON is held to the sections, and links not in the input are d
 
 test("the email HTML escapes everything it shows", () => {
   const html = renderBriefingHtml({
-    title: "Docksteader evening wrap-up - Mon Oct 19",
+    title: "Docksteader wrap-up – Mon Oct 19",
     writtenAt: "Mon Oct 19, 6:31 p.m.",
     appUrl: "https://gridlineai.web.app/#reports",
     report: { headline: "<script>x</script>", sections: [{ title: "Done today", items: [{ lead: "A&B", text: "1 < 2", link: "https://mail.google.com/x?a=1&b=2" }] }, { title: "Needs your reply", items: [] }] },
@@ -151,7 +158,7 @@ test("the email HTML escapes everything it shows", () => {
   assert.ok(html.includes("<b>A&amp;B</b>: 1 &lt; 2"));
   assert.ok(html.includes('href="https://mail.google.com/x?a=1&amp;b=2"'));
   assert.ok(html.includes("Nothing to report."));
-  assert.ok(html.includes("<title>Docksteader evening wrap-up - Mon Oct 19</title>"));
+  assert.ok(html.includes("<title>Docksteader wrap-up – Mon Oct 19</title>"));
 });
 
 test("a posted day is queued, written by the trigger, and returned when polled", async () => {
@@ -195,7 +202,7 @@ test("a posted day is queued, written by the trigger, and returned when polled",
   assert.ok(sentParams.messages[1].content.includes("Site Logistics could not be read"), "a Site Logistics failure is said, not fatal");
   const report = db.rows.get("docksteaderBriefings/2026-10-19-wrapup");
   assert.equal(report.memberEmail, "marwandiab8@gmail.com");
-  assert.equal(report.title, "Docksteader evening wrap-up - Mon Oct 19");
+  assert.equal(report.title, "Docksteader wrap-up – Mon Oct 19");
   assert.equal(report.sections[2].items[0].lead, "RJC Site Review #4", "placed in its own section even when the model skips others");
   assert.equal(report.sources.emailThreads, 1);
   assert.equal(db.rows.get(`docksteaderBriefingQueue/${run}`).payload, undefined, "the raw day is not kept once written");
@@ -203,7 +210,7 @@ test("a posted day is queued, written by the trigger, and returned when polled",
   res = fakeRes();
   await handler(fakeReq({ method: "GET", query: { run } }), res);
   assert.equal(res.body.status, "ready");
-  assert.equal(res.body.subject, "Docksteader evening wrap-up - Mon Oct 19");
+  assert.equal(res.body.subject, "Docksteader wrap-up – Mon Oct 19");
   assert.ok(res.body.html.includes("Confirm RJC for Wednesday"));
 });
 
