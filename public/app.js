@@ -620,6 +620,13 @@ let appMembersCache = [];
 let issueLogsCache = [];
 let summariesCache = [];
 let dailyReportsCache = [];
+// Reports -> Briefing & wrap-up: the member's own Docksteader briefings (functions/docksteaderBriefing.js).
+const briefingCardEl = document.getElementById("briefingCard");
+const briefingListEl = document.getElementById("briefingList");
+const briefingViewEl = document.getElementById("briefingView");
+let briefingsCache = [];
+let briefingFilter = "all";
+let selectedBriefingId = "";
 let mediaCache = [];
 let homeTodosCache = [];
 let todoTaxonomyCache = [];
@@ -2699,6 +2706,8 @@ function clearAdminPanels() {
 }
 
 function resetAdminCaches() {
+  briefingsCache = [];
+  renderBriefings();
   messagesCache = [];
   voiceMessagesCache = [];
   shortcutEventsCache = [];
@@ -3058,6 +3067,75 @@ function renderLogEntriesWithMedia() {
   scheduleHydrateMediaThumbs();
 }
 
+/** "Mon Oct 19" for a "2026-10-19" day key. */
+function briefingDayLabel(dayKey) {
+  const d = new Date(`${dayKey}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) ? String(dayKey || "") : d.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" }).replace(",", "");
+}
+
+function briefingLink(url) {
+  return /^https:\/\//.test(String(url || "")) ? ` <a href="${esc(url)}" target="_blank" rel="noopener">open</a>` : "";
+}
+
+function renderBriefingDetail(b) {
+  const sections = (Array.isArray(b.sections) ? b.sections : [])
+    .map((sec) => {
+      const items = Array.isArray(sec.items) ? sec.items : [];
+      return `<h4>${esc(sec.title)}</h4>${
+        items.length
+          ? `<ul>${items.map((i) => `<li>${i.lead ? `<strong>${esc(i.lead)}</strong>: ` : ""}${esc(i.text)}${briefingLink(i.link)}</li>`).join("")}</ul>`
+          : '<p class="muted small">Nothing to report.</p>'
+      }`;
+    })
+    .join("");
+  return `<h3>${esc(b.title || "")}</h3><p class="muted small">Written ${esc(b.writtenAt || "")}</p>${
+    b.headline ? `<p class="briefing-headline">${esc(b.headline)}</p>` : ""
+  }${sections}`;
+}
+
+function renderBriefings() {
+  if (!briefingCardEl) return;
+  briefingCardEl.hidden = !briefingsCache.length;
+  if (!briefingsCache.length) {
+    if (briefingListEl) briefingListEl.innerHTML = "";
+    if (briefingViewEl) briefingViewEl.innerHTML = "";
+    return;
+  }
+  const shown = briefingsCache.filter((b) => briefingFilter === "all" || b.kind === briefingFilter);
+  if (!shown.some((b) => b.id === selectedBriefingId)) selectedBriefingId = shown.length ? shown[0].id : "";
+  document.querySelectorAll("[data-briefing-filter]").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.briefingFilter === briefingFilter));
+  });
+  briefingListEl.innerHTML = shown.length
+    ? shown
+        .map(
+          (b) => `
+        <button type="button" class="row-item briefing-row${b.id === selectedBriefingId ? " is-selected" : ""}" data-briefing-id="${esc(b.id)}">
+          <span class="pill ${b.kind === "wrapup" ? "pill-outbound" : "pill-inbound"}">${b.kind === "wrapup" ? "Wrap-up" : "Briefing"}</span>
+          <strong>${esc(briefingDayLabel(b.dayKey))}</strong>
+          <span class="muted small">${esc(b.headline || "")}</span>
+        </button>`
+        )
+        .join("")
+    : '<div class="row-item muted small">None yet.</div>';
+  const selected = shown.find((b) => b.id === selectedBriefingId);
+  briefingViewEl.innerHTML = selected ? renderBriefingDetail(selected) : "";
+}
+
+briefingCardEl?.addEventListener("click", (event) => {
+  const filter = event.target.closest("[data-briefing-filter]");
+  if (filter) {
+    briefingFilter = filter.dataset.briefingFilter;
+    renderBriefings();
+    return;
+  }
+  const row = event.target.closest("[data-briefing-id]");
+  if (row) {
+    selectedBriefingId = row.dataset.briefingId;
+    renderBriefings();
+  }
+});
+
 function bindQuery(q, targetEl, render, onDocs, label = "") {
   return onSnapshot(
     q,
@@ -3092,6 +3170,20 @@ function startAdminListeners() {
   const userEmail = currentUserEmail();
   const managedProjectSlugs = currentUserManagedProjectSlugs();
   const managedProjectKeys = currentUserScopedProjectKeys();
+
+  // The member's own briefings; anyone else's query simply returns none.
+  if (userEmail && briefingCardEl) {
+    appUnsubscribers.push(
+      onSnapshot(
+        query(collection(db, "docksteaderBriefings"), where("memberEmail", "==", userEmail), orderBy("createdAt", "desc"), limit(60)),
+        (snap) => {
+          briefingsCache = snap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+          renderBriefings();
+        },
+        (err) => console.warn("docksteaderBriefings", err && err.message)
+      )
+    );
+  }
 
   const renderReports = (docs) => {
     const sorted = [...docs].sort((a, b) => {

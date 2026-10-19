@@ -610,6 +610,26 @@
             </div>
 
             <div class="section-grid">
+              <article class="card briefing-card" id="briefingCard" hidden>
+                <div class="card-head">
+                  <div>
+                    <h3>Briefing &amp; wrap-up</h3>
+                    <p class="muted small">
+                      The Docksteader morning briefing (9:30 AM) and evening wrap-up (6:30 PM), written from your Gmail,
+                      Procore, Todoist, Drive and Site Logistics, and emailed to you as well. Only you can see yours.
+                    </p>
+                  </div>
+                </div>
+                <div class="briefing-filters" role="group" aria-label="Show">
+                  <button type="button" class="btn-secondary" data-briefing-filter="all" aria-pressed="true">All</button>
+                  <button type="button" class="btn-secondary" data-briefing-filter="briefing" aria-pressed="false">Morning briefings</button>
+                  <button type="button" class="btn-secondary" data-briefing-filter="wrapup" aria-pressed="false">Evening wrap-ups</button>
+                </div>
+                <div class="briefing-layout">
+                  <div id="briefingList" class="scroll-list briefing-list"></div>
+                  <div id="briefingView" class="briefing-view" aria-live="polite"></div>
+                </div>
+              </article>
               <article class="card" data-min-role="management">
                 <div class="card-head">
                   <div>
@@ -1458,6 +1478,6 @@ arrive_location, leave_location, traffic_jam</pre>
     </div>
 
     <script src="./runtime-config.js?v=2026-05-14-runtime-1"></script>
-    <script type="module" src="./app.js?v=2026-10-04-site-logistics-hours"></script>
+    <script type="module" src="./app.js?v=2026-10-19-briefings"></script>
   </body>
 </html>
