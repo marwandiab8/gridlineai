@@ -157,6 +157,7 @@ const { closeStaleDrives } = require("./driveDetection");
 const { handlePlaceLogRequest } = require("./placesIntegration");
 const { handleHealthExportEventRequest } = require("./healthExportIntegration");
 const { renameKnownPlace, updateKnownPlaceActivity, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
+const { lookupPlaceAddress, addKnownPlace, importKnownPlaces } = require("./placesAdd");
 const {
   createTimeLeftDeliveryRepository,
 } = require("./timeLeftDeliveryRepository");
@@ -7211,6 +7212,44 @@ exports.deleteKnownPlaceCallable = onCall(PLACES_CALLABLE_OPTIONS, async (reques
   const access = await getAppAccess(db, request);
   return deleteKnownPlace({ db, memberEmail: access.email, placeId: request.data?.placeId });
 });
+
+exports.lookupPlaceAddressCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  await getAppAccess(db, request);
+  return lookupPlaceAddress({ query: request.data?.query });
+});
+
+exports.addKnownPlaceCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
+  const access = await getAppAccess(db, request);
+  const data = request.data || {};
+  return addKnownPlace({
+    db,
+    FieldValue,
+    memberEmail: access.email,
+    name: data.name,
+    latitude: data.latitude,
+    longitude: data.longitude,
+    activity: data.activity,
+    radiusMeters: data.radiusMeters,
+    address: data.address,
+  });
+});
+
+// Address-only rows are looked up about one a second (OpenStreetMap's limit), hence the longer timeout.
+exports.importKnownPlacesCallable = onCall(
+  { ...PLACES_CALLABLE_OPTIONS, timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    const data = request.data || {};
+    return importKnownPlaces({
+      db,
+      FieldValue,
+      memberEmail: access.email,
+      fileName: data.fileName,
+      fileBase64: data.fileBase64,
+      dryRun: data.dryRun === true,
+    });
+  }
+);
 
 exports.mergeKnownPlacesCallable = onCall(PLACES_CALLABLE_OPTIONS, async (request) => {
   const access = await getAppAccess(db, request);

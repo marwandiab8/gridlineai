@@ -41,6 +41,21 @@ anything else you type (`functions/placeActivities.js`).
   wheel: Work, Home and Gym join those slices, every other activity is a slice of its own.
 - The responses include `activity` too, so a Shortcut can show "Logged: Costco Guelph (Grocery shopping)".
 
+### Adding places without going there
+
+The Known Places page (`places.html`) can also save places ahead of time, so the first visit is already
+recognized (`functions/placesAdd.js`):
+
+- **Add a place**: a name plus an address, coordinates (`43.5471, -80.2968`) or a Google Maps link.
+  Addresses are looked up with OpenStreetMap (Nominatim, no API key); pick the right match from the list.
+- **Import from a spreadsheet** (`.xlsx` or `.csv`, up to 500 rows, 2 MB): a header row with **Name** and
+  either **Latitude**/**Longitude**, one **Coordinates** column, or an **Address**; optional **Activity** and
+  **Radius** (meters). Preview shows what each row will do before anything is saved. Address-only rows are
+  looked up about one a second (OpenStreetMap's limit), at most 40 per import.
+
+A place saved this way has no visits and no open stay. A name already saved at that spot (within its
+radius) is updated - activity, radius, address - instead of being added twice, and keeps its visits.
+
 ### Shortcut setup
 
 1. **Automation → Create Personal Automation** (or a plain Shortcut you trigger by voice/tap —

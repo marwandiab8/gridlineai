@@ -15,9 +15,9 @@
         </div>
         <h1>Known Places</h1>
         <p class="muted">
-          Places your "Log this place" Shortcut has learned. Rename, retune how wide an area
-          counts as the same spot, split a plaza's businesses apart, or merge two entries back
-          together. Sign in with Google to manage them.
+          Places your "Log this place" Shortcut has learned, and places you add here from an address,
+          coordinates or a spreadsheet. Rename, set what you do there, retune how wide an area counts
+          as the same spot, or merge two entries back together. Sign in with Google to manage them.
         </p>
       </header>
 
@@ -51,6 +51,57 @@
         </div>
 
         <div class="card">
+          <details class="places-add" id="addPlaceSection">
+            <summary><strong>Add a place</strong> <span class="muted small">from an address or coordinates</span></summary>
+            <div class="places-form">
+              <label>Name
+                <input type="text" id="addName" maxlength="120" placeholder="Raging Bull" />
+              </label>
+              <label>Address or coordinates
+                <span class="places-form-inline">
+                  <input type="text" id="addQuery" placeholder="123 Stone Rd W, Guelph — or 43.5471, -80.2968" />
+                  <button type="button" id="addFind" class="btn-secondary">Find</button>
+                </span>
+              </label>
+              <p class="muted small">A Google Maps link works too. Addresses are looked up with OpenStreetMap.</p>
+              <div id="addCandidates" class="places-candidates"></div>
+              <div class="places-form-inline">
+                <label>Activity
+                  <input type="text" id="addActivity" list="placeActivityChoices" maxlength="40" placeholder="suggested from the name" />
+                </label>
+                <label>Matching radius (m)
+                  <input type="number" id="addRadius" min="20" max="1000" step="10" value="120" />
+                </label>
+              </div>
+              <div>
+                <button type="button" id="addSave" class="btn-primary" disabled>Add place</button>
+              </div>
+              <div id="addMsg" class="form-msg"></div>
+            </div>
+          </details>
+
+          <details class="places-add" id="importSection">
+            <summary><strong>Import from a spreadsheet</strong> <span class="muted small">.xlsx or .csv, many places at once</span></summary>
+            <div class="places-form">
+              <p class="muted small">
+                One place per row under a header row. Columns: <strong>Name</strong> (required),
+                <strong>Latitude</strong> and <strong>Longitude</strong> (or one <strong>Coordinates</strong> column),
+                <strong>Address</strong> (used only when a row has no coordinates; up to 40 are looked up per import),
+                <strong>Activity</strong>, and <strong>Radius</strong> in meters. A name already saved at that spot is
+                updated, not added twice. <a href="#" id="importTemplate">Download a template</a>.
+              </p>
+              <div class="places-form-inline">
+                <input type="file" id="importFile" accept=".xlsx,.csv" />
+                <button type="button" id="importPreview" class="btn-secondary" disabled>Preview</button>
+                <button type="button" id="importRun" class="btn-primary hidden">Import</button>
+              </div>
+              <div id="importMsg" class="form-msg"></div>
+              <div id="importRows" class="places-import-rows"></div>
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
           <div class="places-toolbar">
             <input type="search" id="filterSearch" placeholder="Search places…" />
             <span class="muted small" id="placesCount">Loading…</span>
@@ -65,6 +116,6 @@
     </div>
 
     <script src="./runtime-config.js?v=2026-09-22-places-1"></script>
-    <script type="module" src="./places-app.js?v=2026-10-11-activities"></script>
+    <script type="module" src="./places-app.js?v=2026-10-18-add-import"></script>
   </body>
 </html>
