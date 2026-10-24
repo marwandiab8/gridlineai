@@ -4,8 +4,10 @@
 // sleep and steps from Apple Health, K2 gym workouts, darts practice, and Gridline's own tracking.
 // A journal contributor is linked to their TimeLeftToLive calendar by `timeLeftCalendarId` on
 // their appMembers record. For the report day we read that calendar's life events and turn the
-// ones the journal does not already show into short lines: the night's sleep first, then the
-// day's activities in time order, then the day's step total. Reading timelefttolive needs the
+// ones the journal does not already show into short lines: what was on their TimeLeftToLive main
+// calendar first ("On the calendar: ..."; TimeLeftToLive keeps a date-only calendar_event life event
+// for each day a calendar event covers), then the night's sleep, then the day's activities in time
+// order, then the day's step total. Reading timelefttolive needs the
 // Cloud Functions service account to have roles/datastore.viewer on that project; without it
 // the glance keeps only Gridline's own tracked activities.
 const admin = require("firebase-admin");
@@ -154,10 +156,21 @@ function dartsLine(event) {
   return "";
 }
 
+const CALENDAR_NOTE_LIMIT = 120;
+
+// A main-calendar day: "On the calendar: Montreal trip — day 2 of 4 (Hotel by the old port)."
+function calendarLine(event) {
+  const title = clean(event.title);
+  if (!title) return "";
+  const note = clean(event.metadata && event.metadata.note);
+  const shortNote = note.length > CALENDAR_NOTE_LIMIT ? `${note.slice(0, CALENDAR_NOTE_LIMIT - 1).trimEnd()}…` : note;
+  return `On the calendar: ${title.replace(/[.!?]+$/, "")}${shortNote ? ` (${shortNote.replace(/[.!?]+$/, "")})` : ""}.`;
+}
+
 /**
  * One life event as a glance item, or null when the journal already covers it (Gridline's own
  * notes, photos and tracking) or it has nothing to say.
- * kind: "sleep" (shown first), "steps" (shown last), or "activity" (in time order).
+ * kind: "calendar" (shown first, all day), "sleep" (next), "steps" (shown last), or "activity" (in time order).
  */
 function glanceItemFromLifeEvent(event, { skipGymWorkouts = false } = {}) {
   if (!event || typeof event !== "object") return null;
@@ -165,6 +178,10 @@ function glanceItemFromLifeEvent(event, { skipGymWorkouts = false } = {}) {
   const sourceApp = clean(event.sourceApp);
   if (sourceApp === GRIDLINE_SOURCE_APP && !GRIDLINE_EVENTS_FROM_TIMELEFT.has(type)) return null;
 
+  if (type === "calendar_event") {
+    const text = calendarLine(event);
+    return text ? { kind: "calendar", atMs: null, text } : null;
+  }
   const atMs = eventStartMs(event);
   if (type === "sleep_session") {
     const text = sleepLine(event);
@@ -189,11 +206,12 @@ function glanceItemFromLifeEvent(event, { skipGymWorkouts = false } = {}) {
 }
 
 /**
- * The glance for one person: the night's sleep, then Gridline's tracked activities and the
- * TimeLeftToLive activities together in time order, then the step total.
+ * The glance for one person: what was on their calendar, the night's sleep, then Gridline's tracked
+ * activities and the TimeLeftToLive activities together in time order, then the step total.
  */
 function composeDayAtAGlance(gridlineActivities, timeLeftItems) {
   const items = Array.isArray(timeLeftItems) ? timeLeftItems : [];
+  const calendar = items.filter((item) => item.kind === "calendar");
   const sleep = items.filter((item) => item.kind === "sleep").sort((a, b) => (a.atMs || 0) - (b.atMs || 0));
   const steps = items.filter((item) => item.kind === "steps").slice(-1);
   const middle = [
@@ -201,7 +219,7 @@ function composeDayAtAGlance(gridlineActivities, timeLeftItems) {
     ...items.filter((item) => item.kind === "activity"),
   ].sort((a, b) => (a.atMs || Infinity) - (b.atMs || Infinity));
   const seen = new Set();
-  return [...sleep, ...middle, ...steps]
+  return [...calendar, ...sleep, ...middle, ...steps]
     .map((item) => ({ time: item.time || "", text: clean(item.text), atMs: item.atMs || null }))
     .filter((item) => {
       if (!item.text) return false;

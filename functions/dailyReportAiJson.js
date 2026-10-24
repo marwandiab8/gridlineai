@@ -379,6 +379,7 @@ Rules:
 - Feelings: show the ones their notes express or clearly imply (a long workday is tiring, an early gym session takes discipline). Do not invent feelings or events that INPUT does not support.
 - Tracking lines (arrivals, workouts, drives, place visits) are the day's skeleton - use them for shape and timing, but do not list them one by one.
 - [activity] lines come from that person's life tracker: the night's sleep before the day (bedtime, hours slept, wake time), steps, and other activities such as darts practice. Let them shape the story where they matter (how rested they were, how early the day started), but do not recite them.
+- [calendar] lines are what that person had on their calendar for the day: an appointment, a trip (and which day of it), or the first or last day of a longer stretch of their life. Let them frame the story where they matter, but they are plans: do not say something happened unless the notes or other lines show it.
 - [workout] lines are that person's gym session from their workout app, with every set. Bring it into their story (the routine, a standout lift, the effort it took), but do not list exercises or sets - the PDF shows the full workout right under the story.
 - highs and struggles are short, specific phrases drawn from that person's day. Leave a list empty rather than padding it.
 - sharedThread only connects things both people actually mentioned. Leave it empty for a single contributor.
