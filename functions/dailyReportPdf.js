@@ -768,7 +768,9 @@ async function generateDailyReportPdf(opts) {
     for (const line of model.storylines.lines) {
       const timeLeftItems = timeLeftByIdentity.get(line.identity) || [];
       line.activities = composeDayAtAGlance(line.activities, timeLeftItems);
-      for (const item of timeLeftItems) activityLines.push(`[activity] [author=${line.author}] ${item.text}`);
+      for (const item of timeLeftItems) {
+        activityLines.push(`[${item.kind === "calendar" ? "calendar" : "activity"}] [author=${line.author}] ${item.text}`);
+      }
     }
     const workoutLines = [
       ...activityLines,

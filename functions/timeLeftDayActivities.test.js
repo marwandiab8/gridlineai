@@ -130,3 +130,48 @@ test("loading leaves the glance to Gridline alone when TimeLeftToLive cannot be 
   assert.equal(result.size, 0);
   assert.equal(warnings.length, 1);
 });
+
+// TimeLeftToLive's main-calendar days: date-only calendar_event life events at local midnight.
+const calendarDay = (dateId, title, note = "") => ({
+  sourceApp: "timelefttolive",
+  eventType: "calendar_event",
+  title,
+  occurredAt: ts(`${dateId}T04:00:00Z`),
+  metadata: { dateOnly: true, dateId, calendarEventId: "ev1", note },
+});
+
+test("a main-calendar day reads as what was on the calendar, with its note, and no clock time", () => {
+  const trip = glanceItemFromLifeEvent(calendarDay("2026-09-23", "Montreal trip — day 2 of 4", "Hotel by the old port."));
+  assert.deepEqual(trip, { kind: "calendar", atMs: null, text: "On the calendar: Montreal trip — day 2 of 4 (Hotel by the old port)." });
+  assert.equal(glanceItemFromLifeEvent(calendarDay("2026-09-23", "Dentist")).text, "On the calendar: Dentist.");
+  const long = glanceItemFromLifeEvent(calendarDay("2026-09-23", "Course", "x".repeat(300))).text;
+  assert.ok(long.length < 160 && long.endsWith("…)."), long);
+  assert.equal(glanceItemFromLifeEvent(calendarDay("2026-09-23", "")), null);
+});
+
+test("the glance starts with what was on the calendar, then sleep", () => {
+  const glance = composeDayAtAGlance(
+    [{ time: "7:06 AM EDT", atMs: Date.parse("2026-09-23T11:06:00Z"), text: "Was at work from 7:06 AM to 1:13 PM." }],
+    [
+      { kind: "sleep", atMs: Date.parse("2026-09-23T02:42:07Z"), text: "Went to bed at 10:42 PM, slept for 5 h 7 min." },
+      { kind: "calendar", atMs: null, text: "On the calendar: Dentist." },
+    ]
+  );
+  assert.deepEqual(glance.map((item) => item.text), [
+    "On the calendar: Dentist.",
+    "Went to bed at 10:42 PM, slept for 5 h 7 min.",
+    "Was at work from 7:06 AM to 1:13 PM.",
+  ]);
+});
+
+test("loading keeps the report day's calendar days and drops the next day's", async () => {
+  const { db, timeLeftDb } = fakeDbs([calendarDay("2026-09-23", "Dentist"), calendarDay("2026-09-24", "Montreal trip — day 1 of 4")]);
+  const result = await loadTimeLeftActivitiesForStorylines({
+    db,
+    timeLeftDb,
+    storylines: [{ identity: "email:marwan@example.com", author: "Marwan Diab", workouts: [] }],
+    dayStart: new Date("2026-09-23T04:00:00Z"),
+    nextDayStart: new Date("2026-09-24T04:00:00Z"),
+  });
+  assert.deepEqual(result.get("email:marwan@example.com").map((item) => item.text), ["On the calendar: Dentist."]);
+});
