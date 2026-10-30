@@ -486,3 +486,110 @@ test("a region that isn't one of your places records as before, with no activity
   const event = [...db.rows.get("iosShortcutEvents").values()][0];
   assert.deepEqual([event.eventType, event.placeActivity], ["arrive_location", null]);
 });
+
+// --- "leaving work" ETA fallback wiring (leavingWorkEta.js) ---
+
+const ETA_SITE = { lat: 43.6532, lon: -79.7331 };
+const ETA_HOME = { latitude: 43.7055, longitude: -80.3774 };
+const ETA_EXIT_TST = Math.floor(Date.parse("2026-10-30T20:09:00.000Z") / 1000); // 4:09 PM Toronto
+
+function etaDb(token = "eta-token") {
+  const db = seededDb(token);
+  const member = db._get("appMembers", "user@example.com");
+  db._set("appMembers", "user@example.com", {
+    ...member,
+    displayName: "Marwan Diab",
+    etaNotify: { contactName: "Ashley", contactPhoneE164: "+15195550199", home: ETA_HOME },
+  });
+  return db;
+}
+
+function etaFallbackDeps(sent, body) {
+  return {
+    getTwilio: () => ({ smsClient: { messages: { create: async (m) => (sent.push(m), { sid: "SM1", status: "queued" }) } }, fromPhone: "+15550001111" }),
+    mapsApiKey: null, // straight-line estimate; no network in tests
+    recordDeparture: null,
+    // "Now" is a second after the message's own timestamp, so the fixed fixtures behave the same on any day.
+    now: () => new Date((Number(body.tst) + 1) * 1000),
+  };
+}
+
+async function callWithEta({ db, body, sent, token = "eta-token" }) {
+  const response = res();
+  await handleOwnTracksEventRequest({
+    db,
+    FieldValue,
+    req: req({ token, body }),
+    res: response,
+    logger: { error() {}, warn() {}, info() {} },
+    openaiKey: null,
+    processAssistantMessage: async () => ({ inboundRef: { id: "in" }, outboundRef: { id: "out" }, outboundMeta: { logEntryId: "log-1", projectSlug: "home", command: "log_note" } }),
+    etaFallback: etaFallbackDeps(sent, body),
+  });
+  return response;
+}
+
+test("a late-day Work exit arms the ETA fallback and is still recorded as leave_work; it never texts by itself", async () => {
+  const db = etaDb();
+  const sent = [];
+  const response = await callWithEta({ db, sent, body: { _type: "transition", event: "leave", desc: "Work", tst: ETA_EXIT_TST, ...ETA_SITE } });
+  assert.equal(response.statusCode, 200);
+  const events = [...db.rows.get("iosShortcutEvents").values()];
+  assert.equal(events.length, 1);
+  assert.equal(events[0].eventType, "leave_work");
+  const state = db._get("etaNotifications", "user@example.com");
+  assert.ok(state && state.pendingFallback, "fallback should be armed");
+  assert.equal(state.pendingFallback.armedAtMs, ETA_EXIT_TST * 1000);
+  assert.equal(sent.length, 0);
+});
+
+test("a ping nine minutes after the Work exit, well on the way home, sends the ETA text; re-entering Work disarms instead", async () => {
+  const db = etaDb();
+  const sent = [];
+  await callWithEta({ db, sent, body: { _type: "transition", event: "leave", desc: "Work", tst: ETA_EXIT_TST, ...ETA_SITE } });
+
+  const soon = await callWithEta({ db, sent, body: { _type: "location", tst: ETA_EXIT_TST + 60, lat: 43.66, lon: -79.9, acc: 20 } });
+  assert.equal(soon.statusCode, 200);
+  assert.equal(sent.length, 0, "too soon after the exit");
+
+  const later = await callWithEta({ db, sent, body: { _type: "location", tst: ETA_EXIT_TST + 9 * 60, lat: 43.66, lon: -79.9, acc: 20 } });
+  assert.equal(later.statusCode, 200);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, "+15195550199");
+  assert.match(sent[0].body, /^Marwan leaving work, will be home in about \d+ minutes, at \d{1,2}:\d{2} [AP]M\.$/);
+  assert.equal(db._get("etaNotifications", "user@example.com").pendingFallback, null);
+
+  // A fresh exit later the same afternoon, then straight back in: disarmed, nothing sent.
+  db._set("etaNotifications", "user@example.com", { memberEmail: "user@example.com" });
+  await callWithEta({ db, sent, body: { _type: "transition", event: "leave", desc: "Work", tst: ETA_EXIT_TST + 3600, lat: ETA_SITE.lat, lon: ETA_SITE.lon } });
+  assert.ok(db._get("etaNotifications", "user@example.com").pendingFallback);
+  await callWithEta({ db, sent, body: { _type: "transition", event: "enter", desc: "Work", tst: ETA_EXIT_TST + 3900, lat: ETA_SITE.lat, lon: ETA_SITE.lon } });
+  assert.equal(db._get("etaNotifications", "user@example.com").pendingFallback, null);
+  assert.equal(sent.length, 1);
+});
+
+test("a Work exit minutes after Siri already sent the ETA is the same departure: not logged twice", async () => {
+  const db = etaDb();
+  const sent = [];
+  const siriAtMs = ETA_EXIT_TST * 1000 - 3 * 60 * 1000;
+  // What the Siri endpoint leaves behind: the state doc and the leave_work event it recorded.
+  db._set("etaNotifications", "user@example.com", { memberEmail: "user@example.com", lastSentAtMs: siriAtMs, lastSent: { trigger: "siri", minutes: 42 } });
+  db._set("iosShortcutEvents", "siri-ev", { memberEmail: "user@example.com", eventType: "leave_work", eventAtMs: siriAtMs, status: "recorded" });
+
+  await callWithEta({ db, sent, body: { _type: "transition", event: "leave", desc: "Work", tst: ETA_EXIT_TST, ...ETA_SITE } });
+  const events = [...db.rows.get("iosShortcutEvents").values()];
+  assert.equal(events.length, 1, "the OwnTracks exit should dedupe against Siri's departure");
+  assert.equal(sent.length, 0);
+  const state = db._get("etaNotifications", "user@example.com");
+  assert.ok(!state.pendingFallback, "no fallback needed - the text already went out");
+});
+
+test("a Work exit before the cutoff hour (a material run) neither arms the fallback nor texts", async () => {
+  const db = etaDb();
+  const sent = [];
+  const noonTst = Math.floor(Date.parse("2026-10-30T16:00:00.000Z") / 1000); // 12:00 PM Toronto
+  await callWithEta({ db, sent, body: { _type: "transition", event: "leave", desc: "Work", tst: noonTst, ...ETA_SITE } });
+  await callWithEta({ db, sent, body: { _type: "location", tst: noonTst + 9 * 60, lat: 43.66, lon: -79.9, acc: 20 } });
+  assert.equal(sent.length, 0);
+  assert.ok(!(db._get("etaNotifications", "user@example.com") || {}).pendingFallback);
+});

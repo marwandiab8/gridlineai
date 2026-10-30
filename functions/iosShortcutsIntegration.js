@@ -674,9 +674,10 @@ async function findShortcutMemberByTokenHash(db, tokenHash) {
   return { email: doc.id, data };
 }
 
-async function findDuplicateShortcutEvent(db, memberEmail, event) {
-  const lowerMs = event.eventAtMs - 60 * 1000;
-  const upperMs = event.eventAtMs + 60 * 1000;
+async function findDuplicateShortcutEvent(db, memberEmail, event, windowMs = 60 * 1000) {
+  const span = Number.isFinite(windowMs) && windowMs > 0 ? windowMs : 60 * 1000;
+  const lowerMs = event.eventAtMs - span;
+  const upperMs = event.eventAtMs + span;
   const snap = await db
     .collection(COL_SHORTCUT_EVENTS)
     .where("memberEmail", "==", memberEmail)
@@ -739,6 +740,9 @@ async function recordShortcutEvent({
   processAssistantMessage,
   openaiKey,
   runId,
+  // Without an Idempotency-Key, an event of the same type within this window is the same event.
+  // Default ±60 s; the OwnTracks path widens it for a Work exit that Siri already logged (leavingWorkEta.js).
+  dedupeWindowMs = 60 * 1000,
 }) {
   const idempotencyKey = String(req.get("idempotency-key") || "").trim().slice(0, 200);
   let eventRef;
@@ -764,7 +768,7 @@ async function recordShortcutEvent({
     });
     if (claim.existing) existing = { id: eventRef.id, data: claim.data };
   } else {
-    existing = await findDuplicateShortcutEvent(db, member.email, event);
+    existing = await findDuplicateShortcutEvent(db, member.email, event, dedupeWindowMs);
     eventRef = existing
       ? db.collection(COL_SHORTCUT_EVENTS).doc(existing.id)
       : db.collection(COL_SHORTCUT_EVENTS).doc();

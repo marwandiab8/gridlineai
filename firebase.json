@@ -53,6 +53,13 @@
         }
       },
       {
+        "source": "/api/integrations/ios-shortcuts/leaving-work",
+        "function": {
+          "functionId": "leavingWorkEta",
+          "region": "northamerica-northeast1"
+        }
+      },
+      {
         "source": "/api/integrations/owntracks/events",
         "function": {
           "functionId": "ownTracksEvents",

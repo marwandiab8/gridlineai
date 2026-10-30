@@ -53,6 +53,13 @@ async function knownPlaceRegionVisit({ db, member, payload, body, logger, runId 
 }
 const { closeStaysFromEvidence } = require("./stayClosing");
 const { applyOwnTracksToDrive } = require("./driveDetection");
+const {
+  DEPARTURE_DEDUPE_MS,
+  noteWorkExitForEtaFallback,
+  clearEtaFallback,
+  evaluateEtaFallbackOnPing,
+  siriSentRecently,
+} = require("./leavingWorkEta");
 
 /**
  * The location evidence in an OwnTracks message (a ping or a crossing): where and when, and how
@@ -177,6 +184,9 @@ async function handleOwnTracksEventRequest({
   processAssistantMessage,
   openaiKey,
   timeLeftLifeEventDelivery,
+  // { getTwilio, mapsApiKey, recordDeparture } for the "leaving work" ETA fallback (leavingWorkEta.js).
+  // Optional: without it OwnTracks never texts anyone.
+  etaFallback = null,
 }) {
   const runId = `owntracks-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   try {
@@ -221,6 +231,21 @@ async function handleOwnTracksEventRequest({
       if (evidence) await closeStaysFromEvidence({ db, FieldValue, req, member, evidence, deviceName: payload.tid || null, deps });
       // Each ping is also how drives are detected now - movement, not CarPlay (driveDetection.js).
       if (payload && payload._type === "location") await applyOwnTracksToDrive({ db, FieldValue, member, payload, deps });
+      // A ping is also what resolves a pending "leaving work" fallback: a few minutes after a late-day
+      // Work exit, real progress toward home sends the ETA text you forgot to ask Siri for.
+      if (etaFallback && evidence) {
+        await evaluateEtaFallbackOnPing({
+          db,
+          FieldValue,
+          member,
+          point: { latitude: evidence.latitude, longitude: evidence.longitude, atMs: evidence.at.getTime(), accuracyMeters: evidence.accuracyMeters },
+          getTwilio: etaFallback.getTwilio,
+          mapsApiKey: etaFallback.mapsApiKey,
+          recordDeparture: etaFallback.recordDeparture,
+          logger,
+          ...(typeof etaFallback.now === "function" ? { now: etaFallback.now() } : {}),
+        });
+      }
       res.status(200).json([]);
       return;
     }
@@ -253,6 +278,13 @@ async function handleOwnTracksEventRequest({
       });
     }
 
+    // A Work exit right after "Hey Siri, leaving work" is the departure Siri already logged, not a
+    // second one: widen the dedupe window to the ETA module's departure window for that case only.
+    const isWorkExit = parsed.event.eventType === "leave_work";
+    const siriLoggedThisDeparture = isWorkExit && etaFallback
+      ? await siriSentRecently({ db, member, nowMs: parsed.event.eventAtMs })
+      : false;
+
     const result = await recordShortcutEvent({
       db,
       FieldValue,
@@ -262,6 +294,7 @@ async function handleOwnTracksEventRequest({
       processAssistantMessage,
       openaiKey,
       runId,
+      ...(siriLoggedThisDeparture ? { dedupeWindowMs: DEPARTURE_DEDUPE_MS } : {}),
     });
 
     if (!result.duplicate && typeof timeLeftLifeEventDelivery === "function") {
@@ -279,6 +312,24 @@ async function handleOwnTracksEventRequest({
             code: err && err.code,
           });
         }
+      }
+    }
+
+    // "Leaving work" ETA fallback (leavingWorkEta.js): a late-day Work exit arms it, coming back disarms it.
+    // Siri's own send is what normally handles this; OwnTracks only covers the days you forget.
+    if (etaFallback) {
+      if (isWorkExit) {
+        await noteWorkExitForEtaFallback({
+          db,
+          FieldValue,
+          member,
+          exitAt: parsed.event.eventDate,
+          latitude: parsed.event.latitude,
+          longitude: parsed.event.longitude,
+          logger,
+        });
+      } else if (parsed.event.eventType === "arrive_work") {
+        await clearEtaFallback({ db, member, reason: "returned_to_work", logger });
       }
     }
 
