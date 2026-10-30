@@ -838,7 +838,10 @@ async function relayEtaContactReply({ db, FieldValue, from, body, mediaCount = 0
   const member = { email: doc.id, data: doc.data() || {} };
   const config = resolveEtaConfig(member);
   const memberPhone = String(member.data.approvedPhoneE164 || "").trim();
-  if (!memberPhone || memberPhone === sender) return { handled: true, relayed: false, reason: "member_phone_unavailable" };
+  // The contact set to the member's own phone (e.g. while testing) is just the member texting the
+  // assistant; swallowing it would silence every text they send.
+  if (memberPhone === sender) return { handled: false };
+  if (!memberPhone) return { handled: true, relayed: false, reason: "member_phone_unavailable" };
   const text = String(body || "").trim();
   const relayBody = `${config.contactName || "Your ETA contact"}: ${text || (mediaCount > 0 ? "[sent an attachment]" : "[empty message]")}`.slice(0, 1500);
   try {

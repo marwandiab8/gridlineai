@@ -616,6 +616,15 @@ test("relayEtaContactReply forwards the contact's text to the member and swallow
   assert.equal(sms.sent[1].body, "Ashley: [sent an attachment]");
 });
 
+test("relayEtaContactReply leaves the member's own texts to the assistant when they are their own contact", async () => {
+  const db = new FakeDb();
+  seedMember(db, { etaNotify: { contactPhoneE164: MEMBER_PHONE } });
+  const sms = fakeSms();
+  const out = await relayEtaContactReply({ db, FieldValue, from: MEMBER_PHONE, body: "log note: pour moved", smsClient: sms.client, fromPhone: "+15550001111", logger: { warn() {} }, runId: "r" });
+  assert.deepEqual(out, { handled: false });
+  assert.equal(sms.sent.length, 0);
+});
+
 test("evaluateEtaFallbackOnPing: a ping delivered late from OwnTracks' queue never triggers a text", async () => {
   const db = new FakeDb();
   const member = seedMember(db);
