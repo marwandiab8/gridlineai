@@ -154,6 +154,8 @@ const {
 } = require("./iosShortcutsIntegration");
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
 const { closeStaleDrives } = require("./driveDetection");
+const { recordAndDeliver } = require("./stayClosing");
+const { handleLeavingWorkEtaRequest, relayEtaContactReply } = require("./leavingWorkEta");
 const { handlePlaceLogRequest } = require("./placesIntegration");
 const { handleHealthExportEventRequest } = require("./healthExportIntegration");
 const { renameKnownPlace, updateKnownPlaceActivity, updateKnownPlaceRadius, deleteKnownPlace, mergeKnownPlaces } = require("./placesAdmin");
@@ -566,6 +568,10 @@ const db = admin.firestore();
 const TWILIO_ACCOUNT_SID = defineSecret("TWILIO_ACCOUNT_SID");
 const TWILIO_AUTH_TOKEN = defineSecret("TWILIO_AUTH_TOKEN");
 const TWILIO_PHONE_NUMBER = defineSecret("TWILIO_PHONE_NUMBER");
+// Google Routes API key for the "leaving work" ETA text (leavingWorkEta.js). Optional at runtime -
+// without it the ETA falls back to a straight-line estimate - but the secret must exist before any
+// function listing it deploys: `firebase functions:secrets:set GOOGLE_MAPS_API_KEY`.
+const GOOGLE_MAPS_API_KEY = defineSecret("GOOGLE_MAPS_API_KEY");
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // Same secret timeLeftShortcutTriggers.js already declares for its own functions; declaring it
 // here too is what actually makes process.env.TIME_LEFT_INGESTION_TOKEN populated for
@@ -5227,6 +5233,25 @@ exports.inboundSms = onRequest(
         return;
       }
 
+      // A reply from a member's "leaving work" ETA contact ("ok", "drive safe") is relayed to that
+      // member's own phone and never answered by the assistant (leavingWorkEta.js).
+      const etaRelay = await relayEtaContactReply({
+        db,
+        FieldValue,
+        from,
+        body: bodyTrimmedForCommands || body,
+        mediaCount: mediaCountEffective,
+        getSmsClient: () => twilio(accountSid, authToken),
+        fromPhone: configuredFrom,
+        logger,
+        runId,
+      });
+      if (etaRelay.handled) {
+        logger.info("inboundSms: ETA contact reply", { runId, relayed: etaRelay.relayed === true, reason: etaRelay.reason || null });
+        sendEmptyTwiml(res);
+        return;
+      }
+
       if (labourAdminQueryCandidate && !labourAdminRequestKey) {
         logger.warn("inboundSms: labour query missing MessageSid", {
           runId,
@@ -7093,6 +7118,57 @@ exports.iosShortcutsEvents = onRequest(
     })
 );
 
+/** Twilio client + from-number for the ETA texts (leavingWorkEta.js); nulls when not configured. */
+function etaTwilio() {
+  const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
+  const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
+  const fromPhone = normalizePhoneE164(TWILIO_PHONE_NUMBER.value());
+  return { smsClient: accountSid && authToken ? twilio(accountSid, authToken) : null, fromPhone };
+}
+
+/** Logs a departure through the shared Shortcuts pipeline (dashboard note + TimeLeft) on the ETA endpoints' behalf. */
+function etaDepartureRecorder(req, runId) {
+  return ({ member, event }) =>
+    recordAndDeliver({
+      db,
+      FieldValue,
+      req,
+      member,
+      event,
+      processAssistantMessage,
+      openaiKey: OPENAI_API_KEY.value() || null,
+      runId,
+      logger,
+      timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
+    });
+}
+
+// "Hey Siri, leaving work": the Shortcut posts its current location here; this works out the drive
+// time home in traffic and texts the member's contact from the Twilio number. Separate from
+// iosShortcutsEvents so the text never waits on the assistant's OpenAI step and never fires on an
+// OwnTracks Work exit (which also means leave_work, including every material run). See docs/leaving-work-eta.md.
+exports.leavingWorkEta = onRequest(
+  {
+    region: "northamerica-northeast1",
+    invoker: "public",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+    cors: true,
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, GOOGLE_MAPS_API_KEY, OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
+  },
+  async (req, res) =>
+    handleLeavingWorkEtaRequest({
+      db,
+      FieldValue,
+      req,
+      res,
+      logger,
+      getTwilio: etaTwilio,
+      mapsApiKey: String(GOOGLE_MAPS_API_KEY.value() || "").trim() || null,
+      recordDeparture: etaDepartureRecorder(req, `leaving-work-${Date.now()}`),
+    })
+);
+
 // Same auth token, same recording/dedupe/TimeLeft-delivery pipeline as iosShortcutsEvents above;
 // only the wire format differs (OwnTracks region "transition" events instead of a Shortcut's
 // own event_type payload). See docs/owntracks-integration.md.
@@ -7106,7 +7182,9 @@ exports.ownTracksEvents = onRequest(
     // automatic CORS handling answers OPTIONS with an empty, non-JSON 204 before this function's
     // own code ever runs - see the OPTIONS handling in ownTracksIntegration.js for why that
     // matters here specifically.
-    secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN],
+    // Twilio + Maps secrets are for the "leaving work" ETA fallback only (leavingWorkEta.js): a Work
+    // exit after mid-afternoon arms it, and a later ping that shows progress toward home sends the text.
+    secrets: [OPENAI_API_KEY, TIME_LEFT_INGESTION_TOKEN, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, GOOGLE_MAPS_API_KEY],
   },
   async (req, res) =>
     handleOwnTracksEventRequest({
@@ -7118,6 +7196,11 @@ exports.ownTracksEvents = onRequest(
       processAssistantMessage,
       openaiKey: OPENAI_API_KEY.value() || null,
       timeLeftLifeEventDelivery: iosShortcutTimeLeftDelivery,
+      etaFallback: {
+        getTwilio: etaTwilio,
+        mapsApiKey: String(GOOGLE_MAPS_API_KEY.value() || "").trim() || null,
+        recordDeparture: etaDepartureRecorder(req, `owntracks-eta-${Date.now()}`),
+      },
     })
 );
 

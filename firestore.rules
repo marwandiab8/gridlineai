@@ -252,6 +252,16 @@ service cloud.firestore {
       allow read: if hasAppAccess() && resource.data.memberEmail == operatorEmail();
       allow write: if false;
     }
+    // "Leaving work" ETA texts (functions/leavingWorkEta.js): the last text sent and any pending OwnTracks
+    // fallback, one document per member. Server-written; a member can read only their own.
+    match /etaNotifications/{memberEmail} {
+      allow read: if hasAppAccess() && memberEmail == operatorEmail();
+      allow write: if false;
+      match /sends/{sendId} {
+        allow read: if hasAppAccess() && memberEmail == operatorEmail();
+        allow write: if false;
+      }
+    }
     // Docksteader morning briefings and evening wrap-ups (functions/docksteaderBriefing.js): written by the server
     // only, and read only by the member they're for - they quote that member's email and Todoist.
     match /docksteaderBriefings/{briefingId} {

@@ -6,6 +6,9 @@ Apple Shortcuts can send tracking events directly to the app without SMS.
 
 `POST https://<app-domain>/api/integrations/ios-shortcuts/events`
 
+(The "Hey Siri, leaving work" ETA text has its own endpoint, `/api/integrations/ios-shortcuts/leaving-work`,
+with the same token — see `docs/leaving-work-eta.md`.)
+
 ## Authentication
 
 Generate a token in the dashboard Setup page under **iOS Shortcuts Integration**. The app stores only a hash of the token. The raw token is shown once when generated or regenerated.
