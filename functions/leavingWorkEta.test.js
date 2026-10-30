@@ -310,6 +310,11 @@ test("resolveOrigin prefers the Shortcut's coordinates, then a recent OwnTracks 
   db._set("driveDetection", EMAIL, { state: { last: { latitude: 30, longitude: 40, atMs: nowMs - 30 * 60 * 1000, accuracyMeters: 20 } } });
   const staleIgnored = await resolveOrigin({ db, member, event: {}, nowMs });
   assert.equal(staleIgnored.source, "knownPlaces.work");
+
+  // etaNotify.work beats a known place tagged Work (which may be a head office, not the site).
+  const configured = { email: EMAIL, data: { etaNotify: { work: { latitude: 43.7597, longitude: -79.7916 } } } };
+  const fromConfig = await resolveOrigin({ db, member: configured, event: {}, nowMs });
+  assert.deepEqual(fromConfig, { latitude: 43.7597, longitude: -79.7916, ageMs: null, source: "etaNotify.work" });
 });
 
 // ---- the Siri endpoint
@@ -623,6 +628,21 @@ test("relayEtaContactReply leaves the member's own texts to the assistant when t
   const out = await relayEtaContactReply({ db, FieldValue, from: MEMBER_PHONE, body: "log note: pour moved", smsClient: sms.client, fromPhone: "+15550001111", logger: { warn() {} }, runId: "r" });
   assert.deepEqual(out, { handled: false });
   assert.equal(sms.sent.length, 0);
+});
+
+test("relayEtaContactReply leaves a contact who is a GridlineAI user to the assistant", async () => {
+  const db = new FakeDb();
+  seedMember(db);
+  db._set("appMembers", "ashley@example.com", { role: "management", approvedPhoneE164: CONTACT, projectSlugs: ["home"] });
+  const sms = fakeSms();
+  const out = await relayEtaContactReply({ db, FieldValue, from: CONTACT, body: "log note: tile delivered", smsClient: sms.client, fromPhone: "+15550001111", logger: { warn() {} }, runId: "r" });
+  assert.deepEqual(out, { handled: false });
+  assert.equal(sms.sent.length, 0);
+
+  // A deactivated member is no longer a user; their replies are relayed again.
+  db._set("appMembers", "ashley@example.com", { role: "management", approvedPhoneE164: CONTACT, active: false });
+  const inactive = await relayEtaContactReply({ db, FieldValue, from: CONTACT, body: "ok", smsClient: sms.client, fromPhone: "+15550001111", logger: { warn() {} }, runId: "r" });
+  assert.equal(inactive.relayed, true);
 });
 
 test("evaluateEtaFallbackOnPing: a ping delivered late from OwnTracks' queue never triggers a text", async () => {

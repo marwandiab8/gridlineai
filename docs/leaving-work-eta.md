@@ -80,6 +80,7 @@ Add an `etaNotify` map (Firestore console → `appMembers` → your email):
   "contactPhoneE164": "+1519XXXXXXX",
   "firstName": "Marwan",
   "home": { "latitude": 43.70, "longitude": -80.37 },
+  "work": { "latitude": 43.76, "longitude": -79.79 },
   "minGapMinutes": 45,
   "fallback": { "enabled": true, "afterLocalHour": 15, "waitMinutes": 8, "minProgressMeters": 4000, "expireMinutes": 60 }
 }
@@ -90,6 +91,9 @@ Add an `etaNotify` map (Firestore console → `appMembers` → your email):
 - Home, in order of preference: `home {latitude, longitude}` → `homePlaceId` (a `knownPlaces` doc id)
   → the known place named exactly **Home** (or with activity `Home`). Drop a pin on your driveway for the
   coordinates; the ETA is only as good as the destination.
+- `work` is the site. It is only the origin of last resort (no location from the Shortcut and no OwnTracks
+  fix in the last 10 minutes); without it the known place tagged **Work** is used, which may be an office
+  rather than the site.
 - Everything else has the defaults shown.
 
 ### 3. Deploy
@@ -167,7 +171,9 @@ Raise `minProgressMeters` if your usual supplier is in that direction. Turn the 
 ## Replies
 
 If your contact replies to the Twilio number ("ok", "drive safe"), `inboundSms` relays it to your approved
-phone as `Ashley: ok` and does not answer her. Nothing else about inbound SMS changes.
+phone as `Ashley: ok` and does not answer her. A contact who is a GridlineAI user (an active `appMembers`
+doc with that `approvedPhoneE164`) is never relayed: their texts go to the assistant as always. Nothing
+else about inbound SMS changes.
 
 ## Where things live
 

@@ -20,6 +20,7 @@
 //     firstName: "Marwan",                  // optional, else the first word of displayName / the email
 //     home: { latitude, longitude },        // optional; else homePlaceId, else the known place named "Home"
 //     homePlaceId: "<knownPlaces doc id>",  // optional
+//     work: { latitude, longitude },        // optional; the site, origin of last resort, else the known place tagged Work
 //     minGapMinutes: 45,                    // one text per departure
 //     fallback: { enabled: true, afterLocalHour: 15, waitMinutes: 8, minProgressMeters: 4000, expireMinutes: 60 }
 //   }
@@ -125,15 +126,18 @@ function firstNameFor(member, config) {
   return local ? local.charAt(0).toUpperCase() + local.slice(1) : "I";
 }
 
+function latLngOrNull(value) {
+  return value && Number.isFinite(Number(value.latitude)) && Number.isFinite(Number(value.longitude))
+    ? { latitude: Number(value.latitude), longitude: Number(value.longitude) }
+    : null;
+}
+
 /** The member's etaNotify config with defaults filled in; `configured` is false when no contact is set. */
 function resolveEtaConfig(member) {
   const raw = (member && member.data && member.data.etaNotify) || {};
   const fallbackRaw = raw.fallback && typeof raw.fallback === "object" ? raw.fallback : {};
   const contactPhoneE164 = String(raw.contactPhoneE164 || raw.contactPhone || "").trim();
-  const home =
-    raw.home && Number.isFinite(Number(raw.home.latitude)) && Number.isFinite(Number(raw.home.longitude))
-      ? { latitude: Number(raw.home.latitude), longitude: Number(raw.home.longitude) }
-      : null;
+  const home = latLngOrNull(raw.home);
   return {
     enabled: raw.enabled !== false,
     configured: Boolean(contactPhoneE164),
@@ -142,6 +146,7 @@ function resolveEtaConfig(member) {
     firstName: firstNameFor(member, raw),
     home,
     homePlaceId: String(raw.homePlaceId || "").trim() || null,
+    work: latLngOrNull(raw.work),
     minGapMinutes: Math.max(1, finiteOr(raw.minGapMinutes, DEFAULT_CONFIG.minGapMinutes)),
     fallback: {
       enabled: fallbackRaw.enabled !== false && DEFAULT_CONFIG.fallback.enabled,
@@ -182,8 +187,13 @@ async function resolveHome({ db, member, config }) {
   return named || byActivity || null;
 }
 
-/** The known place that is the site, if one is named/tagged Work (used only as the last-resort origin). */
+/**
+ * The site, used only as the last-resort origin: etaNotify.work, else a known place named/tagged Work
+ * (which can be the wrong office - tag order decides - so set etaNotify.work when there are several).
+ */
 async function resolveWorkPlace({ db, member }) {
+  const configured = resolveEtaConfig(member).work;
+  if (configured) return { ...configured, source: "etaNotify.work" };
   const snap = await db.collection(COL_KNOWN_PLACES).where("memberEmail", "==", member.email).get().catch(() => null);
   if (!snap || snap.empty) return null;
   let found = null;
@@ -820,8 +830,9 @@ function buildFallbackDepartureEvent({ pending, member, now }) {
 
 /**
  * Inbound SMS from a member's ETA contact ("ok", "drive safe") is relayed to that member's own phone as
- * "Ashley: ok" instead of being answered by the assistant. Returns { handled, relayed }. `handled`
- * means inboundSms should reply with empty TwiML and stop.
+ * "Ashley: ok" instead of being answered by the assistant - unless the contact is a GridlineAI user, whose
+ * texts always go to the assistant. Returns { handled, relayed }. `handled` means inboundSms should reply
+ * with empty TwiML and stop.
  */
 async function relayEtaContactReply({ db, FieldValue, from, body, mediaCount = 0, smsClient = null, getSmsClient = null, fromPhone, logger, runId }) {
   const sender = String(from || "").trim();
@@ -837,10 +848,17 @@ async function relayEtaContactReply({ db, FieldValue, from, body, mediaCount = 0
   const doc = snap.docs[0];
   const member = { email: doc.id, data: doc.data() || {} };
   const config = resolveEtaConfig(member);
+  // A contact who uses GridlineAI themselves (or the member's own phone, while testing) is texting the
+  // assistant, not replying: relaying would silence every text they send. When unsure, leave it alone.
+  let asUser;
+  try {
+    asUser = await db.collection(COL_APP_MEMBERS).where("approvedPhoneE164", "==", sender).limit(1).get();
+  } catch (err) {
+    if (logger && typeof logger.warn === "function") logger.warn("leavingWorkEta: user lookup failed", { runId, message: err && err.message });
+    return { handled: false };
+  }
+  if (asUser && !asUser.empty && (asUser.docs[0].data() || {}).active !== false) return { handled: false };
   const memberPhone = String(member.data.approvedPhoneE164 || "").trim();
-  // The contact set to the member's own phone (e.g. while testing) is just the member texting the
-  // assistant; swallowing it would silence every text they send.
-  if (memberPhone === sender) return { handled: false };
   if (!memberPhone) return { handled: true, relayed: false, reason: "member_phone_unavailable" };
   const text = String(body || "").trim();
   const relayBody = `${config.contactName || "Your ETA contact"}: ${text || (mediaCount > 0 ? "[sent an attachment]" : "[empty message]")}`.slice(0, 1500);

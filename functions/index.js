@@ -5234,7 +5234,8 @@ exports.inboundSms = onRequest(
       }
 
       // A reply from a member's "leaving work" ETA contact ("ok", "drive safe") is relayed to that
-      // member's own phone and never answered by the assistant (leavingWorkEta.js).
+      // member's own phone and never answered by the assistant (leavingWorkEta.js). A contact who is a
+      // GridlineAI user is left alone and carries on below like any other user.
       const etaRelay = await relayEtaContactReply({
         db,
         FieldValue,
