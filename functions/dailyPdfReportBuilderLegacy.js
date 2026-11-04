@@ -12,6 +12,7 @@ const keepEmojiText = (text) => emojiRuns(text).map((run) => run.emoji || saniti
 const graphemes = (text) => Array.from(new Intl.Segmenter("en", { granularity: "grapheme" }).segment(text), (g) => g.segment);
 const { parsePipeRows, reportLineText, lineText } = require("./dailyReportContent");
 const { formatWallDateTimeEt } = require("./logClassifier");
+const { describeProcorePhotoSet, photoTimeLabel, procorePhotoCaption } = require("./procoreDailyLogPhotos");
 const {
   prepareMergedForPdf,
   collectIssuePhotoMediaIds,
@@ -1217,6 +1218,31 @@ async function renderDailySiteLogPdf(opts) {
       model,
       globalSeen: renderedMediaIds,
     });
+  }
+
+  /**
+   * Procore photos (procoreDailyLogPhotos.js): a few of the day's Procore daily log photos at good resolution, two to
+   * a row with when and who took them, then up to 24 small ones, six to a row, picked through the day.
+   */
+  const procorePhotos = merged.procorePhotos;
+  if (procorePhotos && (procorePhotos.large.length || procorePhotos.thumbs.length)) {
+    drawSectionTitle("Procore Photos");
+    drawParagraph(describeProcorePhotoSet(procorePhotos), 8.5, false, rgb(0.35, 0.36, 0.4));
+    const asPhoto = (p, captionText) => ({ storagePath: p.storagePath, captionText, mediaId: `procore-${p.id}` });
+    const drawRow = async (list, { perRow, gapX, maxH, caption }) => {
+      const cellW = (contentW - gapX * (perRow - 1)) / perRow;
+      for (let k = 0; k < list.length; k += perRow) {
+        const cells = [];
+        for (const p of list.slice(k, k + perRow)) cells.push(await preparePhoto(asPhoto(p, caption(p)), { width: cellW, maxH }));
+        const rowH = Math.max(...cells.map((c) => c.height)) + (perRow > 2 ? 8 : 14);
+        ensureSpace(rowH);
+        const top = y - 4;
+        cells.forEach((c, i) => drawPhotoCell(c, margin + i * (cellW + gapX), top, cellW));
+        y = top - rowH;
+      }
+    };
+    await drawRow(procorePhotos.large, { perRow: 2, gapX: 14, maxH: PHOTO_ROW_MAX_H, caption: procorePhotoCaption });
+    await drawRow(procorePhotos.thumbs, { perRow: 6, gapX: 8, maxH: 62, caption: (p) => photoTimeLabel(p.takenAt) });
   }
 
   /** Footers */

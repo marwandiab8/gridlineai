@@ -7,6 +7,7 @@
 // that day shows it, and the first copy of a day's log queues that day's journal to be texted to management
 // (managementJournalPushQueue, id ending "__procore").
 const crypto = require("crypto");
+const { COL_PROCORE_PHOTO_QUEUE, normalizeProcorePhotoSources, procorePhotoSourceHash } = require("./procoreDailyLogPhotos");
 
 const COL_PROCORE_DAILY_LOGS = "procoreDailyLogs";
 const COL_MANAGEMENT_JOURNAL_PUSH_QUEUE = "managementJournalPushQueue";
@@ -240,6 +241,9 @@ function normalizeProcoreDailyLog(body) {
     if (entries.length) sections.push({ type, title, entries });
   }
 
+  // The day's photos (for the site log, procoreDailyLogPhotos.js) aren't part of the log itself: their links are
+  // signed and only kept until the photos are copied.
+  const photoSources = normalizeProcorePhotoSources(src.photos);
   return {
     ok: true,
     log: {
@@ -249,13 +253,14 @@ function normalizeProcoreDailyLog(body) {
       completedBy: summary.completedBy,
       completedOn: summary.completedOn,
       weather: summary.weather,
-      photos: parsePhotoCount(page.photos),
+      photos: parsePhotoCount(page.photos) ?? (photoSources.length || null),
       manpower,
       totals,
       visitors,
       inspections,
       sections,
     },
+    photoSources,
   };
 }
 
@@ -278,18 +283,32 @@ function procoreJournalQueueId(projectSlug, dateKey) {
  * day's journal to be texted. `deliver: false` keeps the log only, for filling in past days. The same log sent again
  * changes nothing; a changed one (re-opened and completed again) replaces it without texting again.
  */
-async function storeProcoreDailyLog({ db, FieldValue, logger, log, deliver = true, source = "", exportedAt = "" }) {
+async function storeProcoreDailyLog({ db, FieldValue, logger, log, photoSources = [], deliver = true, source = "", exportedAt = "" }) {
   const id = procoreDailyLogDocId(log.projectSlug, log.dateKey);
   const contentHash = procoreDailyLogHash(log);
   const logRef = db.collection(COL_PROCORE_DAILY_LOGS).doc(id);
   const queueRef = db.collection(COL_MANAGEMENT_JOURNAL_PUSH_QUEUE).doc(procoreJournalQueueId(log.projectSlug, log.dateKey));
   const projectRef = db.collection("projects").doc(log.projectSlug);
+  const photoQueueRef = db.collection(COL_PROCORE_PHOTO_QUEUE).doc(id);
+  const photoHash = photoSources.length ? procorePhotoSourceHash(photoSources) : "";
 
   const outcome = await db.runTransaction(async (tx) => {
     const existing = await tx.get(logRef);
     const queued = deliver && !existing.exists ? !(await tx.get(queueRef)).exists : false;
     const project = queued ? await tx.get(projectRef) : null;
-    if (existing.exists && existing.get("contentHash") === contentHash) return { created: false, changed: false, queued: false };
+    // The photos are copied (again) unless the same photos, with the same stars, already were.
+    const photoSet = existing.exists ? existing.get("photoSet") : null;
+    const photosQueued = Boolean(photoHash) && !(photoSet && photoSet.status === "done" && photoSet.sourceHash === photoHash);
+    if (photosQueued) {
+      tx.set(photoQueueRef, {
+        projectSlug: log.projectSlug,
+        dateKey: log.dateKey,
+        sources: photoSources,
+        sourceHash: photoHash,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    if (existing.exists && existing.get("contentHash") === contentHash) return { created: false, changed: false, queued: false, photosQueued };
     const doc = {
       projectSlug: log.projectSlug,
       dateKey: log.dateKey,
@@ -301,7 +320,7 @@ async function storeProcoreDailyLog({ db, FieldValue, logger, log, deliver = tru
     };
     if (existing.exists) {
       tx.update(logRef, doc);
-      return { created: false, changed: true, queued: false };
+      return { created: false, changed: true, queued: false, photosQueued };
     }
     tx.set(logRef, { ...doc, createdAt: FieldValue.serverTimestamp(), journalQueued: queued });
     if (queued) {
@@ -319,7 +338,7 @@ async function storeProcoreDailyLog({ db, FieldValue, logger, log, deliver = tru
         updatedAt: FieldValue.serverTimestamp(),
       });
     }
-    return { created: true, changed: true, queued };
+    return { created: true, changed: true, queued, photosQueued };
   });
 
   logger.info("procoreDailyLog: stored", { id, ...outcome, workers: log.totals.workers, manHours: log.totals.manHours });

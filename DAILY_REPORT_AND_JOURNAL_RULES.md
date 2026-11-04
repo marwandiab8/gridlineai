@@ -469,6 +469,18 @@ Photo rendering rules:
 - already-rendered photos move out of remaining site photos
 - captions can be shortened or removed when they repeat nearby report text
 
+### Procore photos (project site logs)
+
+A project's Daily Site Log ends with a "Procore Photos" section once that day's completed Procore daily log has been sent (see "Procore daily log" under the journal rules). Procore holds 30 to 100+ photos a day, so only some are shown:
+
+- up to 4 large, at good resolution (kept at 1600 px), two to a row with when and who took them: the photos starred in Procore, or, on a day with none starred, 4 spread through the day
+- up to 24 small low-resolution thumbnails (kept at 360 px) spread through the rest of the day, six to a row with the time
+- a line above them says how many photos the Procore log has and how many are shown
+- the job sends the day's photo list with the log: each photo's time, uploader, star and Procore's signed file links (only `https://storage.procore.com` links are accepted). The list waits in `procorePhotoQueue/{project}__{day}` (no client access) until `processProcoreDailyLogPhotos` copies the picked photos to Storage under `procoreDailyLogs/{project}/{day}/` (no client access) and records them as the log's `photoSet`. Then the queue entry and its links are deleted
+- the same photos with the same stars aren't copied again; a photo added or starred later makes a new pick, and photos the new pick doesn't use are removed
+- a site log holding Procore photos isn't empty
+- code: `functions/procoreDailyLogPhotos.js` (tests in `procoreDailyLogPhotos.test.js`), loaded in `dailyReportPdf.js`, drawn in `dailyPdfReportBuilderLegacy.js`
+
 ## Daily Journal Rules
 
 The daily journal is `journal`.

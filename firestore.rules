@@ -277,6 +277,10 @@ service cloud.firestore {
     match /procoreDailyLogs/{logId} {
       allow read, write: if false;
     }
+    // A day's Procore photo list with its signed file links, until the photos are copied (procoreDailyLogPhotos.js).
+    match /procorePhotoQueue/{queueId} {
+      allow read, write: if false;
+    }
     match /labourers/{labourerId} {
       allow read: if isManagementApp();
       allow write: if false;

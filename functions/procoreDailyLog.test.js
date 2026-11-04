@@ -171,7 +171,7 @@ test("a day's first log is kept and queues that day's journal; the same log agai
   const db = new FakeDb({ "projects/docksteader": { name: "Docksteader" } });
 
   const first = await store(db, payload());
-  assert.deepEqual(first, { ok: true, id: "docksteader__2026-11-02", created: true, changed: true, queued: true });
+  assert.deepEqual(first, { ok: true, id: "docksteader__2026-11-02", created: true, changed: true, queued: true , photosQueued: false });
   const stored = db.rows.get("procoreDailyLogs/docksteader__2026-11-02");
   assert.equal(stored.log.totals.workers, 15);
   assert.equal(stored.journalQueued, true);
@@ -185,7 +185,7 @@ test("a day's first log is kept and queues that day's journal; the same log agai
   assert.equal(queue.audience, "management");
 
   const again = await store(db, payload({ exportedAt: "2026-11-04T18:00:00.000Z" }));
-  assert.deepEqual(again, { ok: true, id: "docksteader__2026-11-02", created: false, changed: false, queued: false });
+  assert.deepEqual(again, { ok: true, id: "docksteader__2026-11-02", created: false, changed: false, queued: false , photosQueued: false });
 });
 
 test("a changed log is updated without texting the journal again; deliver:false keeps a past day's log only", async () => {
@@ -196,7 +196,7 @@ test("a changed log is updated without texting the journal again; deliver:false 
   const changed = payload();
   changed.logs.manpower_logs[0].num_workers = "6";
   const updated = await store(db, changed);
-  assert.deepEqual(updated, { ok: true, id: "docksteader__2026-11-02", created: false, changed: true, queued: false });
+  assert.deepEqual(updated, { ok: true, id: "docksteader__2026-11-02", created: false, changed: true, queued: false , photosQueued: false });
   assert.equal(db.rows.get("procoreDailyLogs/docksteader__2026-11-02").log.totals.workers, 16);
   assert.equal(db.rows.get("procoreDailyLogs/docksteader__2026-11-02").createdAt, "SERVER_TIME");
   assert.equal(db.rows.has("managementJournalPushQueue/2026-11-02__docksteader__journal__management__procore"), false);
@@ -204,7 +204,7 @@ test("a changed log is updated without texting the journal again; deliver:false 
   const pastDay = payload({ dateKey: "2026-10-30" });
   pastDay.page = { summary: SUMMARY.replace("Mon, November 2, 2026", "Fri, October 30, 2026"), photos: "" };
   const kept = await store(db, pastDay, { deliver: false });
-  assert.deepEqual(kept, { ok: true, id: "docksteader__2026-10-30", created: true, changed: true, queued: false });
+  assert.deepEqual(kept, { ok: true, id: "docksteader__2026-10-30", created: true, changed: true, queued: false , photosQueued: false });
   assert.equal(db.rows.has("managementJournalPushQueue/2026-10-30__docksteader__journal__management__procore"), false);
   assert.equal(db.rows.get("procoreDailyLogs/docksteader__2026-10-30").journalQueued, false);
 });
@@ -217,4 +217,42 @@ test("loadProcoreDailyLog gives the stored log with every part present, or null"
   assert.deepEqual(log.totals, { workers: 0, manHours: 0 });
   assert.equal(await loadProcoreDailyLog(db, "docksteader", "2026-11-03"), null);
   assert.equal(await loadProcoreDailyLog(db, "", "2026-11-02"), null);
+});
+
+test("the day's photo list is queued for copying, kept out of the log, and not copied again once done", async () => {
+  const files = "https://storage.procore.com/api/v5/files/ca-central-1/prostore";
+  const withPhotos = (starred = false) =>
+    payload({
+      photos: [
+        { id: 11, taken_at: "2026-11-02T14:00:00Z", uploader: "Pat Lee", starred, thumbnail_url: `${files}/t11?sig=a`, url: `${files}/f11?sig=a` },
+        { id: 12, taken_at: "2026-11-02T15:00:00Z", uploader: "Pat Lee", starred: false, thumbnail_url: `${files}/t12?sig=a`, url: `${files}/f12?sig=a` },
+      ],
+    });
+  const normalized = normalizeProcoreDailyLog(withPhotos());
+  assert.equal(normalized.photoSources.length, 2);
+  assert.equal(JSON.stringify(normalized.log).includes("storage.procore.com"), false, "the signed links aren't part of the log");
+
+  const db = new FakeDb();
+  const storeWith = (body) => {
+    const n = normalizeProcoreDailyLog(body);
+    return storeProcoreDailyLog({ db, FieldValue, logger, log: n.log, photoSources: n.photoSources });
+  };
+  const first = await storeWith(withPhotos());
+  assert.equal(first.photosQueued, true);
+  const queued = db.rows.get("procorePhotoQueue/docksteader__2026-11-02");
+  assert.equal(queued.sources.length, 2);
+  assert.equal(queued.dateKey, "2026-11-02");
+
+  // Copied (the photo trigger records its photoSet and removes the queue entry): the same photos again aren't queued.
+  db.rows.delete("procorePhotoQueue/docksteader__2026-11-02");
+  const stored = db.rows.get("procoreDailyLogs/docksteader__2026-11-02");
+  db.rows.set("procoreDailyLogs/docksteader__2026-11-02", { ...stored, photoSet: { status: "done", sourceHash: queued.sourceHash } });
+  const again = await storeWith(withPhotos());
+  assert.deepEqual({ changed: again.changed, photosQueued: again.photosQueued }, { changed: false, photosQueued: false });
+  assert.equal(db.rows.has("procorePhotoQueue/docksteader__2026-11-02"), false);
+
+  // A photo starred afterwards: the log is unchanged but the photos are picked again.
+  const starred = await storeWith(withPhotos(true));
+  assert.deepEqual({ changed: starred.changed, photosQueued: starred.photosQueued }, { changed: false, photosQueued: true });
+  assert.equal(db.rows.get("procorePhotoQueue/docksteader__2026-11-02").sources[0].starred, true);
 });

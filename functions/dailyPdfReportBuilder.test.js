@@ -154,3 +154,55 @@ test("shrinkPhotoForPdf resizes a full-size photo to at most 1400 px and keeps i
   const notAnImage = Buffer.from("not an image");
   assert.equal(await shrinkPhotoForPdf(notAnImage), notAnImage, "falls back to the original bytes");
 });
+
+test("the site log ends with the day's Procore photos: a few large with when and who, then small ones", async () => {
+  const sharp = require("sharp");
+  const { PDFDocument, PDFPage, StandardFonts } = require("pdf-lib");
+  const { renderDailySiteLogPdf } = require("./dailyPdfReportBuilder");
+  const { buildDailyReportModel, mergeAiIntoDeterministic } = require("./dailyReportContent");
+  const dayStart = new Date("2026-11-03T05:00:00Z");
+  const model = buildDailyReportModel([], [], { dayStart, reportDateKey: "2026-11-03" });
+  const merged = mergeAiIntoDeterministic(model.deterministic, null, dayStart);
+  const at = (h, m) => new Date(Date.UTC(2026, 10, 3, h, m)).toISOString();
+  merged.procorePhotos = {
+    total: 33,
+    starred: false,
+    large: [0, 1, 2, 3].map((i) => ({ id: `L${i}`, storagePath: `procoreDailyLogs/docksteader/2026-11-03/large-L${i}.jpg`, takenAt: at(13 + i, 5), uploader: "Pat Lee" })),
+    thumbs: Array.from({ length: 24 }, (_, i) => ({ id: `S${i}`, storagePath: `procoreDailyLogs/docksteader/2026-11-03/small-S${i}.jpg`, takenAt: at(12 + Math.floor(i / 4), (i % 4) * 15), uploader: "Sam Roy" })),
+  };
+  const jpeg = await sharp({ create: { width: 640, height: 480, channels: 3, background: { r: 140, g: 140, b: 120 } } }).jpeg().toBuffer();
+  const downloads = [];
+  const storageBucket = { file: (path) => ({ download: async () => { downloads.push(path); return [jpeg]; } }) };
+  const realDrawText = PDFPage.prototype.drawText;
+  try {
+    const pdf = await PDFDocument.create();
+    const drawn = [];
+    PDFPage.prototype.drawText = function drawText(text, options) {
+      drawn.push(text);
+      return realDrawText.call(this, text, options);
+    };
+    await renderDailySiteLogPdf({
+      pdf,
+      font: await pdf.embedFont(StandardFonts.Helvetica),
+      fontBold: await pdf.embedFont(StandardFonts.HelveticaBold),
+      storageBucket,
+      titleStr: "Daily Site Log - Tue, Nov 3, 2026",
+      footerBrand: "Gridline",
+      coverTitle: "Daily Site Log",
+      coverMeta: { titleMain: "Daily Site Log", grid: [] },
+      projectNotes: "",
+      merged,
+      model,
+      concreteLabel: "Nov 3",
+      logger: { warn() {}, info() {} },
+      runId: "test",
+    });
+    assert.ok(drawn.includes("Procore Photos"));
+    assert.ok(drawn.includes("33 photos in the Procore daily log: 4 shown large and 24 more small, picked through the day."));
+    assert.ok(drawn.includes("8:05 AM · Pat Lee"), "a large photo says when and who");
+    assert.ok(drawn.includes("7:00 AM"), "a small one says when");
+    assert.equal(downloads.length, 28);
+  } finally {
+    PDFPage.prototype.drawText = realDrawText;
+  }
+});

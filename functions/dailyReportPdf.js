@@ -31,6 +31,7 @@ const {
 const { buildReportAppUrl } = require("./reportPushConfig");
 const { loadSiteLogisticsForReport, mergeManpowerRows } = require("./siteLogisticsReport");
 const { loadProcoreDailyLog } = require("./procoreDailyLog");
+const { loadProcorePhotoSet } = require("./procoreDailyLogPhotos");
 const { prepareEmojiImages } = require("./pdfEmoji");
 const { resolvePeopleNames } = require("./reportPresentation");
 
@@ -952,6 +953,17 @@ async function generateDailyReportPdf(opts) {
       merged.siteLogistics = siteLogisticsDay;
     }
 
+    // The day's Procore daily log photos, once its completed log has been sent (procoreDailyLogPhotos.js): a few
+    // large, the rest of the picks small. Never blocks the report.
+    if (projectKey) {
+      try {
+        const procorePhotos = await loadProcorePhotoSet(db, projectKey, dk);
+        if (procorePhotos) merged.procorePhotos = procorePhotos;
+      } catch (photoErr) {
+        if (logger && logger.warn) logger.warn("dailyReportPdf: Procore photos not read", { runId, message: photoErr.message });
+      }
+    }
+
     titleStr = formatDailySiteLogTitleEastern(dayStart);
     concreteLabel = formatConcreteSummaryLabelEastern(dayStart);
 
@@ -1146,11 +1158,12 @@ async function generateDailyReportPdf(opts) {
     projectSlug: projectKey,
     reportDateKey: dk,
     reportType,
-    // Nothing from the day went into it: no entries, photos, (site report) Site Logistics data or (journal) Procore log.
+    // Nothing from the day went into it: no entries, photos, (site report) Site Logistics data or Procore photos, or
+    // (journal) Procore log.
     isEmpty:
       curatedEntries.length === 0 &&
       mediaForReport.length === 0 &&
-      !(reportType === "dailySiteLog" && merged && merged.siteLogistics) &&
+      !(reportType === "dailySiteLog" && merged && (merged.siteLogistics || merged.procorePhotos)) &&
       !(reportType === "journal" && merged && merged.procoreDailyLog),
     fileName,
     reportSequence,
