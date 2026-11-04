@@ -68,3 +68,29 @@ test("retry skips sent queues and report payloads must match the exact queue", (
     /date mismatch/
   );
 });
+
+test("a day's journal can be queued again once its Procore daily log arrives (\"__procore\")", () => {
+  const { parseManagementJournalQueueId } = require("./managementJournalDelivery");
+  const id = "2026-11-02__docksteader__journal__management__procore";
+  assert.deepEqual(parseManagementJournalQueueId(id), {
+    reportDateKey: "2026-11-02",
+    projectSlug: "docksteader",
+    reportType: "journal",
+    audience: "management",
+    variant: "procore",
+  });
+  assert.equal(parseManagementJournalQueueId("2026-11-02__docksteader__journal__management__other"), null);
+  assert.equal(parseManagementJournalQueueId("2026-11-02__docksteader__journal__management__procore__x"), null);
+
+  const context = resolveManagementJournalDeliveryContext(id, { ...queueData("docksteader"), reportDateKey: "2026-11-02", variant: "procore" });
+  assert.equal(context.variant, "procore");
+  assert.throws(
+    () => resolveManagementJournalDeliveryContext(id, { ...queueData("docksteader"), reportDateKey: "2026-11-02" }),
+    /variant mismatch/
+  );
+  assert.throws(
+    () => resolveManagementJournalDeliveryContext("2026-08-16__docksteader__journal__management", { ...queueData("docksteader"), variant: "procore" }),
+    /variant mismatch/
+  );
+  assert.equal(resolveManagementJournalDeliveryContext("2026-08-16__docksteader__journal__management", queueData("docksteader")).variant, undefined);
+});

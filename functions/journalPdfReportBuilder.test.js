@@ -224,3 +224,60 @@ test("renderJournalPdf keeps the closing note on the page of the journal's last 
     PDFPage.prototype.drawText = realDrawText;
   }
 });
+
+test("renderJournalPdf ends a project journal with its Procore daily log, repeating the table's heads on a new page", async () => {
+  const { PDFDocument, PDFPage, StandardFonts } = require("pdf-lib");
+  const { renderJournalPdf } = require("./journalPdfReportBuilder");
+  const procoreDailyLog = {
+    completedBy: "Pat Lee",
+    completedOn: "Tue, November 3, 2026",
+    photos: 104,
+    weather: { hourly: [{ time: "6 AM", sky: "Partly cloudy", tempC: 9 }], lowC: 8, highC: 17, precipCm: 0, windAvgKmh: 4.4, gustsKmh: 20 },
+    manpower: Array.from({ length: 40 }, (_, i) => ({
+      company: `Company ${i + 1}`,
+      workers: 2,
+      manHours: 16,
+      notes: "Continuing block wall construction at PH-3 along the north side, then grouting and cleaning down the scaffold.",
+    })),
+    totals: { workers: 80, manHours: 640 },
+    visitors: [{ who: "", from: "12:00 PM", to: "1:00 PM", subject: "", details: "Owner's rep reviewed progress." }],
+    inspections: [],
+    sections: [{ type: "delivery_logs", title: "Deliveries", entries: ["7:30 AM · Rebar for the pad"] }],
+  };
+  const realDrawText = PDFPage.prototype.drawText;
+  try {
+    const pdf = await PDFDocument.create();
+    const drawn = [];
+    PDFPage.prototype.drawText = function drawText(text, options) {
+      drawn.push({ text, page: pdf.getPages().indexOf(this) });
+      return realDrawText.call(this, text, options);
+    };
+    await renderJournalPdf({
+      pdf,
+      font: await pdf.embedFont(StandardFonts.Helvetica),
+      fontBold: await pdf.embedFont(StandardFonts.HelveticaBold),
+      fontItalic: await pdf.embedFont(StandardFonts.HelveticaOblique),
+      storageBucket: null,
+      titleStr: "Daily Journal - Docksteader - Mon, Nov 2, 2026",
+      footerBrand: "Gridline",
+      coverMeta: { titleMain: "Daily Journal" },
+      merged: { storylines: [], orphanPhotos: [], procoreDailyLog },
+      logger: { warn() {} },
+      runId: "test",
+    });
+    const pagesOf = (text) => drawn.filter((d) => d.text === text).map((d) => d.page);
+    const texts = drawn.map((d) => d.text);
+    assert.ok(texts.includes("No journal notes were captured for this day."));
+    assert.ok(texts.includes("Procore daily log"));
+    assert.ok(texts.includes("Completed by Pat Lee on Tue, November 3, 2026 · 80 workers, 640 hours · 104 photos in Procore"));
+    assert.ok(texts.includes("ON SITE") && texts.includes("VISITOR") && texts.includes("DELIVERIES"));
+    assert.ok(texts.includes("Company 1") && texts.includes("Company 40") && texts.includes("Total") && texts.includes("640"));
+    // 40 rows run over pages: every page of the table starts with the column heads.
+    const tablePages = [...new Set(drawn.filter((d) => /^Company \d+$/.test(d.text)).map((d) => d.page))];
+    assert.ok(tablePages.length >= 2, `the table should run over pages, got ${tablePages.join(", ")}`);
+    assert.deepEqual(pagesOf("Workers"), tablePages);
+    assert.deepEqual(pagesOf("Hours"), tablePages);
+  } finally {
+    PDFPage.prototype.drawText = realDrawText;
+  }
+});

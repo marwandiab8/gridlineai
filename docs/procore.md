@@ -1,5 +1,7 @@
 # Procore OAuth Setup
 
+Docksteader's daily logs don't come through OAuth: Marwan's computer sends each completed log through `public/procore-relay.html` to `ingestProcoreDailyLogCallable` for that day's journal (see "Procore daily log" in `DAILY_REPORT_AND_JOURNAL_RULES.md`).
+
 This repository uses Firebase Hosting plus Cloud Functions. The live GridlineAI Procore redirect URI is:
 
 ```text

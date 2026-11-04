@@ -1299,11 +1299,12 @@ function buildDailyReportSmsUrl(pdfResult) {
   return String(pdfResult.downloadURL || "").trim();
 }
 
-function buildReportPushMessage({ pdfResult, projectName, projectSlug, reportDateKey, reportType }) {
+function buildReportPushMessage({ pdfResult, projectName, projectSlug, reportDateKey, reportType, detail = "" }) {
   const label = reportType === "dailySiteLog" ? "Daily Site Log PDF" : "Journal PDF";
   const scopeBits = [];
   if (projectName || projectSlug) scopeBits.push(projectName || projectSlug);
   if (reportDateKey) scopeBits.push(reportDateKey);
+  if (detail) scopeBits.push(detail);
   const scopeText = scopeBits.length ? ` (${scopeBits.join(" - ")})` : "";
   const smsUrl = buildDailyReportSmsUrl(pdfResult);
   return smsUrl
@@ -4605,7 +4606,9 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       }).catch(() => {});
       return;
     }
-    const { projectSlug, reportDateKey, reportType, audience, runId } = deliveryContext;
+    const { projectSlug, reportDateKey, reportType, audience, runId, variant } = deliveryContext;
+    // "procore": the day's journal again, now that its Procore daily log has arrived (procoreDailyLog.js).
+    const withProcoreLog = variant === "procore";
     const projectName = String(d.projectName || projectSlug || "").trim() || projectSlug;
     const accountSid = normalizeAccountSid(TWILIO_ACCOUNT_SID.value());
     const authToken = normalizeAuthToken(TWILIO_AUTH_TOKEN.value());
@@ -4690,7 +4693,9 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
       fromPhone: configuredFrom,
       messagingServiceSid: null,
       requestedByPhone: configuredFrom,
-      requestedByName: reportType === "dailySiteLog" ? "Daily site log auto-send" : "Daily journal auto-send",
+      requestedByName: withProcoreLog
+        ? "Daily journal with the Procore daily log"
+        : reportType === "dailySiteLog" ? "Daily site log auto-send" : "Daily journal auto-send",
       requestedByEmail: null,
       projectSlug,
       messageBody: "",
@@ -4708,6 +4713,7 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
           projectSlug,
           reportDateKey,
           reportType,
+          detail: withProcoreLog ? "with the Procore daily log" : "",
         });
       },
       recipients,
@@ -10340,6 +10346,40 @@ exports.writeDocksteaderBriefing = onDocumentCreated(
       appUrl: "https://gridlineai.web.app/#reports",
       runRef: event.data.ref,
       run: event.data.data(),
+    });
+  }
+);
+
+// Procore daily logs (procoreDailyLog.js): the procore-daily-notes job on Marwan's computer brings each completed log
+// to public/procore-relay.html, which sends it here as him. The day's journal shows it, and the first copy of a day's
+// log queues that journal to be texted (deliverDailyManagementJournalPush).
+const { normalizeProcoreDailyLog, storeProcoreDailyLog } = require("./procoreDailyLog");
+
+exports.ingestProcoreDailyLogCallable = onCall(
+  { region: "northamerica-northeast1", cors: true, timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const access = await getAppAccess(db, request);
+    if (!roleAtLeast(access.role, "management")) {
+      throw new HttpsError("permission-denied", "Management or admin access is required to send Procore daily logs.");
+    }
+    const body = request.data && typeof request.data === "object" ? request.data : {};
+    const result = normalizeProcoreDailyLog(body);
+    if (!result.ok) {
+      logger.warn("ingestProcoreDailyLogCallable: refused", { error: result.error, dateKey: body.dateKey || null });
+      const code = result.error === "not_completed" || result.error === "date_mismatch" ? "failed-precondition" : "invalid-argument";
+      throw new HttpsError(code, result.message);
+    }
+    if (!canAccessProject(access, result.log.projectSlug)) {
+      throw new HttpsError("permission-denied", `You don't have access to the ${result.log.projectSlug} project.`);
+    }
+    return storeProcoreDailyLog({
+      db,
+      FieldValue,
+      logger,
+      log: result.log,
+      deliver: body.deliver !== false,
+      source: body.source,
+      exportedAt: body.exportedAt,
     });
   }
 );
