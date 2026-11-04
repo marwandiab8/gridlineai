@@ -593,6 +593,20 @@ The journal PDF embeds:
 - additional photos not already rendered
 - all uploaded photos for the same journal day, with no journal photo cap
 
+### Procore daily log (project journals)
+
+A project's journal ends with that day's Procore daily log once the completed log has been sent to GridlineAI. The server can't read Procore (the Gridlineai app isn't installed in Matheson's Procore), so Marwan's computer sends it:
+
+- the `procore-daily-notes` job on his computer reads each completed log in his signed-in Chrome the morning after (9:05, retry 13:05) and takes it to `public/procore-relay.html`, in the address after `#log=` (never sent to a server); that page sends it to `ingestProcoreDailyLogCallable` as the signed-in member (management or admin, with access to the project) and shows `SAVED ...` or `ERROR: ...` in its title for the job to read. Chrome blocks downloads from the tabs the job drives, hence the relay page
+- only a completed log of a known Procore project is accepted: the Daily Log page must say "Daily log completed" and show the day posted, and the Procore project must be in `PROCORE_PROJECTS` (3118812 = `docksteader`); anything else is refused (`failed-precondition` or `invalid-argument`)
+- the log is kept in `procoreDailyLogs/{projectSlug}__{dateKey}` (no client access); the same log posted again changes nothing, and a changed log (re-opened and completed again) replaces it
+- the first time a day's log arrives, that day's journal is queued again for the management push (`managementJournalPushQueue/{date}__{project}__journal__management__procore`) and texted as "Journal PDF (Docksteader - 2026-11-02 - with the Procore daily log)"; the 9 PM push is unchanged. A log sent with `deliver: false` is kept without texting (for filling in past days)
+- a journal holding a Procore log isn't empty, so it's texted even on a day with nothing else logged
+- the section shows who completed the log and when, the total workers and hours and the photo count; the observed weather (the sky through the day, low to high, wind and gusts, precipitation, and the hourly readings); a row per company with its workers, man-hours and the log's comment as written, with a total row; then visitors, inspections and any other entries (notes, deliveries, delays, accidents, safety violations, equipment and so on)
+- the journal's AI doesn't see the Procore log: the section is drawn from the log as Procore has it
+- personal journals (no project) never show it
+- code: `functions/procoreDailyLog.js` (tests in `procoreDailyLog.test.js`), loaded in `dailyReportPdf.js`, drawn in `journalPdfReportBuilder.js`
+
 ### Journal PDF sections
 
 The journal renderer can include:
@@ -606,6 +620,7 @@ The journal renderer can include:
 - Reflections
 - Additional Photos
 - Closing Note
+- Procore daily log (project journals, once that day's completed log has been sent)
 
 ## AI Daily Site Log Rules
 

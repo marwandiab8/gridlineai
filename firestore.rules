@@ -272,6 +272,11 @@ service cloud.firestore {
     match /docksteaderBriefingQueue/{runId} {
       allow read, write: if false;
     }
+    // Procore daily logs (functions/procoreDailyLog.js): posted by Marwan's computer, read into the project's journal
+    // on the server. No client access.
+    match /procoreDailyLogs/{logId} {
+      allow read, write: if false;
+    }
     match /labourers/{labourerId} {
       allow read: if isManagementApp();
       allow write: if false;

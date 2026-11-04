@@ -4,6 +4,13 @@ const { drawRichText } = require("./pdfEmoji");
 const { refineCaptionForPdf } = require("./dailyPdfCompact");
 const { wrapToLines } = require("./dailyPdfReportBuilderLegacy");
 const { formatSetParts, formatTimeRange, formatMinutes } = require("./gymK2Workouts");
+const {
+  formatHours,
+  describeProcoreLogFacts,
+  describeProcoreWeather,
+  describeProcoreVisitor,
+  describeProcoreInspection,
+} = require("./procoreDailyLog");
 
 const LEADING = 3;
 // A photo is shrunk to fit what's left of a page down to this height (about 2 inches), never smaller.
@@ -186,6 +193,8 @@ const STORYLINE_COLORS = [
   rgb(0.42, 0.32, 0.62),
   rgb(0.36, 0.44, 0.5),
 ];
+// The Procore daily log is a record, not anyone's story: a plain slate of its own.
+const PROCORE_COLOR = rgb(0.3, 0.35, 0.42);
 
 function firstName(author) {
   const name = String(author || "").trim();
@@ -439,11 +448,16 @@ async function renderJournalPdf(opts) {
     return refineCaptionForPdf(own || safeContext, safeContext, "");
   }
 
-  function drawRightText(text, size, f, color, yy) {
+  /** Text that ends at `right` (a column of numbers). */
+  function drawRightAt(text, size, f, color, right, yy) {
     const value = sanitizePdfText(text);
     const width = f.widthOfTextAtSize(value, size);
-    page.drawText(value, { x: margin + contentW - width, y: yy, size, font: f, color });
+    page.drawText(value, { x: right - width, y: yy, size, font: f, color });
     return width;
+  }
+
+  function drawRightText(text, size, f, color, yy) {
+    return drawRightAt(text, size, f, color, margin + contentW, yy);
   }
 
   /** "80 lb × 30", "Bodyweight × 6 wide handle". */
@@ -612,6 +626,100 @@ async function renderJournalPdf(opts) {
     pendingLabel = null;
   }
 
+  /**
+   * A row per company on site: the company, its workers and hours (man-hours) as numbers, and what it did in the
+   * log's own words; a total row under them. The column heads are repeated at the top of each page the table runs on.
+   */
+  function drawManpowerTable(rows, totals) {
+    const pad = 8;
+    const companyW = 150;
+    const numW = 42;
+    const companyX = margin + pad;
+    const workersRight = companyX + companyW + numW;
+    const hoursRight = workersRight + numW;
+    const workX = hoursRight + 14;
+    const workW = margin + contentW - pad - workX;
+    const lineH = 11.5;
+    const headH = 14;
+    const shaped = rows.map((row) => ({
+      companyLines: linesFor(row.company, fontBold, 9, companyW),
+      workLines: row.notes ? linesFor(row.notes, font, 9, workW) : [],
+      workers: String(row.workers),
+      hours: formatHours(row.manHours),
+    }));
+    const rowH = (row) => Math.max(row.companyLines.length, row.workLines.length, 1) * lineH + 8;
+    let headPage = null;
+    shaped.forEach((row, index) => {
+      const h = rowH(row);
+      ensureSpace(h + (headPage === page ? 0 : headH));
+      if (headPage !== page) {
+        drawRichText(page, "Company", { x: companyX, y, size: 7.5, font: fontBold, color: C.muted });
+        drawRightAt("Workers", 7.5, fontBold, C.muted, workersRight, y);
+        drawRightAt("Hours", 7.5, fontBold, C.muted, hoursRight, y);
+        drawRichText(page, "Work", { x: workX, y, size: 7.5, font: fontBold, color: C.muted });
+        y -= headH;
+        headPage = page;
+      }
+      const top = y + 9;
+      if (index % 2 === 0) page.drawRectangle({ x: margin, y: top - h, width: contentW, height: h, color: C.card });
+      const firstBaseline = top - 4 - 8;
+      row.companyLines.forEach((line, i) => {
+        drawRichText(page, line, { x: companyX, y: firstBaseline - i * lineH, size: 9, font: fontBold, color: C.ink });
+      });
+      drawRightAt(row.workers, 9, font, C.ink, workersRight, firstBaseline);
+      drawRightAt(row.hours, 9, font, C.ink, hoursRight, firstBaseline);
+      row.workLines.forEach((line, i) => {
+        drawRichText(page, line, { x: workX, y: firstBaseline - i * lineH, size: 9, font, color: C.body });
+      });
+      y = top - h - 9;
+    });
+    ensureSpace(22);
+    drawRule(y + 9, 0.6);
+    y -= 4;
+    drawRichText(page, "Total", { x: companyX, y, size: 9, font: fontBold, color: C.ink });
+    drawRightAt(String(totals.workers), 9, fontBold, C.ink, workersRight, y);
+    drawRightAt(formatHours(totals.manHours), 9, fontBold, C.ink, hoursRight, y);
+    y -= 22;
+  }
+
+  /**
+   * The day's Procore daily log (procoreDailyLog.js), after the journal itself: who completed it and the day's totals,
+   * the observed weather, the companies on site, then visitors, inspections and the log's other entries.
+   */
+  function drawProcoreDailyLog(log) {
+    const color = PROCORE_COLOR;
+    drawChapterHeading("Procore daily log", color);
+    drawText(describeProcoreLogFacts(log), { size: 9, color: C.muted, leading: 3 });
+    y -= 6;
+    const weather = describeProcoreWeather(log.weather);
+    if (weather.summary) {
+      drawLabel("Weather", color);
+      drawText(weather.summary, { size: 10, color: C.body, leading: 4 });
+      if (weather.hourly) drawText(weather.hourly, { size: 8.5, color: C.muted, leading: 3 });
+      y -= 8;
+    }
+    if (log.manpower.length) {
+      drawLabel("On site", color);
+      drawManpowerTable(log.manpower, log.totals);
+    }
+    if (log.visitors.length) {
+      drawLabel(log.visitors.length > 1 ? "Visitors" : "Visitor", color);
+      drawBulletList(log.visitors.map(describeProcoreVisitor), color);
+      y -= 6;
+    }
+    if (log.inspections.length) {
+      drawLabel(log.inspections.length > 1 ? "Inspections" : "Inspection", color);
+      drawBulletList(log.inspections.map(describeProcoreInspection), color);
+      y -= 6;
+    }
+    for (const section of log.sections || []) {
+      drawLabel(section.title, color);
+      drawBulletList(section.entries, color);
+      y -= 6;
+    }
+    pendingLabel = null;
+  }
+
   // ----- Cover -----
   const storylines = Array.isArray(merged.storylines) ? merged.storylines : [];
   const orphanPhotos = Array.isArray(merged.orphanPhotos) ? merged.orphanPhotos : [];
@@ -686,6 +794,14 @@ async function renderJournalPdf(opts) {
     drawRule(y + 6, 0.6);
     y -= 12;
     drawText(merged.closingNote, { size: 11, f: fontItalic, color: C.ink, leading: 5 });
+  }
+
+  if (merged.procoreDailyLog) {
+    try {
+      drawProcoreDailyLog(merged.procoreDailyLog);
+    } catch (procoreErr) {
+      if (logger && logger.warn) logger.warn("journalPdfReportBuilder: Procore daily log not drawn", { runId, message: procoreErr.message });
+    }
   }
 
   // ----- Header / footer -----

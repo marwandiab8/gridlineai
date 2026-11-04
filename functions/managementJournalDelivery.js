@@ -3,22 +3,28 @@ const { normalizeProjectSlug } = require("./projectAccess");
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const REPORT_TYPES = new Set(["journal", "dailySiteLog"]);
 const AUDIENCES = new Set(["management", "project_users"]);
+// A second delivery of the same day's report: "procore" = the journal again once that day's Procore daily log
+// has arrived (procoreDailyLog.js). Its id is the scheduled one's with "__procore" after it.
+const VARIANTS = new Set(["procore"]);
 
 function parseManagementJournalQueueId(docId) {
   const parts = String(docId || "").split("__");
-  if (parts.length !== 4) return null;
-  const [reportDateKey, projectPart, reportType, audience] = parts;
+  if (parts.length !== 4 && parts.length !== 5) return null;
+  const [reportDateKey, projectPart, reportType, audience, variant] = parts;
   const projectSlug = normalizeProjectSlug(projectPart);
   if (
     !DATE_KEY_RE.test(reportDateKey) ||
     !projectSlug ||
     projectSlug !== projectPart ||
     !REPORT_TYPES.has(reportType) ||
-    !AUDIENCES.has(audience)
+    !AUDIENCES.has(audience) ||
+    (parts.length === 5 && !VARIANTS.has(variant))
   ) {
     return null;
   }
-  return { reportDateKey, projectSlug, reportType, audience };
+  return variant
+    ? { reportDateKey, projectSlug, reportType, audience, variant }
+    : { reportDateKey, projectSlug, reportType, audience };
 }
 
 function resolveManagementJournalDeliveryContext(docId, data) {
@@ -35,6 +41,9 @@ function resolveManagementJournalDeliveryContext(docId, data) {
     if (recordIdentity[field] !== queueIdentity[field]) {
       throw new Error(`management journal queue ${field} mismatch`);
     }
+  }
+  if (String(record.variant || "").trim() !== (queueIdentity.variant || "")) {
+    throw new Error("management journal queue variant mismatch");
   }
   return {
     ...queueIdentity,

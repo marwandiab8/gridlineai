@@ -30,6 +30,7 @@ const {
 } = require("./dailyReportWeather");
 const { buildReportAppUrl } = require("./reportPushConfig");
 const { loadSiteLogisticsForReport, mergeManpowerRows } = require("./siteLogisticsReport");
+const { loadProcoreDailyLog } = require("./procoreDailyLog");
 const { prepareEmojiImages } = require("./pdfEmoji");
 const { resolvePeopleNames } = require("./reportPresentation");
 
@@ -798,6 +799,16 @@ async function generateDailyReportPdf(opts) {
     }
 
     merged = mergeJournalStorylines(model, journalJson);
+    // A project's journal ends with that day's Procore daily log, once Marwan's computer has sent the completed log
+    // (procoreDailyLog.js). Never blocks the journal.
+    if (projectKey) {
+      try {
+        const procoreDailyLog = await loadProcoreDailyLog(db, projectKey, dk);
+        if (procoreDailyLog) merged.procoreDailyLog = procoreDailyLog;
+      } catch (procoreErr) {
+        if (logger && logger.warn) logger.warn("dailyReportPdf: Procore daily log not read", { runId, message: procoreErr.message });
+      }
+    }
     if (logger) {
       logger.info("dailyReportPdf: journal storylines", {
         runId,
@@ -1135,11 +1146,12 @@ async function generateDailyReportPdf(opts) {
     projectSlug: projectKey,
     reportDateKey: dk,
     reportType,
-    // Nothing from the day went into it: no entries, photos or (site report) Site Logistics data.
+    // Nothing from the day went into it: no entries, photos, (site report) Site Logistics data or (journal) Procore log.
     isEmpty:
       curatedEntries.length === 0 &&
       mediaForReport.length === 0 &&
-      !(reportType === "dailySiteLog" && merged && merged.siteLogistics),
+      !(reportType === "dailySiteLog" && merged && merged.siteLogistics) &&
+      !(reportType === "journal" && merged && merged.procoreDailyLog),
     fileName,
     reportSequence,
     downloadURL,

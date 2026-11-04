@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Procore daily log</title>
+    <style>
+      body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 40px auto; max-width: 640px; padding: 0 16px; color: #1f2329; background: #fff; }
+      h1 { font-size: 18px; margin: 0 0 8px; }
+      #status { font-weight: 600; }
+      p { color: #5b616b; }
+    </style>
+  </head>
+  <body>
+    <h1>Procore daily log for the journal</h1>
+    <div id="status">Working…</div>
+    <p>The procore-daily-notes job on Marwan's computer opens this page with a completed Procore daily log. It is sent
+      to GridlineAI as the signed-in member, for that day's project journal.</p>
+    <script src="./runtime-config.js?v=2026-05-14-runtime-1"></script>
+    <script type="module">
+      // The job's export script (on Procore's Daily Log page, in Marwan's signed-in Chrome) comes here with the log in
+      // the address after "#log=", which browsers never send to a server. This page sends it to
+      // ingestProcoreDailyLogCallable (functions/procoreDailyLog.js) and shows the outcome in its title: "SAVED ..." or
+      // "ERROR: ...", which the job reads.
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import {
+        initializeAppCheck,
+        ReCaptchaV3Provider,
+        ReCaptchaEnterpriseProvider,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
+      import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+      import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
+
+      const statusEl = document.getElementById("status");
+      const show = (text) => {
+        statusEl.textContent = text;
+        document.title = text;
+      };
+
+      // Take the log out of the address at once, so it doesn't stay in the tab's address.
+      const hash = location.hash;
+      history.replaceState(null, "", location.pathname);
+      let body = null;
+      try {
+        body = hash.startsWith("#log=") ? JSON.parse(decodeURIComponent(hash.slice(5))) : null;
+      } catch (_) {
+        body = null;
+      }
+
+      // The same Firebase app as the dashboard (app.js).
+      const app = initializeApp({
+        apiKey: "AIzaSyBfUA9JCo01N53TTDzMxnqEqzYqy-RJ6qE",
+        authDomain: "gridlineai.firebaseapp.com",
+        projectId: "gridlineai",
+        storageBucket: "gridlineai.firebasestorage.app",
+        messagingSenderId: "118761010772",
+        appId: "1:118761010772:web:6eee28ee3c09953de0dfc1",
+        ...(window.FIREBASE_WEB_CONFIG && typeof window.FIREBASE_WEB_CONFIG === "object" ? window.FIREBASE_WEB_CONFIG : {}),
+      });
+      const siteKey = String(window.FIREBASE_APPCHECK_SITE_KEY || "").trim();
+      if (siteKey) {
+        const v3 = /^(v3|recaptchav3)$/i.test(String(window.FIREBASE_APPCHECK_PROVIDER || ""));
+        try {
+          initializeAppCheck(app, {
+            provider: v3 ? new ReCaptchaV3Provider(siteKey) : new ReCaptchaEnterpriseProvider(siteKey),
+            isTokenAutoRefreshEnabled: true,
+          });
+        } catch (_) {}
+      }
+
+      if (!body || typeof body !== "object") {
+        show("ERROR: no Procore daily log in the address");
+      } else {
+        const day = String(body.dateKey || "");
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (!settled) show(`ERROR: ${day} not sent, GridlineAI sign-in didn't load`);
+        }, 20000);
+        const stop = onAuthStateChanged(getAuth(app), async (user) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          stop();
+          if (!user) {
+            show(`ERROR: ${day} not sent, not signed in to GridlineAI`);
+            return;
+          }
+          try {
+            const send = httpsCallable(getFunctions(app, "northamerica-northeast1"), "ingestProcoreDailyLogCallable");
+            const { data } = await send(body);
+            const what = data.created ? "new" : data.changed ? "updated" : "already there";
+            show(`SAVED ${day} (${what}${data.queued ? ", journal queued" : ""})`);
+          } catch (error) {
+            show(`ERROR: ${day} not sent, ${error && error.message ? error.message : error}`);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
