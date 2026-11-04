@@ -1,5 +1,5 @@
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { createHash, randomUUID, randomBytes } = require("crypto");
@@ -10377,10 +10377,24 @@ exports.ingestProcoreDailyLogCallable = onCall(
       FieldValue,
       logger,
       log: result.log,
+      photoSources: result.photoSources,
       deliver: body.deliver !== false,
       source: body.source,
       exportedAt: body.exportedAt,
     });
+  }
+);
+
+// The day's Procore photos for the site log (procoreDailyLogPhotos.js): copies the picked photos out of Procore once
+// a log with its photo list arrives, then drops the queued list and its signed links.
+const { processProcorePhotoQueue, COL_PROCORE_PHOTO_QUEUE } = require("./procoreDailyLogPhotos");
+
+exports.processProcoreDailyLogPhotos = onDocumentWritten(
+  { document: `${COL_PROCORE_PHOTO_QUEUE}/{id}`, region: "northamerica-northeast1", timeoutSeconds: 300, memory: "1GiB" },
+  async (event) => {
+    const after = event.data && event.data.after;
+    if (!after || !after.exists) return; // the queue entry was removed once its photos were copied
+    await processProcorePhotoQueue({ db, FieldValue, bucket: admin.storage().bucket(), logger, ref: after.ref, queue: after.data() });
   }
 );
 

@@ -90,7 +90,7 @@
             const send = httpsCallable(getFunctions(app, "northamerica-northeast1"), "ingestProcoreDailyLogCallable");
             const { data } = await send(body);
             const what = data.created ? "new" : data.changed ? "updated" : "already there";
-            show(`SAVED ${day} (${what}${data.queued ? ", journal queued" : ""})`);
+            show(`SAVED ${day} (${what}${data.queued ? ", journal queued" : ""}${data.photosQueued ? ", photos queued" : ""})`);
           } catch (error) {
             show(`ERROR: ${day} not sent, ${error && error.message ? error.message : error}`);
           }
