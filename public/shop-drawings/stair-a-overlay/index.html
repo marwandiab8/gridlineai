@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Stair A and entrance vestibule: A105, A151, S201B and curtain wall shop drawings overlaid at true scale on the grids.">
+<title>Stair A and Vestibule Overlay · Docksteader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+html { color-scheme: light; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+.back { justify-self: start; font-family: var(--mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+/* Layout: one column of drawing "plates" on a drafting-table ground; each plate = title, controls, true-scale overlay, notes */
+:root {
+  --bg: #eef0ec; --surface: #ffffff; --ink: #1c2428; --muted: #59646a; --line: #d3d8d3; --accent: #0f5868;
+  --paper: #ffffff; --c-a105: #1565c0; --c-a151: #2e7d32; --c-s201b: #7b1fa2; --c-cw: #c62828;
+  --display: "Barlow Semi Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121719; --surface: #1a2124; --ink: #e5e9ea; --muted: #9ba6ab; --line: #2c3539; --accent: #79c3d3;
+  --c-a105: #64a7ef; --c-a151: #6dbb71; --c-s201b: #c27de0; --c-cw: #f07575; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121719; --surface: #1a2124; --ink: #e5e9ea; --muted: #9ba6ab; --line: #2c3539; --accent: #79c3d3;
+  --c-a105: #64a7ef; --c-a151: #6dbb71; --c-s201b: #c27de0; --c-cw: #f07575; color-scheme: dark; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 56px; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+.eyebrow { margin: 0; font-family: var(--mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: .01em; }
+h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; }
+h2 { font-size: clamp(21px, 2.6vw, 26px); line-height: 1.2; }
+.lede { margin: 0; max-width: 68ch; color: var(--muted); }
+.plate { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.plate > p { margin: 0; max-width: 72ch; }
+.controls { display: grid; gap: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip, .toggle { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line);
+  border-radius: 999px; font-size: 14.5px; cursor: pointer; user-select: none; background: var(--bg); }
+.chip input, .toggle input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+.chip:has(input:not(:checked)) { opacity: .55; }
+.sw { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: inherit; font-size: 14px; padding: 6px 12px; border: 0; background: var(--bg); color: var(--ink); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.seg button:hover { filter: brightness(.96); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scroller { overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.scroller.zoomed { max-height: 82vh; }
+.fig { position: relative; width: 100%; background: var(--paper); }
+.fig img, .fig svg { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; }
+.fig svg { font-family: var(--body); pointer-events: none; }
+.split { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.split .notes { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+@media (max-width: 900px) { .split { grid-template-columns: minmax(0, 1fr); } .split .notes { position: static; } }
+.notes { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 76ch; }
+.notes strong { font-weight: 600; }
+.k { font-family: var(--mono); font-size: .92em; }
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; color: var(--muted); }
+.key span { display: inline-flex; align-items: center; gap: 7px; }
+footer { color: var(--muted); font-size: 14.5px; display: grid; gap: 8px; max-width: 80ch; }
+footer p { margin: 0; }
+@media (max-width: 560px) { .plate { padding: 14px; } .chip, .toggle { font-size: 13.5px; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+<header>
+  <a class="back" href="/shop-drawings/">← Docksteader shop drawing portal</a>
+  <p class="eyebrow">Docksteader PRPS · Level 1 · grids 14 to 16, I to K</p>
+  <h1>Stair A and vestibule overlay</h1>
+  <p class="lede">The architectural, structural and curtain wall sheets drawn on top of each other at true scale and lined up on the grid lines. Switch sheets on and off to see which line belongs to which drawing.</p>
+  <div class="key" aria-label="Colour key">
+    <span><i class="sw" style="background:var(--c-a105)"></i>A105 architect plan</span>
+    <span><i class="sw" style="background:var(--c-a151)"></i>A151 slab edge plan, PC-022</span>
+    <span><i class="sw" style="background:var(--c-s201b)"></i>S201B foundation plan, Rev 19</span>
+    <span><i class="sw" style="background:var(--c-cw)"></i>Bothwell curtain wall shop drawings (2nd revision)</span>
+  </div>
+</header>
+
+<section class="plate view" id="stair" aria-labelledby="stair-h">
+  <h2 id="stair-h">Stair A west wall: EG10B stops 255 mm short of the pier</h2>
+  <p>Plan of the stair's west wall with north at the top and south at the bottom, like A105. The outside (west) is on the left, the stair is on the right. It runs from the stair's northwest corner (top) to the start of EG10C (bottom).</p>
+  <div class="controls" role="group" aria-label="Overlay controls">
+  <div class="row layers"><label class="chip" for="stair-A105"><input type="checkbox" id="stair-A105" data-layer="A105" checked><span class="sw" style="background:var(--c-a105)"></span>A105 architect plan</label><label class="chip" for="stair-A151"><input type="checkbox" id="stair-A151" data-layer="A151" checked><span class="sw" style="background:var(--c-a151)"></span>A151 slab edge (PC-022)</label><label class="chip" for="stair-S201B"><input type="checkbox" id="stair-S201B" data-layer="S201B" checked><span class="sw" style="background:var(--c-s201b)"></span>S201B foundation, Rev 19</label><label class="chip" for="stair-CW"><input type="checkbox" id="stair-CW" data-layer="CW" checked><span class="sw" style="background:var(--c-cw)"></span>Curtain wall shop drawings C3-016 to C3-018</label></div>
+  <div class="row tools">
+    <div class="seg" role="group" aria-label="Quick views">
+      <button type="button" data-preset="A105,CW">Architect vs curtain wall</button>
+      <button type="button" data-preset="S201B,A151,CW">Structural vs architect</button>
+      <button type="button" data-preset="A105,A151,S201B,CW">All sheets</button>
+    </div>
+    <label class="toggle" for="stair-hl"><input type="checkbox" id="stair-hl" data-role="hl" checked><span>Labels and highlights</span></label>
+    <label class="toggle" for="stair-txt"><input type="checkbox" id="stair-txt" data-role="txt"><span>Show drawing text</span></label>
+    <div class="seg zoom" role="group" aria-label="Zoom">
+      <button type="button" data-zoom="1" aria-pressed="true">Fit</button>
+      <button type="button" data-zoom="2" aria-pressed="false">2×</button>
+      <button type="button" data-zoom="3" aria-pressed="false">3×</button>
+    </div>
+  </div>
+</div>
+  <div class="split"><div class="scroller"><div class="fig" style="aspect-ratio:920/1880"><img src="/shop-drawings/stair-a-overlay/img/stair-A105-geo.png" data-layer="A105" alt="" width="920" height="1880" decoding="async"><img src="/shop-drawings/stair-a-overlay/img/stair-A151-geo.png" data-layer="A151" alt="" width="920" height="1880" decoding="async"><img src="/shop-drawings/stair-a-overlay/img/stair-S201B-geo.png" data-layer="S201B" alt="" width="920" height="1880" decoding="async"><img src="/shop-drawings/stair-a-overlay/img/stair-CW-geo.png" data-layer="CW" alt="" width="920" height="1880" decoding="async"><svg class="hl" viewBox="0 0 920 1880" preserveAspectRatio="none" aria-hidden="true"><defs><pattern id="hs" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#c62828" fill-opacity="0.18"/><line x1="0" y1="0" x2="0" y2="10" stroke="#c62828" stroke-width="4"/></pattern></defs><rect x="424.8" y="223.6" width="78.8" height="1656.4" fill="#7b1fa2" fill-opacity="0.10" stroke="#7b1fa2" stroke-width="2.5"/><rect x="424.8" y="223.6" width="495.2" height="80.4" fill="#7b1fa2" fill-opacity="0.10" stroke="#7b1fa2" stroke-width="2.5"/><path d="M544.0 314.0 H556.0 V1514.0 H544.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linejoin="round"/><path d="M544.0 1514.0 H556.0 V1634.0 H544.0" fill="none" stroke="#1565c0" stroke-width="3" stroke-linejoin="round"/><g class="pill"><rect x="572.0" y="822.2" width="231.4" height="183.6" rx="10" fill="#ffffff" stroke="#1565c0" stroke-width="2"/><text x="687.7" y="847.4" font-size="26" fill="#1565c0" text-anchor="middle" dominant-baseline="central" font-weight="600">A105 architect:</text><text x="687.7" y="880.7" font-size="26" fill="#1565c0" text-anchor="middle" dominant-baseline="central">EG10B opening</text><text x="687.7" y="914.0" font-size="26" fill="#1565c0" text-anchor="middle" dominant-baseline="central">about 3000</text><text x="687.7" y="947.3" font-size="26" fill="#1565c0" text-anchor="middle" dominant-baseline="central">(225 + 2775),</text><text x="687.7" y="980.6" font-size="26" fill="#1565c0" text-anchor="middle" dominant-baseline="central">corner to pier</text></g><g class="pill"><rect x="572.0" y="1553.8" width="136.8" height="40.3" rx="20.2" fill="#ffffff" stroke="#1565c0" stroke-width="2"/><text x="640.4" y="1574.0" font-size="26" fill="#1565c0" text-anchor="middle" dominant-baseline="central">pier 300</text></g><path d="M330.0 301.8 H318.0 V1411.8 H330.0" fill="none" stroke="#c62828" stroke-width="3" stroke-linejoin="round"/><path d="M330.0 1411.8 H318.0 V1634.0 H330.0" fill="none" stroke="#c62828" stroke-width="3" stroke-linejoin="round"/><g class="pill"><rect x="16.5" y="781.7" width="285.5" height="150.3" rx="10" fill="#ffffff" stroke="#c62828" stroke-width="2"/><text x="159.3" y="806.9" font-size="26" fill="#c62828" text-anchor="middle" dominant-baseline="central" font-weight="600">Bothwell C3-017:</text><text x="159.3" y="840.2" font-size="26" fill="#c62828" text-anchor="middle" dominant-baseline="central">rough opening 2775,</text><text x="159.3" y="873.4" font-size="26" fill="#c62828" text-anchor="middle" dominant-baseline="central">measured from</text><text x="159.3" y="906.7" font-size="26" fill="#c62828" text-anchor="middle" dominant-baseline="central">the corner</text></g><g class="pill"><rect x="84.1" y="1502.8" width="217.9" height="40.3" rx="20.2" fill="#ffffff" stroke="#c62828" stroke-width="2"/><text x="193.1" y="1522.9" font-size="26" fill="#c62828" text-anchor="middle" dominant-baseline="central">pier about 555</text></g><rect x="392.0" y="1411.8" width="136.0" height="102.2" fill="url(#hs)" stroke="#c62828" stroke-width="3"/><g class="pill"><rect x="390.6" y="1444.3" width="138.7" height="37.2" rx="18.6" fill="#ffffff" stroke="#c62828" stroke-width="2"/><text x="460.0" y="1462.9" font-size="24" fill="#c62828" text-anchor="middle" dominant-baseline="central" font-weight="600">255 short</text></g><line x1="640" y1="264.0" x2="640" y2="152" stroke="#7b1fa2" stroke-width="2"/><g class="pill"><rect x="572.0" y="81.4" width="313.4" height="77.3" rx="10" fill="#ffffff" stroke="#7b1fa2" stroke-width="2"/><text x="728.7" y="104.6" font-size="24" fill="#7b1fa2" text-anchor="middle" dominant-baseline="central" font-weight="600">FW1 foundation wall 200</text><text x="728.7" y="135.4" font-size="24" fill="#7b1fa2" text-anchor="middle" dominant-baseline="central">S201B and A151 agree</text></g><g class="pill"><rect x="572.0" y="1744.8" width="231.4" height="40.3" rx="20.2" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="687.7" y="1765.0" font-size="26" fill="#263238" text-anchor="middle" dominant-baseline="central">EG10C: lines up</text></g><g class="pill"><rect x="819.6" y="386.9" width="92.8" height="34.1" rx="17.1" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="866.0" y="404.0" font-size="22" fill="#263238" text-anchor="middle" dominant-baseline="central">Grid J</text></g><g class="pill"><rect x="627.9" y="6.9" width="104.3" height="34.1" rx="17.1" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="680.0" y="24.0" font-size="22" fill="#263238" text-anchor="middle" dominant-baseline="central">Grid 15</text></g><g class="pill"><rect x="809.9" y="6.9" width="104.3" height="34.1" rx="17.1" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="862.0" y="24.0" font-size="22" fill="#263238" text-anchor="middle" dominant-baseline="central">North ↑</text></g><g class="pill"><rect x="13.9" y="6.9" width="104.3" height="34.1" rx="17.1" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="66.0" y="24.0" font-size="22" fill="#263238" text-anchor="middle" dominant-baseline="central">Outside</text></g></svg></div></div>
+  <ul class="notes">
+    <li>Press <strong>Architect vs curtain wall</strong> to see only blue and red. Across the wall they match: same glass line, same corner.</li>
+    <li>Along the wall they don't. The blue jamb at the framed pier sits about <span class="k">255 mm</span> further south than the red one. That's glass Bothwell left out.</li>
+    <li>Why: grid J falls inside this opening, so A105 dimensions it in two pieces, <span class="k">225 + 2775</span>. Bothwell took <span class="k">2775</span> as the whole opening and started it at the corner.</li>
+    <li>EG10C starts in the same place on both, so the pier between them grows from <span class="k">300</span> to about <span class="k">555 mm</span>.</li>
+  </ul></div>
+</section>
+
+<section class="plate view" id="vestibule" aria-labelledby="vest-h">
+  <h2 id="vest-h">Entrance vestibule corner: S201B walls don't match the curb or the glass</h2>
+  <p>Plan of the vestibule's northwest corner at grids I and 16, north up. EG12 with the sliding door D103 runs east along the top. EG13 runs south down the left.</p>
+  <div class="controls" role="group" aria-label="Overlay controls">
+  <div class="row layers"><label class="chip" for="vestibule-A105"><input type="checkbox" id="vestibule-A105" data-layer="A105" checked><span class="sw" style="background:var(--c-a105)"></span>A105 architect plan</label><label class="chip" for="vestibule-A151"><input type="checkbox" id="vestibule-A151" data-layer="A151" checked><span class="sw" style="background:var(--c-a151)"></span>A151 slab edge (PC-022)</label><label class="chip" for="vestibule-S201B"><input type="checkbox" id="vestibule-S201B" data-layer="S201B" checked><span class="sw" style="background:var(--c-s201b)"></span>S201B foundation, Rev 19</label><label class="chip" for="vestibule-CW"><input type="checkbox" id="vestibule-CW" data-layer="CW" checked><span class="sw" style="background:var(--c-cw)"></span>Curtain wall shop drawings C3-019, C3-020</label></div>
+  <div class="row tools">
+    <div class="seg" role="group" aria-label="Quick views">
+      <button type="button" data-preset="A105,CW">Architect vs curtain wall</button>
+      <button type="button" data-preset="S201B,A151,CW">Structural vs architect</button>
+      <button type="button" data-preset="A105,A151,S201B,CW">All sheets</button>
+    </div>
+    <label class="toggle" for="vestibule-hl"><input type="checkbox" id="vestibule-hl" data-role="hl" checked><span>Labels and highlights</span></label>
+    <label class="toggle" for="vestibule-txt"><input type="checkbox" id="vestibule-txt" data-role="txt"><span>Show drawing text</span></label>
+    <div class="seg zoom" role="group" aria-label="Zoom">
+      <button type="button" data-zoom="1" aria-pressed="true">Fit</button>
+      <button type="button" data-zoom="2" aria-pressed="false">2×</button>
+      <button type="button" data-zoom="3" aria-pressed="false">3×</button>
+    </div>
+  </div>
+</div>
+  <div class="scroller"><div class="fig" style="aspect-ratio:1300/1100"><img src="/shop-drawings/stair-a-overlay/img/vestibule-A105-geo.png" data-layer="A105" alt="" width="1300" height="1100" decoding="async"><img src="/shop-drawings/stair-a-overlay/img/vestibule-A151-geo.png" data-layer="A151" alt="" width="1300" height="1100" decoding="async"><img src="/shop-drawings/stair-a-overlay/img/vestibule-S201B-geo.png" data-layer="S201B" alt="" width="1300" height="1100" decoding="async"><img src="/shop-drawings/stair-a-overlay/img/vestibule-CW-geo.png" data-layer="CW" alt="" width="1300" height="1100" decoding="async"><svg class="hl" viewBox="0 0 1300 1100" preserveAspectRatio="none" aria-hidden="true"><defs><pattern id="hv" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#c62828" fill-opacity="0.18"/><line x1="0" y1="0" x2="0" y2="10" stroke="#c62828" stroke-width="4"/></pattern></defs><rect x="299.0" y="288.5" width="1001.0" height="100.5" fill="#7b1fa2" fill-opacity="0.11"/><rect x="299.0" y="389.0" width="125.5" height="711.0" fill="#7b1fa2" fill-opacity="0.11"/><path d="M1300 288.5 H299.0 V1100 M1300 389.0 H424.5 V1100" fill="none" stroke="#7b1fa2" stroke-width="3"/><rect x="355.5" y="304.5" width="944.5" height="100.5" fill="#2e7d32" fill-opacity="0.11"/><rect x="355.5" y="405.0" width="102.5" height="695.0" fill="#2e7d32" fill-opacity="0.11"/><path d="M1300 304.5 H355.5 V1100 M1300 405.0 H458.0 V1100" fill="none" stroke="#2e7d32" stroke-width="3" stroke-dasharray="12 7"/><rect x="299.0" y="288.5" width="30.0" height="811.5" fill="url(#hv)" stroke="#c62828" stroke-width="2"/><path d="M1300 277.5 H329.0 V1100" fill="none" stroke="#c62828" stroke-width="4.5"/><g class="pill"><rect x="503.3" y="226.4" width="733.5" height="34.1" rx="17.1" fill="#ffffff" stroke="#c62828" stroke-width="2"/><text x="870.0" y="243.5" font-size="22" fill="#c62828" text-anchor="middle" dominant-baseline="central">Glass line (C3-019, C3-020): 745 from grid I, 642 from grid 16</text></g><line x1="880" y1="292.5" x2="880" y2="452" stroke="#7b1fa2" stroke-width="2"/><g class="pill"><rect x="484.7" y="452.9" width="790.7" height="34.1" rx="17.1" fill="#ffffff" stroke="#7b1fa2" stroke-width="2"/><text x="880.0" y="470.0" font-size="22" fill="#7b1fa2" text-anchor="middle" dominant-baseline="central">S201B wall: 522–723 from I (200 thick), 451–702 from 16 (250 thick)</text></g><path d="M1186 530 H1250 V401.0" fill="none" stroke="#2e7d32" stroke-width="2"/><g class="pill"><rect x="496.1" y="513.0" width="767.8" height="34.1" rx="17.1" fill="#ffffff" stroke="#2e7d32" stroke-width="2"/><text x="880.0" y="530.0" font-size="22" fill="#2e7d32" text-anchor="middle" dominant-baseline="central">A151 and curtain wall curb: 490–691 from I, 384–589 from 16 (200)</text></g><line x1="314.0" y1="760" x2="478" y2="760" stroke="#c62828" stroke-width="2"/><g class="pill"><rect x="480.0" y="743.0" width="493.2" height="34.1" rx="17.1" fill="#ffffff" stroke="#c62828" stroke-width="2"/><text x="726.6" y="760.0" font-size="22" fill="#c62828" text-anchor="middle" dominant-baseline="central" font-weight="600">60 mm of S201B concrete outside the glass</text></g><path d="M1100 288.5 H1140" stroke="#7b1fa2" stroke-width="3"/><path d="M1100 304.5 H1140" stroke="#2e7d32" stroke-width="3"/><g class="pill"><rect x="1169.3" y="277.4" width="81.4" height="34.1" rx="17.1" fill="#ffffff" stroke="#7b1fa2" stroke-width="2"/><text x="1210.0" y="294.5" font-size="22" fill="#7b1fa2" text-anchor="middle" dominant-baseline="central" font-weight="600">32 mm</text></g><g class="pill"><rect x="602.6" y="6.5" width="94.8" height="31.0" rx="15.5" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="650.0" y="22.0" font-size="20" fill="#263238" text-anchor="middle" dominant-baseline="central">Grid 16</text></g><g class="pill"><rect x="3.8" y="634.5" width="84.4" height="31.0" rx="15.5" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="46.0" y="650.0" font-size="20" fill="#263238" text-anchor="middle" dominant-baseline="central">Grid I</text></g><g class="pill"><rect x="1192.6" y="6.5" width="94.8" height="31.0" rx="15.5" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="1240.0" y="22.0" font-size="20" fill="#263238" text-anchor="middle" dominant-baseline="central">North ↑</text></g><g class="pill"><rect x="102.6" y="144.5" width="94.8" height="31.0" rx="15.5" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="150.0" y="160.0" font-size="20" fill="#263238" text-anchor="middle" dominant-baseline="central">Outside</text></g><g class="pill"><rect x="854.6" y="884.5" width="250.8" height="31.0" rx="15.5" fill="#ffffff" stroke="#263238" stroke-width="2"/><text x="980.0" y="900.0" font-size="20" fill="#263238" text-anchor="middle" dominant-baseline="central">Entrance vestibule 103</text></g></svg></div></div>
+  <ul class="notes">
+    <li>The red line is the glass. The green dashed L is the curb on A151 and on the curtain wall drawings, just inside the glass. The purple L is where S201B draws the concrete.</li>
+    <li>North wall: S201B is <span class="k">32 mm</span> further north. Still behind the glass, but <span class="k">22 mm</span> behind it instead of <span class="k">53</span>.</li>
+    <li>West wall: S201B shows it <span class="k">250</span> thick and pushed west, so <span class="k">60 mm</span> of concrete sits outside the glass (red hatch).</li>
+    <li>RFI 201 changed these curbs to 250 mm, but no revised sketch says which face stays put.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Sheets used: A105 Partial Plan West Level 1; A151 Slab Edge Partial Plan with PC-022; S201B Foundation Plan Rev 19 (Jul 23, 2026); Bothwell curtain wall shop drawings 08 44 13-15.2, sheets C3-016 to C3-020.</p>
+  <p>Each sheet is drawn at true scale (stair 2.5 mm per pixel, vestibule 2.0 mm) and placed on its own grid lines. Each curtain wall partial plan shows only one grid line, so its other direction comes from the face-of-glass dimension on its own section: 479, 664, 745 and 642. At this zoom, the text on the 1:100 sheets is huge, so it starts switched off; Show drawing text brings it back. Line positions are good to about ±3 mm.</p>
+  <p>The EW11 cladding shop drawings aren't overlaid yet. Prepared November 5, 2026 from the curtain wall second revision returned October 2, 2026.</p>
+</footer>
+</main>
+<script>
+document.querySelectorAll(".view").forEach(function (view) {
+  var id = view.id;
+  var fig = view.querySelector(".fig");
+  var imgs = Array.prototype.slice.call(fig.querySelectorAll("img"));
+  var svg = fig.querySelector("svg.hl");
+  var boxes = Array.prototype.slice.call(view.querySelectorAll("input[data-layer]"));
+  var txt = view.querySelector('input[data-role="txt"]');
+  var hl = view.querySelector('input[data-role="hl"]');
+  function apply() {
+    var on = {};
+    boxes.forEach(function (b) { on[b.dataset.layer] = b.checked; });
+    imgs.forEach(function (im) {
+      im.hidden = !on[im.dataset.layer];
+      var want = "/shop-drawings/stair-a-overlay/img/" + id + "-" + im.dataset.layer + "-" + (txt.checked ? "full" : "geo") + ".png";
+      if (im.getAttribute("src") !== want) im.setAttribute("src", want);
+    });
+    svg.hidden = !hl.checked;
+  }
+  boxes.forEach(function (b) { b.addEventListener("change", apply); });
+  txt.addEventListener("change", apply);
+  hl.addEventListener("change", apply);
+  view.querySelectorAll("[data-preset]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var keep = btn.dataset.preset.split(",");
+      boxes.forEach(function (b) { b.checked = keep.indexOf(b.dataset.layer) >= 0; });
+      apply();
+    });
+  });
+  view.querySelectorAll("[data-zoom]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var z = Number(btn.dataset.zoom);
+      fig.style.width = (z * 100) + "%";
+      fig.parentNode.classList.toggle("zoomed", z > 1);
+      view.querySelectorAll("[data-zoom]").forEach(function (b) { b.setAttribute("aria-pressed", String(b === btn)); });
+    });
+  });
+  apply();
+});
+</script>
+
+</body>
+</html>
