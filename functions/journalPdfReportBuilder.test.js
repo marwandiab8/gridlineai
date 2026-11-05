@@ -281,3 +281,83 @@ test("renderJournalPdf ends a project journal with its Procore daily log, repeat
     PDFPage.prototype.drawText = realDrawText;
   }
 });
+
+test("renderJournalPdf ends the Procore daily log with its photos: the large ones two to a row, then the small ones", async () => {
+  const sharp = require("sharp");
+  const { PDFDocument, PDFPage, StandardFonts } = require("pdf-lib");
+  const { renderJournalPdf } = require("./journalPdfReportBuilder");
+  const landscape = await sharp({ create: { width: 1600, height: 1200, channels: 3, background: { r: 90, g: 120, b: 150 } } }).jpeg().toBuffer();
+  const portrait = await sharp({ create: { width: 270, height: 360, channels: 3, background: { r: 150, g: 120, b: 90 } } }).jpeg().toBuffer();
+  const files = new Map();
+  const at = (i) => new Date(Date.UTC(2026, 10, 3, 13 + i, 34)).toISOString(); // 8:34 AM in Toronto, then each hour
+  const photo = (kind, i, uploader, buf) => {
+    const p = { id: `${kind}${i}`, storagePath: `procoreDailyLogs/docksteader/2026-11-03/${kind}-${i}.jpg`, takenAt: at(i), uploader };
+    if (buf) files.set(p.storagePath, buf);
+    return p;
+  };
+  const large = [0, 1, 2].map((i) => photo("large", i, "Pat Lee", landscape));
+  const thumbs = Array.from({ length: 8 }, (_, i) => photo("small", i, "Sam Roy", i === 7 ? null : portrait));
+  const storageBucket = {
+    file: (name) => ({
+      async download() {
+        if (!files.has(name)) throw new Error("No such object");
+        return [files.get(name)];
+      },
+    }),
+  };
+  const procoreDailyLog = {
+    completedBy: "Pat Lee",
+    completedOn: "Tue, November 3, 2026",
+    photos: 33,
+    weather: null,
+    manpower: [{ company: "Legacy Masonry", workers: 5, manHours: 50, notes: "Block wall on GL 6.1." }],
+    totals: { workers: 5, manHours: 50 },
+    visitors: [],
+    inspections: [],
+    sections: [],
+  };
+  const realDrawText = PDFPage.prototype.drawText;
+  const realDrawImage = PDFPage.prototype.drawImage;
+  try {
+    const pdf = await PDFDocument.create();
+    const drawn = [];
+    const images = [];
+    PDFPage.prototype.drawText = function drawText(text, options) {
+      drawn.push(text);
+      return realDrawText.call(this, text, options);
+    };
+    PDFPage.prototype.drawImage = function drawImage(image, options) {
+      images.push({ page: pdf.getPages().indexOf(this), ...options });
+      return realDrawImage.call(this, image, options);
+    };
+    await renderJournalPdf({
+      pdf,
+      font: await pdf.embedFont(StandardFonts.Helvetica),
+      fontBold: await pdf.embedFont(StandardFonts.HelveticaBold),
+      fontItalic: await pdf.embedFont(StandardFonts.HelveticaOblique),
+      storageBucket,
+      titleStr: "Daily Journal - Docksteader - Tue, Nov 3, 2026",
+      footerBrand: "Gridline",
+      coverMeta: { titleMain: "Daily Journal" },
+      merged: { storylines: [], orphanPhotos: [], procoreDailyLog, procorePhotos: { total: 33, starred: false, large, thumbs } },
+      logger: { warn() {} },
+      runId: "test",
+    });
+    assert.ok(drawn.includes("PHOTOS"));
+    assert.ok(drawn.includes("33 photos in the Procore daily log: 3 shown large and 8 more small, picked through the day."));
+    assert.ok(drawn.includes("8:34 AM · Pat Lee") && drawn.includes("10:34 AM · Pat Lee"));
+    assert.ok(drawn.includes("1:34 PM"), "a small photo's time");
+    assert.equal(drawn.filter((t) => t === "Photo unavailable").length, 1, "the one missing from Storage");
+    assert.equal(images.length, 10);
+    const [first, second, third] = images;
+    assert.ok(first.y === second.y && second.x > first.x + first.width, "the first two large photos side by side");
+    assert.ok(third.y < first.y || third.page > first.page, "the third large photo on the next row");
+    assert.ok(Math.abs(first.width - 245) < 1 && Math.abs(first.height - 183.75) < 1, "a large photo fills half the width");
+    const small = images.slice(3);
+    assert.ok(small.every((image) => image.height <= 62 && image.width < 60), "the small photos are thumbnails");
+    assert.equal(new Set(small.slice(0, 6).map((image) => `${image.page}:${image.y}`)).size, 1, "six small photos to a row");
+  } finally {
+    PDFPage.prototype.drawText = realDrawText;
+    PDFPage.prototype.drawImage = realDrawImage;
+  }
+});

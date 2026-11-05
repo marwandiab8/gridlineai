@@ -469,9 +469,9 @@ Photo rendering rules:
 - already-rendered photos move out of remaining site photos
 - captions can be shortened or removed when they repeat nearby report text
 
-### Procore photos (project site logs)
+### Procore photos (project site logs and journals)
 
-A project's Daily Site Log ends with a "Procore Photos" section once that day's completed Procore daily log has been sent (see "Procore daily log" under the journal rules). Procore holds 30 to 100+ photos a day, so only some are shown:
+A project's Daily Site Log ends with a "Procore Photos" section, and its journal's "Procore daily log" section ends with the same photos, once that day's completed Procore daily log has been sent (see "Procore daily log" under the journal rules). Procore holds 30 to 100+ photos a day, so only some are shown:
 
 - up to 4 large, at good resolution (kept at 1600 px), two to a row with when and who took them: the photos starred in Procore, or, on a day with none starred, 4 spread through the day
 - up to 24 small low-resolution thumbnails (kept at 360 px) spread through the rest of the day, six to a row with the time
@@ -479,7 +479,7 @@ A project's Daily Site Log ends with a "Procore Photos" section once that day's 
 - the job sends the day's photo list with the log: each photo's time, uploader, star and Procore's signed file links (only `https://storage.procore.com` links are accepted). The list waits in `procorePhotoQueue/{project}__{day}` (no client access) until `processProcoreDailyLogPhotos` copies the picked photos to Storage under `procoreDailyLogs/{project}/{day}/` (no client access) and records them as the log's `photoSet`. Then the queue entry and its links are deleted
 - the same photos with the same stars aren't copied again; a photo added or starred later makes a new pick, and photos the new pick doesn't use are removed
 - a site log holding Procore photos isn't empty
-- code: `functions/procoreDailyLogPhotos.js` (tests in `procoreDailyLogPhotos.test.js`), loaded in `dailyReportPdf.js`, drawn in `dailyPdfReportBuilderLegacy.js`
+- code: `functions/procoreDailyLogPhotos.js` (tests in `procoreDailyLogPhotos.test.js`), loaded in `dailyReportPdf.js`, drawn in `dailyPdfReportBuilderLegacy.js` (site log) and `journalPdfReportBuilder.js` (journal)
 
 ## Daily Journal Rules
 
@@ -615,6 +615,8 @@ A project's journal ends with that day's Procore daily log once the completed lo
 - the first time a day's log arrives, that day's journal is queued again for the management push (`managementJournalPushQueue/{date}__{project}__journal__management__procore`) and texted as "Journal PDF (Docksteader - 2026-11-02 - with the Procore daily log)"; the 9 PM push is unchanged. A log sent with `deliver: false` is kept without texting (for filling in past days)
 - a journal holding a Procore log isn't empty, so it's texted even on a day with nothing else logged
 - the section shows who completed the log and when, the total workers and hours and the photo count; the observed weather (the sky through the day, low to high, wind and gusts, precipitation, and the hourly readings); a row per company with its workers, man-hours and the log's comment as written, with a total row; then visitors, inspections and any other entries (notes, deliveries, delays, accidents, safety violations, equipment and so on)
+- it ends with the day's Procore photos, the same picks as the site log's (see "Procore photos" under the site log rules): the large ones two to a row with when and who took them, then the small ones six to a row with the time, each row's photos on one bottom line
+- the journal texted as the log arrives waits up to 2.5 minutes for its photos to be copied (`waitForProcorePhotos`: until `procorePhotoQueue/{project}__{day}` is gone), then goes without them
 - the journal's AI doesn't see the Procore log: the section is drawn from the log as Procore has it
 - personal journals (no project) never show it
 - code: `functions/procoreDailyLog.js` (tests in `procoreDailyLog.test.js`), loaded in `dailyReportPdf.js`, drawn in `journalPdfReportBuilder.js`
@@ -632,7 +634,7 @@ The journal renderer can include:
 - Reflections
 - Additional Photos
 - Closing Note
-- Procore daily log (project journals, once that day's completed log has been sent)
+- Procore daily log (project journals, once that day's completed log has been sent), ending with its photos
 
 ## AI Daily Site Log Rules
 

@@ -6,6 +6,7 @@ const {
   procorePhotoSourceHash,
   selectProcorePhotos,
   processProcorePhotoQueue,
+  waitForProcorePhotos,
   loadProcorePhotoSet,
   photoTimeLabel,
   procorePhotoCaption,
@@ -133,6 +134,33 @@ test("processProcorePhotoQueue keeps large and small copies, records them and dr
   assert.equal(loaded.large.length, 3);
   assert.equal(loaded.thumbs.length, 6);
   assert.equal(await loadProcorePhotoSet(db, "docksteader", "2026-11-04"), null);
+});
+
+test("waitForProcorePhotos waits until the day's photo list has been dealt with, up to a limit", async () => {
+  let exists = true;
+  const db = {
+    collection: (col) => ({
+      doc: (id) => ({
+        async get() {
+          assert.equal(`${col}/${id}`, "procorePhotoQueue/docksteader__2026-11-03");
+          return { exists };
+        },
+      }),
+    }),
+  };
+  const slept = [];
+  const sleep = async (ms) => {
+    slept.push(ms);
+    if (slept.length === 3) exists = false; // the photos are copied and the queue entry deleted
+  };
+  assert.equal(await waitForProcorePhotos(db, "docksteader", "2026-11-03", { sleep }), true);
+  assert.deepEqual(slept, [3000, 3000, 3000]);
+
+  exists = true;
+  slept.length = 0;
+  const never = async (ms) => { slept.push(ms); };
+  assert.equal(await waitForProcorePhotos(db, "docksteader", "2026-11-03", { timeoutMs: 30000, intervalMs: 3000, sleep: never }), false);
+  assert.equal(slept.length, 10);
 });
 
 test("the site log's wording for the photos", () => {

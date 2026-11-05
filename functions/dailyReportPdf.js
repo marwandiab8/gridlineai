@@ -801,13 +801,17 @@ async function generateDailyReportPdf(opts) {
 
     merged = mergeJournalStorylines(model, journalJson);
     // A project's journal ends with that day's Procore daily log, once Marwan's computer has sent the completed log
-    // (procoreDailyLog.js). Never blocks the journal.
+    // (procoreDailyLog.js), and its photos once they've been copied (procoreDailyLogPhotos.js, the same picks as the
+    // site log's). Never blocks the journal.
     if (projectKey) {
       try {
         const procoreDailyLog = await loadProcoreDailyLog(db, projectKey, dk);
-        if (procoreDailyLog) merged.procoreDailyLog = procoreDailyLog;
+        if (procoreDailyLog) {
+          merged.procoreDailyLog = procoreDailyLog;
+          merged.procorePhotos = await loadProcorePhotoSet(db, projectKey, dk);
+        }
       } catch (procoreErr) {
-        if (logger && logger.warn) logger.warn("dailyReportPdf: Procore daily log not read", { runId, message: procoreErr.message });
+        if (logger && logger.warn) logger.warn("dailyReportPdf: Procore daily log or photos not read", { runId, message: procoreErr.message });
       }
     }
     if (logger) {
