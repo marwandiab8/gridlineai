@@ -2,7 +2,7 @@ const { rgb } = require("pdf-lib");
 const { sanitizePdfText } = require("./pdfWinAnsiText");
 const { drawRichText } = require("./pdfEmoji");
 const { refineCaptionForPdf } = require("./dailyPdfCompact");
-const { wrapToLines } = require("./dailyPdfReportBuilderLegacy");
+const { wrapToLines, shrinkPhotoForPdf } = require("./dailyPdfReportBuilderLegacy");
 const { formatSetParts, formatTimeRange, formatMinutes } = require("./gymK2Workouts");
 const {
   formatHours,
@@ -11,6 +11,11 @@ const {
   describeProcoreVisitor,
   describeProcoreInspection,
 } = require("./procoreDailyLog");
+const {
+  describeProcorePhotoSet,
+  procorePhotoCaption,
+  photoTimeLabel: procorePhotoTime,
+} = require("./procoreDailyLogPhotos");
 
 const LEADING = 3;
 // A photo is shrunk to fit what's left of a page down to this height (about 2 inches), never smaller.
@@ -683,10 +688,54 @@ async function renderJournalPdf(opts) {
   }
 
   /**
-   * The day's Procore daily log (procoreDailyLog.js), after the journal itself: who completed it and the day's totals,
-   * the observed weather, the companies on site, then visitors, inspections and the log's other entries.
+   * Photos side by side, `perRow` to a row, each scaled into its cell (at most `maxH` tall) and sitting on the row's
+   * bottom line, with a short caption centred under it. A row is never split over two pages.
    */
-  function drawProcoreDailyLog(log) {
+  async function drawPhotoGrid(photos, { perRow, gapX, maxH, caption }) {
+    const cellW = (contentW - gapX * (perRow - 1)) / perRow;
+    const captionSize = 7.5;
+    const captionLH = captionSize + 2;
+    for (let k = 0; k < photos.length; k += perRow) {
+      const cells = [];
+      for (const photo of photos.slice(k, k + perRow)) {
+        let img = null;
+        try {
+          if (storageBucket) {
+            const [buf] = await storageBucket.file(photo.storagePath).download();
+            img = await embedImageIfPossible(pdf, await shrinkPhotoForPdf(buf));
+          }
+        } catch (e) {
+          if (logger && logger.warn) logger.warn("journalPdfReportBuilder: Procore photo download failed", { runId, path: photo.storagePath, message: e.message });
+        }
+        const scale = img ? Math.min(cellW / img.width, maxH / img.height) : 0;
+        const text = img ? caption(photo) : "Photo unavailable";
+        cells.push({ img, w: img ? img.width * scale : 0, h: img ? img.height * scale : 0, lines: linesFor(text, font, captionSize, cellW).slice(0, 2) });
+      }
+      const imagesH = Math.max(...cells.map((cell) => cell.h));
+      const rowH = imagesH + 4 + Math.max(...cells.map((cell) => cell.lines.length)) * captionLH + (perRow > 2 ? 8 : 12);
+      ensureSpace(rowH);
+      const top = y;
+      cells.forEach((cell, i) => {
+        const left = margin + i * (cellW + gapX);
+        if (cell.img) page.drawImage(cell.img, { x: left + (cellW - cell.w) / 2, y: top - imagesH, width: cell.w, height: cell.h });
+        let cy = top - imagesH - 4;
+        for (const line of cell.lines) {
+          const width = font.widthOfTextAtSize(sanitizePdfText(line), captionSize);
+          drawRichText(page, line, { x: left + (cellW - width) / 2, y: cy - captionSize, size: captionSize, font, color: C.muted });
+          cy -= captionLH;
+        }
+      });
+      y = top - rowH;
+    }
+  }
+
+  /**
+   * The day's Procore daily log (procoreDailyLog.js), after the journal itself: who completed it and the day's totals,
+   * the observed weather, the companies on site, then visitors, inspections and the log's other entries, and last some
+   * of the day's photos (procoreDailyLogPhotos.js, the same picks as the site log's): a few large, two to a row with
+   * when and who took them, then the small ones six to a row with the time.
+   */
+  async function drawProcoreDailyLog(log, photos) {
     const color = PROCORE_COLOR;
     drawChapterHeading("Procore daily log", color);
     drawText(describeProcoreLogFacts(log), { size: 9, color: C.muted, leading: 3 });
@@ -716,6 +765,13 @@ async function renderJournalPdf(opts) {
       drawLabel(section.title, color);
       drawBulletList(section.entries, color);
       y -= 6;
+    }
+    if (photos && (photos.large.length || photos.thumbs.length)) {
+      drawLabel("Photos", color);
+      drawText(describeProcorePhotoSet(photos), { size: 9, color: C.muted, leading: 3 });
+      y -= 6;
+      await drawPhotoGrid(photos.large, { perRow: 2, gapX: 14, maxH: 200, caption: procorePhotoCaption });
+      await drawPhotoGrid(photos.thumbs, { perRow: 6, gapX: 8, maxH: 62, caption: (p) => procorePhotoTime(p.takenAt) });
     }
     pendingLabel = null;
   }
@@ -798,7 +854,7 @@ async function renderJournalPdf(opts) {
 
   if (merged.procoreDailyLog) {
     try {
-      drawProcoreDailyLog(merged.procoreDailyLog);
+      await drawProcoreDailyLog(merged.procoreDailyLog, merged.procorePhotos);
     } catch (procoreErr) {
       if (logger && logger.warn) logger.warn("journalPdfReportBuilder: Procore daily log not drawn", { runId, message: procoreErr.message });
     }

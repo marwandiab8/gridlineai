@@ -146,6 +146,7 @@ const {
   resolveManagementJournalDeliveryContext,
   shouldSkipManagementJournalDelivery,
 } = require("./managementJournalDelivery");
+const { waitForProcorePhotos } = require("./procoreDailyLogPhotos");
 const {
   generateShortcutToken,
   hashShortcutToken,
@@ -4646,6 +4647,11 @@ exports.deliverDailyManagementJournalPush = onDocumentCreated(
         lastError: `no_${audience}_recipients`,
       }).catch(() => {});
       return;
+    }
+
+    // The journal texted as its Procore log arrives waits for that log's photos to be copied, so it shows them.
+    if (withProcoreLog && !(await waitForProcorePhotos(db, projectSlug, reportDateKey).catch(() => false))) {
+      logger.warn("deliverDailyManagementJournalPush: Procore photos not copied in time, sending without them", { projectSlug, reportDateKey });
     }
 
     const pdfResult = await generateDailyReportPdf({
@@ -10385,8 +10391,8 @@ exports.ingestProcoreDailyLogCallable = onCall(
   }
 );
 
-// The day's Procore photos for the site log (procoreDailyLogPhotos.js): copies the picked photos out of Procore once
-// a log with its photo list arrives, then drops the queued list and its signed links.
+// The day's Procore photos for the site log and the journal (procoreDailyLogPhotos.js): copies the picked photos out
+// of Procore once a log with its photo list arrives, then drops the queued list and its signed links.
 const { processProcorePhotoQueue, COL_PROCORE_PHOTO_QUEUE } = require("./procoreDailyLogPhotos");
 
 exports.processProcoreDailyLogPhotos = onDocumentWritten(

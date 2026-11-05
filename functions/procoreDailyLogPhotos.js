@@ -1,4 +1,4 @@
-// The Procore daily log's photos, for a project's Daily Site Log (Docksteader).
+// The Procore daily log's photos, for a project's Daily Site Log and journal (Docksteader).
 //
 // The procore-daily-notes job sends the day's photo list with the completed log (procoreDailyLog.js): each photo's
 // time, who took it, its star, and Procore's signed file links (storage.procore.com, readable without a sign-in).
@@ -139,7 +139,21 @@ async function processProcorePhotoQueue({ db, FieldValue, bucket, logger, ref, q
   }
 }
 
-/** The day's kept photos for the site log, or null when there are none (yet). */
+/**
+ * Waits for the day's photo list to be dealt with (processProcorePhotoQueue deletes its queue entry when it's done), so
+ * the journal texted as the log arrives shows the photos. True once nothing is waiting, false after about `timeoutMs`.
+ */
+async function waitForProcorePhotos(db, projectSlug, dateKey, { timeoutMs = 150000, intervalMs = 3000, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  const ref = db.collection(COL_PROCORE_PHOTO_QUEUE).doc(`${projectSlug}__${dateKey}`);
+  const tries = Math.max(1, Math.ceil(timeoutMs / intervalMs));
+  for (let i = 0; i < tries; i += 1) {
+    if (!(await ref.get()).exists) return true;
+    await sleep(intervalMs);
+  }
+  return !(await ref.get()).exists;
+}
+
+/** The day's kept photos for the site log and the journal, or null when there are none (yet). */
 async function loadProcorePhotoSet(db, projectSlug, dateKey) {
   if (!projectSlug || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey || ""))) return null;
   const snap = await db.collection("procoreDailyLogs").doc(`${projectSlug}__${dateKey}`).get();
@@ -178,6 +192,7 @@ module.exports = {
   procorePhotoSourceHash,
   selectProcorePhotos,
   processProcorePhotoQueue,
+  waitForProcorePhotos,
   loadProcorePhotoSet,
   photoTimeLabel,
   procorePhotoCaption,
