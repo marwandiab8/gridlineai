@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step animation of the Z2 Admin / Z3 Vehicle Bay construction joint at grid H: the bulkhead on the slab step, from subbase prep to toppings.">
+<title>Grid H Bulkhead Sequence · Docksteader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+.back{display:inline-block;margin:0 0 10px;font-family:var(--font-mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:2px}
+.back:hover{opacity:.8}
+.back:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+/* Layout: a drafting sheet (full width, max 1200) holds the animated section; transport bar under it, then caption + key numbers; single column on phones. */
+:root{
+  --bg:#e7ebee; --sheet:#fbfcfd; --ink:#1a2127; --muted:#5b6770; --rule:#c6ced5; --frame:#2a3238;
+  --accent:#0b7285; --accent-ink:#ffffff; --accent-soft:#d3eaef;
+  --p1:#a9c9e7; --p1-edge:#1f4e79; --p2:#f2c597; --p2-edge:#b4541c;
+  --later:#dde0e3; --later-edge:#7c858d;
+  --ins:#f6e27a; --ins-edge:#a88f00; --ins-hatch:#c3a50f;
+  --gran:#e6d6b7; --gran-edge:#977f55; --gran-dot:#9a8256; --earth:#b8aa8e;
+  --poly:#6b2fa0; --zbar:#c0392b; --bar:#2b3238; --dowel:#2f7d32;
+  --wood:#a46c36; --wood-edge:#5e3a17; --steel:#3c444b; --foam:#eceef0; --tube:#d9480f; --screed:#9aa5ad;
+  --font-display:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1316; --sheet:#151a1e; --ink:#e3e8ec; --muted:#94a1ab; --rule:#2b343b; --frame:#9aa6af;
+    --accent:#3fb7ca; --accent-ink:#071216; --accent-soft:#17343a;
+    --p1:#2b5476; --p1-edge:#8fc1ec; --p2:#7a4321; --p2-edge:#f0a463;
+    --later:#384047; --later-edge:#8d969e;
+    --ins:#665b17; --ins-edge:#d8c24a; --ins-hatch:#a4912b;
+    --gran:#473e30; --gran-edge:#ab9870; --gran-dot:#8b7b5b; --earth:#5b5343;
+    --poly:#c49cf0; --zbar:#ff6f61; --bar:#d4dce2; --dowel:#72cf76;
+    --wood:#b6804e; --wood-edge:#e2b484; --steel:#b7c0c7; --foam:#59636b; --tube:#ff8a4c; --screed:#7f8b93;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1316; --sheet:#151a1e; --ink:#e3e8ec; --muted:#94a1ab; --rule:#2b343b; --frame:#9aa6af;
+  --accent:#3fb7ca; --accent-ink:#071216; --accent-soft:#17343a;
+  --p1:#2b5476; --p1-edge:#8fc1ec; --p2:#7a4321; --p2-edge:#f0a463;
+  --later:#384047; --later-edge:#8d969e;
+  --ins:#665b17; --ins-edge:#d8c24a; --ins-hatch:#a4912b;
+  --gran:#473e30; --gran-edge:#ab9870; --gran-dot:#8b7b5b; --earth:#5b5343;
+  --poly:#c49cf0; --zbar:#ff6f61; --bar:#d4dce2; --dowel:#72cf76;
+  --wood:#b6804e; --wood-edge:#e2b484; --steel:#b7c0c7; --foam:#59636b; --tube:#ff8a4c; --screed:#7f8b93;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--font-body);font-size:15px;line-height:1.55;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.top{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:flex-end;justify-content:space-between}
+.ttl{flex:1 1 420px;min-width:0}
+.eyebrow{margin:0 0 4px;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4.4vw,42px);line-height:1.02;letter-spacing:.01em;text-wrap:balance}
+.sub{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.tblock{margin:0;display:grid;grid-template-columns:repeat(4,auto);border:1.5px solid var(--frame);background:var(--sheet);font-family:var(--font-mono);font-size:12.5px}
+.tblock>div{padding:6px 12px;border-left:1px solid var(--rule)}
+.tblock>div:first-child{border-left:0}
+.tblock dt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tblock dd{margin:2px 0 0;font-weight:500;white-space:nowrap}
+.sheet{margin:0;background:var(--sheet);border:1.5px solid var(--frame);outline:1px solid var(--rule);outline-offset:-7px}
+.sheet svg{display:block;width:100%;height:auto}
+.transport{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.ctl{appearance:none;display:inline-flex;align-items:center;gap:7px;padding:9px 14px;border-radius:6px;border:1.5px solid var(--frame);background:var(--sheet);color:var(--ink);font:600 14px/1 var(--font-body);cursor:pointer}
+.ctl svg{width:15px;height:15px;fill:currentColor;flex:none}
+.ctl:hover:not(:disabled){background:var(--bg)}
+.ctl.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-width:9.5em;justify-content:center}
+.ctl.primary:hover:not(:disabled){background:var(--accent);filter:brightness(1.08)}
+.ctl:disabled{opacity:.4;cursor:default}
+.ctl:focus-visible,.seg:focus-visible,.rfi summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.progress{flex:1 1 360px;min-width:0;display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:3px}
+.seg{appearance:none;height:32px;padding:0;border:1px solid var(--rule);border-radius:3px;background:var(--sheet);color:var(--muted);font:500 11.5px/1 var(--font-mono);font-variant-numeric:tabular-nums;cursor:pointer}
+.seg.done{background:var(--accent-soft);border-color:var(--accent-soft);color:var(--ink)}
+.seg[aria-current="step"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.caption{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,310px);gap:14px 32px;padding:18px 20px;background:var(--sheet);border:1.5px solid var(--frame)}
+.stepno{margin:0 0 2px;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.caption h2{margin:0 0 8px;font-family:var(--font-display);font-weight:700;font-size:26px;line-height:1.1;text-wrap:balance}
+#capText{margin:0;max-width:68ch}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;align-self:start}
+.chips li{padding:7px 10px;border-left:3px solid var(--accent);background:var(--bg);font-family:var(--font-mono);font-size:13px;line-height:1.35}
+.legend{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted)}
+.legend li{display:inline-flex;align-items:center;gap:7px}
+.sw{width:22px;height:12px;border:1.5px solid var(--muted);flex:none}
+.sw.ln{height:0;border-width:3px 0 0}
+.sw.ins{background:repeating-linear-gradient(45deg,var(--ins-hatch) 0 1.5px,var(--ins) 1.5px 5px);border-color:var(--ins-edge)}
+.sw.gran{background:radial-gradient(circle,var(--gran-dot) 0 1px,transparent 1.3px) 0 0/5px 5px,var(--gran);border-color:var(--gran-edge)}
+.rfi{background:var(--sheet);border:1.5px solid var(--frame);padding:12px 18px}
+.rfi summary{cursor:pointer;font-family:var(--font-display);font-weight:600;font-size:19px}
+.rfi ul{margin:10px 0 4px;padding-left:20px;display:grid;gap:6px;max-width:82ch}
+.foot{margin:0;font-size:12.5px;color:var(--muted);max-width:110ch}
+@media (max-width:700px){
+  .caption{grid-template-columns:1fr;padding:14px 16px}
+  .tblock{grid-template-columns:repeat(2,auto)}
+  .tblock>div:nth-child(3){border-left:0}
+  .tblock>div:nth-child(n+3){border-top:1px solid var(--rule)}
+  .progress{flex-basis:100%}
+  .ctl{padding:9px 12px}
+}
+/* drawing */
+#dwg text{font-family:var(--font-display)}
+#dwg .pi-bg{fill:var(--ins)} #dwg .pi-ln{stroke:var(--ins-hatch);stroke-width:1.6;fill:none}
+#dwg .pg-bg{fill:var(--gran)} #dwg .pg-dot{fill:var(--gran-dot)}
+#dwg .pe-bg{fill:var(--sheet)} #dwg .pe-ln{stroke:var(--earth);stroke-width:2;fill:none}
+#dwg .s-earth{stroke:var(--earth);stroke-width:2.5}
+#dwg .e-gran{stroke:var(--gran-edge);stroke-width:2}
+#dwg .e-ins{stroke:var(--ins-edge);stroke-width:2}
+#dwg .e-p1{fill:var(--p1);stroke:var(--p1-edge);stroke-width:4;stroke-linejoin:round}
+#dwg .e-p2{fill:var(--p2);stroke:var(--p2-edge);stroke-width:4;stroke-linejoin:round}
+#dwg .e-later{fill:var(--later);stroke:var(--later-edge);stroke-width:2.5;stroke-dasharray:14 8}
+#dwg .e-tube{fill:var(--later);stroke:var(--tube);stroke-width:4}
+#dwg .e-seal{fill:var(--ink)}
+#dwg .e-patch{fill:var(--poly)}
+#dwg .e-tape{fill:var(--accent)}
+#dwg .s-poly{stroke:var(--poly);stroke-width:7;stroke-linejoin:round;stroke-linecap:round;fill:none}
+#dwg .s-zbar{stroke:var(--zbar);stroke-width:11.3;stroke-linejoin:round;stroke-linecap:round;fill:none}
+#dwg .s-ext{stroke-dasharray:24 16;stroke-linecap:butt}
+#dwg .s-bar{stroke:var(--bar);stroke-width:11.3;stroke-linecap:round}
+#dwg .e-bar{fill:var(--bar)}
+#dwg .s-dowel{stroke:var(--dowel);stroke-width:11.3;stroke-linejoin:round;stroke-linecap:round;fill:none}
+#dwg .s-chair{stroke:var(--steel);stroke-width:3;fill:none;stroke-linejoin:round}
+#dwg .e-wood{fill:var(--wood);stroke:var(--wood-edge);stroke-width:2.5;stroke-linejoin:round}
+#dwg .e-foam{fill:var(--foam);stroke:var(--muted);stroke-width:1.5}
+#dwg .e-cleat{fill:none;stroke:var(--wood-edge);stroke-width:2.5;stroke-dasharray:12 8}
+#dwg .e-steel{fill:var(--steel)}
+#dwg .e-screed{fill:var(--screed);stroke:var(--steel);stroke-width:2}
+#dwg .s-rough{stroke:var(--ink);stroke-width:2.5;fill:none;stroke-linejoin:round}
+#dwg .s-acc-dash{stroke:var(--accent);stroke-width:4;stroke-dasharray:18 10;fill:none}
+#dwg .s-laser{stroke:var(--accent);stroke-width:4;stroke-dasharray:4 9;stroke-linecap:round}
+#dwg .e-mark,#dwg .e-dot-acc{fill:var(--accent)}
+#dwg .s-dim{stroke:var(--ink);stroke-width:2;fill:none}
+#dwg .s-dim-acc{stroke:var(--accent);stroke-width:2.5;fill:none}
+#dwg .s-ext-line{stroke:var(--ink);stroke-width:1.5}
+#dwg .s-ssd{stroke:var(--accent);stroke-width:10;opacity:.75}
+#dwg .s-grid{stroke:var(--ink);stroke-width:2.5;stroke-dasharray:44 12 6 12}
+#dwg .e-bubble{fill:var(--sheet);stroke:var(--ink);stroke-width:3}
+#dwg .s-beyond{fill:none;stroke:var(--muted);stroke-width:2.5;stroke-dasharray:16 10}
+#dwg .bub{font-weight:700;font-size:44px;fill:var(--ink)}
+#dwg .hdr{font-weight:700;font-size:34px;letter-spacing:.06em;paint-order:stroke;stroke:var(--sheet);stroke-width:8px;stroke-linejoin:round}
+#dwg .hdr.z3{fill:var(--p2-edge)} #dwg .hdr.z2{fill:var(--p1-edge)}
+#dwg .secttl{font-family:var(--font-mono);font-size:21px;letter-spacing:.06em;fill:var(--muted);paint-order:stroke;stroke:var(--sheet);stroke-width:7px;stroke-linejoin:round}
+#dwg .lbl{font-weight:600;font-size:30px;fill:var(--ink);letter-spacing:.03em;paint-order:stroke;stroke:var(--sheet);stroke-width:9px;stroke-linejoin:round}
+#dwg .lbl.sub{font-family:var(--font-body);font-weight:500;font-size:23px;letter-spacing:0;fill:var(--muted)}
+#dwg .lbl.num{font-family:var(--font-mono);font-weight:500;letter-spacing:0}
+#dwg .lbl.acc{fill:var(--accent)} #dwg .lbl.zbar{fill:var(--zbar)} #dwg .lbl.poly{fill:var(--poly)}
+#dwg .lbl.wood{fill:var(--wood-edge)} #dwg .lbl.dowel{fill:var(--dowel)} #dwg .lbl.p1{fill:var(--p1-edge)} #dwg .lbl.p2{fill:var(--p2-edge)}
+.compact #dwg .lbl{font-size:48px;stroke-width:13px}
+.compact #dwg .lbl.sub,.compact #dwg .secttl{display:none}
+.compact #dwg .hdr{font-size:46px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="ttl">
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station</p>
+      <h1>Grid H Bulkhead Sequence</h1>
+      <p class="sub">How the Z2 Admin L1 / Z3 Vehicle Bay pour break gets built at the slab step and thickening along grid H, grids 16 → 9.</p>
+    </div>
+    <dl class="tblock">
+      <div><dt>Sheet</dt><dd>SK-01</dd></div>
+      <div><dt>Section</dt><dd>Grid H</dd></div>
+      <div><dt>Scale</dt><dd>≈1:10</dd></div>
+      <div><dt>Date</dt><dd>2026-11-15</dd></div>
+    </dl>
+  </header>
+
+  <figure class="sheet" id="sheet">
+    <svg id="dwg" viewBox="-1300 0 2300 1260" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="dwgTitle">
+      <title id="dwgTitle">Section at grid H between columns, showing the bulkhead build sequence</title>
+      <defs>
+        <pattern id="pIns" width="26" height="26" patternUnits="userSpaceOnUse">
+          <rect width="26" height="26" class="pi-bg"/>
+          <path d="M-2 28 28 -2M-15 15 15 -15M11 41 41 11" class="pi-ln"/>
+          <path d="M-2 -2 28 28M11 -15 41 15M-15 11 15 41" class="pi-ln"/>
+        </pattern>
+        <pattern id="pGran" width="24" height="24" patternUnits="userSpaceOnUse">
+          <rect width="24" height="24" class="pg-bg"/>
+          <circle cx="5" cy="6" r="2.1" class="pg-dot"/><circle cx="16" cy="13" r="1.7" class="pg-dot"/><circle cx="9" cy="19" r="1.3" class="pg-dot"/><circle cx="20" cy="3" r="1.2" class="pg-dot"/>
+        </pattern>
+        <pattern id="pEarth" width="44" height="44" patternUnits="userSpaceOnUse">
+          <rect width="44" height="44" class="pe-bg"/>
+          <path d="M-4 48 48 -4M-26 26 26 -26M18 70 70 18" class="pe-ln"/>
+        </pattern>
+      </defs>
+      <g id="layers"></g>
+    </svg>
+  </figure>
+
+  <div class="transport">
+    <div class="btns">
+      <button class="ctl" id="bPrev" type="button" aria-label="Previous step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10.6 1.4 12 2.8 6.8 8l5.2 5.2-1.4 1.4L4 8z"/></svg><span>Prev</span></button>
+      <button class="ctl primary" id="bPlay" type="button"><span id="playIc" aria-hidden="true"></span><span id="playTxt">Play sequence</span></button>
+      <button class="ctl" id="bNext" type="button" aria-label="Next step"><span>Next</span><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.4 1.4 4 2.8 9.2 8 4 13.2l1.4 1.4L12 8z"/></svg></button>
+    </div>
+    <div class="progress" id="progress" role="group" aria-label="Jump to a step"></div>
+  </div>
+
+  <section class="caption" aria-live="polite">
+    <div>
+      <p class="stepno" id="capNo">Overview</p>
+      <h2 id="capTitle">The finished transition</h2>
+      <p id="capText"></p>
+    </div>
+    <ul class="chips" id="capChips" aria-label="Key numbers for this step"></ul>
+  </section>
+
+  <ul class="legend" aria-label="Legend">
+    <li><span class="sw" style="background:var(--p1);border-color:var(--p1-edge)"></span>Pour 1 · Z2</li>
+    <li><span class="sw" style="background:var(--p2);border-color:var(--p2-edge)"></span>Pour 2 · Z3</li>
+    <li><span class="sw" style="background:var(--later);border-color:var(--later-edge);border-style:dashed"></span>Curb + toppings (later)</li>
+    <li><span class="sw ins"></span>Rigid insulation</li>
+    <li><span class="sw gran"></span>Granular</li>
+    <li><span class="sw ln" style="border-color:var(--poly)"></span>Vapour retarder</li>
+    <li><span class="sw ln" style="border-color:var(--zbar)"></span>Z-bars</li>
+    <li><span class="sw ln" style="border-color:var(--bar)"></span>Slab bars</li>
+    <li><span class="sw ln" style="border-color:var(--dowel)"></span>Curb dowels</li>
+    <li><span class="sw" style="background:var(--wood);border-color:var(--wood-edge)"></span>Bulkhead + bracing</li>
+    <li><span class="sw" style="background:transparent;border-style:dashed"></span>Column beyond</li>
+  </ul>
+
+  <details class="rfi">
+    <summary>Settle with RJC and DSA before Pour 1</summary>
+    <ul>
+      <li><strong>The joint itself.</strong> 11/S006 draws this step as one pour, so a joint here is one not shown. It needs RJC approval (spec 1.6.3, 3.7.9), and RJC can ask for a key or extra bars (3.7.4).</li>
+      <li><strong>Lap across the joint.</strong> The Z-bar leg projects about 270 mm; the lap with the vehicle-bay bars needs about 450. That means a longer leg or added dowels. Check what AGF has already fabricated (R29 was released for fab Jun 17).</li>
+      <li><strong>Bar height at the joint.</strong> 4/R29 draws the legs low in the slab; slab note 5 on S201 puts bars 40 mm from the top. This sets the split line in the bulkhead.</li>
+      <li><strong>Mix in the thickening.</strong> SOG 2 (25 MPa N) or SOG 1 (35 MPa C-1 with 10 L/m³ DCI).</li>
+      <li><strong>Top of SOG 2.</strong> 253.070 on A151 vs 253.075 on AGF. This sets the bulkhead top.</li>
+      <li><strong>Pour length.</strong> Z2 is about 49 m long, over the 40 m maximum slab pour (spec 3.7.10).</li>
+      <li><strong>Where the section changes.</strong> The FW2 grade wall in braced bays 16–14 and 10–8, the walk-off recess in bay 16–15, and the east end at the door near grid 9.</li>
+    </ul>
+  </details>
+
+  <p class="foot">Schematic, approximately to scale. Dimensions in mm, elevations in m (finished floor 0.000 = 253.150). Drawn from 5/S702, 11/S006, 3/S008, 7/S008, A151 (PC-022), AGF 4/R29, the S201 slab-on-grade notes and spec 03 30 00. Not a substitute for RJC's detail.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const ZT = 1220, Y = z => ZT - z;
+  const XL = -1300, XR = 1000, XS = -437, XC = -287, XF = -237, XH = 13;
+  const LAST = 12;
+  const VIEW = { wide: [-1300, 0, 2300, 1260], narrow: [-1150, 0, 1600, 1260] };
+
+  const svg = document.getElementById("dwg");
+  const defs = svg.querySelector("defs");
+  const host = document.getElementById("layers");
+
+  function mk(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) { if (k === "_t") e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); }
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  const P = a => a.map(([x, z]) => x + "," + Y(z)).join(" ");
+  const rectZ = (x1, z1, x2, z2, a = {}) => ["rect", Object.assign({ x: Math.min(x1, x2), y: Y(Math.max(z1, z2)), width: Math.abs(x2 - x1), height: Math.abs(z2 - z1) }, a)];
+  const poly = (pts, a = {}) => ["polygon", Object.assign({ points: P(pts) }, a)];
+  const pline = (pts, a = {}) => ["polyline", Object.assign({ points: P(pts), fill: "none" }, a)];
+  const line = (x1, z1, x2, z2, a = {}) => ["line", Object.assign({ x1, y1: Y(z1), x2, y2: Y(z2) }, a)];
+  const circ = (x, z, r, a = {}) => ["circle", Object.assign({ cx: x, cy: Y(z), r }, a)];
+  const text = (x, z, s, a = {}) => ["text", Object.assign({ x, y: Y(z), dy: "0.35em", _t: s }, a)];
+  function thick(x1, z1, x2, z2, t, a) {
+    const dx = x2 - x1, dz = z2 - z1, L = Math.hypot(dx, dz), nx = -dz / L * t / 2, nz = dx / L * t / 2;
+    return poly([[x1 + nx, z1 + nz], [x2 + nx, z2 + nz], [x2 - nx, z2 - nz], [x1 - nx, z1 - nz]], a);
+  }
+  const chair = (x, z0, z1) => pline([[x - 16, z0], [x, z1], [x + 16, z0]], { class: "s-chair" });
+  const tick = (x, z, cls) => line(x - 9, z - 9, x + 9, z + 9, { class: cls });
+  const dimH = (x1, x2, z, cls = "s-dim") => [line(x1, z, x2, z, { class: cls }), tick(x1, z, cls), tick(x2, z, cls)];
+  const dimV = (x, z1, z2, cls = "s-dim") => [line(x, z1, x, z2, { class: cls }), tick(x, z1, cls), tick(x, z2, cls)];
+  function zig(x1, x2, zl, zh, st) { const p = []; let up = false; for (let x = x1; x <= x2 + 0.1; x += st) { p.push([x, up ? zh : zl]); up = !up; } return p; }
+  function tubes() {
+    const a = [];
+    for (let x = -1250; x <= -500; x += 150) a.push(circ(x, 640, 8, { class: "e-tube" }));
+    for (let x = -200; x <= 850; x += 150) a.push(circ(x, 707, 8, { class: "e-tube" }));
+    return a;
+  }
+
+  /* Geometry: x in mm from grid H (south negative), z in mm above 252.400. in/out = step it appears / disappears. */
+  const ITEMS = [
+    { L: "base", in: -1, sh: [rectZ(XL - 200, -60, XR + 200, 70, { fill: "url(#pEarth)" }), line(XL - 200, 70, XR + 200, 70, { class: "s-earth" })] },
+    // 1 · Z3 strip
+    { L: "sub", in: 1, a: "rise", dur: 900, sh: [rectZ(XL, 70, XS, 270, { fill: "url(#pGran)", class: "e-gran" })] },
+    { L: "sub", in: 1, a: "drop", dy: -140, dur: 700, d: 850, sh: [rectZ(XL, 270, XS, 420, { fill: "url(#pIns)", class: "e-ins" })] },
+    // 2 · thickening subbase + admin insulation
+    { L: "sub", in: 2, a: "rise", dur: 1100, sh: [poly([[XS, 70], [XR, 70], [XR, 395], [XH, 395], [XH, 545], [XF, 420], [XS, 420]], { fill: "url(#pGran)", class: "e-gran" })] },
+    { L: "set", in: 2, out: 3, a: "wipeR", dur: 600, d: 1100, sh: [line(XF, 420, XH, 545, { class: "s-acc-dash" })] },
+    { L: "sub", in: 2, a: "drop", dy: -140, dur: 700, d: 1500, sh: [rectZ(XH, 395, XR, 545, { fill: "url(#pIns)", class: "e-ins" })] },
+    // 9 · patches over stake holes
+    { L: "sub", in: 9, out: 11, a: "fade", dur: 400, d: 1700, sh: [rectZ(-548, 418, -494, 430, { class: "e-patch", rx: 4 }), rectZ(-1137, 418, -1083, 430, { class: "e-patch", rx: 4 })] },
+    // concrete
+    { L: "conc", in: 8, a: "rise", dur: 2200, sh: [poly([[XS, 420], [XS, 670], [XR, 670], [XR, 545], [XH, 545], [XF, 420]], { class: "e-p1" })] },
+    { L: "conc", in: 11, a: "rise", dur: 1800, sh: [rectZ(XL, 420, XS, 595, { class: "e-p2" })] },
+    // 12 · later work
+    { L: "later", in: 12, a: "rise", dur: 1000, sh: [rectZ(XS, 670, XC, 950, { class: "e-later" })] },
+    { L: "later", in: 12, a: "rise", dur: 1000, d: 900, sh: [rectZ(XL, 595, XS, 745, { class: "e-later" }), rectZ(XC, 670, XR, 745, { class: "e-later" })] },
+    { L: "later", in: 12, a: "fade", dur: 500, d: 1900, sh: tubes() },
+    { L: "later", in: 12, a: "fade", dur: 400, d: 2300, sh: [rectZ(-451, 731, -437, 745, { class: "e-seal", rx: 4 })] },
+    // membranes
+    { L: "memb", in: 3, a: "wipeL", dur: 1500, sh: [pline([[-737, 420], [XF, 420], [XH, 545], [XR, 545]], { class: "s-poly" })] },
+    { L: "memb", in: 10, a: "wipeR", dur: 1100, sh: [pline([[XL, 425], [XS - 3, 425]], { class: "s-poly" })] },
+    { L: "memb", in: 10, out: 11, a: "fade", dur: 300, d: 1100, sh: [rectZ(-755, 416, -719, 434, { class: "e-tape", rx: 3 })] },
+    // rebar
+    { L: "rebar", in: 5, a: "fade", dur: 400, sh: [chair(-380, 420, 509), chair(240, 545, 594), chair(565, 545, 594), chair(890, 545, 594)] },
+    { L: "rebar", in: 5, a: "drop", dy: -90, dur: 800, d: 200, sh: [pline([[-707, 515], [-312, 515], [-60, 612], [335, 612]], { class: "s-zbar" })] },
+    { L: "rebar", in: 5, a: "drop", dy: -90, dur: 800, d: 500, sh: [line(-20, 624, XR, 624, { class: "s-bar" }), circ(80, 600, 5.65, { class: "e-bar" }), circ(405, 600, 5.65, { class: "e-bar" }), circ(730, 600, 5.65, { class: "e-bar" })] },
+    { L: "rebar", in: 5, a: "fade", dur: 500, d: 1800, sh: [line(-887, 515, -707, 515, { class: "s-zbar s-ext" })] },
+    { L: "rebar", in: 6, a: "drop", dy: -120, dur: 800, d: 1000, sh: [pline([[-300, 465], [-395, 465], [-395, 910]], { class: "s-dowel" })] },
+    { L: "rebar", in: 10, a: "fade", dur: 400, d: 300, sh: [chair(-1000, 425, 494), chair(-700, 425, 494)] },
+    { L: "rebar", in: 10, a: "drop", dy: -90, dur: 800, d: 500, sh: [line(XL, 527, -487, 527, { class: "s-bar" }), circ(-1190, 500, 5.65, { class: "e-bar" }), circ(-890, 500, 5.65, { class: "e-bar" }), circ(-590, 500, 5.65, { class: "e-bar" })] },
+    // formwork
+    { L: "form", in: 5, out: 9, a: "slide", dx: -260, dur: 700, d: 1100, x: "move", ox: -340, xdur: 700, xd: 700, sh: [rectZ(-475, 420, -437, 509, { class: "e-wood" })] },
+    { L: "form", in: 6, out: 9, a: "fade", dur: 300, x: "fade", xdur: 300, xd: 600, sh: [rectZ(-475, 509, -437, 521, { class: "e-foam" })] },
+    { L: "form", in: 6, out: 9, a: "drop", dy: -180, dur: 700, d: 300, x: "move", oy: -220, xdur: 700, xd: 300, sh: [rectZ(-475, 521, -437, 670, { class: "e-wood" })] },
+    { L: "form", in: 6, out: 9, a: "fade", dur: 500, d: 700, x: "fade", xdur: 300, xd: 200, sh: [rectZ(-513, 430, -475, 660, { class: "e-cleat" })] },
+    { L: "form", in: 7, out: 9, a: "drop", dy: -330, dur: 650, e: "out", x: "move", oy: -380, xdur: 600, sh: [rectZ(-530, 170, -514, 650, { class: "e-steel" })] },
+    { L: "form", in: 7, out: 9, a: "drop", dy: -330, dur: 650, d: 350, e: "out", x: "move", oy: -380, xdur: 600, xd: 100, sh: [rectZ(-1118, 170, -1102, 468, { class: "e-steel" })] },
+    { L: "form", in: 7, out: 9, a: "wipeL", dur: 700, d: 1000, x: "fade", xdur: 300, sh: [thick(-514, 646, -1102, 458, 38, { class: "e-wood" })] },
+    { L: "form", in: 8, tr: true, a: "slide", dx: 900, dur: 1600, d: 2300, hold: 300, xdur: 400, sh: [rectZ(-490, 671, 400, 699, { class: "e-screed", rx: 5 })] },
+    { L: "form", in: 8, out: 12, a: "fade", dur: 400, d: 2600, sh: [pline(zig(-437, -287, 670, 684, 15), { class: "s-rough" })] },
+    // set-out
+    { L: "set", in: 4, a: "fade", dur: 500, d: 300, sh: [...dimH(XS, 0, 1110), line(XS, 965, XS, 1125, { class: "s-ext-line" }), text(-218, 1138, "437", { class: "lbl num", "text-anchor": "middle" })] },
+    { L: "set", in: 4, out: 6, a: "rise", dur: 700, sh: [line(XS, 380, XS, 790, { class: "s-acc-dash" })] },
+    { L: "set", in: 4, out: 7, a: "fade", dur: 400, d: 900, sh: [poly([[-192, 1088], [-192, 1052], [-157, 1070]], { class: "e-mark" })] },
+    { L: "set", in: 4, out: 7, a: "fade", dur: 500, d: 1300, sh: dimV(-200, 1070, 670, "s-dim-acc") },
+    { L: "set", in: 4, out: 7, a: "wipeL", dur: 800, d: 1800, sh: [line(-157, 670, -780, 670, { class: "s-laser" })] },
+    { L: "set", in: 9, out: 10, a: "rise", dur: 700, d: 1700, sh: [line(XS, 420, XS, 670, { class: "s-ssd" })] },
+    // always on top
+    { L: "top", in: -1, sh: [rectZ(-155, 300, 155, 1100, { class: "s-beyond" }), line(0, -40, 0, 1137, { class: "s-grid" }), circ(0, 1175, 38, { class: "e-bubble" }), text(0, 1175, "H", { class: "bub", "text-anchor": "middle" })] },
+  ];
+
+  /* Labels shown only during their step(s). */
+  const LABELS = [
+    { s: [0], x: -470, z: 830, a: "end", t: "CONSTRUCTION JOINT", sub: "= bulkhead line on the step face, 437 S of H", c: "acc" },
+    { s: [0], x: -150, z: 470, t: "THICKENING: 200 FLAT + 1:2" },
+    { s: [0, 2], x: -200, z: 300, t: "NO INSULATION UNDER THE THICKENING" },
+    { s: [0], x: -362, z: 1000, t: "CURB" },
+    { s: [0], x: -880, z: 468, t: "POUR 2 · Z3", c: "p2" },
+    { s: [0], x: 240, z: 572, t: "POUR 1 · Z2", c: "p1" },
+    { s: [0], x: -880, z: 690, t: "TOPPING + RADIANT" },
+    { s: [1], x: -790, z: 170, t: "200 GRANULAR → 252.670" },
+    { s: [1], x: -790, z: 345, t: "150 INSULATION → 252.820" },
+    { s: [1], x: -470, z: 480, a: "end", t: "STOPS AT THE STEP FACE", c: "acc", ex: [circ(XS, 420, 10, { class: "e-dot-acc" })] },
+    { s: [2], x: -337, z: 490, t: "200 FLAT · 252.820", ex: dimH(XS, XF, 450) },
+    { s: [2], x: -90, z: 518, t: "TRIM 1:2", c: "acc", rot: -26.57 },
+    { s: [2], x: 430, z: 470, a: "end", t: "ADMIN INSULATION 150", sub: "top 252.945 · tight to u/s SOG 2" },
+    { s: [3], x: 430, z: 615, a: "end", t: "Z2 VAPOUR RETARDER", c: "poly" },
+    { s: [3], x: -587, z: 484, t: "≥300 TAIL FOR THE Z3 LAP", c: "poly", ex: dimH(-737, XS, 450) },
+    { s: [4], x: -470, z: 820, a: "end", t: "BULKHEAD FACE 437 S OF H", sub: "measured from the column centreline", c: "acc" },
+    { s: [4], x: -215, z: 1070, a: "end", t: "F2C HP MARK 253.470" },
+    { s: [4], x: -215, z: 905, a: "end", t: "TOP OF BULKHEAD 253.070", sub: "HP mark − 400 · laser every 1.5–2 m", c: "acc" },
+    { s: [5], x: -40, z: 715, t: "Z-BARS 10M @300 · ON CHAIRS", c: "zbar" },
+    { s: [5], x: -500, z: 560, a: "end", t: "LOWER BOARD 2x4 (89)", c: "wood" },
+    { s: [5], x: -797, z: 470, t: "LAP FIX ≈450 OR DOWELS (RJC)", c: "zbar" },
+    { s: [5], x: 430, z: 780, a: "end", t: "ADMIN BARS 10M @325" },
+    { s: [6], x: -500, z: 640, a: "end", t: "UPPER BOARD → 253.070", c: "wood" },
+    { s: [6], x: -500, z: 470, a: "end", t: "FOAM + TAPE BETWEEN BARS" },
+    { s: [6], x: -520, z: 745, a: "end", t: "CLEATS ≤600 O/C (BEYOND)" },
+    { s: [6], x: -370, z: 905, a: "start", t: "CURB DOWELS 10M @450", sub: "on the curb centreline, ≈362 S of H", c: "dowel" },
+    { s: [7], x: -760, z: 130, t: "STAKES ≥400 INTO GRANULAR" },
+    { s: [7], x: -800, z: 655, t: "KICKER TO A STAKE ≈600 OUT", c: "wood" },
+    { s: [7], x: -760, z: 470, t: "Z3 SIDE ONLY", c: "acc" },
+    { s: [8], x: 100, z: 790, t: "POUR 1 · Z2 + THICKENING", c: "p1" },
+    { s: [8], x: -500, z: 745, a: "end", t: "SCREED TO 253.070" },
+    { s: [8], x: -362, z: 862, t: "CURB STRIP LEFT ROUGH", ex: [line(-362, 838, -362, 694, { class: "s-dim" })] },
+    { s: [9], x: -700, z: 780, t: "STRIP AFTER ≥24 h", sub: "longer when it is cold" },
+    { s: [9], x: -820, z: 470, t: "PATCH STAKE HOLES", c: "poly" },
+    { s: [9], x: -470, z: 600, a: "end", t: "CLEAN + SSD THE FACE", c: "acc" },
+    { s: [10], x: -850, z: 600, t: "VB BARS 10M @300", sub: "stop 50 off the face · tie to the Z-bar legs" },
+    { s: [10], x: -462, z: 575, t: "50", c: "num", ex: dimH(-487, XS, 550) },
+    { s: [10], x: -800, z: 345, t: "Z3 POLY LAPPED + TAPED", c: "poly" },
+    { s: [11], x: -850, z: 730, t: "POUR 2 · Z3 · 175 SOG 1", sub: "35 MPa C-1 + 10 L/m³ DCI corrosion inhibitor", c: "p2" },
+    { s: [11], x: -880, z: 640, t: "T/O 252.995 AT H", c: "num" },
+    { s: [11], x: -470, z: 790, a: "end", t: "STEP 75–85", ex: dimV(-455, 595, 670) },
+    { s: [12], x: -362, z: 1000, t: "CURB (C-1) · T/O 253.350" },
+    { s: [12], x: -800, z: 810, t: "TOPPINGS + RADIANT → 253.145" },
+    { s: [12], x: -470, z: 880, a: "end", t: "SEAL TOPPING TO CURB", c: "acc" },
+  ];
+
+  const STEPS = [
+    { t: "The finished transition",
+      d: "Section at grid H between columns, grids 16 → 9. The vehicle bay (Z3) finishes 75–85 mm below the admin slab (Z2). The thickening sits under the admin edge and the curb sits on the step. The bulkhead goes on the step face, 437 mm south of H, so Pour 1 takes the whole thickening. Press Play to build it step by step.",
+      k: ["Bulkhead face 437 S of H", "Top of bulkhead 253.070", "Bottom of bulkhead 252.820", "Bulkhead height ≈250"] },
+    { t: "Prep the Z3 strip",
+      d: "Before Pour 1, bring about 1.2 m south of the step face up to vehicle-bay grade: 200 mm of granular to 252.670, then 150 mm of insulation, top at 252.820. Cut the insulation straight on the step-face line; that edge becomes your setting line. Locate the underground rainwater leaders at the H columns before anyone drives a stake.",
+      k: ["Top of granular 252.670 · HP −800", "Top of insulation 252.820 · HP −650", "Strip ≈1.2 m wide"] },
+    { t: "Shape the thickening in the granular",
+      d: "North of the step face there is no insulation under the thickening. Compact Granular A to 252.820 across the 200 mm flat, then trim it 1:2 up to 252.945, ending about 13 mm north of H. The admin insulation starts at the top of the haunch, tight to the underside of SOG 2.",
+      k: ["200 flat at 252.820", "1:2 up to 252.945", "Admin insulation 252.945 → 252.795"] },
+    { t: "Lay the vapour retarder",
+      d: "Run the Z2 poly over the admin insulation, down the haunch, across the flat and at least 300 mm past the step face, so Z3 can lap and tape it later. Don't nail through it on the Z2 side, and protect the tail for the rest of the job.",
+      k: ["Tail ≥300 past the step face", "A151 note 9"] },
+    { t: "Set out the bulkhead line",
+      d: "String the bulkhead face 437 mm south of grid H, measured from the column centrelines, not the flanges. The top of the bulkhead is 253.070, which is 400 mm down from the F2C high-point mark (253.470) on each column. Check it with the laser every 1.5–2 m; it is the screed edge for Pour 1.",
+      k: ["Face 437 S of H", "HP 253.470 − 400 = 253.070", "Laser every 1.5–2 m"] },
+    { t: "Chair the Z-bars, slide in the lower board",
+      d: "Set the Z-bars (10M @300, AGF 10U01) on chairs first; the vehicle-bay leg runs straight through the joint. Slide the lower board in under the legs: a 2x4 on edge (89 mm) if they sit about 90 mm up as drawn on 4/R29, taller if they are chaired 40 mm from the top per slab note 5. The leg only projects about 270 mm, so RJC has to fix the lap with a longer leg (about 450) or added dowels. The admin bars (10M @325) go in now too.",
+      k: ["Z-bars 10M @300 (10U01)", "Lower board ≈89", "Lap fix ≈450 or dowels (RJC)"] },
+    { t: "Upper board, cleats and curb dowels",
+      d: "Set the upper board on top of the bars, up to 253.070 (about 150 mm, ripped from a 2x8). Close the gaps between bars with foam strip and tape, and tie the two boards together with 2x4 cleats on the back, between bars, at 600 mm or less. Release agent goes on the form face only. Set the curb dowels (10M @450, AGF 10U04) on the curb centreline, about 362 mm south of H, from a template; no wet-setting.",
+      k: ["Upper board to 253.070", "Cleats ≤600 o/c", "Curb dowels 10M @450 (10U04)"] },
+    { t: "Brace for line and level",
+      d: "The load is small: about 6 kPa at the base, under 1 kN per metre. The bracing only has to hold line and level while the crew screeds and vibrates. Drive steel stakes behind each cleat, through the insulation and at least 400 mm into the granular, and run a 2x4 kicker from every second cleat to a stake about 600 mm out. Every hole stays on the Z3 side.",
+      k: ["Stakes ≥400 into granular", "Kicker every 2nd cleat", "Z3 side only"] },
+    { t: "Pour 1: Z2 with the whole thickening",
+      d: "Give RJC 24 hours' notice (spec 3.1.2). Screed off the bulkhead top at 253.070. Vibrate the full 250 mm at the thickening and get into the column pockets, keeping vibrators off the form. Leave the curb strip (287–437 mm south of H) rough: no hard trowel and no curing compound. It is November, so place concrete at 10 °C or warmer on a frost-free subbase, under blankets or heat, with extra cover on the edge and the projecting bars.",
+      k: ["Screed to 253.070", "Curb strip left rough", "Concrete ≥10 °C"], ld: 2400 },
+    { t: "Strip and prep the joint",
+      d: "After at least 24 hours, longer when it is cold, pull the kickers and stakes, lift the upper board off and slide the lower board out south under the bars. Patch every stake hole in the insulation and poly. Wire-brush the face and bring it to saturated surface-dry right before Pour 2 (spec 3.7.5).",
+      k: ["≥24 h before stripping", "Patch insulation + poly", "SSD the face (3.7.5)"] },
+    { t: "Z3 bars and poly lap",
+      d: "Lay the vehicle-bay bars (10M @300) on chairs. Stop them about 50 mm off the joint face and tie them to the projecting Z-bar legs, or to the dowels RJC details. Lap the Z3 poly onto the Z2 tail and tape it.",
+      k: ["VB bars 10M @300", "Stop 50 off the face", "Poly lap taped"] },
+    { t: "Pour 2: Z3 vehicle bay",
+      d: "Place the 175 mm SOG 1: 35 MPa C-1 concrete with 10 L/m³ of DCI corrosion inhibitor. The top is 252.995 at H and falls 2% away from H. The top 75–85 mm of the Pour 1 face stays exposed as the step.",
+      k: ["T/O SOG 1 252.995 at H", "35 MPa C-1 + DCI", "Step 75–85"] },
+    { t: "Later: curb and toppings",
+      d: "The curb (C-1) goes on Pour 1 over the curb dowels, top at 253.350. Then come the toppings with radiant tubing: 150 mm on the vehicle-bay side and 75 mm on the admin side, both finishing at 253.145. Topping joints line up with the slab joints (spec 3.10.3), and the vehicle-bay topping gets sealant against the curb (spec 3.9.5).",
+      k: ["T/O curb 253.350", "Finish 253.145, both sides", "Sealant at the curb (3.9.5)"] },
+  ];
+
+  /* ---------- build the drawing ---------- */
+  const layers = {};
+  ["base", "sub", "conc", "later", "memb", "rebar", "form", "set", "top", "ann"].forEach(n => { layers[n] = mk("g", { "data-layer": n }, host); });
+  const items = ITEMS.map(sp => {
+    const g = mk("g", {}, layers[sp.L]);
+    sp.sh.forEach(([t, a]) => mk(t, a, g));
+    return { g, sp, clip: null };
+  });
+  const anns = LABELS.map(sp => {
+    const g = mk("g", {}, layers.ann);
+    (sp.ex || []).forEach(([t, a]) => mk(t, a, g));
+    const at = { x: sp.x, y: Y(sp.z), dy: "0.35em", "text-anchor": sp.a || "middle", class: "lbl " + (sp.c || ""), _t: sp.t };
+    if (sp.rot) at.transform = "rotate(" + sp.rot + " " + sp.x + " " + Y(sp.z) + ")";
+    mk("text", at, g);
+    if (sp.sub) mk("text", { x: sp.x, y: Y(sp.z - 33), dy: "0.35em", "text-anchor": sp.a || "middle", class: "lbl sub", _t: sp.sub }, g);
+    g.style.display = "none";
+    return { g, sp };
+  });
+  const hdrZ3 = mk("text", { y: Y(1172), dy: "0.35em", class: "hdr z3", "text-anchor": "start", _t: "Z3 · VEHICLE BAY" }, layers.top);
+  const hdrZ2 = mk("text", { y: Y(1172), dy: "0.35em", class: "hdr z2", "text-anchor": "end", _t: "Z2 · ADMIN L1" }, layers.top);
+  const sect = mk("text", { y: Y(-16), dy: "0.35em", class: "secttl", "text-anchor": "start", _t: "SECTION AT GRID H · BETWEEN COLUMNS · GRIDS 16 → 9 · ≈1:10" }, layers.top);
+
+  const sheet = document.getElementById("sheet");
+  let narrow = null;
+  function setView() {
+    const n = sheet.clientWidth < 700;
+    if (n === narrow) return;
+    narrow = n;
+    const v = n ? VIEW.narrow : VIEW.wide;
+    svg.setAttribute("viewBox", v.join(" "));
+    document.documentElement.classList.toggle("compact", n);
+    hdrZ3.setAttribute("x", v[0] + 30);
+    hdrZ2.setAttribute("x", v[0] + v[2] - 30);
+    sect.setAttribute("x", v[0] + 30);
+  }
+  setView();
+  if ("ResizeObserver" in window) new ResizeObserver(setView).observe(sheet); else window.addEventListener("resize", setView);
+
+  /* ---------- animation engine ---------- */
+  const EASE = { io: t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t };
+  let gen = 0;
+  function tween(dur, delay, fn, my, ease, done, init = true) {
+    const E = EASE[ease || "io"];
+    if (init) fn(0);
+    const t0 = performance.now() + delay;
+    const frame = now => {
+      if (my !== gen) return;
+      const t = (now - t0) / dur;
+      if (t < 0) { requestAnimationFrame(frame); return; }
+      if (t >= 1) { fn(1); if (done) done(); return; }
+      fn(E(t));
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+  const vis = (sp, k) => !sp.tr && (sp.in === -1 || (sp.in <= k && (sp.out === undefined || k < sp.out)));
+  const show = (it, on) => { it.g.style.display = on ? "" : "none"; };
+  function reset(it) {
+    it.g.removeAttribute("transform");
+    it.g.style.opacity = "";
+    if (it.clip) { it.g.removeAttribute("clip-path"); it.clip.remove(); it.clip = null; }
+  }
+  let clipN = 0;
+  function reveal(it, mode, dur, delay, my, ease) {
+    const g = it.g, bb = g.getBBox(), pad = 30;
+    const x0 = bb.x - pad, y0 = bb.y - pad, w0 = bb.width + 2 * pad, h0 = bb.height + 2 * pad;
+    const cp = mk("clipPath", { id: "cp" + (++clipN), clipPathUnits: "userSpaceOnUse" }, defs);
+    const r = mk("rect", { x: x0, y: y0, width: 0, height: 0 }, cp);
+    it.clip = cp;
+    g.setAttribute("clip-path", "url(#" + cp.id + ")");
+    tween(dur, delay, t => {
+      if (mode === "rise") { const h = h0 * t; r.setAttribute("x", x0); r.setAttribute("width", w0); r.setAttribute("y", y0 + h0 - h); r.setAttribute("height", h); }
+      else if (mode === "wipeR") { r.setAttribute("x", x0); r.setAttribute("y", y0); r.setAttribute("height", h0); r.setAttribute("width", w0 * t); }
+      else { const w = w0 * t; r.setAttribute("x", x0 + w0 - w); r.setAttribute("y", y0); r.setAttribute("height", h0); r.setAttribute("width", w); }
+    }, my, ease || "io", () => { if (it.clip === cp) { g.removeAttribute("clip-path"); cp.remove(); it.clip = null; } });
+  }
+  function animIn(it, my) {
+    const sp = it.sp, d = sp.d || 0, dur = sp.dur || 600, g = it.g;
+    if (sp.a === "fade") tween(dur, d, t => { g.style.opacity = t; }, my, "io");
+    else if (sp.a === "drop" || sp.a === "slide") {
+      const dx = sp.dx || 0, dy = sp.dy || 0;
+      tween(dur, d, t => { g.setAttribute("transform", "translate(" + dx * (1 - t) + " " + dy * (1 - t) + ")"); g.style.opacity = Math.min(1, t * 3); }, my, sp.e || "io");
+    } else reveal(it, sp.a, dur, d, my, sp.e);
+    let end = d + dur;
+    if (sp.tr) {
+      const hold = sp.hold || 300, xd = sp.xdur || 400;
+      tween(xd, end + hold, t => { g.style.opacity = 1 - t; }, my, "io", () => show(it, false), false);
+      end += hold + xd;
+    }
+    return end;
+  }
+  function animOut(it, my) {
+    const sp = it.sp, d = sp.xd || 0, dur = sp.xdur || 500, g = it.g;
+    if (sp.x === "move") {
+      const ox = sp.ox || 0, oy = sp.oy || 0;
+      tween(dur, d, t => { g.setAttribute("transform", "translate(" + ox * t + " " + oy * t + ")"); g.style.opacity = 1 - Math.max(0, (t - .35) / .65); }, my, "in", () => show(it, false));
+    } else tween(dur, d, t => { g.style.opacity = 1 - t; }, my, "io", () => show(it, false));
+    return d + dur;
+  }
+
+  /* ---------- controls ---------- */
+  const bPrev = document.getElementById("bPrev"), bNext = document.getElementById("bNext"), bPlay = document.getElementById("bPlay");
+  const playIc = document.getElementById("playIc"), playTxt = document.getElementById("playTxt");
+  const capNo = document.getElementById("capNo"), capTitle = document.getElementById("capTitle"), capText = document.getElementById("capText"), capChips = document.getElementById("capChips");
+  const progress = document.getElementById("progress");
+  const ICON = {
+    play: '<svg viewBox="0 0 16 16"><path d="M4 2.2v11.6L13.4 8z"/></svg>',
+    pause: '<svg viewBox="0 0 16 16"><path d="M3.5 2.5h3.2v11H3.5zM9.3 2.5h3.2v11H9.3z"/></svg>',
+    replay: '<svg viewBox="0 0 16 16"><path d="M8 2.2V0L4.4 3.1 8 6.2V4a4 4 0 1 1-4 4H2.2A5.8 5.8 0 1 0 8 2.2z"/></svg>'
+  };
+  const segs = STEPS.map((s, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "seg"; b.textContent = i === 0 ? "All" : String(i);
+    b.setAttribute("aria-label", (i === 0 ? "Overview: " : "Step " + i + ": ") + s.t);
+    b.title = s.t;
+    b.addEventListener("click", () => goTo(i, true));
+    progress.appendChild(b);
+    return b;
+  });
+
+  let cur = 0, playing = false, timer = 0;
+  const reduced = () => window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function renderPlay() {
+    let ic = "play", tx = cur === 0 ? "Play sequence" : "Play";
+    if (playing) { ic = "pause"; tx = "Pause"; }
+    else if (cur === LAST) { ic = "replay"; tx = "Replay"; }
+    playIc.innerHTML = ICON[ic];
+    playTxt.textContent = tx;
+    bPlay.setAttribute("aria-pressed", playing ? "true" : "false");
+  }
+  function render(s) {
+    const st = STEPS[s];
+    capNo.textContent = s === 0 ? "Overview" : "Step " + s + " of " + LAST;
+    capTitle.textContent = st.t;
+    capText.textContent = st.d;
+    capChips.innerHTML = "";
+    st.k.forEach(k => { const li = document.createElement("li"); li.textContent = k; capChips.appendChild(li); });
+    segs.forEach((b, i) => {
+      b.classList.toggle("done", s > 0 && i > 0 && i < s);
+      if (i === s) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current");
+    });
+    bPrev.disabled = s === 0;
+    bNext.disabled = s === LAST;
+    renderPlay();
+  }
+
+  function schedule(s, visualEnd) {
+    clearTimeout(timer);
+    if (!playing) return;
+    if (s >= LAST) { playing = false; renderPlay(); return; }
+    const words = STEPS[s].d.split(/\s+/).length;
+    const dwell = Math.min(11000, Math.max(4500, 2600 + words * 85));
+    timer = setTimeout(() => { if (playing) goTo(s + 1, true); }, visualEnd + dwell);
+  }
+
+  function goTo(s, animate) {
+    s = Math.max(0, Math.min(LAST, s));
+    gen++;
+    const my = gen;
+    cur = s;
+    clearTimeout(timer);
+    const doAnim = animate && s > 0 && !reduced();
+    const kNow = s === 0 ? LAST : s, kPrev = s === 0 ? LAST : s - 1;
+    let end = 0;
+    for (const it of items) {
+      reset(it);
+      const was = vis(it.sp, kPrev), now = vis(it.sp, kNow);
+      if (doAnim && it.sp.tr && it.sp.in === s) { show(it, true); end = Math.max(end, animIn(it, my)); }
+      else if (doAnim && now && !was) { show(it, true); end = Math.max(end, animIn(it, my)); }
+      else if (doAnim && !now && was) { show(it, true); end = Math.max(end, animOut(it, my)); }
+      else show(it, now);
+    }
+    const ld = doAnim ? (STEPS[s].ld != null ? STEPS[s].ld : end + 150) : 0;
+    for (const a of anns) {
+      const on = a.sp.s.includes(s);
+      a.g.style.display = on ? "" : "none";
+      if (!on) continue;
+      if (doAnim) tween(350, ld, t => { a.g.style.opacity = t; }, my, "io");
+      else a.g.style.opacity = "";
+    }
+    render(s);
+    if (playing) schedule(s, Math.max(end, doAnim ? ld + 350 : 0));
+  }
+
+  bPlay.addEventListener("click", () => {
+    if (playing) { playing = false; clearTimeout(timer); renderPlay(); return; }
+    playing = true;
+    goTo(cur === 0 || cur === LAST ? 1 : cur + 1, true);
+  });
+  bPrev.addEventListener("click", () => goTo(cur - 1, true));
+  bNext.addEventListener("click", () => goTo(cur + 1, true));
+  document.addEventListener("keydown", e => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); goTo(cur + 1, true); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); goTo(cur - 1, true); }
+  });
+
+  goTo(0, false);
+})();
+</script>
+</body>
+</html>
