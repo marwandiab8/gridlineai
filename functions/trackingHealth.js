@@ -1,0 +1,195 @@
+// Tracking health: twice a day, is the phone still reporting, and did what it reported reach Time Left?
+// Quiet while all is well. When something needs a hand - OwnTracks silent for a day and a half, a drive
+// stuck open, an arrival at work or the gym with no departure, events that failed to reach Time Left -
+// the member gets one text, repeated at most once a day while the same problem lasts. The last
+// assessment is kept in `trackingHealth/{memberEmail}`. See docs/tracking-reliability.md.
+const COL_SHORTCUT_EVENTS = "iosShortcutEvents";
+const COL_DRIVE_DETECTION = "driveDetection";
+const COL_APP_MEMBERS = "appMembers";
+const COL_HEALTH = "trackingHealth";
+const DEFAULT_TIMEZONE = "America/Toronto";
+
+// A quiet day at home sends nothing in "significant changes" mode, so silence only counts after this.
+const SILENT_AFTER_MS = 36 * 3600 * 1000;
+const OPEN_BOUNDARY_AFTER_MS = 18 * 3600 * 1000;
+const STUCK_DRIVE_AFTER_MS = 3 * 3600 * 1000;
+const DELIVERY_LOOKBACK_MS = 24 * 3600 * 1000;
+const DELIVERY_GRACE_MS = 30 * 60 * 1000;
+const BOUNDARY_LOOKBACK_MS = 7 * 24 * 3600 * 1000;
+const REPEAT_ALERT_AFTER_MS = 24 * 3600 * 1000;
+const SETTLED_DELIVERY = new Set(["delivered", "duplicate", "off", "unsupported_event_type"]);
+const OPEN_BOUNDARIES = [
+  { arrive: "arrive_work", leave: "leave_work", label: "work" },
+  { arrive: "arrive_gym", leave: "leave_gym", label: "the gym" },
+];
+const HOME_BOUNDARIES = ["arrive_home", "leave_home"];
+
+function formatWhen(ms, timezone) {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: timezone || DEFAULT_TIMEZONE })
+      .format(new Date(ms))
+      .replace(/\./g, "")
+      .replace(/,/g, "")
+      .toLowerCase()
+      .replace(/^./, (c) => c.toUpperCase());
+  } catch {
+    return new Date(ms).toISOString().slice(0, 16);
+  }
+}
+
+function formatSpan(ms) {
+  const hours = Math.round(ms / 3600000);
+  if (hours < 48) return `${hours} h`;
+  return `${Math.round(hours / 24)} days`;
+}
+
+/** The member's latest event of one type since `sinceMs` (indexed: memberEmail + eventType + eventAtMs). */
+async function latestEvent(db, memberEmail, eventType, sinceMs) {
+  const snap = await db
+    .collection(COL_SHORTCUT_EVENTS)
+    .where("memberEmail", "==", memberEmail)
+    .where("eventType", "==", eventType)
+    .where("eventAtMs", ">=", sinceMs)
+    .get()
+    .catch(() => null);
+  let best = null;
+  if (snap) {
+    snap.forEach((doc) => {
+      const data = doc.data() || {};
+      if (Number.isFinite(data.eventAtMs) && (!best || data.eventAtMs > best.eventAtMs)) best = { id: doc.id, ...data };
+    });
+  }
+  return best;
+}
+
+/**
+ * Looks at one member's tracking as of `nowMs`. Returns { ok, issues: [{ code, text }], lastLocationAtMs,
+ * checkedAtMs }. Reads only; never throws.
+ */
+async function assessTrackingHealth({ db, memberEmail, nowMs = Date.now(), timezone = DEFAULT_TIMEZONE }) {
+  const issues = [];
+  const driveSnap = await db.collection(COL_DRIVE_DETECTION).doc(memberEmail).get().catch(() => null);
+  const drive = driveSnap && driveSnap.exists ? driveSnap.data() || {} : {};
+
+  let lastLocationAtMs = Number.isFinite(drive.lastPointAtMs) ? drive.lastPointAtMs : null;
+  for (const eventType of HOME_BOUNDARIES) {
+    const event = await latestEvent(db, memberEmail, eventType, nowMs - BOUNDARY_LOOKBACK_MS);
+    if (event && (lastLocationAtMs == null || event.eventAtMs > lastLocationAtMs)) lastLocationAtMs = event.eventAtMs;
+  }
+  if (lastLocationAtMs == null) {
+    issues.push({ code: "never", text: "No location data has arrived from OwnTracks in the last week." });
+  } else if (nowMs - lastLocationAtMs > SILENT_AFTER_MS) {
+    issues.push({
+      code: "silent",
+      text: `No location data since ${formatWhen(lastLocationAtMs, timezone)} (${formatSpan(nowMs - lastLocationAtMs)}). Open OwnTracks once: it should show your position, with location access set to Always.`,
+    });
+  }
+
+  if (drive.status === "driving" && Number.isFinite(drive.lastPointAtMs) && nowMs - drive.lastPointAtMs > STUCK_DRIVE_AFTER_MS) {
+    issues.push({ code: "stuck_drive", text: `A drive has been open since ${formatWhen(drive.lastPointAtMs, timezone)} without pings; the sweep that closes drives may be failing.` });
+  }
+
+  for (const pair of OPEN_BOUNDARIES) {
+    const arrive = await latestEvent(db, memberEmail, pair.arrive, nowMs - BOUNDARY_LOOKBACK_MS);
+    if (!arrive || nowMs - arrive.eventAtMs <= OPEN_BOUNDARY_AFTER_MS) continue;
+    const leave = await latestEvent(db, memberEmail, pair.leave, arrive.eventAtMs);
+    if (!leave) issues.push({ code: `open_${pair.arrive}`, text: `Arrived at ${pair.label} ${formatWhen(arrive.eventAtMs, timezone)} and no departure has been recorded since.` });
+  }
+
+  const recent = await db.collection(COL_SHORTCUT_EVENTS).where("eventAtMs", ">=", nowMs - DELIVERY_LOOKBACK_MS).get().catch(() => null);
+  const failed = {};
+  if (recent) {
+    recent.forEach((doc) => {
+      const data = doc.data() || {};
+      if (data.memberEmail !== memberEmail || data.status === "voided") return;
+      const delivery = data.timeLeftDelivery;
+      if (!delivery) {
+        if (Number.isFinite(data.eventAtMs) && nowMs - data.eventAtMs > DELIVERY_GRACE_MS) failed["not sent"] = (failed["not sent"] || 0) + 1;
+        return;
+      }
+      const status = String(delivery.status || "").toLowerCase();
+      if (SETTLED_DELIVERY.has(status)) return;
+      failed[status || "unknown"] = (failed[status || "unknown"] || 0) + 1;
+    });
+  }
+  const failedTotal = Object.values(failed).reduce((sum, n) => sum + n, 0);
+  if (failedTotal) {
+    const detail = Object.entries(failed).map(([status, n]) => `${status} ${n}`).join(", ");
+    issues.push({ code: "delivery", text: `${failedTotal} event${failedTotal === 1 ? "" : "s"} from the last day did not reach Time Left (${detail}).` });
+  }
+
+  return { ok: !issues.length, issues, lastLocationAtMs, checkedAtMs: nowMs };
+}
+
+/** The text message for an assessment with issues. */
+function formatHealthAlert(assessment) {
+  const lines = assessment.issues.map((issue) => issue.text);
+  return `Tracking check: ${lines.join(" ")}`.slice(0, 600);
+}
+
+/**
+ * Assesses every member with the Shortcuts/OwnTracks integration, keeps the result in trackingHealth/{email},
+ * and texts the member's approved phone when there are issues (through `sendSms(to, body)`), at most once a
+ * day for the same set of issues. Returns a summary.
+ */
+async function runTrackingHealthCheck({ db, FieldValue, nowMs = Date.now(), sendSms = null, logger = null }) {
+  const members = await db.collection(COL_APP_MEMBERS).where("shortcutIntegration.enabled", "==", true).get();
+  const summary = { checked: 0, withIssues: 0, alerted: 0 };
+  for (const doc of members.docs) {
+    const data = doc.data() || {};
+    if (data.active === false) continue;
+    const memberEmail = doc.id;
+    const timezone = typeof data.timezone === "string" && data.timezone.trim() ? data.timezone.trim() : DEFAULT_TIMEZONE;
+    let assessment;
+    try {
+      assessment = await assessTrackingHealth({ db, memberEmail, nowMs, timezone });
+    } catch (err) {
+      if (logger && typeof logger.warn === "function") logger.warn("trackingHealth: assessment failed", { memberEmail, message: err && err.message });
+      continue;
+    }
+    summary.checked += 1;
+    if (!assessment.ok) summary.withIssues += 1;
+
+    const ref = db.collection(COL_HEALTH).doc(memberEmail);
+    const previousSnap = await ref.get().catch(() => null);
+    const previous = previousSnap && previousSnap.exists ? previousSnap.data() || {} : {};
+    const codes = assessment.issues.map((issue) => issue.code).sort().join(",");
+    const repeat = previous.lastAlertCodes === codes && Number.isFinite(previous.lastAlertAtMs) && nowMs - previous.lastAlertAtMs < REPEAT_ALERT_AFTER_MS;
+    let alerted = false;
+    if (!assessment.ok && typeof sendSms === "function" && data.approvedPhoneE164 && !repeat) {
+      try {
+        await sendSms(data.approvedPhoneE164, formatHealthAlert(assessment));
+        alerted = true;
+        summary.alerted += 1;
+      } catch (err) {
+        if (logger && typeof logger.warn === "function") logger.warn("trackingHealth: alert text failed", { memberEmail, message: err && err.message });
+      }
+    }
+    await ref.set(
+      {
+        memberEmail,
+        checkedAtMs: nowMs,
+        checkedAt: new Date(nowMs),
+        ok: assessment.ok,
+        issues: assessment.issues,
+        lastLocationAtMs: assessment.lastLocationAtMs,
+        ...(alerted ? { lastAlertAtMs: nowMs, lastAlertCodes: codes } : {}),
+        ...(assessment.ok ? { lastAlertCodes: "" } : {}),
+        updatedAt: FieldValue && typeof FieldValue.serverTimestamp === "function" ? FieldValue.serverTimestamp() : new Date(nowMs),
+      },
+      { merge: true }
+    );
+  }
+  return summary;
+}
+
+module.exports = {
+  COL_HEALTH,
+  SILENT_AFTER_MS,
+  OPEN_BOUNDARY_AFTER_MS,
+  STUCK_DRIVE_AFTER_MS,
+  REPEAT_ALERT_AFTER_MS,
+  assessTrackingHealth,
+  formatHealthAlert,
+  runTrackingHealthCheck,
+};

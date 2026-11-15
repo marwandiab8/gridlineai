@@ -483,3 +483,21 @@ Check:
 - If Time Left later adds a dedicated delete endpoint, delete/soft-delete syncing can be extended.
 - If media files need direct preview inside Time Left, use secure auth-aware URLs. Do not make private files public by default.
 - Reports can include `sourceStoragePath` from `dailyReports.storagePath`; this is useful for idempotency and file metadata.
+
+## Known issue (found 2026-11-15): the Shortcut delivery triggers run an older mapper
+
+`syncIosShortcutEventToTimeLeft` (fires when an `iosShortcutEvents` document is created) and
+`retryIosShortcutEventsToTimeLeft` (every 15 minutes) were last deployed on 2026-10-08. Their copy of
+`timeLeftLifeEventMapper.js` predates the 2026-10-11 "activity at place" block, so for every
+`arrive_location` / `leave_location` they send the old shape (title "Arrived at location" / "Left location",
+no `metadata.placeActivity`, no `startAt`/`endAt` on the departure) while the HTTP endpoints, deployed later,
+send the new one. Time Left keeps whichever arrives first and answers the other with HTTP 409
+`idempotency_conflict`, which the trigger records as `timeLeftDelivery.status: conflict` (harmless when the
+inline delivery won: the Nov 13 Anytime Fitness visits are like that). When the trigger won, Time Left holds
+the old shape and the stay is not counted: on 2026-11-15 six such events were found since Oct 11 (FreshCo
+leave Oct 16, Ashley's parents' house arrive and leave Oct 18, a Grainger Caledonia arrive Oct 30, Anytime
+Fitness leaves Oct 30 and 31). Fix: redeploy the two trigger functions from current `main`
+(`firebase deploy --only functions:syncIosShortcutEventToTimeLeft,functions:retryIosShortcutEventsToTimeLeft --project gridlineai`),
+then re-deliver the six (delete the Time Left record without a tombstone and set the GridlineAI delivery state
+to `retryable_failure`; the 15-minute retry re-sends it). See `scripts/repair-home-2026-11-15.cjs` for the
+repair that surfaced this.

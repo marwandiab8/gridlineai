@@ -155,6 +155,7 @@ const {
 } = require("./iosShortcutsIntegration");
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
 const { closeStaleDrives } = require("./driveDetection");
+const { runTrackingHealthCheck } = require("./trackingHealth");
 const { recordAndDeliver } = require("./stayClosing");
 const { handleLeavingWorkEtaRequest, relayEtaContactReply } = require("./leavingWorkEta");
 const { handlePlaceLogRequest } = require("./placesIntegration");
@@ -7242,6 +7243,26 @@ exports.closeStaleDrives = onSchedule(
       },
     });
     if (finished) logger.info("closeStaleDrives: finished drives", { runId, finished });
+  }
+);
+
+// Twice a day: is the phone still reporting, and did everything it reported reach Time Left? Texts the
+// member only when something needs a hand, at most once a day per problem (trackingHealth.js).
+exports.trackingHealthCheck = onSchedule(
+  {
+    schedule: "0 9,18 * * *",
+    region: "northamerica-northeast1",
+    timeZone: "America/Toronto",
+    timeoutSeconds: 120,
+    memory: "256MiB",
+    secrets: [TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
+  },
+  async () => {
+    const { smsClient, fromPhone } = etaTwilio();
+    const sendSms = smsClient && fromPhone ? (to, body) => smsClient.messages.create({ to, from: fromPhone, body }) : null;
+    const summary = await runTrackingHealthCheck({ db, FieldValue, sendSms, logger });
+    logger.info("trackingHealthCheck: done", summary);
+    return summary;
   }
 );
 

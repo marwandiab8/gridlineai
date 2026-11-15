@@ -23,6 +23,7 @@
 const { haversineMeters } = require("./placeLearning");
 const { parseShortcutEventPayload } = require("./iosShortcutsIntegration");
 const { closeStaysFromEvidence, recordAndDeliver, formatStay } = require("./stayClosing");
+const { visitPlaceAtDriveEnd } = require("./autoVisits");
 
 const COL_DRIVE_DETECTION = "driveDetection";
 const COL_SHORTCUT_EVENTS = "iosShortcutEvents";
@@ -333,6 +334,11 @@ async function recordDriveEmission({ db, FieldValue, member, emission, deviceNam
       deps.logger.info("driveDetection: drive event recorded", { runId: deps.runId, eventType, atMs: emission.atMs, driveId: emission.driveId, duplicate: !!result.duplicate });
     }
 
+    // Parking at one of your known places is a visit there (autoVisits.js), unless OwnTracks reported the
+    // arrival itself (Home/Work/Gym) or you were already checked in.
+    if (emission.kind === "finish" && !result.duplicate) {
+      await visitPlaceAtDriveEnd({ db, FieldValue, member, stop: emission, deviceName, timezone, deps });
+    }
     // Setting off ends any "Log this place" stay you drove away from, at the moment you left.
     if (emission.kind === "start" && !result.duplicate) {
       await closeStaysFromEvidence({

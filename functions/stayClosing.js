@@ -63,6 +63,18 @@ function closedStayNote({ stay, leftAt, basis, distanceMeters, evidenceLabel, ti
   return `${length} (left about ${clock}, estimated from your next location ${where})`;
 }
 
+/**
+ * The request to record a closed stay with. A caller that records its own event under an idempotency key
+ * (a detected drive start, "drive-start-<id>") must not hand that same key to the departure it triggers, or
+ * the departure is taken for a retry of the drive and dropped; the key is made unique per place instead.
+ * A request without a key is passed through (the per-type dedupe window applies, as before).
+ */
+function stayRequest(req, placeId) {
+  const baseKey = req && typeof req.get === "function" ? String(req.get("idempotency-key") || "").trim() : "";
+  if (!baseKey) return req;
+  return { get: (name) => (String(name).toLowerCase() === "idempotency-key" ? `${baseKey}:leave:${placeId}`.slice(0, 200) : req.get(name)) };
+}
+
 async function recordAndDeliver({ db, FieldValue, req, member, event, processAssistantMessage, openaiKey, runId, logger, timeLeftLifeEventDelivery }) {
   const result = await recordShortcutEvent({ db, FieldValue, req, member, event, processAssistantMessage, openaiKey, runId });
   if (!result.duplicate && typeof timeLeftLifeEventDelivery === "function") {
@@ -101,7 +113,7 @@ async function closeStaysFromEvidence({ db, FieldValue, req, member, evidence, t
           stayStartedAt: c.stay.arrivedAt,
         })
       );
-      if (parsed.ok) await recordAndDeliver({ db, FieldValue, req, member, event: parsed.event, ...deps });
+      if (parsed.ok) await recordAndDeliver({ db, FieldValue, req: stayRequest(req, c.place.id), member, event: parsed.event, ...deps });
     }
   } catch (err) {
     if (deps.logger && typeof deps.logger.warn === "function") {
@@ -111,4 +123,4 @@ async function closeStaysFromEvidence({ db, FieldValue, req, member, evidence, t
   return out;
 }
 
-module.exports = { buildVisitBody, closeStaysFromEvidence, closedStayNote, formatClock, formatStay, recordAndDeliver };
+module.exports = { buildVisitBody, closeStaysFromEvidence, closedStayNote, formatClock, formatStay, recordAndDeliver, stayRequest };
