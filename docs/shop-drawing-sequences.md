@@ -6,6 +6,15 @@ section **09 Construction Sequences** of `public/shop-drawings/index.html`, and 
 | Animation | Page | Added | Drawn from |
 |---|---|---|---|
 | Grid H bulkhead, Z2 Admin / Z3 Vehicle Bay slab step (12 steps) | `/shop-drawings/sequences/grid-h-bulkhead/` | 2026-11-15 | 5/S702, 11/S006, 3/S008, 7/S008, A151 PC-022, AGF 4/R29, S201 slab notes, spec 03 30 00 |
+| Roof Flow Lab, Level 2 west roof water-flow simulator (7 built-in scenarios) | `/shop-drawings/sequences/roof-flow-lab/` | 2026-11-16 | F2C as-built top-of-deck survey (221 readings, surveyed Nov 5 2026, revised Nov 11); S203B for the design-deck comparison |
+
+## Simulators
+
+The Roof Flow Lab is a working model rather than a step sequence, so it has storm, hose, drain, sump and build-up tools
+in place of Play / Prev / Next. It is still one self-contained page: the survey grid, the flow engine and the interface
+are inline in its `index.html`, with no build step. Scenarios saved on the page stay in the browser that saved them
+(`localStorage`); the seven built-in scenarios are in the page itself. Its portal card uses the same `status-sequence`
+chip with the label **Simulator**, and the section heading counts it separately (`1 animation · 1 simulator`).
 
 ## Adding one
 
