@@ -124,6 +124,16 @@ Phone setup: keep OwnTracks in **Significant changes** mode (start/finish times 
 off) or **Move** mode (precise, more battery). Once a few drives show up correctly, turn off the two
 CarPlay automations in Shortcuts → Automation.
 
+## A drive that ends at a known place is a visit
+
+Since 2026-11-15 a `finish_drive` at one of your Known Places (within the place's radius) logs the visit
+the way "Log this place" does: an `arrive_location` with the place's activity, so Time Left shows
+"Darts at Raging Bull" without a Region or a tap (`functions/autoVisits.js`). The visit ends when the
+next drive starts there or a later ping shows you elsewhere (the stay closing above), with its length.
+An arrival OwnTracks itself reported as a Home/Work/Gym crossing within 10 minutes of the stop is left
+to the crossing, so a gym saved as a Known Place inside the Gym region is counted once. A place you drive
+to for the first time is still unknown until it is named once (Known Places page or "Log this place").
+
 ## Verifying it works
 
 Trigger a Region manually (walk in/out, or use OwnTracks' own "Reconnect"/simulate options if
