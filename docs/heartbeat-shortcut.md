@@ -21,26 +21,32 @@ detector, and records it in `heartbeats/{member}`.
 
 ## Set it up once (about five minutes)
 
-1. **Shortcuts app → Shortcuts tab → +**. Name it `Tracking heartbeat`.
-2. Add the action **Get Current Location**.
-3. Add the action **Get Contents of URL** and set:
-   - URL: the OwnTracks endpoint you already use in OwnTracks' Settings → Connection
-     (`https://<app-domain>/api/integrations/owntracks/events`).
-   - Method: **POST**.
-   - Headers: `Authorization` = `Bearer <your integration token>` (the token from the dashboard Setup page,
-     the same one OwnTracks uses), and `Content-Type` = `application/json`.
-   - Request Body: **JSON**, with these fields:
+The token is the one your other Shortcuts already send, so start from one of them instead of typing it.
+
+1. **Shortcuts app → Shortcuts tab**: press and hold **Log this place** → **Duplicate**. Rename the copy
+   `Tracking heartbeat`. Delete every step except **Get Current Location** and the first **Get Contents of
+   URL**; the `Authorization` header with the token stays in it.
+   (Nothing to copy from? Build those two actions and add the header `Authorization` = `Bearer <token>`.
+   The dashboard Setup page shows the token only when it is generated, and regenerating it means updating
+   OwnTracks and every other Shortcut too.)
+2. In **Get Contents of URL** set:
+   - URL: `https://gridlineai.web.app/api/integrations/owntracks/events`
+   - Method: **POST**
+   - Request Body: **JSON**, with exactly these fields (remove any others):
      - `_type` (Text) `location`
      - `t` (Text) `h`
      - `tid` (Text) `HB`
-     - `lat` (Number) → tap the value, choose the **Current Location** variable, then **Latitude**
-     - `lon` (Number) → Current Location → **Longitude**
-4. Run it once by hand. The reply is `[]`, which is the OwnTracks "received" answer. Allow location when asked.
-5. **Settings → Privacy & Security → Location Services → Shortcuts → Always**, so the automation can read the
+     - `lat` (Number) → tap the value, pick the **Current Location** variable, tap the inserted variable and
+       set **Get: Latitude**
+     - `lon` (Number) → Current Location → **Get: Longitude**
+   Shortcuts sends the JSON content type itself; a `Content-Type: application/json` header does no harm.
+3. Run it once by hand (the ▶ button). Allow location when asked. The reply is `[]`, OwnTracks' "received"
+   answer, and `scripts/tracking-status.sh` then shows `last heartbeat` with count 1.
+4. **Settings → Privacy & Security → Location Services → Shortcuts → Always**, so the automation can read the
    location while the phone is locked.
-6. **Shortcuts → Automation tab → +**: **Time of Day**, 7:00 AM, Daily, **Run Immediately** (not "after
-   confirmation"), **Notify When Run** off, then pick `Tracking heartbeat`. Repeat for **1:00 PM** and
-   **7:00 PM**.
+5. **Shortcuts → Automation tab → +** (New Automation) → **Time of Day**: 7:00 AM, Daily, **Run Immediately**
+   (not "Run After Confirmation"), **Notify When Run** off → **Next** → choose `Tracking heartbeat`. Repeat
+   for **1:00 PM** and **7:00 PM**.
 
 ## What you get
 
