@@ -53,6 +53,8 @@ async function knownPlaceRegionVisit({ db, member, payload, body, logger, runId 
 }
 const { closeStaysFromEvidence } = require("./stayClosing");
 const { applyOwnTracksToDrive } = require("./driveDetection");
+const { applyEvidenceToPendingStop } = require("./unknownStops");
+const { isHeartbeat, recordHeartbeat, stampHeartbeat } = require("./heartbeat");
 const {
   DEPARTURE_DEDUPE_MS,
   noteWorkExitForEtaFallback,
@@ -223,14 +225,33 @@ async function handleOwnTracksEventRequest({
 
     const payload = req.body && typeof req.body === "object" ? req.body : {};
     const deps = { processAssistantMessage, openaiKey, runId, logger, timeLeftLifeEventDelivery };
+    // A text to the member (a new place logged for them, OwnTracks gone quiet) uses the same Twilio number as
+    // the ETA texts; without it those steps are skipped, nothing else changes.
+    if (etaFallback && typeof etaFallback.getTwilio === "function") {
+      try {
+        const { smsClient, fromPhone } = etaFallback.getTwilio() || {};
+        if (smsClient && fromPhone) deps.sendSms = (to, body) => smsClient.messages.create({ to, from: fromPhone, body });
+      } catch (_) {
+        // no texting this request
+      }
+    }
     if (isIgnorableOwnTracksPayload(payload)) {
+      // The Shortcut's heartbeat (docs/heartbeat-shortcut.md): the phone is alive and here. Compared with where
+      // OwnTracks last saw it before anything else sees the ping, and kept out of the drive detector.
+      const heartbeat = isHeartbeat(payload);
+      if (heartbeat) {
+        stampHeartbeat(payload);
+        await recordHeartbeat({ db, FieldValue, member, payload, sendSms: deps.sendSms || null, logger });
+      }
       // Regular location pings are not recorded as events, but each one is evidence of where you are:
       // it ends a "Log this place" stay you have driven away from, at about when you left
       // (stayEvidence.js). Waypoint dumps and the rest carry nothing to use.
       const evidence = payload && payload._type === "location" ? ownTracksEvidence(payload) : null;
       if (evidence) await closeStaysFromEvidence({ db, FieldValue, req, member, evidence, deviceName: payload.tid || null, deps });
+      // ... and of whether you have left a stop nobody has named yet (unknownStops.js).
+      if (evidence) await applyEvidenceToPendingStop({ db, FieldValue, member, deps, evidence: { latitude: evidence.latitude, longitude: evidence.longitude, atMs: evidence.at.getTime(), accuracyMeters: evidence.accuracyMeters, eventType: "ping" } });
       // Each ping is also how drives are detected now - movement, not CarPlay (driveDetection.js).
-      if (payload && payload._type === "location") await applyOwnTracksToDrive({ db, FieldValue, member, payload, deps });
+      if (payload && payload._type === "location" && !heartbeat) await applyOwnTracksToDrive({ db, FieldValue, member, payload, deps });
       // A ping is also what resolves a pending "leaving work" fallback: a few minutes after a late-day
       // Work exit, real progress toward home sends the ETA text you forgot to ask Siri for.
       if (etaFallback && evidence) {
@@ -382,6 +403,11 @@ async function handleOwnTracksEventRequest({
 
     // A crossing is a position too: entering Home/Work/Gym marks where and when a drive arrived.
     if (!result.duplicate) await applyOwnTracksToDrive({ db, FieldValue, member, payload, deps });
+    // ... and settles a stop nobody has named yet, if the crossing shows you have left it.
+    if (!result.duplicate) {
+      const evidence = ownTracksEvidence(payload);
+      if (evidence) await applyEvidenceToPendingStop({ db, FieldValue, member, deps, evidence: { latitude: evidence.latitude, longitude: evidence.longitude, atMs: evidence.at.getTime(), accuracyMeters: evidence.accuracyMeters, eventType: parsed.event.eventType, label: payload.desc || null } });
+    }
 
     // OwnTracks' HTTP protocol expects a JSON array in the response body (normally used to push
     // config/card/waypoint updates back to the device); an empty array is the correct "nothing to

@@ -7,7 +7,7 @@
     "lookahead": "node extractLookaheadSchedule.js",
     "backfill:timeleft:gridline": "node timeLeftGridline/backfillTimeLeft.js",
     "test": "node --test",
-    "deploy:tracking": "firebase deploy --project gridlineai --only functions:iosShortcutsEvents,functions:ownTracksEvents,functions:placesEvents,functions:closeStaleDrives,functions:leavingWorkEta,functions:syncIosShortcutEventToTimeLeft,functions:retryIosShortcutEventsToTimeLeft,functions:trackingHealthCheck"
+    "deploy:tracking": "firebase deploy --project gridlineai --only functions:iosShortcutsEvents,functions:ownTracksEvents,functions:placesEvents,functions:closeStaleDrives,functions:leavingWorkEta,functions:syncIosShortcutEventToTimeLeft,functions:retryIosShortcutEventsToTimeLeft,functions:trackingHealthCheck,functions:inboundSms"
   },
   "engines": {
     "node": "22"

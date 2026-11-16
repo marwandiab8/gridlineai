@@ -156,6 +156,7 @@ const {
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
 const { closeStaleDrives } = require("./driveDetection");
 const { runTrackingHealthCheck } = require("./trackingHealth");
+const { handlePlaceReply } = require("./unknownStops");
 const { recordAndDeliver } = require("./stayClosing");
 const { handleLeavingWorkEtaRequest, relayEtaContactReply } = require("./leavingWorkEta");
 const { handlePlaceLogRequest } = require("./placesIntegration");
@@ -5263,6 +5264,15 @@ exports.inboundSms = onRequest(
       if (etaRelay.handled) {
         logger.info("inboundSms: ETA contact reply", { runId, relayed: etaRelay.relayed === true, reason: etaRelay.reason || null });
         sendEmptyTwiml(res);
+        return;
+      }
+
+      // A reply to a "New place logged" text (unknownStops.js): OK keeps the place, "PLACE name, activity" renames
+      // it. Anything else carries on to the assistant as usual.
+      const placeReply = await handlePlaceReply({ db, FieldValue, from, body: bodyTrimmedForCommands || body, deps: { logger, runId } });
+      if (placeReply.handled) {
+        logger.info("inboundSms: place reply", { runId, reply: placeReply.reply });
+        sendTwiml(res, placeReply.reply);
         return;
       }
 

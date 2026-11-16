@@ -28,6 +28,7 @@ const {
   leaveKnownPlace,
 } = require("./placeLearning");
 const { buildVisitBody, closeStaysFromEvidence, formatStay, recordAndDeliver } = require("./stayClosing");
+const { adoptPendingStopAt } = require("./unknownStops");
 
 function jsonError(res, status, code, message) {
   res.status(status).json({ ok: false, error: code, message });
@@ -222,6 +223,7 @@ async function handlePlaceLogRequest({
         db, FieldValue, req, member, payload, deps,
         arrival: { latitude, longitude, exceptPlaceId: match.id, arrivedAt, name: visit.name },
       });
+      await adoptPendingStopAt({ db, FieldValue, member, latitude, longitude, deps });
       res.status(200).json({
         ok: true,
         known: true,
@@ -261,6 +263,7 @@ async function handlePlaceLogRequest({
       db, FieldValue, req, member, payload, deps,
       arrival: { latitude, longitude, exceptPlaceId: saved.id, arrivedAt, name: saved.name },
     });
+    await adoptPendingStopAt({ db, FieldValue, member, latitude, longitude, deps });
     res.status(200).json({ ok: true, known: true, isNew: saved.isNew, name: saved.name, activity: saved.activity, visitCount: saved.visitCount, closedStays: closed });
   } catch (err) {
     const status = Number(err && err.status) || 500;

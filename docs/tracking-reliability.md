@@ -43,6 +43,8 @@ on 2026-11-15 after a darts night at the Raging Bull went missing (see "The nigh
 | The trigger functions running older code than the HTTP endpoints (every place visit answered "conflict" from Oct 11 to Nov 15) | Deploy the tracking functions together: `npm run deploy:tracking` in `functions/`; `scripts/check-functions-drift.sh` says when code is newer than a deploy. |
 | A session that looks wrong in Time Left | Edit its times. Deleting an arrival or departure is final for the phone (a tombstone stops it being re-sent); a deleted activity can be restored from the recycle bin for 90 days. |
 | A departure closed by a drive start being dropped as a "duplicate" of the drive (bug fixed 2026-11-15) | `stayClosing.stayRequest` gives the departure its own idempotency key. |
+| A visit to a place you have never saved | The drive that ended there remembers the spot; when you leave, a stay of 15+ minutes is named from OpenStreetMap, saved, logged, and confirmed by one text (below). |
+| OwnTracks stops while the phone keeps moving | The heartbeat Shortcut (below) shows the phone elsewhere; texted at once. |
 
 ## Phone checklist (once, and after every iOS update)
 
@@ -51,6 +53,7 @@ on 2026-11-15 after a darts night at the Raging Bull went missing (see "The nigh
 - Regions named exactly `Home`, `Work`, `Gym`, plus any place you want logged the moment you arrive
   (a Region named like a Known Place, `Raging Bull`, logs that place's activity). Places you drive to
   and park at are logged without a Region, from the drive.
+- The heartbeat Shortcut and its three automations (`docs/heartbeat-shortcut.md`), once; Shortcuts' location access set to Always.
 - Never force-quit OwnTracks. If the health check texts "No location data since …", open the app once:
   it should show your position; if it asks about location again, choose Always.
 - Known Places page in GridlineAI: each place has an activity (Darts, Gym, Grocery shopping…); set it
@@ -73,12 +76,39 @@ saved place), the drive back 9:57 pm and arriving home 10:17 pm. The pub visit i
 deleted from the dashboard, which left a tombstone and made the gap permanent. Every one of those links
 now has a guard above.
 
+## Stops nobody has named yet (since 2026-11-15, evening)
+
+A drive that ends somewhere that is not a Known Place is remembered (`pendingStops`, `unknownStops.js`). When
+the next evidence shows you have left (the next drive starting, a ping across town, a Home/Work/Gym
+crossing), a stay of 15 minutes or more becomes a visit:
+
+- the spot is named from OpenStreetMap (`placeNaming.js`, Nominatim reverse geocoding, the same service the
+  Known Places page uses for addresses): the business or amenity there when the map knows one ("Raging
+  Bull Sports Bar"), else the street address ("25 Macdonell St, Guelph"), else the coordinates;
+- it is saved as a Known Place with the activity its name suggests, and the visit is logged through the
+  normal pipeline (arrive_location + leave_location with the stay) and delivered to Time Left;
+- you get one text: `New place logged: Raging Bull Sports Bar (Guelph), Fri 7:34 pm to 9:57 pm (2 h 23 min),
+  as "Eating out". Reply OK to keep it, or PLACE name, activity to rename (e.g. PLACE Raging Bull, Darts).`
+  Replying renames the place, sets the activity, updates the two events and re-sends them to Time Left
+  (within 15 minutes, by the retry sweep; Time Left accepts a revised place visit from the same source
+  record). At most three such texts a day; later stops are still logged, just not texted.
+
+Stops shorter than 15 minutes, stops OwnTracks reported as a Home/Work/Gym crossing, and stops you logged
+with "Log this place" in the meantime are not named. From the second visit on, the place is known and the
+drive logs it directly (autoVisits.js), no text.
+
+## The heartbeat (since 2026-11-15, evening)
+
+Three Shortcuts automations (7 am, 1 pm, 7 pm) post the phone's position as a location ping tagged `t: "h"`:
+`docs/heartbeat-shortcut.md` has the five-minute setup. With it, the health check knows the phone is alive
+and where it is: a heartbeat far from where OwnTracks last saw the phone while OwnTracks has been quiet for
+3 hours is texted at once ("OwnTracks seems to have stopped"), 14 hours without a heartbeat is texted at the
+next check, and OwnTracks silence while the heartbeats show the phone has not moved is no longer an alert.
+
 ## What would make it better still
 
-- **Unknown stops named for you**: a drive that ends somewhere new and stays 15+ minutes could be logged
-  as a visit named from the nearest business or address (Google Places) and saved as a Known Place, with
-  one text asking to confirm the name and activity. Today only places you have saved once are recognised.
-- **A heartbeat**: a Shortcuts automation that posts the phone's position three times a day lets the
-  health check tell "quiet day at home" from "OwnTracks died" within hours instead of 36.
 - **Life Cycle as a second opinion**: it has no API, but its export can be compared with Time Left for a
   week to catch any systematic gap.
+- **Google Places names**: OpenStreetMap knows most businesses but not all; if a named stop comes back as
+  an address too often, the Places API (New) can be added behind the same `placeNaming.js` (it needs the
+  API enabled on the project and the Routes key widened, or a second key).

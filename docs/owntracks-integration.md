@@ -134,6 +134,19 @@ An arrival OwnTracks itself reported as a Home/Work/Gym crossing within 10 minut
 to the crossing, so a gym saved as a Known Place inside the Gym region is counted once. A place you drive
 to for the first time is still unknown until it is named once (Known Places page or "Log this place").
 
+## Heartbeat pings
+
+A location ping tagged `t: "h"` (or `tid: "HB"`) is the heartbeat Shortcut's (`docs/heartbeat-shortcut.md`): the
+server stamps `tst` when it is missing, records it in `heartbeats/{member}`, uses it as stay evidence, and
+keeps it out of the drive detector so "where OwnTracks last saw the phone" stays meaningful. A heartbeat far
+from that point while OwnTracks has been quiet for 3 hours texts the member that OwnTracks seems stopped.
+
+## Stops nobody has named
+
+A `finish_drive` away from every Known Place opens a pending stop; the next evidence of leaving settles it,
+and a stay of 15+ minutes is named from OpenStreetMap, saved and logged, with one confirming text
+(`functions/unknownStops.js`, docs/tracking-reliability.md).
+
 ## Verifying it works
 
 Trigger a Region manually (walk in/out, or use OwnTracks' own "Reconnect"/simulate options if
