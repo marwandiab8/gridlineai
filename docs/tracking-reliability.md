@@ -53,7 +53,7 @@ on 2026-11-15 after a darts night at the Raging Bull went missing (see "The nigh
 - Regions named exactly `Home`, `Work`, `Gym`, plus any place you want logged the moment you arrive
   (a Region named like a Known Place, `Raging Bull`, logs that place's activity). Places you drive to
   and park at are logged without a Region, from the drive.
-- The heartbeat Shortcut and its three automations (`docs/heartbeat-shortcut.md`), once; Shortcuts' location access set to Always.
+- Health Auto Export's automation stays on (it is the heartbeat); the position-sending Shortcut in `docs/heartbeat-shortcut.md` is optional.
 - Never force-quit OwnTracks. If the health check texts "No location data since …", open the app once:
   it should show your position; if it asks about location again, choose Always.
 - Known Places page in GridlineAI: each place has an activity (Darts, Gym, Grocery shopping…); set it
@@ -99,11 +99,16 @@ drive logs it directly (autoVisits.js), no text.
 
 ## The heartbeat (since 2026-11-15, evening)
 
-Three Shortcuts automations (7 am, 1 pm, 7 pm) post the phone's position as a location ping tagged `t: "h"`:
-`docs/heartbeat-shortcut.md` has the five-minute setup. With it, the health check knows the phone is alive
-and where it is: a heartbeat far from where OwnTracks last saw the phone while OwnTracks has been quiet for
-3 hours is texted at once ("OwnTracks seems to have stopped"), 14 hours without a heartbeat is texted at the
-next check, and OwnTracks silence while the heartbeats show the phone has not moved is no longer an alert.
+Health Auto Export already posts several times a day, and every export is now a heartbeat (`heartbeat.js`,
+`heartbeats/{member}`): the phone is alive, and the day's step count says whether it went anywhere. 3,000 or
+more steps since OwnTracks last reported, with OwnTracks quiet for 6 hours, is texted at once ("OwnTracks
+seems to have stopped"); under 1,500 steps reads as a day at home and silences the "OwnTracks silent" text;
+a day without an export is texted at the next check. Nothing to set up.
+
+Optionally, three Shortcuts automations (7 am, 1 pm, 7 pm) can post the phone's position as a location ping
+tagged `t: "h"` (`docs/heartbeat-shortcut.md`): a position is sharper than steps (a drive adds few steps). With
+it, a heartbeat far from where OwnTracks last saw the phone while OwnTracks has been quiet for 3 hours is
+texted at once, and 14 hours without one is texted at the next check.
 
 ## What would make it better still
 

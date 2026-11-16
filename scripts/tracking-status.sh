@@ -29,6 +29,7 @@ now = datetime.datetime.now().timestamp()*1000
 h, d, t, s = doc(hb), doc(drive), doc(health), doc(state)
 print(f"member            {member}")
 print(f"last heartbeat    {when(h.get('lastAtMs'))}  count {h.get('count','0')}  moved since OwnTracks {h.get('movedSinceOwnTracksMeters')} m")
+print(f"health export     {when(h.get('healthLastAtMs'))}  exports {h.get('healthCount','0')}  steps today {h.get('healthStepsTotal')} ({h.get('healthStepsDateKey')})  since OwnTracks {h.get('healthStepsSinceOwnTracks')}")
 print(f"last OwnTracks    {when(d.get('lastPointAtMs'))}  detector {d.get('status')}  ({round((now-d['lastPointAtMs'])/3600000,1) if d.get('lastPointAtMs') else '?'} h ago)")
 print(f"health check      {when(t.get('checkedAtMs'))}  ok={t.get('ok')}  last alert {when(t.get('lastAlertAtMs'))} [{t.get('lastAlertCodes','')}]")
 for i in t.get("issues") or []: print(f"  issue           {i.get('code')}: {i.get('text')}")

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isHeartbeat, stampHeartbeat, recordHeartbeat } = require("./heartbeat");
+const { isHeartbeat, stampHeartbeat, recordHeartbeat, recordHealthHeartbeat } = require("./heartbeat");
 const { assessTrackingHealth, alertIssueOnce } = require("./trackingHealth");
 const { hashShortcutToken } = require("./iosShortcutsIntegration");
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
@@ -101,4 +101,33 @@ test("alertIssueOnce records the issue so the scheduled check does not repeat it
   assert.equal(await alertIssueOnce({ db, FieldValue, member, issue: { code: "y", text: "Y happened." }, sendSms, nowMs: NOW + H }), true);
   assert.equal(db._get("trackingHealth", ME).lastAlertCodes, "x,y");
   assert.equal(texts.length, 2);
+});
+
+test("a Health Auto Export export is a heartbeat too: thousands of steps while OwnTracks is quiet mean the phone went somewhere", async () => {
+  const db = new FakeDb({ appMembers: { [ME]: memberDoc }, driveDetection: { [ME]: driveAtHome(NOW - 9 * H) } });
+  const texts = [];
+  const sendSms = async (to, body) => texts.push(body);
+  const first = await recordHealthHeartbeat({ db, FieldValue, member, stepsByDate: { "2026-11-16": 1200 }, nowMs: NOW - 3 * H, sendSms });
+  assert.deepEqual([first.delta, first.stepsSinceOwnTracks, first.ownTracksStopped], [1200, 1200, false]);
+  const second = await recordHealthHeartbeat({ db, FieldValue, member, stepsByDate: { "2026-11-15": 8000, "2026-11-16": 4500 }, nowMs: NOW, sendSms });
+  assert.deepEqual([second.delta, second.stepsSinceOwnTracks, second.ownTracksStopped, second.alerted], [3300, 4500, true, true]);
+  assert.match(texts[0], /^Tracking check: You have taken 4,500 steps since OwnTracks last reported \(Sun 10:00 pm, 9 h ago\), so OwnTracks seems to have stopped/);
+  const hb = db._get("heartbeats", ME);
+  assert.equal(hb.healthCount, 2);
+  assert.equal(hb.healthStepsTotal, 4500);
+  assert.equal(hb.healthLastAtMs, NOW);
+  // OwnTracks reports again: the count starts over.
+  db._set("driveDetection", ME, driveAtHome(NOW + H));
+  const third = await recordHealthHeartbeat({ db, FieldValue, member, stepsByDate: { "2026-11-16": 4600 }, nowMs: NOW + 2 * H, sendSms });
+  assert.deepEqual([third.delta, third.stepsSinceOwnTracks, third.ownTracksStopped], [100, 100, false]);
+  assert.equal(texts.length, 1);
+});
+
+test("the scheduled check reads the Health Auto Export heartbeat: few steps at home is fine, many steps with OwnTracks quiet is not", async () => {
+  const quiet = new FakeDb({ driveDetection: { [ME]: driveAtHome(NOW - 41 * H) }, heartbeats: { [ME]: { healthLastAtMs: NOW - 2 * H, healthStepsSinceOwnTracks: 800 } } });
+  assert.equal((await assessTrackingHealth({ db: quiet, memberEmail: ME, nowMs: NOW })).ok, true, "41 h of OwnTracks silence with 800 steps is a weekend at home");
+  const walked = new FakeDb({ driveDetection: { [ME]: driveAtHome(NOW - 9 * H) }, heartbeats: { [ME]: { healthLastAtMs: NOW - 2 * H, healthStepsSinceOwnTracks: 3500 } } });
+  assert.deepEqual((await assessTrackingHealth({ db: walked, memberEmail: ME, nowMs: NOW })).issues.map((i) => i.code), ["owntracks_dead"]);
+  const noExport = new FakeDb({ driveDetection: { [ME]: driveAtHome(NOW - 2 * H) }, heartbeats: { [ME]: { healthLastAtMs: NOW - 30 * H, healthStepsSinceOwnTracks: 0 } } });
+  assert.deepEqual((await assessTrackingHealth({ db: noExport, memberEmail: ME, nowMs: NOW })).issues.map((i) => i.code), ["health_export_silent"]);
 });

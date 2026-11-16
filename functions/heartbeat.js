@@ -8,6 +8,12 @@ const COL_HEARTBEATS = "heartbeats";
 const COL_DRIVE_DETECTION = "driveDetection";
 const MOVED_METERS = 500;
 const OWNTRACKS_QUIET_MS = 3 * 3600 * 1000;
+// Health Auto Export already posts several times a day; each export is a heartbeat of the second kind: no
+// position, but the step count says whether the phone went anywhere. Steps at home stay small; a walk or
+// an outing does not.
+const STEPS_MOVED = 3000;
+const STEPS_STAYED_PUT = 1500;
+const HEALTH_OWNTRACKS_QUIET_MS = 6 * 3600 * 1000;
 
 function finite(value) {
   const n = Number(value);
@@ -95,4 +101,61 @@ async function recordHeartbeat({ db, FieldValue, member, payload, nowMs = Date.n
   return result;
 }
 
-module.exports = { COL_HEARTBEATS, MOVED_METERS, OWNTRACKS_QUIET_MS, haversineMeters, isHeartbeat, recordHeartbeat, stampHeartbeat };
+/**
+ * Records a Health Auto Export export as a heartbeat (fields health* in heartbeats/{member}) and keeps a
+ * running count of steps taken since OwnTracks last reported. `stepsByDate` is { "YYYY-MM-DD": total } from
+ * the export (the day's running total). Thousands of steps while OwnTracks has been quiet for hours means
+ * the phone went somewhere OwnTracks did not report: the member is texted once a day, like the GPS heartbeat.
+ */
+async function recordHealthHeartbeat({ db, FieldValue, member, stepsByDate, nowMs = Date.now(), sendSms = null, timezone = "America/Toronto", logger = null }) {
+  const entries = Object.entries(stepsByDate || {})
+    .filter(([key, value]) => /^\d{4}-\d{2}-\d{2}$/.test(key) && Number.isFinite(Number(value)))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  const latest = entries.length ? { dateKey: entries[entries.length - 1][0], total: Math.round(Number(entries[entries.length - 1][1])) } : null;
+
+  const driveSnap = await db.collection(COL_DRIVE_DETECTION).doc(member.email).get().catch(() => null);
+  const drive = driveSnap && driveSnap.exists ? driveSnap.data() || {} : {};
+  const ownTracksLastMs = Number.isFinite(drive.lastPointAtMs) ? drive.lastPointAtMs : null;
+
+  const ref = db.collection(COL_HEARTBEATS).doc(member.email);
+  const prevSnap = await ref.get().catch(() => null);
+  const prev = prevSnap && prevSnap.exists ? prevSnap.data() || {} : {};
+  let delta = 0;
+  if (latest) {
+    delta = prev.healthStepsDateKey === latest.dateKey ? Math.max(0, latest.total - (Number(prev.healthStepsTotal) || 0)) : latest.total;
+  }
+  // OwnTracks reported since the last export: the count starts over from this export's steps.
+  const ownTracksReported = ownTracksLastMs !== (Number.isFinite(prev.healthOwnTracksLastAtMs) ? prev.healthOwnTracksLastAtMs : null);
+  const stepsSinceOwnTracks = ownTracksReported ? delta : (Number(prev.healthStepsSinceOwnTracks) || 0) + delta;
+  const ownTracksQuietMs = ownTracksLastMs != null ? nowMs - ownTracksLastMs : null;
+  const ownTracksStopped = stepsSinceOwnTracks >= STEPS_MOVED && ownTracksQuietMs != null && ownTracksQuietMs > HEALTH_OWNTRACKS_QUIET_MS;
+
+  await ref.set(
+    {
+      memberEmail: member.email,
+      healthLastAtMs: nowMs,
+      healthLastAt: new Date(nowMs),
+      healthStepsDateKey: latest ? latest.dateKey : prev.healthStepsDateKey || null,
+      healthStepsTotal: latest ? latest.total : Number.isFinite(prev.healthStepsTotal) ? prev.healthStepsTotal : null,
+      healthStepsSinceOwnTracks: stepsSinceOwnTracks,
+      healthOwnTracksLastAtMs: ownTracksLastMs,
+      healthCount: (Number(prev.healthCount) || 0) + 1,
+      updatedAt: FieldValue && typeof FieldValue.serverTimestamp === "function" ? FieldValue.serverTimestamp() : new Date(nowMs),
+    },
+    { merge: true }
+  );
+
+  const result = { delta, stepsSinceOwnTracks, ownTracksQuietMs, ownTracksStopped, alerted: false };
+  if (ownTracksStopped && typeof sendSms === "function") {
+    const { alertIssueOnce } = require("./trackingHealth");
+    const issue = {
+      code: "owntracks_dead",
+      text: `You have taken ${stepsSinceOwnTracks.toLocaleString("en-US")} steps since OwnTracks last reported (${formatWhen(ownTracksLastMs, timezone)}, ${Math.round(ownTracksQuietMs / 3600000)} h ago), so OwnTracks seems to have stopped. Open it once; location access should be Always.`,
+    };
+    result.alerted = await alertIssueOnce({ db, FieldValue, member, issue, sendSms, nowMs, logger });
+  }
+  if (logger && typeof logger.info === "function") logger.info("heartbeat: health export recorded", { memberEmail: member.email, delta, stepsSinceOwnTracks, ownTracksQuietMs, ownTracksStopped, alerted: result.alerted });
+  return result;
+}
+
+module.exports = { COL_HEARTBEATS, MOVED_METERS, OWNTRACKS_QUIET_MS, STEPS_MOVED, STEPS_STAYED_PUT, HEALTH_OWNTRACKS_QUIET_MS, haversineMeters, isHeartbeat, recordHeartbeat, recordHealthHeartbeat, stampHeartbeat };

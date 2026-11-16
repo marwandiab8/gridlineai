@@ -24,6 +24,11 @@ const HEARTBEAT_SILENT_MS = 14 * 3600 * 1000;
 const STAYED_PUT_METERS = 300;
 const MOVED_METERS = 500;
 const OWNTRACKS_QUIET_MS = 3 * 3600 * 1000;
+// Health Auto Export posts a few times a day with gaps of up to a night; its silence counts after a day.
+const HEALTH_EXPORT_SILENT_MS = 24 * 3600 * 1000;
+const STEPS_MOVED = 3000;
+const STEPS_STAYED_PUT = 1500;
+const HEALTH_OWNTRACKS_QUIET_MS = 6 * 3600 * 1000;
 const SETTLED_DELIVERY = new Set(["delivered", "duplicate", "off", "unsupported_event_type"]);
 const OPEN_BOUNDARIES = [
   { arrive: "arrive_work", leave: "leave_work", label: "work" },
@@ -101,6 +106,21 @@ async function assessTrackingHealth({ db, memberEmail, nowMs = Date.now(), timez
       if (moved <= STAYED_PUT_METERS) stayedPut = true;
       else if (lastLocationAtMs != null && heartbeat.lastAtMs > lastLocationAtMs && nowMs - lastLocationAtMs > OWNTRACKS_QUIET_MS && moved > MOVED_METERS) {
         issues.push({ code: "owntracks_dead", text: `The phone has moved ${Math.round(moved / 100) / 10} km since OwnTracks last reported (${formatWhen(lastLocationAtMs, timezone)}), so OwnTracks seems to have stopped. Open it once; location access should be Always.` });
+      }
+    }
+  }
+
+  // Health Auto Export as the heartbeat: the phone is alive if it exports, and its steps say whether it moved.
+  // The GPS heartbeat, when it is set up and fresh, has already answered.
+  if (heartbeat && Number.isFinite(heartbeat.healthLastAtMs)) {
+    const gpsFresh = Number.isFinite(heartbeat.lastAtMs) && nowMs - heartbeat.lastAtMs <= HEARTBEAT_SILENT_MS;
+    if (nowMs - heartbeat.healthLastAtMs > HEALTH_EXPORT_SILENT_MS) {
+      issues.push({ code: "health_export_silent", text: `No Health Auto Export since ${formatWhen(heartbeat.healthLastAtMs, timezone)}: its automation may be off, or the phone.` });
+    } else if (!gpsFresh) {
+      const since = Number(heartbeat.healthStepsSinceOwnTracks) || 0;
+      if (since < STEPS_STAYED_PUT) stayedPut = true;
+      else if (lastLocationAtMs != null && nowMs - lastLocationAtMs > HEALTH_OWNTRACKS_QUIET_MS && since >= STEPS_MOVED && !issues.some((issue) => issue.code === "owntracks_dead")) {
+        issues.push({ code: "owntracks_dead", text: `You have taken ${since.toLocaleString("en-US")} steps since OwnTracks last reported (${formatWhen(lastLocationAtMs, timezone)}), so OwnTracks seems to have stopped. Open it once; location access should be Always.` });
       }
     }
   }
@@ -245,6 +265,7 @@ async function runTrackingHealthCheck({ db, FieldValue, nowMs = Date.now(), send
 module.exports = {
   COL_HEALTH,
   HEARTBEAT_SILENT_MS,
+  HEALTH_EXPORT_SILENT_MS,
   alertIssueOnce,
   SILENT_AFTER_MS,
   OPEN_BOUNDARY_AFTER_MS,

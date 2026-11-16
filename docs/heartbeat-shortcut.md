@@ -1,4 +1,16 @@
-# The heartbeat Shortcut
+# The heartbeat: Health Auto Export does it, the Shortcut is optional
+
+**You already have a heartbeat.** Health Auto Export posts to GridlineAI several times a day (four to eight
+on a typical day, with a gap overnight), and since 2026-11-15 every export is recorded as a heartbeat
+(`heartbeats/{member}`, the `health*` fields): the phone is alive, and the day's step count says whether it
+went anywhere. Thousands of steps (3,000 or more) since OwnTracks last reported, with OwnTracks quiet for
+6 hours, means OwnTracks has stopped: you are texted at once, once a day at most. Under 1,500 steps while
+OwnTracks is quiet reads as a day at home, so the old "OwnTracks silent" text no longer fires for that. A day
+without any export is texted at the next check. Nothing to set up.
+
+**The Shortcut below is optional.** It adds a position, which is sharper than steps: a drive to the gym and
+back with the phone in a cup holder adds few steps, but a heartbeat from the gym's parking lot is proof the
+phone moved. If the step-based check ever misses something you care about, set it up; otherwise skip it.
 
 Three times a day the iPhone tells GridlineAI "I am alive, and I am here". That is all the tracking health
 check needs to tell a quiet day at home (OwnTracks has nothing to report) from OwnTracks having stopped

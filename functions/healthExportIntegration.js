@@ -16,6 +16,7 @@ const {
   findShortcutMemberByTokenHash,
 } = require("./iosShortcutsIntegration");
 const { parseHealthExportPayload } = require("./healthExportEventMapper");
+const { recordHealthHeartbeat } = require("./heartbeat");
 const {
   readTimeLeftLifeEventConfigFromEnv,
   requireValidTimeLeftLifeEventConfig,
@@ -54,7 +55,7 @@ function buildDeliveryClient({ env = process.env, logger } = {}) {
   }
 }
 
-async function handleHealthExportEventRequest({ db, req, res, logger, client } = {}) {
+async function handleHealthExportEventRequest({ db, FieldValue = null, req, res, logger, client, sendSms = null } = {}) {
   const runId = `health-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   try {
     if (req.method !== "POST") {
@@ -80,6 +81,15 @@ async function handleHealthExportEventRequest({ db, req, res, logger, client } =
 
     const { sleepEvents, workoutEvents, stepsEvents } = parseHealthExportPayload(req.body);
     const allEvents = [...sleepEvents, ...workoutEvents, ...stepsEvents];
+
+    // The export itself is a heartbeat (heartbeat.js): the phone is alive, and the day's step count says
+    // whether it went anywhere while OwnTracks was quiet. Never fails the export.
+    try {
+      const stepsByDate = Object.fromEntries(stepsEvents.map((event) => [String(event.sourceRecordId || "").replace(/^steps:/, ""), event.metrics && event.metrics.steps]));
+      await recordHealthHeartbeat({ db, FieldValue, member, stepsByDate, sendSms, logger });
+    } catch (err) {
+      if (logger && typeof logger.warn === "function") logger.warn("healthExportEvents: heartbeat not recorded", { runId, message: err && err.message });
+    }
 
     const counts = { sleep: sleepEvents.length, workouts: workoutEvents.length, steps: stepsEvents.length };
     if (allEvents.length === 0) {
