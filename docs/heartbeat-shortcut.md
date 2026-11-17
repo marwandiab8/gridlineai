@@ -19,34 +19,35 @@ half. A heartbeat is an ordinary OwnTracks location ping tagged `t: "h"`, posted
 same token; the server stamps the time, uses it as evidence for open stays, keeps it out of the drive
 detector, and records it in `heartbeats/{member}`.
 
-## Set it up once (about five minutes)
+## Set it up once (about three minutes)
 
-The token is the one your other Shortcuts already send, so start from one of them instead of typing it.
+There is no file to install. Since iOS 15 a shortcut can only be added from a file signed on an Apple device
+or from an iCloud link made in the Shortcuts app, and the three daily automations and the location permission
+could not travel in a file anyway. So the Shortcut is a copy of one already on the phone, with one URL changed.
 
 1. **Shortcuts app → Shortcuts tab**: press and hold **Log this place** → **Duplicate**. Rename the copy
-   `Tracking heartbeat`. Delete every step except **Get Current Location** and the first **Get Contents of
-   URL**; the `Authorization` header with the token stays in it.
-   (Nothing to copy from? Build those two actions and add the header `Authorization` = `Bearer <token>`.
-   The dashboard Setup page shows the token only when it is generated, and regenerating it means updating
-   OwnTracks and every other Shortcut too.)
-2. In **Get Contents of URL** set:
-   - URL: `https://gridlineai.web.app/api/integrations/owntracks/events`
-   - Method: **POST**
-   - Request Body: **JSON**, with exactly these fields (remove any others):
-     - `_type` (Text) `location`
-     - `t` (Text) `h`
-     - `tid` (Text) `HB`
-     - `lat` (Number) → tap the value, pick the **Current Location** variable, tap the inserted variable and
-       set **Get: Latitude**
-     - `lon` (Number) → Current Location → **Get: Longitude**
-   Shortcuts sends the JSON content type itself; a `Content-Type: application/json` header does no harm.
-3. Run it once by hand (the ▶ button). Allow location when asked. The reply is `[]`, OwnTracks' "received"
-   answer, and `scripts/tracking-status.sh` then shows `last heartbeat` with count 1.
-4. **Settings → Privacy & Security → Location Services → Shortcuts → Always**, so the automation can read the
+   `Tracking heartbeat`.
+2. Open the copy and delete every action after the first **Get Contents of URL**: the Get Dictionary Value
+   step, the If block, Ask for Text, the second Get Contents of URL and the notifications. Two actions
+   remain, **Get Current Location** and **Get Contents of URL**; the second still carries the token header
+   and posts the position as `latitude` and `longitude`.
+3. In **Get Contents of URL** replace the URL with
+   `https://gridlineai.web.app/api/integrations/owntracks/events?heartbeat=1`
+   and change nothing else. `?heartbeat=1` makes the endpoint read that body as a heartbeat
+   (`heartbeatFromRequest` in `functions/heartbeat.js`).
+4. Run it once by hand (▶). Allow location when asked. The reply is `[]`, OwnTracks' "received" answer, and
+   `scripts/tracking-status.sh` then shows `last heartbeat` with count 1.
+5. **Settings → Privacy & Security → Location Services → Shortcuts → Always**, so the automation can read the
    location while the phone is locked.
-5. **Shortcuts → Automation tab → +** (New Automation) → **Time of Day**: 7:00 AM, Daily, **Run Immediately**
+6. **Shortcuts → Automation tab → +** (New Automation) → **Time of Day**: 7:00 AM, Daily, **Run Immediately**
    (not "Run After Confirmation"), **Notify When Run** off → **Next** → choose `Tracking heartbeat`. Repeat
    for **1:00 PM** and **7:00 PM**.
+
+Built from scratch instead (nothing to copy): **Get Current Location**, then **Get Contents of URL** with the
+URL above, Method **POST**, header `Authorization` = `Bearer <token>` (the dashboard Setup page shows the
+token only when it is generated), Request Body **JSON** with `latitude` (Number, Current Location → Latitude)
+and `longitude` (Number, Current Location → Longitude). The OwnTracks shape works as well: `_type` `location`,
+`t` `h`, `tid` `HB`, `lat`, `lon`, posted to the URL without `?heartbeat=1`.
 
 ## What you get
 

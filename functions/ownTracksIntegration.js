@@ -54,7 +54,7 @@ async function knownPlaceRegionVisit({ db, member, payload, body, logger, runId 
 const { closeStaysFromEvidence } = require("./stayClosing");
 const { applyOwnTracksToDrive } = require("./driveDetection");
 const { applyEvidenceToPendingStop } = require("./unknownStops");
-const { isHeartbeat, recordHeartbeat, stampHeartbeat } = require("./heartbeat");
+const { heartbeatFromRequest, isHeartbeat, recordHeartbeat, stampHeartbeat } = require("./heartbeat");
 const {
   DEPARTURE_DEDUPE_MS,
   noteWorkExitForEtaFallback,
@@ -223,7 +223,10 @@ async function handleOwnTracksEventRequest({
       return;
     }
 
-    const payload = req.body && typeof req.body === "object" ? req.body : {};
+    const rawBody = req.body && typeof req.body === "object" ? req.body : {};
+    // `?heartbeat=1` on the URL: the Shortcut built from a copy of "Log this place" (docs/heartbeat-shortcut.md),
+    // whose body is { latitude, longitude }; read as the heartbeat ping below.
+    const payload = heartbeatFromRequest(req, rawBody) || rawBody;
     const deps = { processAssistantMessage, openaiKey, runId, logger, timeLeftLifeEventDelivery };
     // A text to the member (a new place logged for them, OwnTracks gone quiet) uses the same Twilio number as
     // the ETA texts; without it those steps are skipped, nothing else changes.

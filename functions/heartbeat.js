@@ -32,6 +32,25 @@ function isHeartbeat(payload) {
   return payload.t === "h" || payload.heartbeat === true || String(payload.tid || "").trim().toUpperCase() === "HB";
 }
 
+/**
+ * The simplest Shortcut (docs/heartbeat-shortcut.md): a copy of "Log this place" with nothing but its URL
+ * changed, so it still posts { latitude, longitude } - to this endpoint with `?heartbeat=1` on the URL.
+ * Returns that request as the OwnTracks location ping tagged `t: "h"` the handler expects, or null when the
+ * URL does not say heartbeat (OwnTracks itself never sends a query string).
+ */
+function heartbeatFromRequest(req, body) {
+  const query = req && req.query && typeof req.query === "object" ? req.query : {};
+  if (!("heartbeat" in query)) return null;
+  const flag = String(query.heartbeat == null ? "" : query.heartbeat).trim().toLowerCase();
+  if (flag === "0" || flag === "false" || flag === "no") return null;
+  const src = body && typeof body === "object" ? body : {};
+  const pick = (...keys) => {
+    for (const key of keys) if (src[key] != null && src[key] !== "") return src[key];
+    return null;
+  };
+  return { _type: "location", t: "h", tid: "HB", lat: pick("lat", "latitude"), lon: pick("lon", "longitude"), acc: pick("acc", "accuracy", "horizontalAccuracy"), tst: pick("tst") };
+}
+
 /** Shortcuts cannot easily send a unix time, so a heartbeat without one is stamped now. */
 function stampHeartbeat(payload, nowMs = Date.now()) {
   const tst = finite(payload.tst);
@@ -158,4 +177,4 @@ async function recordHealthHeartbeat({ db, FieldValue, member, stepsByDate, nowM
   return result;
 }
 
-module.exports = { COL_HEARTBEATS, MOVED_METERS, OWNTRACKS_QUIET_MS, STEPS_MOVED, STEPS_STAYED_PUT, HEALTH_OWNTRACKS_QUIET_MS, haversineMeters, isHeartbeat, recordHeartbeat, recordHealthHeartbeat, stampHeartbeat };
+module.exports = { COL_HEARTBEATS, MOVED_METERS, OWNTRACKS_QUIET_MS, STEPS_MOVED, STEPS_STAYED_PUT, HEALTH_OWNTRACKS_QUIET_MS, haversineMeters, heartbeatFromRequest, isHeartbeat, recordHeartbeat, recordHealthHeartbeat, stampHeartbeat };

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isHeartbeat, stampHeartbeat, recordHeartbeat, recordHealthHeartbeat } = require("./heartbeat");
+const { heartbeatFromRequest, isHeartbeat, stampHeartbeat, recordHeartbeat, recordHealthHeartbeat } = require("./heartbeat");
 const { assessTrackingHealth, alertIssueOnce } = require("./trackingHealth");
 const { hashShortcutToken } = require("./iosShortcutsIntegration");
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
@@ -130,4 +130,29 @@ test("the scheduled check reads the Health Auto Export heartbeat: few steps at h
   assert.deepEqual((await assessTrackingHealth({ db: walked, memberEmail: ME, nowMs: NOW })).issues.map((i) => i.code), ["owntracks_dead"]);
   const noExport = new FakeDb({ driveDetection: { [ME]: driveAtHome(NOW - 2 * H) }, heartbeats: { [ME]: { healthLastAtMs: NOW - 30 * H, healthStepsSinceOwnTracks: 0 } } });
   assert.deepEqual((await assessTrackingHealth({ db: noExport, memberEmail: ME, nowMs: NOW })).issues.map((i) => i.code), ["health_export_silent"]);
+});
+
+test("the simplest Shortcut, a copy of Log this place with only its URL changed, is a heartbeat too", async () => {
+  assert.equal(heartbeatFromRequest({ query: {} }, { latitude: 1, longitude: 2 }), null, "no ?heartbeat on the URL: an ordinary request");
+  assert.equal(heartbeatFromRequest({ query: { heartbeat: "0" } }, { latitude: 1, longitude: 2 }), null);
+  const hb = heartbeatFromRequest({ query: { heartbeat: "1" } }, { latitude: "43.70636", longitude: "-80.393547" });
+  assert.equal(hb._type, "location");
+  assert.equal(hb.t, "h");
+  assert.equal(isHeartbeat(hb), true);
+  assert.equal(Number(hb.lat), HOME.latitude);
+  assert.equal(Number(hb.lon), HOME.longitude);
+  assert.equal(heartbeatFromRequest({ query: { heartbeat: "" } }, { lat: 1, lon: 2 }).lat, 1, "?heartbeat with no value counts, and OwnTracks field names pass through");
+
+  const db = new FakeDb({ appMembers: { [ME]: memberDoc }, driveDetection: { [ME]: driveAtHome(NOW - 2 * H) } });
+  const response = { statusCode: 200, body: null, status(c) { this.statusCode = c; return this; }, set() { return this; }, json(b) { this.body = b; return this; } };
+  await handleOwnTracksEventRequest({
+    db, FieldValue,
+    req: { method: "POST", body: { latitude: HOME.latitude, longitude: HOME.longitude }, query: { heartbeat: "1" }, get: (n) => (String(n).toLowerCase() === "authorization" ? `Bearer ${TOKEN}` : "") },
+    res: response, logger: { error() {}, warn() {}, info() {} }, openaiKey: null, processAssistantMessage: async () => ({}), timeLeftLifeEventDelivery: async () => {},
+  });
+  assert.deepEqual(response.body, []);
+  const rec = db._get("heartbeats", ME);
+  assert.ok(rec && rec.count === 1 && Math.abs(rec.latitude - HOME.latitude) < 1e-9, "recorded as a heartbeat with the phone's position");
+  assert.ok(Math.abs(rec.lastAtMs - Date.now()) < 60000, "stamped with now");
+  assert.equal(db._get("driveDetection", ME).lastPointAtMs, NOW - 2 * H, "kept out of the drive detector");
 });
