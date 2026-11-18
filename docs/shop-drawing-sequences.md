@@ -7,6 +7,7 @@ section **09 Construction Sequences** of `public/shop-drawings/index.html`, and 
 |---|---|---|---|
 | Grid H bulkhead, Z2 Admin / Z3 Vehicle Bay slab step (12 steps) | `/shop-drawings/sequences/grid-h-bulkhead/` | 2026-11-15 | 5/S702, 11/S006, 3/S008, 7/S008, A151 PC-022, AGF 4/R29, S201 slab notes, spec 03 30 00 |
 | Roof Flow Lab, Level 2 west roof water-flow simulator (7 built-in scenarios) | `/shop-drawings/sequences/roof-flow-lab/` | 2026-11-16 | F2C as-built top-of-deck survey (221 readings, surveyed Nov 5 2026, revised Nov 11); S203B for the design-deck comparison |
+| Solatube tubular skylights, one unit from deck opening to diffuser (8 steps) | `/shop-drawings/sequences/solatube-install/` | 2026-11-18 | Solatube shop dwg M74 DS-O-C-DP-FC-A Rev 2 (R0), metal curb dwg Rev A + DSA-requested markup, M74 DS install instructions, spec 08 63 00, Triumph 18/A210, RFI 251, MCL sketches SK-SOL-01/02 |
 
 ## Simulators
 
