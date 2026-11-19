@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step 3D animation of the Docksteader vehicle bay slab on grade, south of grid H and west of grid 6.1: underground plumbing, subgrade, granular, insulation and vapour barrier, trench drains and oil/sand interceptor, steel, SOG 1, radiant tubing and topping, from M200, A151, S201, AGF R49 and the interceptor RFIs.">
+<title>Vehicle Bay Slab Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-sheet header, then a 16:9 3D stage with an in-frame caption band (so the same frame works as a video), transport, step list, questions fold-out and legend. */
+:root {
+  --bg: #e8ecee;
+  --panel: #fbfcfc;
+  --ink: #172027;
+  --muted: #59656f;
+  --line: #c9d1d7;
+  --mcl: #8a4f1d;
+  --nor: #1f56c6;
+  --ref: #0d7a6f;
+  --ele: #a85d00;
+  --mec: #6d3fc0;
+  --hold: #c3322c;
+  --hold-f: #fdeceb;
+  --font-display: "Barlow Condensed", "Arial Narrow", "TeX Gyre Heros Cn", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --mcl: #dca068; --nor: #82a8ff; --ref: #4fd1c0; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --mcl: #dca068; --nor: #82a8ff; --ref: #4fd1c0; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--nor); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 66ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage-wrap { position: relative; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #e7eaec; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ov { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-display); color: #13202b; }
+.ov #ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  font-size: var(--lf, 14px); line-height: 1.15; padding: .28em .55em .3em .5em; background: rgba(255,255,255,.95); color: #13202b;
+  border-left: .32em solid var(--c, #1f56c6); border-radius: .25em; box-shadow: 0 .08em .3em rgba(0,0,0,.18); }
+.lbl small { display: block; font-size: .78em; font-weight: 500; color: #46525c; letter-spacing: .02em; }
+.lbl.hold { color: #b3261e; border-left-color: #c3322c; }
+.lbl.big { font-size: calc(var(--lf, 14px) * 1.9); font-family: var(--font-mono); letter-spacing: 0; border-left-color: #0d7a6f; }
+.dimt { position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; font-size: calc(var(--lf, 14px) * .92); color: #13202b; background: rgba(255,255,255,.9); padding: .1em .35em; border-radius: .2em; white-space: nowrap; }
+.badge { position: absolute; top: 2.2%; left: 1.6%; display: flex; align-items: center; gap: .45em; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--tf, 22px); letter-spacing: .03em; text-transform: uppercase; background: rgba(255,255,255,.94); padding: .12em .6em .12em .14em; border-radius: .35em; color: #13202b; }
+.badge .n { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--c, #13202b); color: #fff; font-size: .9em; flex: none; }
+.badge .w { font-family: var(--font-mono); font-weight: 600; font-size: .5em; color: var(--c, #59656f); letter-spacing: .06em; }
+.tag { position: absolute; top: 2.4%; right: 1.6%; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * .78); letter-spacing: .06em; text-transform: uppercase; color: #3d4a54; background: rgba(255,255,255,.88); padding: .25em .55em; border-radius: .25em; text-align: right; line-height: 1.45; }
+.compass { position: absolute; right: 1.8%; top: 14%; width: calc(var(--lf, 14px) * 3.6); height: calc(var(--lf, 14px) * 3.6); }
+.cap { position: absolute; left: 1.6%; right: 1.6%; bottom: 2.6%; display: grid; grid-template-columns: minmax(0, 1fr); gap: .25em;
+  font-family: var(--font-body); font-size: var(--cf, 14px); line-height: 1.32; color: #13202b; background: rgba(255,255,255,.95);
+  border-left: .35em solid var(--c, #1f56c6); border-radius: .3em; padding: .6em .9em .65em; box-shadow: 0 .1em .5em rgba(0,0,0,.16); pointer-events: none; }
+.cap ul { margin: 0; padding: 0 0 0 1.05em; display: grid; gap: .12em; }
+.cap .ref { font-family: var(--font-mono); font-size: .74em; color: #4b5863; letter-spacing: .03em; }
+.cap .hold { color: #b3261e; font-weight: 600; }
+.cap .hold b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; margin-right: .35em; }
+.intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.intro div { background: rgba(255,255,255,.93); padding: .7em 1.2em .8em; border-radius: .35em; font-family: var(--font-display); color: #13202b; box-shadow: 0 .2em 1em rgba(0,0,0,.15); }
+.intro h2 { margin: 0; font-size: calc(var(--tf, 22px) * 2.1); line-height: 1; letter-spacing: .02em; font-weight: 700; text-transform: uppercase; }
+.intro p { margin: .35em 0 0; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * 1.05); letter-spacing: .05em; color: #3d4a54; text-transform: uppercase; }
+.big-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: #fff; background: #172027;
+  padding: 10px 18px 10px 14px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; pointer-events: auto; }
+.big-play svg { width: 18px; height: 18px; fill: currentColor; }
+.narrow .stage { aspect-ratio: 4 / 3; }
+.narrow .cap { position: static; margin-top: 8px; font-size: 13.5px; }
+.narrow .tag, .narrow .compass { display: none; }
+.narrow .badge { font-size: 14px; }
+.narrow .lbl.minor { display: none; }
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 24px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible, .back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--nor); outline-offset: 2px; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro-p { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 6px; align-items: start; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.step-head .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--c); border: 2px solid var(--c); }
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.step-body p { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.step-body .hold { background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+.step-body .hold b { color: var(--hold); }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; }
+.rfi ul { margin: 10px 0 4px; padding-left: 20px; display: grid; gap: 6px; max-width: 90ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; background: var(--c); display: inline-block; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 120ch; }
+/* video mode: stage only, full frame */
+body.video { padding: 0; background: #000; }
+body.video .page > :not(.bench), body.video .transport, body.video .steps-col, body.video .big-play { display: none !important; }
+body.video .page { max-width: none; gap: 0; }
+body.video .stage { border: 0; border-radius: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>Vehicle bay slab on grade, step by step</h1>
+      <p class="sub">The ground-floor slab south of grid H and west of grid 6.1, from the underground plumbing to the topping. 3D sequence built from M200, M903, A151, the S201 slab schedule, the AGF trench drain steel (R49), the oil interceptor RFIs and the Kolostat radiant layout.</p>
+    </div>
+    <div class="sheet-no"><b>SK-VB-01</b> animation<br>grids 16–6.1 × A–H · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="3D animation">
+      <div class="stage-wrap" id="stageWrap">
+        <div class="stage" id="stage">
+          <canvas id="gl" role="img" aria-label="3D model of the vehicle bay slab on grade being built step by step"></canvas>
+          <div class="ov" id="ov">
+            <svg id="ovsvg"></svg>
+            <div id="ovl"></div>
+            <div class="badge" id="badge"><span class="n" id="bNum">✓</span><span id="bTitle">Slab on grade complete</span><span class="w" id="bWho"></span></div>
+            <div class="tag">Vehicle bay · SOG 1 + topping<br>Docksteader Paramedic Services</div>
+            <svg class="compass" id="compass" viewBox="-50 -50 100 100" aria-hidden="true"><circle r="47" fill="rgba(255,255,255,.9)" stroke="#13202b" stroke-width="2.5"/><g id="cneedle"><path d="M0 -22 L10 16 L0 9 L-10 16 Z" fill="#c3322c"/><text x="0" y="-27" font-family="Barlow Condensed, TeX Gyre Heros Cn, Arial Narrow, sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="#13202b">N</text></g></svg>
+            <div class="intro" id="intro"><div><h2>Vehicle bay slab on grade</h2><p>South of H · west of 6.1 · 12 steps</p></div></div>
+            <div class="intro" id="outro" style="opacity:0"><div><h2>Slab on grade complete</h2><p>Schematic from M200, A151, S201 and R49 · not a substitute for the drawings</p></div></div>
+          </div>
+          <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="bigPlayText">Play the sequence</span></button>
+        </div>
+        <div class="cap" id="cap" aria-live="polite"></div>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="steps-col" aria-label="Install steps">
+      <p class="intro-p">Press play to watch the slab go in, layer by layer. Or pick a step to see it on its own. Each step lists what the drawings and shop drawings require and where it comes from. Colours show the trade.</p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </main>
+
+  <details class="rfi">
+    <summary>Settle before the slab goes in</summary>
+    <ul>
+      <li><strong>Oil/sand interceptor.</strong> DSA and IRB accepted MCL's new location just outside grid A (RFI 326 R1, Nov 4). Revised mechanical, civil and structural shop drawings are still due. The slab opening on A151 and the old routing no longer apply. SK-01 / RFI 315 set the pit for 3100 deep at the old spot; confirm the depth and detail for the new one.</li>
+      <li><strong>Water table.</strong> SK-01 shows the water table at 252.100. The pit base is near 249.75, over 2 m below it. Plan dewatering, and shore any trench deeper than 1.2 m (RJC note).</li>
+      <li><strong>D3 area drain.</strong> F2C found the D3 drain pipe 1450 west of design (4561 east of grid 8). Move the pipe, or move the drain and re-grade its falls (A151 note 10: 2–5%).</li>
+      <li><strong>Electrical under the slab.</strong> The conduit runs in this sketch are placeholders. Get the real runs from O'Connor Electric and the electrical drawings before the granular goes down.</li>
+      <li><strong>Trench lengths and outlets.</strong> R49 asks to coordinate trench drain lengths with MSB. The Watts channels are pre-sloped with 4″ bottom outlets. Fix run lengths and outlet positions before the mud slabs.</li>
+      <li><strong>Insulation and vapour barrier at the trenches.</strong> This sketch leaves them out of the trench thickenings, as agreed at grid H. Confirm with RJC/DSA, and confirm how the vapour barrier laps into the troughs.</li>
+      <li><strong>SOG 5 strip.</strong> R49 shows SOG 5 (200, no topping) on the east side of the Phase-2 trench near grid 7. This sketch draws SOG 1 + topping everywhere. Confirm the extent on S201.</li>
+      <li><strong>Mud slab.</strong> Thickness and mix aren't specified. The sketch assumes about 75 of lean concrete. Confirm with RJC.</li>
+      <li><strong>Radiant shop drawings.</strong> The revised Kolostat submittal (23 83 00-2.1) came back Revise and Resubmit on Nov 5. Settle it before the tubing goes down.</li>
+      <li><strong>Pour plan.</strong> The bay is about 72 × 38 m. Spec 03 30 00 caps a pour at 40 m (cl. 3.7.10), so plan the pour breaks. Topping joints must sit over the slab joints (cl. 3.10.3). The joint at grid H is covered in the Grid H bulkhead sequence.</li>
+    </ul>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--mcl)"><i></i>MCL (earthworks + concrete)</span>
+    <span style="--c: var(--ref)"><i></i>MSB Mechanical</span>
+    <span style="--c: var(--ele)"><i></i>O'Connor Electric</span>
+    <span style="--c: var(--nor)"><i></i>AGF Rebar</span>
+    <span style="--c: var(--mec)"><i></i>Kolostat (radiant)</span>
+    <span style="--c: var(--hold)"><i></i>Hold / to confirm</span>
+  </footer>
+  <p class="notes">Approximately to scale. Elevations are relative to Level 1 = 253.150; mm unless noted. From M200 underground plumbing (PC-056 / MNC-15), M903, A151 slab edge plan (PC-022), the S201 slab-on-grade schedule and notes, AGF R49 (trench drain reinforcement, reviewed as noted Feb 5 2026), SK-01 and the RFI 260, 315 and 326 responses, the F2C grade sheet (Oct 18 2026) and the Kolostat / Uponor Level 1 radiant layout (R2, Sep 18 2026). Falls are drawn as planes between the high points and the drains and trenches. Pipe, conduit and manifold runs are schematic; positions were scaled off the drawings. The south edge is stepped back layer by layer so the build-up shows. Not a substitute for the drawings.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const VIDEO = !!window.__VIDEO;
+  if (VIDEO) document.body.classList.add("video");
+
+  // ======================= steps
+  // camera: target, yaw (0 = from the south, 90 = from the west, negative = from the east), pitch, distance (mm)
+  const cv = (t, yaw, pitch, d) => ({ t, yaw, pitch, d });
+  const STEPS = [
+    { title: "Underground mechanical", who: "MSB Mechanical", c: "ref", dur: 9,
+      cam: cv([31500, -1700, 24500], -22, 31, 92000),
+      lines: ["Sanitary 100ø at 1% under each row of drains and trenches, into the collector just east of grid 13",
+              "The collector runs south to oil/sand interceptor OSI 1; 300ø storm pairs run east–west near grid H from the roof-drain leaders",
+              "Capped risers at every area drain and trench outlet; inverts about 250.8–252.3"],
+      hold: "OSI 1 moves outside grid A (RFI 326 R1). The collector's run to it is schematic until the revised mechanical drawings come.",
+      ref: "M200 underground plumbing (PC-056 / MNC-15) · 22 05 00-14.1" },
+    { title: "Cut to subgrade", who: "MCL", c: "mcl", dur: 9,
+      cam: cv([33500, -900, 24500], -20, 35, 92000),
+      lines: ["Cut to subgrade: 675 below the finished floor, parallel to the falls (150 + 175 + 150 + 200)",
+              "F2C grade stakes give the underside of granular; their marks sit 1.000 above it",
+              "Subgrade prepared per the geotechnical report before any fill (S201 note 14)"],
+      hold: "D3 area drain: F2C found its pipe 1450 west of design. Move the pipe or the drain before the falls are set.",
+      ref: "S201 notes 3, 14 · A151 · F2C grade sheet (Oct 18 2026)" },
+    { title: "Electrical conduits", who: "O'Connor Electric", c: "ele", dur: 9,
+      cam: cv([31500, -900, 24000], -16, 42, 88000),
+      lines: ["Underground conduits laid on the subgrade before the granular goes down",
+              "Stub-ups at the columns, capped and protected through the pours",
+              "The runs shown are placeholders"],
+      hold: "The electrical underground runs weren't in the drawings reviewed. Get the real routes from O'Connor Electric before the granular.",
+      ref: "Electrical drawings (to confirm) · coordinate with the MSB underground" },
+    { title: "Granular A + B to falls", who: "MCL", c: "mcl", dur: 9,
+      cam: cv([33500, -700, 24500], -22, 37, 92000),
+      cam2: cv([22500, -600, 13000], -30, 44, 25000), c2: 5.6,
+      lines: ["200 of granular, Granular B then Granular A, compacted and graded parallel to the finished falls",
+              "High points −5 at H, A and the two ridge lines; area drains −153; trench grates −80 (−105 at grid 7)",
+              "The trench strips are left low for the thickenings"],
+      ref: "A151 slab edge plan (PC-022) · S201 · F2C grade sheet" },
+    { title: "Insulation + vapour barrier", who: "MCL", c: "mcl", dur: 9,
+      cam: cv([29000, -500, 24000], -26, 36, 74000),
+      cam2: cv([32200, -450, 19600], -36, 30, 11500), c2: 5.0,
+      lines: ["150 rigid insulation on the granular (S201 note 3: below-slab insulation per architectural)",
+              "Vapour barrier over it, lapped, taped and sealed at every riser and penetration",
+              "Both stop at the trench thickenings (950 wide)"],
+      hold: "Insulation and vapour barrier at the thickenings: confirm the detail with RJC and DSA.",
+      ref: "S201 note 3 · A151 · grid H slab sequence" },
+    { title: "Mud slabs for the trenches", who: "MCL", c: "mcl", dur: 10,
+      cam: cv([33000, -600, 19500], -22, 44, 74000),
+      cam2: cv([31900, -560, 19310], -40, 30, 8800), c2: 4.2,
+      lines: ["Dig out each thickening strip and pour a lean mud slab at its bottom",
+              "Trench A at 15–14 and 12–11, trench B from 9 to 4120 past 8, and the north–south trench near 7 (G–F)",
+              "Thickening per R49: 600 flat, 175 below the slab, 45° haunches"],
+      hold: "Mud slab thickness and mix aren't specified. The sketch assumes about 75 of lean concrete; confirm with RJC.",
+      ref: "AGF R49 (reviewed as noted Feb 5 2026) · 6/S601 · A151" },
+    { title: "Rods, trench drains + interceptor", who: "MSB Mechanical + MCL", c: "ref", dur: 11,
+      cam: cv([31900, -470, 19310], -38, 28, 8400),
+      cam2: cv([25300, -1900, 40200], -30, 18, 11000), c2: 4.6,
+      lines: ["Threaded rods set into the mud slabs in pairs; the Watts channels hang on them, frames levelled to −80 (−105 at grid 7)",
+              "TD-1 / TD-2: pre-sloped polypropylene channels, 152 wide, 4″ no-hub bottom outlets onto the sanitary risers",
+              "Area drains set on their risers; oil/sand interceptor OSI 1 set in its pit outside grid A"],
+      hold: "RFI 315 puts the interceptor 3100 down (U/S 250.050) with the water table at 252.100: dewater, and shore over 1.2 m. Confirm the pit detail for the new spot.",
+      ref: "M903 (TD-1, TD-2, FD-1) · SK-01 · RFI 260, 315, 326 R1" },
+    { title: "Slab rebar", who: "AGF Rebar", c: "nor", dur: 9,
+      cam: cv([31900, -420, 19310], -44, 32, 9600),
+      cam2: cv([33500, -600, 24500], -22, 38, 92000), c2: 4.4,
+      lines: ["SOG 1: 10M @ 300 each way, 40 from the top on chairs (S201 note 5)",
+              "Trench steel per R49: 15M bent bars @ 300 around each channel, 15M continuous top and bottom, extra 15M top bars each side",
+              "30 clear cover in the thickenings"],
+      ref: "S201 schedule + note 5 · AGF R49 section 1 (6/S601)" },
+    { title: "Structural slab", who: "MCL", c: "mcl", dur: 9,
+      cam: cv([33500, -600, 24500], -22, 37, 92000),
+      lines: ["SOG 1: 175 thick, 35 MPa C-1 with 10 L/m³ DCI, placed with the trench thickenings",
+              "No pour over 40 m (spec 03 30 00 cl. 3.7.10): the 72 m bay takes at least two",
+              "Saw cuts 45 deep, 4200 max spacing"],
+      hold: "Pour plan not set yet. This sketch breaks the pour at grid 11.",
+      ref: "S201 (SOG 1, notes 5, 7) · spec 03 30 00" },
+    { title: "Topping rebar", who: "AGF Rebar", c: "nor", dur: 9,
+      cam: cv([25000, -300, 24000], -28, 40, 56000),
+      lines: ["Non-structural topping: 10M @ 300 each way on chairs",
+              "Steel stops clear of the trench grates and the area drains",
+              "Topping joints will sit over the slab joints (cl. 3.10.3)"],
+      hold: "S201 note 5 puts steel 40 from the top, and the radiant tubes tie to this mat. Confirm the bar height so the tubes keep their cover.",
+      ref: "S201 topping schedule + note 5 · spec 03 30 00" },
+    { title: "Radiant heat", who: "Kolostat (radiant)", c: "mec", dur: 10,
+      cam: cv([5500, 0, 27000], -62, 34, 24000),
+      cam2: cv([33500, -400, 24500], -22, 38, 90000), c2: 4.6,
+      lines: ["Uponor hePEX loops at 9″ (225) typical, 6″ in places, tied to the topping steel",
+              "Serpentines run east–west from the manifolds; tubing kept clear of the trenches and drains",
+              "Pressure-test the loops and keep them under pressure through the pour"],
+      hold: "The revised radiant submittal (23 83 00-2.1) came back Revise and Resubmit on Nov 5. Settle the layout before the tubing goes down.",
+      ref: "Kolostat / Uponor LoopCAD Level 1 R2 (Sep 18 2026) · 23 83 00" },
+    { title: "Topping slab", who: "MCL", c: "mcl", dur: 15,
+      cam: cv([33500, -500, 24500], -22, 37, 92000),
+      cam2: cv([66800, -700, 35400], -54, 23, 17500), c2: 6.6, c2d: 2.2,
+      lines: ["150 non-structural topping with 10 L/m³ DCI, finished to the falls: −5 at the high points, −153 at the drains",
+              "Light-reflective emery hardener, 3.0 kg/m², in the parking area (S201 note 8)",
+              "Tooled joints 35 deep, 3000 max, over the slab joints; then the grates"],
+      ref: "S201 topping + notes 7, 8 · A151 · spec 03 30 00 cl. 3.10.3" }
+  ];
+  const LIST = [
+    ["Sanitary 100ø at 1% (M200 plumbing note 1) under each row: about 10 m south of H for the row 1 drains, just south of the trench line, about 1.3 m south of C for the row 3 drains, and a 150ø line near B.", "The collector runs north–south about 1.6 m east of grid 13 to oil/sand interceptor OSI 1. RFI 326 R1 moves OSI 1 just outside grid A, between 13 and 12.", "Storm: pairs of 300ø lines run east–west 2–3.6 m south of H, fed by the roof-drain leaders; 350ø lines leave north near grid 13 to the site manhole.", "Inverts about 250.8–252.3 (Level 1 = 253.150). Every area drain and trench outlet gets a capped riser."],
+    ["Cut to subgrade: 675 below the finished floor everywhere (150 topping + 175 SOG 1 + 150 insulation + 200 granular), so the subgrade follows the falls.", "The F2C grade sheet gives the underside of granular; its marks are 1.000 above it.", "F2C flagged the D3 area drain pipe 1450 west of design (D3 is 4561 east of grid 8).", "Subgrade preparation per the geotechnical report (S201 note 14)."],
+    ["Underground conduits go on the subgrade before the granular, so nothing is trenched through finished fill.", "Stub-ups come up at the columns, capped and protected.", "The runs here are placeholders: the electrical underground layout wasn't in the drawings reviewed.", "Coordinate crossings with the sanitary and storm lines and the trench thickenings."],
+    ["Granular B (subbase) then Granular A (base), 200 total, compacted.", "Graded parallel to the finished falls (A151): high points −5 at grids H and A and on the two ridge lines 2835 north and 4760 south of E.", "Area drains at −153 (3332 north of F and 353 south of C); trench grates −80, and −105 at the grid 7 trench. About 2% to the drains and trenches, 1% along the valleys.", "The trench strips are left low for the thickenings and their mud slabs."],
+    ["150 rigid insulation on the granular (S201 note 3: below-slab insulation per architectural).", "Vapour barrier over the insulation, lapped and taped, sealed at every riser and penetration.", "Both stop at the trench thickenings (950 wide), so the thickenings bear on the granular.", "Confirm the thickening detail with RJC and DSA."],
+    ["Excavate the thickening strips and pour a lean mud slab at the bottom of each.", "Trench drain A runs 15–14 and 12–11 at E; B runs from 9 to 4120 past 8 (R49). The north–south trench is 1610 west of 7, between G and F (A151).", "R49 thickening: 600 flat, 175 below the underside of SOG 1, 45° haunches.", "Mud slab thickness and mix aren't specified; about 75 of lean concrete is assumed here."],
+    ["Threaded rods go into the mud slabs in pairs either side of each channel.", "The Watts channels hang on the rods (M903: TD-1 Watts P-DI-ADA and TD-2 Watts D-DI-ADA, pre-sloped polypropylene, 152 wide, 4″ no-hub bottom outlets). Frames levelled to −80, and −105 at the grid 7 trench.", "FD-1 area drains (Watts FD-100) set on their risers.", "OSI 1 (J.R. Smith, H-20 cover) goes in its cast-in-place pit outside grid A: 200 walls with 10M @ 250 each face, 300 min. base, U/S 250.050, 1500 extension to grade (RFI 315, SK-01, RFI 326 R1). Shore trenches deeper than 1.2 m."],
+    ["SOG 1 (vehicle parking): 175 thick, 10M @ 300 each way, 40 from the top on chairs (S201 schedule, note 5).", "Trench steel per AGF R49 section 1 (6/S601): 15M bent bars MK 15H04 @ 300, 15M × 7150 continuous bottom bars, 15M 15H02 top bars @ 300 and 15M × 8600 continuous top bars each side.", "30 clear cover at the trenches; R49 asks to coordinate trench lengths with MSB.", "The radiant mesh doesn't count as reinforcement (S201 note 5)."],
+    ["SOG 1: 175 thick, 35 MPa C-1, 10 L/m³ DCI (S201 note 7), placed with the trench thickenings.", "Maximum pour 40 m (spec 03 30 00 cl. 3.7.10). The bay is about 72 m long, so plan the pour breaks; this sketch breaks at grid 11.", "Saw cuts 45 deep at 4200 max spacing (S201).", "Design loads: SDL 3.0 kPa, LL 10.0 kPa (S201)."],
+    ["Non-structural topping: 150 thick, 10M @ 300 each way on chairs (S201).", "Keep the steel clear of the trench grates and area drains.", "Topping joints go over the slab joints (spec cl. 3.10.3).", "S201 note 5 puts reinforcement 40 from the top; the radiant tubing ties to this mat, so confirm the bar height for the tube cover."],
+    ["Kolostat / Uponor LoopCAD Level 1 R2: hePEX at 9″ (225) typical and 6″ in places, serpentines mostly east–west.", "Manifolds at the west wall and near grid 8 (positions here are approximate). The car wash has no tubing.", "Tubing stays clear of the trench thickenings and the area drains.", "Pressure-test the loops and keep them under pressure through the pour. The revised submittal 23 83 00-2.1 came back Revise and Resubmit (Nov 5 2026)."],
+    ["Topping: 150, finished to the falls on A151 (−5 high points, −153 area drains, −80 trench grates).", "10 L/m³ DCI in the vehicle parking mixes (S201 note 7) and 3.0 kg/m² light-reflective emery hardener in the parking area (note 8).", "Tooled joints 35 deep at 3000 max (S201), over the SOG 1 joints (cl. 3.10.3).", "Then the trench grates and drain strainers."]
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc, CAM_T = 1.7, INTRO_T = 2.8;
+
+  // ======================= geometry (mm): x east from grid 16, y up from Level 1 (253.150), z south from grid H
+  const XW = -3019, XE = 69300, ZA = 38250;                    // west wall face, grid 6.1, grid A
+  const COLX = [0, 7000, 14000, 21000, 28000, 35000, 42000, 49000, 57840, 63920];
+  const HP = -5, LP = -153, TOC = -80;
+  const ZR1 = 15515, ZR2 = 23110, ZV = 19310;                  // ridge lines 2835 N and 4760 S of E; E-W trench centreline
+  const R1 = { zd: 8018, xs: [0, 14000, 28000, 42000, 57140], xd: [7000, 21000, 35000, 49000] };
+  const R3 = { zd: 30603, xs: [0, 14000, 28000, 42000, 55700, 69300], xd: [7000, 21000, 35000, 49000, 62401] };
+  const TRENCH = [{ x0: 6850, x1: 14155, out: 10270 }, { x0: 27850, x1: 35155, out: 31580 }, { x0: 48855, x1: 61960, out: 55400 }];
+  const P2 = { xc: 62160, z0: 4350, z1: 11350, toc: -105, out: 7850 };   // north-south trench 1610 W of grid 7, G to F
+  const AD = R1.xd.map(x => [x, R1.zd]).concat(R3.xd.map(x => [x, R3.zd]));
+  const D3X = 62401 - 1450;                                     // F2C: D3 pipe found 1450 west of design
+  const COLL = 22580;                                           // sanitary collector, east of grid 13
+  function pyr(x, z, xa, xb, xd, za, zb, zd) {
+    const fx = x < xd ? (xd - x) / (xd - xa) : (x - xd) / (xb - xd);
+    const fz = z < zd ? (zd - z) / (zd - za) : (z - zd) / (zb - zd);
+    return LP + (HP - LP) * Math.min(1, Math.max(fx, fz));
+  }
+  // finished floor (A151): planes falling about 2% to the area drains and trenches, 1% along the valleys
+  function fin(x, z) {
+    if (x <= 0) return HP;
+    if (z <= ZR1) {
+      if (x >= 57140) {
+        const fx = x < P2.xc ? (P2.xc - x) / (P2.xc - 57140) : (x - P2.xc) / (XE - P2.xc);
+        const fz = z < P2.z0 ? (P2.z0 - z) / P2.z0 : z > P2.z1 ? (z - P2.z1) / (ZR1 - P2.z1) : 0;
+        return P2.toc + (HP - P2.toc) * Math.min(1, Math.max(fx, fz));
+      }
+      const k = Math.min(3, Math.floor(x / 14000));
+      return pyr(x, z, R1.xs[k], R1.xs[k + 1], R1.xd[k], 0, ZR1, R1.zd);
+    }
+    if (z >= ZR2) {
+      let k = 0; while (k < 4 && x > R3.xs[k + 1]) k++;
+      return pyr(x, z, R3.xs[k], R3.xs[k + 1], R3.xd[k], ZR2, ZA, R3.zd);
+    }
+    let d = 1e9;
+    for (const t of TRENCH) d = Math.min(d, x < t.x0 ? t.x0 - x : x > t.x1 ? x - t.x1 : 0);
+    const v = Math.min(HP, TOC + 0.01 * d);
+    return v + (HP - v) * Math.min(1, Math.abs(z - ZV) / (z < ZV ? ZV - ZR1 : ZR2 - ZV));
+  }
+
+  // ======================= math
+  const M = {
+    I() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+    mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    T(x, y, z) { const m = M.I(); m[12] = x; m[13] = y; m[14] = z; return m; },
+    S(x, y, z) { const m = M.I(); m[0] = x; m[5] = y; m[10] = z; return m; },
+    RY(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; },
+    RX(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[5] = c; m[6] = s; m[9] = -s; m[10] = c; return m; },
+    RZ(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[1] = s; m[4] = -s; m[5] = c; return m; },
+    persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), m = new Float32Array(16); m[0] = t / a; m[5] = t; m[10] = (fa + n) / (n - fa); m[11] = -1; m[14] = 2 * fa * n / (n - fa); return m; },
+    ortho(l, r, b, t, n, f) { const m = M.I(); m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n); m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n); return m; },
+    look(e, t, u) {
+      let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+      let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+      const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[4] = xy; m[5] = yy; m[6] = zy; m[8] = xz; m[9] = yz; m[10] = zz;
+      m[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); m[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); m[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); m[15] = 1;
+      return m;
+    },
+    xf(m, p) { const x = p[0], y = p[1], z = p[2]; const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, (m[2] * x + m[6] * y + m[10] * z + m[14]) / w, w]; }
+  };
+
+  // ======================= GL
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true, alpha: false });
+  const stage = document.getElementById("stage"), stageWrap = document.getElementById("stageWrap");
+  if (!gl) {
+    stage.insertAdjacentHTML("beforeend", '<p style="position:absolute;inset:auto 0 45% 0;text-align:center;font:600 16px var(--font-body);color:#13202b">This 3D view needs WebGL 2, which this browser doesn\'t offer.</p>');
+    return;
+  }
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  function prog(vs, fs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.bindAttribLocation(p, 1, "aNor"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+
+  const VS = `#version 300 es
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=7) in vec4 iSzA; layout(location=8) in vec4 iEm; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP, uLVP;
+  out vec3 vW; out vec3 vN; out vec4 vL; out vec3 vLoc; out vec3 vLocN;
+  flat out vec4 vCol; flat out vec4 vSzA; flat out vec4 vEm; flat out vec4 vMisc;
+  void main(){
+    mat4 Mo = mat4(iM0, iM1, iM2, iM3);
+    vec4 w = Mo*vec4(aPos,1.0); vW = w.xyz;
+    vN = normalize(transpose(inverse(mat3(Mo)))*aNor);
+    vL = uLVP*w; vLoc = aPos; vLocN = aNor; vCol = iCol; vSzA = iSzA; vEm = iEm; vMisc = iMisc;
+    gl_Position = uVP*w;
+  }`;
+  // One small program per material (MAT), with or without the sweep clip (CLIP): a long material switch is slow in software GL.
+  // misc.w = sweep: 200000+s shows x < s (placing), -(200000+s) shows x > s (removing), 0 = whole object
+  const FS_SRC = `
+  precision highp float; precision highp sampler2DShadow;
+  in vec3 vW; in vec3 vN; in vec4 vL; in vec3 vLoc; in vec3 vLocN;
+  flat in vec4 vCol; flat in vec4 vSzA; flat in vec4 vEm; flat in vec4 vMisc;
+  uniform vec3 uEye; uniform vec3 uLD; uniform sampler2DShadow uSh; uniform float uShOn; uniform vec3 uFog; uniform vec2 uFogR;
+  out vec4 o;
+  float h21(vec2 p){ p = fract(p*vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y)*p.x); }
+  float nz(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
+  float pxl(float p, float P, float px){ float fw = max(fwidth(p), 1e-4); float d = abs(fract(p/P + 0.5) - 0.5)*P; float h = 0.5*px*fw; return (1.0 - smoothstep(h - 0.5*fw, h + 0.5*fw, d)) * smoothstep(2.5, 6.0, P/fw); }
+  float bar(float p, float P, float hw, float far){ float fw = max(fwidth(p), 1e-4); float w = max(hw, 0.75*fw); float d = abs(fract(p/P + 0.5) - 0.5)*P; float c = 1.0 - smoothstep(w - 0.5*fw, w + 0.5*fw, d); return mix(far, c, smoothstep(3.0, 8.0, P/fw)); }
+  void main(){
+    float sw = vMisc.w;
+  #ifdef CLIP
+    if (sw > 100000.0 && vW.x > sw - 200000.0) discard;
+    if (sw < -100000.0 && vW.x < -sw - 200000.0) discard;
+  #endif
+    vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+    vec3 base = vCol.rgb; vec3 sz = vSzA.xyz;
+    float specK = 0.08; float shin = 40.0; float alpha = vSzA.w;
+    vec3 lp = vLoc*sz;
+    bool up = n.y > 0.7;
+  #if MAT == 1
+    base *= 0.90 + 0.16*(nz(vW.xz*0.012)*0.6 + nz(vW.xz*0.07)*0.4); specK = 0.04;
+  #elif MAT == 6
+    base *= 0.92 + 0.12*nz(vW.xz*0.08 + vW.y*0.05); specK = 0.35; shin = 30.0;
+  #elif MAT == 9
+    float a = sz.x > sz.z ? lp.x : lp.z; base *= mix(0.3, 1.0, step(0.5, fract(a/28.0))); specK = 0.2;
+  #elif MAT == 10
+    base *= 0.84 + 0.26*(nz(vW.xz*0.11)*0.6 + nz(vW.xz*0.023)*0.4); specK = 0.03;
+    if (up && vMisc.x > 0.0) {
+      float e = vW.y + 475.0;
+      float lo = clamp((-5.0 - e)/148.0, 0.0, 1.0);
+      base = mix(base, base*vec3(0.74,0.84,0.98), lo*0.6*vMisc.x);
+      base = mix(base, vec3(0.08,0.30,0.58), pxl(e, 25.0, 1.5)*0.85*vMisc.x);
+    }
+  #elif MAT == 11
+    specK = 0.04;
+    if (up) { float row = floor(vW.z / 1219.2); float xo = vW.x + mod(row, 2.0)*1219.2;
+      float j = max(pxl(vW.z, 1219.2, 1.2), pxl(xo, 2438.4, 1.2)); base *= (1.0 - 0.30*j) * (0.97 + 0.05*nz(vW.xz*0.01)); }
+    else base *= 0.92 + 0.10*nz(vec2(vW.x + vW.z, vW.y)*0.08);
+  #elif MAT == 12
+    base *= 0.975 + 0.035*nz(vW.xz*0.0012); specK = 0.30; shin = 70.0;
+    if (up) { float tape = bar(vW.z, 3000.0, 50.0, 0.0); base = mix(base, vec3(0.52,0.60,0.70), tape*0.65); }
+  #elif MAT == 13
+    specK = 0.02;
+    if (up) base *= 0.82 + 0.3*(nz(vW.xz*0.004)*0.55 + nz(vW.xz*0.04)*0.45);
+    else { vec2 p = vec2(vW.x + vW.z, vW.y); base *= 0.78 + 0.22*nz(vec2(p.x*0.0004, p.y*0.005)) + 0.14*nz(p*0.03); }
+  #elif MAT == 15
+    base *= 0.92 + 0.12*(nz(vW.xz*0.006)*0.6 + nz(vW.xz*0.05)*0.4); specK = 0.06;
+    if (up) {
+      float jt = floor(vMisc.y + 0.001), js = (vMisc.y - jt)/0.9;
+      if (jt > 0.5 && js > 0.0) {
+        vec2 P = jt < 1.5 ? vec2(3500.0, 3825.0) : vec2(1750.0, 1912.5);
+        base *= 1.0 - (jt < 1.5 ? 0.38 : 0.17)*js*max(pxl(vW.x, P.x, 1.2), pxl(vW.z, P.y, 1.2));
+      }
+      if (vMisc.x > 0.0) {
+        float e = vW.y;
+        float lo = clamp((-5.0 - e)/148.0, 0.0, 1.0);
+        base = mix(base, base*vec3(0.74,0.84,0.98), lo*0.55*vMisc.x);
+        base = mix(base, vec3(0.08,0.30,0.58), pxl(e, 25.0, 1.5)*0.8*vMisc.x);
+      }
+      float L = vMisc.z;
+      if (L > 1.0 && sw > 100000.0) {
+        float wet = 1.0 - smoothstep(0.0, L, (sw - 200000.0) - vW.x);
+        base *= 1.0 - 0.42*wet; base = mix(base, base*vec3(0.92,0.96,1.04), wet); specK = mix(specK, 0.55, wet); shin = mix(shin, 90.0, wet);
+      }
+    }
+  #endif
+    float sh = 1.0;
+    if (uShOn > 0.5) {
+      vec3 pc = vL.xyz / vL.w * 0.5 + 0.5;
+      if (pc.x > 0.0 && pc.x < 1.0 && pc.y > 0.0 && pc.y < 1.0 && pc.z < 1.0) sh = 0.35 + 0.65*texture(uSh, vec3(pc.xy, pc.z - 0.00016));
+    }
+    float dif = max(dot(n, -uLD), 0.0);
+    vec3 hemi = mix(vec3(0.70,0.71,0.73), vec3(1.0,1.0,1.0), n.y*0.5+0.5);
+    vec3 V = normalize(uEye - vW); vec3 H = normalize(V - uLD);
+    float sp = pow(max(dot(n,H),0.0), shin) * specK * sh;
+    vec3 col = base*(0.58*hemi + 0.62*dif*sh) + sp + vEm.rgb*vEm.w;
+    col = mix(col, uFog, smoothstep(uFogR.x, uFogR.y, length(uEye - vW)));
+    o = vec4(col, alpha);
+  }`;
+  const PROGS = {};
+  function progFor(mat, clip) {
+    const key = mat + (clip ? "c" : "");
+    return PROGS[key] || (PROGS[key] = prog(VS, "#version 300 es\n#define MAT " + mat + "\n" + (clip ? "#define CLIP 1\n" : "") + FS_SRC));
+  }
+  const DVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3; layout(location=9) in vec4 iMisc;
+  uniform mat4 uLVP; out float vX; flat out float vSw;
+  void main(){ vec4 w = mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); vX = w.x; vSw = iMisc.w; gl_Position = uLVP*w; }`;
+  const DFS = `#version 300 es
+  precision highp float; in float vX; flat in float vSw; out vec4 o;
+  void main(){ if (vSw > 100000.0 && vX > vSw - 200000.0) discard; if (vSw < -100000.0 && vX < -vSw - 200000.0) discard; o = vec4(1.0); }`;
+  const LVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP; flat out vec4 vC; out float vX; flat out float vSw;
+  void main(){ vec4 w = mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); gl_Position = uVP*w; vC = vec4(iCol.rgb*iMisc.y, iMisc.x); vX = w.x; vSw = iMisc.w; }`;
+  const LFS = `#version 300 es
+  precision highp float; flat in vec4 vC; in float vX; flat in float vSw; out vec4 o;
+  void main(){ if (vSw > 100000.0 && vX > vSw - 200000.0) discard; if (vSw < -100000.0 && vX < -vSw - 200000.0) discard; o = vC; }`;
+  const P_DEPTH = prog(DVS, DFS), P_LINE = prog(LVS, LFS);
+
+  // unit cube
+  const cubeF = [], cubeN = [], cubeI = [];
+  const faces = [[[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]], [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+                 [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]], [[0, -1, 0], [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]],
+                 [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]], [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]]];
+  faces.forEach(([nn, vs], f) => { vs.forEach(v => { cubeF.push(...v); cubeN.push(...nn); }); const b = f * 4; cubeI.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+  const edgeP = [0,0,0, 1,0,0, 1,0,0, 1,0,1, 1,0,1, 0,0,1, 0,0,1, 0,0,0, 0,1,0, 1,1,0, 1,1,0, 1,1,1, 1,1,1, 0,1,1, 0,1,1, 0,1,0, 0,0,0, 0,1,0, 1,0,0, 1,1,0, 1,0,1, 1,1,1, 0,0,1, 0,1,1];
+  function vao(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) { const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); }
+    if (idx) { const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW); }
+    gl.bindVertexArray(null); return v;
+  }
+  const CUBE = vao(cubeF, cubeN, cubeI), EDGES = vao(edgeP, null, null);
+  // unit cylinder in the same [0,1] box, axis along y
+  const cylF = [], cylN = [], cylI = [], cylE = [], SEG = 24;
+  for (let k = 0; k <= SEG; k++) { const a = k / SEG * Math.PI * 2, x = Math.cos(a), z = Math.sin(a); cylF.push(.5 + .5 * x, 0, .5 + .5 * z, .5 + .5 * x, 1, .5 + .5 * z); cylN.push(x, 0, z, x, 0, z); }
+  for (let k = 0; k < SEG; k++) { const b = k * 2; cylI.push(b, b + 1, b + 3, b, b + 3, b + 2); }
+  [[1, 1], [0, -1]].forEach(([y, ny]) => {
+    const c0 = cylF.length / 3; cylF.push(.5, y, .5); cylN.push(0, ny, 0);
+    for (let k = 0; k <= SEG; k++) { const a = k / SEG * Math.PI * 2; cylF.push(.5 + .5 * Math.cos(a), y, .5 + .5 * Math.sin(a)); cylN.push(0, ny, 0); }
+    for (let k = 0; k < SEG; k++) { if (ny > 0) cylI.push(c0, c0 + 2 + k, c0 + 1 + k); else cylI.push(c0, c0 + 1 + k, c0 + 2 + k); }
+  });
+  for (const y of [0, 1]) for (let k = 0; k < SEG; k++) { const a0 = k / SEG * Math.PI * 2, a1 = (k + 1) / SEG * Math.PI * 2; cylE.push(.5 + .5 * Math.cos(a0), y, .5 + .5 * Math.sin(a0), .5 + .5 * Math.cos(a1), y, .5 + .5 * Math.sin(a1)); }
+  const CYL = vao(cylF, cylN, cylI), CEDGES = vao(cylE, null, null), CYL_N = cylI.length, CEDGE_N = cylE.length / 3;
+  // low-poly cylinder for bars and rods (8 sides, open ends)
+  const c8F = [], c8N = [], c8I = [], S8 = 8;
+  for (let k = 0; k <= S8; k++) { const a = k / S8 * Math.PI * 2, x = Math.cos(a), z = Math.sin(a); c8F.push(.5 + .5 * x, 0, .5 + .5 * z, .5 + .5 * x, 1, .5 + .5 * z); c8N.push(x, 0, z, x, 0, z); }
+  for (let k = 0; k < S8; k++) { const b = k * 2; c8I.push(b, b + 1, b + 3, b, b + 3, b + 2); }
+  const CYL8 = vao(c8F, c8N, c8I), CYL8_N = c8I.length;
+  // per-instance data: model matrix (16), colour + material (4), size + alpha (4), emission (4),
+  // misc (4): edge alpha or contour strength, edge shade or joints, phase or wet length, sweep
+  const IST = 32, INST = gl.createBuffer();
+  let instData = new Float32Array(IST * 512);
+  function instAttribs() {
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    [[2, 0], [3, 4], [4, 8], [5, 12], [6, 16], [7, 20], [8, 24], [9, 28]].forEach(([l, off]) => {
+      gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, IST * 4, off * 4); gl.vertexAttribDivisor(l, 1);
+    });
+  }
+  [CUBE, EDGES, CYL, CEDGES, CYL8].forEach(v => { gl.bindVertexArray(v); instAttribs(); gl.bindVertexArray(null); });
+  // ground and slab layers: world-space meshes with 32-bit indices
+  function meshVAO(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, nor, gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+    const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+    instAttribs(); gl.bindVertexArray(null);
+    return { vao: v, n: idx.length };
+  }
+  function lineVAO(pos) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    instAttribs(); gl.bindVertexArray(null);
+    return { vao: v, n: pos.length / 3 };
+  }
+  function fillInst(arr, trans) {
+    const n = arr.length;
+    if (instData.length < n * IST) instData = new Float32Array(n * IST * 2);
+    for (let k = 0; k < n; k++) {
+      const it = arr[k], o = it.o, st = o.g.st, b = k * IST;
+      instData.set(it.m, b);
+      instData[b + 16] = o.col[0]; instData[b + 17] = o.col[1]; instData[b + 18] = o.col[2]; instData[b + 19] = o.mat;
+      instData[b + 20] = o.s[0]; instData[b + 21] = o.s[1]; instData[b + 22] = o.s[2]; instData[b + 23] = it.a;
+      instData[b + 24] = o.emc[0]; instData[b + 25] = o.emc[1]; instData[b + 26] = o.emc[2]; instData[b + 27] = Math.max(o.em, st.em || 0);
+      if (o.lines) {
+        instData[b + 28] = o.edge * it.a; instData[b + 29] = 1; instData[b + 30] = 0;
+      } else if (o.mesh) {
+        instData[b + 28] = st.ct || 0; instData[b + 29] = o.jt ? o.jt + 0.9 * Math.max(0, Math.min(1, st.js || 0)) : 0; instData[b + 30] = st.wet || 0;
+      } else {
+        instData[b + 28] = trans ? o.edge * Math.min(1, it.a * 2.2) : o.edge; instData[b + 29] = trans ? 0.4 : 0.42; instData[b + 30] = o.ph || 0;
+      }
+      instData[b + 31] = st.sw != null ? 200000 + st.sw : st.sr != null ? -(200000 + st.sr) : 0;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    gl.bufferData(gl.ARRAY_BUFFER, instData.subarray(0, Math.max(1, n) * IST), gl.STREAM_DRAW);
+    return n;
+  }
+  // shadow map
+  const SHS = 2048;
+  const shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, SHS, SHS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const LD = (() => { const v = [-0.45, -1.0, -0.55]; const l = Math.hypot(...v); return v.map(x => x / l); })();
+  const LCTR = [33000, -800, 19500];
+  const LVP = M.mul(M.ortho(-48000, 48000, -48000, 48000, 1000, 170000), M.look([LCTR[0] - LD[0] * 80000, LCTR[1] - LD[1] * 80000, LCTR[2] - LD[2] * 80000], LCTR, [0, 1, 0]));
+  const FOGR = [150000, 380000];
+
+  // ======================= timeline + groups
+  const EASE = { lin: t => t, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const groups = [], objs = [];
+  function grp(name, tracks, o) {
+    o = o || {};
+    const g = { name, tracks: (tracks || []).slice().sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a)), pivot: o.pivot || [0, 0, 0], custom: o.custom || null, st: {} };
+    groups.push(g); return g;
+  }
+  function box(g, x0, y0, z0, x1, y1, z1, col, o) {
+    o = o || {};
+    const ob = { g, p: [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)], s: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], col, mat: o.mat || 0,
+      a: o.a == null ? 1 : o.a, edge: o.edge == null ? 0.62 : o.edge, shadow: o.shadow !== false, em: o.em || 0, emc: o.emc || [1, 1, 1], tag: o.tag || null,
+      geo: o.geo || 0, rot: o.rot || null, ph: o.ph || 0 };
+    objs.push(ob); return ob;
+  }
+  function cyl(g, cx, cy, cz, dia, len, axis, col, o) {
+    o = Object.assign({}, o || {}); o.geo = 1;
+    if (axis === "x") o.rot = [0, 0, 90]; else if (axis === "z") o.rot = [90, 0, 0];
+    return box(g, cx - dia / 2, cy - len / 2, cz - dia / 2, cx + dia / 2, cy + len / 2, cz + dia / 2, col, o);
+  }
+  function val(g, prop, T, def) {
+    let v, found = false;
+    for (const k of g.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .2, "op", 0, 1, "lin")];
+  const slideIn = (s, a, b, dx, dz) => [tr(s, a, b, "tx", dx || 0, 0, "out"), tr(s, a, b, "tz", dz || 0, 0, "out"), tr(s, a, a + .25, "op", 0, 1, "lin")];
+  const popIn = (s, a, b) => [tr(s, a, b, "sc", 0.001, 1, "back"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const growIn = (s, a, b, ax) => [tr(s, a, b, ax, 0.001, 1, "inout"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const ghost = (s, a, b, to) => [tr(s, a, b, "op", 1, to, "inout")];
+  const unghost = (s, a, b, from) => [tr(s, a, b, "op", from, 1, "inout")];
+
+  // colours (linear-ish sRGB 0..1)
+  const C = {
+    ground: [0.80, 0.81, 0.81], wall: [0.70, 0.70, 0.68], cut: [0.30, 0.31, 0.33], steel: [0.55, 0.58, 0.62],
+    soil: [0.66, 0.56, 0.44], rough: [0.42, 0.32, 0.23], granB: [0.58, 0.56, 0.52], granA: [0.75, 0.74, 0.71],
+    ins: [0.93, 0.68, 0.72], vb: [0.80, 0.85, 0.90], slab: [0.75, 0.75, 0.73], top: [0.81, 0.81, 0.79], mud: [0.60, 0.60, 0.58],
+    rebar: [0.56, 0.27, 0.15], pex: [0.92, 0.34, 0.14],
+    san: [0.84, 0.48, 0.16], stm: [0.16, 0.72, 0.46], cond: [0.98, 0.80, 0.20], cap: [0.95, 0.40, 0.10],
+    chan: [0.58, 0.60, 0.62], galv: [0.74, 0.77, 0.79], grate: [0.30, 0.32, 0.34], iron: [0.22, 0.23, 0.25], strainer: [0.86, 0.87, 0.86],
+    yellow: [0.96, 0.74, 0.10], dark: [0.22, 0.24, 0.26], tire: [0.12, 0.12, 0.13], glass: [0.18, 0.24, 0.30], red: [0.80, 0.18, 0.15],
+    stake: [0.80, 0.66, 0.42], flag: [0.98, 0.35, 0.55], tank: [0.16, 0.42, 0.62], tankIn: [0.36, 0.58, 0.76], conc: [0.72, 0.72, 0.70],
+    shore: [0.36, 0.44, 0.52], fill: [0.72, 0.66, 0.56], hold: [0.86, 0.18, 0.15], manif: [0.72, 0.74, 0.77]
+  };
+  // a cylinder (geo 1/3) or beam (geo 0) from point a to point b
+  function pipe(g, a, b, dia, col, o) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz), h = Math.hypot(dx, dz);
+    const c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+    o = Object.assign({ edge: 0 }, o || {}); if (o.geo == null) o.geo = 1;
+    o.rot = [Math.atan2(h, dy) * 180 / Math.PI, Math.atan2(dx, dz) * 180 / Math.PI, 0];
+    return box(g, c[0] - dia / 2, c[1] - L / 2, c[2] - dia / 2, c[0] + dia / 2, c[1] + L / 2, c[2] + dia / 2, col, o);
+  }
+
+  // ---------- layer meshes: heightfields over a rectilinear grid, with holes and skirts on every open edge
+  const XB = [0, 7000, 14000, 21000, 28000, 35000, 42000, 49000, 55700, 57140, 62160, 62401];
+  const ZB = [ZR1, ZR2, ZV, R1.zd, R3.zd, P2.z0, P2.z1];
+  function brks(a, b, step, extra) {
+    const ex = extra.filter(e => e > a + 1 && e < b - 1);
+    const v = [a, b].concat(ex);
+    for (let t = Math.ceil((a + 1) / step) * step; t < b - 1; t += step) if (!ex.some(e => Math.abs(e - t) < step * 0.3)) v.push(t);
+    v.sort((p, q) => p - q);
+    return v.filter((t, i) => i === 0 || t - v[i - 1] > 0.5);
+  }
+  function buildLayer(L) {
+    const holes = L.holes || [], hx = [], hz = [];
+    holes.forEach(h => { hx.push(h[0], h[2]); hz.push(h[1], h[3]); });
+    const X = brks(L.x0, L.x1, L.step || 900, hx.concat(XB)), Z = brks(L.z0, L.z1, L.step || 900, hz.concat(ZB, L.zSplit ? [L.zSplit] : []));
+    const nx = X.length - 1, nz = Z.length - 1, top = L.top, bot = L.bot;
+    let topN = 0;
+    const on = new Uint8Array(nx * nz);
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      const x = (X[i] + X[i + 1]) / 2, z = (Z[j] + Z[j + 1]) / 2;
+      on[i * nz + j] = holes.some(h => x > h[0] && x < h[2] && z > h[1] && z < h[3]) ? 0 : 1;
+    }
+    const cell = (i, j) => i >= 0 && j >= 0 && i < nx && j < nz && on[i * nz + j] === 1;
+    const pos = [], nor = [], idx = [], vmap = new Int32Array((nx + 1) * (nz + 1)).fill(-1);
+    let ys = 0, nv = 0;
+    const vert = (i, j) => {
+      const key = i * (nz + 1) + j;
+      if (vmap[key] >= 0) return vmap[key];
+      const x = X[i], z = Z[j], y = top(x, z), h = 40;
+      const gx = (top(x + h, z) - top(x - h, z)) / (2 * h), gz = (top(x, z + h) - top(x, z - h)) / (2 * h), l = Math.hypot(gx, 1, gz);
+      pos.push(x, y, z); nor.push(-gx / l, 1 / l, -gz / l); ys += y; nv++;
+      return (vmap[key] = pos.length / 3 - 1);
+    };
+    const terr = [];
+    for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+      if (!cell(i, j)) continue;
+      const a = vert(i, j), b = vert(i + 1, j), c = vert(i + 1, j + 1), d = vert(i, j + 1);
+      (L.zSplit && Z[j] >= L.zSplit - 1 ? terr : idx).push(a, d, c, a, c, b);
+    }
+    topN = idx.length; idx.push(...terr);
+    if (L.skirt !== false) {
+      const quad = (x0, z0, x1, z1, ex, ez) => {
+        const b0 = pos.length / 3;
+        pos.push(x0, top(x0, z0), z0, x1, top(x1, z1), z1, x1, bot(x1, z1), z1, x0, bot(x0, z0), z0);
+        for (let k = 0; k < 4; k++) nor.push(ex, 0, ez);
+        idx.push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+      };
+      for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+        if (!cell(i, j)) continue;
+        const x0 = X[i], x1 = X[i + 1], z0 = Z[j], z1 = Z[j + 1];
+        if (!cell(i + 1, j)) quad(x1, z0, x1, z1, 1, 0);
+        if (!cell(i - 1, j)) quad(x0, z1, x0, z0, -1, 0);
+        if (!cell(i, j + 1)) quad(x1, z1, x0, z1, 0, 1);
+        if (!cell(i, j - 1)) quad(x0, z0, x1, z0, 0, -1);
+      }
+    }
+    return { topN, pos: new Float32Array(pos), nor: new Float32Array(nor), idx: new Uint32Array(idx), ctr: [(L.x0 + L.x1) / 2, ys / Math.max(1, nv), (L.z0 + L.z1) / 2] };
+  }
+  const LAYERS = {};
+  function layer(name, k, spec, col, mat, tracks, o) {
+    o = o || {};
+    const g = grp(name, tracks);
+    const L = buildLayer(Object.assign({ x0: XW, x1: XE, z0: 0, z1: ZA }, spec));
+    const ob = box(g, 0, 0, 0, 1, 1, 1, col, { mat, edge: 0, shadow: false });
+    ob.s = [1, 1, 1]; ob.mesh = meshVAO(L.pos, L.nor, L.idx); ob.mesh.top = L.topN; ob.ctr = L.ctr; ob.k = k; ob.jt = o.jt || 0; ob.hideAt = o.hideAt == null ? null : o.hideAt;
+    LAYERS[name] = { g, ob, tris: L.idx.length / 3 };
+    return g;
+  }
+  // a grid of bars (or tube runs) as line segments following a surface, cut at holes
+  function barLines(L) {
+    const pos = [], holes = L.holes || [];
+    const inH = (x, z) => holes.some(h => x > h[0] && x < h[2] && z > h[1] && z < h[3]);
+    const run = (f, a0, a1, alongX) => {
+      const br = [a0, a1];
+      for (let t = a0 + 900; t < a1 - 1; t += 900) br.push(t);
+      holes.forEach(h => { const e0 = alongX ? h[0] : h[1], e1 = alongX ? h[2] : h[3], f0 = alongX ? h[1] : h[0], f1 = alongX ? h[3] : h[2];
+        if (f > f0 && f < f1) [e0, e1].forEach(e => { if (e > a0 && e < a1) br.push(e); }); });
+      br.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < br.length; k++) {
+        const u0 = br[k], u1 = br[k + 1]; if (u1 - u0 < 1) continue;
+        const x0 = alongX ? u0 : f, z0 = alongX ? f : u0, x1 = alongX ? u1 : f, z1 = alongX ? f : u1;
+        if (inH((x0 + x1) / 2, (z0 + z1) / 2)) continue;
+        pos.push(x0, L.top(x0, z0), z0, x1, L.top(x1, z1), z1);
+      }
+    };
+    if (L.sz) for (let z = L.z0 + L.sz / 2; z < L.z1; z += L.sz) if (!L.keep || L.keep(z)) run(z, L.x0, L.x1, true);
+    if (L.sx) for (let x = L.x0 + L.sx / 2; x < L.x1; x += L.sx) run(x, L.z0, L.z1, false);
+    return new Float32Array(pos);
+  }
+  function lines(g, L, col, alpha) {
+    const ob = box(g, 0, 0, 0, 1, 1, 1, col, { edge: alpha == null ? 0.95 : alpha, shadow: false });
+    ob.s = [1, 1, 1]; ob.lines = lineVAO(barLines(L)); ob.ctr = [(L.x0 + L.x1) / 2, -200, (L.z0 + L.z1) / 2];
+    return ob;
+  }
+  const HT = (w, e) => TRENCH.map(t => [t.x0 - e, ZV - w, t.x1 + e, ZV + w]).concat([[P2.xc - w, P2.z0 - e, P2.xc + w, P2.z1 + e]]);
+  const HD = r => AD.map(([x, z]) => [x - r, z - r, x + r, z + r]);
+  const F = k => (x, z) => fin(x, z) + k;
+  const inio = u => (u < .5 ? Math.cbrt(u / 4) : 1 - Math.cbrt(2 * (1 - u)) / 2);   // inverse of EASE.inout
+  const passAt = (a, b, x, x0, x1) => a + (b - a) * inio(Math.max(0, Math.min(1, (x - x0) / (x1 - x0))));
+
+  // ---------- context: ground plane, west wall, south foundation wall (cut down), steel columns on H and A (cut)
+  const site = grp("site");
+  box(site, XW - 5000, -3300, -5000, XE + 5000, -3000, 46000, C.ground, { edge: .25, shadow: false });
+  box(site, XW - 300, -3000, -300, XW, 3000, ZA + 300, C.wall, { mat: 1, edge: .3 });
+  box(site, XW - 300, 3000, -300, XW, 3014, ZA + 300, C.cut, { edge: 0, shadow: false });
+  box(site, XW, -3000, ZA, XE, -700, ZA + 300, C.wall, { mat: 1, edge: .3 });
+  box(site, XW, -700, ZA, XE, -686, ZA + 300, C.cut, { edge: 0, shadow: false });
+  COLX.forEach(x => {
+    box(site, x - 155, -700, -155, x + 155, 1500, 155, C.steel, { mat: 6, edge: .4 });
+    box(site, x - 155, 1500, -155, x + 155, 1514, 155, C.cut, { edge: 0, shadow: false });
+    box(site, x - 155, -700, ZA - 310, x + 155, 300, ZA, C.steel, { mat: 6, edge: .4 });
+    box(site, x - 155, 300, ZA - 310, x + 155, 314, ZA, C.cut, { edge: 0, shadow: false });
+  });
+
+  // ---------- ground: soil below subgrade, rough grade above it (both see-through while the underground goes in)
+  const GHOST = [tr(0, 2.3, 3.1, "op", 1, 0.24, "inout"), tr(0, 8.0, 8.8, "op", 0.24, 1, "inout")];
+  layer("soil", 8, { top: F(-675), bot: () => -3000 }, C.soil, 13, GHOST, { hideAt: starts[3] + 4.0 });
+  const roughG = layer("rough", 7, { top: () => -400, bot: F(-675) }, C.rough, 13, GHOST.concat([tr(1, 1.2, 7.4, "sr", -4500, 72000, "inout"), tr(1, 7.4, 7.5, "op", 1, 0, "lin")]));
+  // exterior soil south of grid A, cut on the interceptor's centreline
+  const EX = { x0: 15000, x1: 35000, z0: ZA + 300, z1: 40200, y0: -3800, y1: -700 };
+  const PIT = { x0: 23550, x1: 26650, z0: 39100 };
+  const exs = grp("exs", GHOST);
+  box(exs, EX.x0, EX.y0, EX.z0, PIT.x0, EX.y1, EX.z1, C.soil, { mat: 13, edge: .2 });
+  box(exs, PIT.x1, EX.y0, EX.z0, EX.x1, EX.y1, EX.z1, C.soil, { mat: 13, edge: .2 });
+  box(exs, PIT.x0, EX.y0, EX.z0, PIT.x1, EX.y1, PIT.z0, C.soil, { mat: 13, edge: .2 });
+  box(exs, PIT.x0, EX.y0, PIT.z0, PIT.x1, -3500, EX.z1, C.soil, { mat: 13, edge: .2 });
+  const plug = grp("plug", GHOST.concat([tr(6, 5.0, 5.9, "ty", 0, 3800, "in"), tr(6, 5.3, 5.9, "op", 1, 0, "lin")]));
+  box(plug, PIT.x0, -3500, PIT.z0, PIT.x1, EX.y1, EX.z1, C.soil, { mat: 13, edge: .2 });
+
+  // ---------- step 1: underground plumbing (M200). Storm 300ø pairs near H, out north at grid 13; leaders at the columns
+  const stE = grp("stE", growIn(0, 3.0, 4.6, "gx"), { pivot: [18900, 0, 0] });
+  pipe(stE, [19100, -2000, 1870], [XE, -1500, 1870], 300, C.stm);
+  pipe(stE, [19100, -2050, 2260], [XE, -1550, 2260], 300, C.stm);
+  pipe(stE, [1750, -1880, 3120], [18700, -2050, 3120], 250, C.stm);
+  pipe(stE, [1960, -1930, 3610], [19150, -2100, 3610], 300, C.stm);
+  const stN = grp("stN", growIn(0, 2.9, 3.5, "gz"), { pivot: [0, 0, 3700] });
+  pipe(stN, [18700, -2050, 3200], [18700, -2150, 0], 350, C.stm);
+  pipe(stN, [19150, -2100, 3700], [19150, -2200, 0], 350, C.stm);
+  const stW = grp("stW", growIn(0, 4.2, 5.2, "gz"), { pivot: [0, 0, 3200] });
+  pipe(stW, [1750, -1880, 3120], [1750, -1690, 23100], 200, C.stm);
+  pipe(stW, [1960, -1930, 3610], [1960, -1740, 23100], 200, C.stm);
+  const stL = grp("stL", growIn(0, 4.6, 5.4, "gy"), { pivot: [0, -1950, 0] });
+  [[12925, 3120], [13570, 3610], [26655, 1870], [27170, 2260], [40500, 1870], [41050, 2260], [53000, 1870], [53550, 2260]].forEach(([x, zm]) => {
+    pipe(stL, [x, -1950, zm], [x, -1950, 650], 200, C.stm);
+    pipe(stL, [x, -1950, 650], [x, 1500, 650], 200, C.stm);
+    cyl(stL, x, 1507, 650, 200, 14, "y", C.cut, { edge: 0, shadow: false });
+  });
+  // sanitary 100ø @ 1%: collector, north-south lines, a main under each row
+  const yR = (yc, x) => yc + 0.01 * Math.abs(x - COLL);
+  const sanM = grp("sanM", growIn(0, 3.6, 5.4, "gz"), { pivot: [0, 0, 4400] });
+  pipe(sanM, [COLL, -1400, 4400], [COLL, -1735, 37400], 140, C.san);
+  pipe(sanM, [12300, -1284, 4500], [12300, -1597, 35850], 140, C.san);
+  pipe(sanM, [59800, -978, 10200], [59800, -1328, 35850], 140, C.san);
+  const sanR = grp("sanR", growIn(0, 4.2, 6.0, "gx"), { pivot: [COLL, 0, 0] });
+  [[10200, 7000, 62300, -1350, 115], [20470, 10270, 55400, -1450, 115], [31600, 7000, 62600, -1600, 115], [35850, 12300, XE, -1700, 165]].forEach(([z, xa, xb, yc, dia]) => {
+    pipe(sanR, [xa, yR(yc, xa), z], [COLL, yc, z], dia, C.san);
+    pipe(sanR, [COLL, yc, z], [xb, yR(yc, xb), z], dia, C.san);
+  });
+  const sanB = grp("sanB", growIn(0, 5.6, 6.6, "gy"), { pivot: [0, -1500, 0] });
+  const riser = (x, z, zMain, yc, top) => {
+    const y0 = yR(yc, x), y1 = y0 + 0.02 * Math.abs(zMain - z);
+    if (Math.abs(z - zMain) > 1) pipe(sanB, [x, y0, zMain], [x, y1, z], 140, C.san);
+    pipe(sanB, [x, y1, z], [x, top, z], 140, C.san);
+    cyl(sanB, x, top + 20, z, 140, 40, "y", C.cap, { edge: .3 });
+  };
+  R1.xd.forEach(x => riser(x, R1.zd, 10200, -1350, -300));
+  R3.xd.forEach(x => riser(x === 62401 ? D3X : x, R3.zd, 31600, -1600, -300));
+  TRENCH.forEach(t => riser(t.out, ZV, 20470, -1450, -450));
+  riser(P2.xc, P2.out, 10200, -1350, -470);
+  // collector out through the south wall to the interceptor's new spot (schematic), and its outlet
+  const sanO = grp("sanO", growIn(0, 5.4, 6.2, "gx"), { pivot: [COLL, 0, 0] });
+  pipe(sanO, [COLL, -1735, 37400], [24600, -1750, 37400], 140, C.san);
+  pipe(sanO, [24600, -1750, 37400], [24600, -1770, 39760], 140, C.san);
+  pipe(sanO, [26000, -1850, 39950], [EX.x1, -1900, 39950], 140, C.san);
+  const TX0 = 24200, TX1 = 26000, TZN = 39750, TZC = 40200, TT = -1500, TB = -3100, TM = -2200, TL = TZN + 395;
+  const osiG = grp("osiG", [tr(0, 5.4, 6.0, "op", 0, 0.45, "lin"), tr(0, 8.2, 8.8, "op", 0.45, 0, "lin")]);
+  box(osiG, TX0, TB, TZN, TX1, TT, TZC + 450, C.hold, { edge: .9, shadow: false, em: .45, emc: [0.95, 0.25, 0.2] });
+
+  // ---------- step 2: cut to subgrade, F2C grade stakes behind the front, excavators on the face
+  const STK = AD.map(([x, z]) => [x + 600, z + 600]).concat(TRENCH.flatMap(t => [[t.x0, ZV + 900], [t.x1, ZV + 900]])).concat([[7000, ZR1], [35000, ZR2], [49000, ZR1]]);
+  STK.forEach(([x, z], k) => {
+    const ys = fin(x, z) - 675, a = passAt(1.2, 7.4, x, -4500, 72000) + 0.35;
+    const g = grp("stk" + k, [...popIn(1, a, a + .45), tr(3, 0.3, 0.8, "op", 1, 0, "lin")], { pivot: [x, ys, z] });
+    box(g, x - 19, ys - 250, z - 19, x + 19, ys + 1060, z + 19, C.stake, { edge: .3 });
+    box(g, x - 23, ys + 994, z - 23, x + 23, ys + 1006, z + 23, C.red, { edge: 0 });
+    box(g, x + 19, ys + 820, z - 3, x + 170, ys + 900, z + 3, C.flag, { edge: 0, shadow: false });
+  });
+  function excavator(name, tracks) {
+    const lo = grp(name + "L", tracks), up = grp(name + "U", tracks);
+    box(lo, -2300, 0, -1500, 2300, 800, -900, C.tire, { edge: .3 });
+    box(lo, -2300, 0, 900, 2300, 800, 1500, C.tire, { edge: .3 });
+    box(lo, -1000, 650, -900, 1000, 1000, 900, C.dark, { edge: .3 });
+    box(up, -1200, 1000, -1400, 1500, 2150, 1400, C.yellow, { edge: .45 });
+    box(up, 1500, 1000, -1400, 2200, 2050, 1400, C.dark, { edge: .4 });
+    box(up, -1200, 2150, -1400, 0, 3100, -400, C.yellow, { edge: .45 });
+    box(up, -1215, 2300, -1380, -1195, 3000, -420, C.glass, { edge: .3 });
+    const b0 = [-900, 1700, 300], b1 = [-900 - 5200 * Math.cos(0.66), 1700 + 5200 * Math.sin(0.66), 300], b2 = [-6300, 250, 300];
+    pipe(up, b0, b1, 520, C.yellow, { geo: 0, edge: .45 });
+    pipe(up, b1, b2, 380, C.yellow, { geo: 0, edge: .45 });
+    box(up, -6950, -320, -300, -6050, 420, 900, C.dark, { edge: .4 });
+    return { lo, up };
+  }
+  const EXC_T = [tr(1, 1.0, 1.3, "op", 0, 1, "lin"), tr(1, 7.3, 7.6, "op", 1, 0, "lin")];
+  const exc = [excavator("exc0", EXC_T), excavator("exc1", EXC_T)];
+
+  // ---------- step 3: electrical conduits on the subgrade (placeholder runs) + capped stub-ups
+  const subY = (x, z) => fin(x, z) - 675 + 40;
+  function ducts(g, x0, z0, x1, z1) {
+    const n = Math.max(2, Math.round(Math.hypot(x1 - x0, z1 - z0) / 3500)), dx = x1 - x0, dz = z1 - z0, l = Math.hypot(dx, dz), ox = -dz / l * 75, oz = dx / l * 75;
+    [-1, 1].forEach(sd => { for (let k = 0; k < n; k++) {
+      const xa = x0 + dx * k / n, za = z0 + dz * k / n, xb = x0 + dx * (k + 1) / n, zb = z0 + dz * (k + 1) / n;
+      pipe(g, [xa + ox * sd, subY(xa, za), za + oz * sd], [xb + ox * sd, subY(xb, zb), zb + oz * sd], 63, C.cond, { geo: 3 });
+    } });
+  }
+  [[-2400, 1200, 63920, 1200, 1.0, "gx"], [-2400, 1200, -2400, 37100, 1.5, "gz"], [-2400, 37100, 63920, 37100, 2.0, "gx"], [28000, 1200, 28000, 37100, 2.6, "gz"]].forEach(([x0, z0, x1, z1, a, ax], k) => {
+    const g = grp("duct" + k, growIn(2, a, a + 1.4, ax), { pivot: [x0, 0, z0] });
+    ducts(g, x0, z0, x1, z1);
+  });
+  const stubs = grp("stubs", dropIn(2, 3.6, 4.3, 900));
+  [7000, 21000, 35000, 49000, 63920].forEach(x => [1200, 37100].forEach(z => {
+    pipe(stubs, [x, subY(x, z), z], [x, 120, z], 63, C.cond, { geo: 1 });
+    cyl(stubs, x, 135, z, 80, 30, "y", C.cap, { edge: .3 });
+  }));
+
+  // ---------- step 4: Granular B, then Granular A (trench strips left low), graded to the falls
+  layer("granB", 6, { top: F(-575), bot: F(-675) }, C.granB, 10, [tr(3, 0.8, 4.0, "sw", -4500, 72000, "inout"), tr(3, 0.8, 0.9, "op", 0, 1, "lin")], { hideAt: starts[5] + 4.0 });
+  const gAG = layer("granA", 5, { top: F(-475), bot: F(-575), holes: HT(350, 300), zSplit: 37050 }, C.granA, 10, [tr(3, 3.2, 6.6, "sw", -4500, 72000, "inout"), tr(3, 3.2, 3.3, "op", 0, 1, "lin"), tr(3, 6.2, 7.0, "ct", 0, 1, "lin"), tr(4, 3.0, 4.2, "ct", 1, 0, "lin")], { hideAt: starts[4] + 4.2 });
+  // once the insulation is down, only the granular ledges beside each thickening still show (until SOG 1 fills them)
+  const ledge = grp("ledge", [tr(4, 4.2, 4.21, "op", 0, 1, "lin"), tr(8, 7.4, 7.41, "op", 1, 0, "lin")]);
+  const LG = (x0, z0, x1, z1, toc) => box(ledge, x0, toc - 575, z0, x1, toc - 473, z1, C.granA, { mat: 10, edge: 0, shadow: false });
+  TRENCH.forEach(t => { LG(t.x0 - 475, ZV - 475, t.x1 + 475, ZV - 350, TOC); LG(t.x0 - 475, ZV + 350, t.x1 + 475, ZV + 475, TOC); LG(t.x0 - 475, ZV - 350, t.x0 - 300, ZV + 350, TOC); LG(t.x1 + 300, ZV - 350, t.x1 + 475, ZV + 350, TOC); });
+  LG(P2.xc - 475, P2.z0 - 475, P2.xc - 350, P2.z1 + 475, P2.toc); LG(P2.xc + 350, P2.z0 - 475, P2.xc + 475, P2.z1 + 475, P2.toc);
+  LG(P2.xc - 350, P2.z0 - 475, P2.xc + 350, P2.z0 - 300, P2.toc); LG(P2.xc - 350, P2.z1 + 300, P2.xc + 350, P2.z1 + 475, P2.toc);
+  function roller(name, tracks) {
+    const g = grp(name, tracks);
+    cyl(g, 0, 750, -1500, 1500, 2100, "x", C.dark, { edge: .3 });
+    box(g, -1180, 600, -2400, -1080, 1500, -600, C.yellow, { edge: .4 });
+    box(g, 1080, 600, -2400, 1180, 1500, -600, C.yellow, { edge: .4 });
+    box(g, -950, 400, -600, 950, 1700, 2400, C.yellow, { edge: .45 });
+    box(g, -750, 1700, 500, 750, 2800, 1900, C.glass, { edge: .35 });
+    box(g, -850, 2800, 400, 850, 2900, 2000, C.yellow, { edge: .4 });
+    [-1, 1].forEach(sx => cyl(g, sx * 800, 600, 1500, 1200, 450, "x", C.tire, { edge: .3 }));
+    return g;
+  }
+  const ROL_T = [tr(3, 3.3, 3.6, "op", 0, 1, "lin"), tr(3, 6.5, 6.8, "op", 1, 0, "lin")];
+  const rol = [roller("rol0", ROL_T), roller("rol1", ROL_T)];
+
+  // ---------- step 5: rigid insulation, then the vapour barrier (both stop at the 950 thickenings)
+  layer("ins", 4, { top: F(-325), bot: F(-475), z1: 37050, holes: HT(475, 475), zSplit: 36450 }, C.ins, 11, [tr(4, 0.8, 4.2, "sw", -4500, 72000, "inout"), tr(4, 0.8, 0.9, "op", 0, 1, "lin")], { hideAt: starts[4] + 7.0 });
+  layer("vb", 3, { top: F(-315), bot: F(-325), z1: 36450, holes: HT(475, 475), zSplit: 35650 }, C.vb, 12, [tr(4, 3.8, 7.0, "sw", -4500, 72000, "inout"), tr(4, 3.8, 3.9, "op", 0, 1, "lin")], { hideAt: starts[8] + 7.4 });
+
+  // ---------- step 6: mud slabs in the trench strips
+  TRENCH.forEach((t, i) => {
+    const g = grp("mud" + i, growIn(5, [1.0, 1.6, 2.2][i], [1.0, 1.6, 2.2][i] + 1.4, "gx"), { pivot: [t.x0 - 300, 0, 0] });
+    box(g, t.x0 - 300, TOC - 575, ZV - 350, t.x1 + 300, TOC - 500, ZV + 350, C.mud, { mat: 1, edge: .3 });
+  });
+  const mudP = grp("mudP", growIn(5, 2.8, 4.0, "gz"), { pivot: [0, 0, P2.z0 - 300] });
+  box(mudP, P2.xc - 350, P2.toc - 575, P2.z0 - 300, P2.xc + 350, P2.toc - 500, P2.z1 + 300, C.mud, { mat: 1, edge: .3 });
+
+  // ---------- step 7: threaded rods, Watts channels, area drains
+  function trenchKit(i, axis, a0, a1, c, toc, t0, out) {
+    const P = (s, d, y) => (axis === "x" ? [s, y, c + d] : [c + d, y, s]);
+    const B = (g, s0, d0, y0, s1, d1, y1, col, o) => { const p = P(s0, d0, y0), q = P(s1, d1, y1); return box(g, Math.min(p[0], q[0]), Math.min(p[1], q[1]), Math.min(p[2], q[2]), Math.max(p[0], q[0]), Math.max(p[1], q[1]), Math.max(p[2], q[2]), col, o); };
+    const rods = grp("rods" + i, dropIn(6, t0, t0 + .6, 500));
+    for (let s = a0 + 300; s <= a1 - 299; s += 1200) [-1, 1].forEach(sd => {
+      pipe(rods, P(s, sd * 175, toc - 500), P(s, sd * 175, toc - 30), 14, C.galv, { geo: 3, shadow: false });
+      B(rods, s - 25, sd * 100, toc - 120, s + 25, sd * 190, toc - 70, C.galv, { edge: .3, shadow: false });
+    });
+    const ch = grp("chan" + i, dropIn(6, t0 + .7, t0 + 1.5, 900));
+    B(ch, a0, -100, toc - 300, a1, 100, toc - 20, C.chan, { edge: .35 });
+    B(ch, a0, -150, toc - 20, a1, -100, toc, C.galv, { mat: 6, edge: .35 });
+    B(ch, a0, 100, toc - 20, a1, 150, toc, C.galv, { mat: 6, edge: .35 });
+    pipe(ch, P(out, 0, toc - 300), P(out, 0, toc - 380), 114, C.iron);
+  }
+  TRENCH.forEach((t, i) => trenchKit(i, "x", t.x0, t.x1, ZV, TOC, [1.0, 0.4, 1.4][i], t.out));
+  trenchKit(3, "z", P2.z0, P2.z1, P2.xc, P2.toc, 1.8, P2.out);
+  const adb = grp("adb", dropIn(6, 3.3, 3.9, 600));
+  AD.forEach(([x, z]) => { cyl(adb, x, -455, z, 250, 580, "y", C.iron, { edge: .3 }); cyl(adb, x, -172, z, 300, 30, "y", C.iron, { edge: .3 }); });
+  // the interceptor outside grid A: dig, shore, cast-in-place pit, set the tank, extension + cover, fill
+  const shore = grp("shore", dropIn(6, 5.7, 6.3, 1800));
+  box(shore, PIT.x0, -3500, PIT.z0, PIT.x1, -650, PIT.z0 + 50, C.shore, { mat: 6, edge: .4 });
+  box(shore, PIT.x0, -3500, PIT.z0, PIT.x0 + 50, -650, EX.z1, C.shore, { mat: 6, edge: .4 });
+  box(shore, PIT.x1 - 50, -3500, PIT.z0, PIT.x1, -650, EX.z1, C.shore, { mat: 6, edge: .4 });
+  [-2900, -1500].forEach(y => { box(shore, PIT.x0 + 50, y - 120, PIT.z0 + 50, PIT.x0 + 140, y + 120, EX.z1, C.yellow, { edge: .3 }); box(shore, PIT.x1 - 140, y - 120, PIT.z0 + 50, PIT.x1 - 50, y + 120, EX.z1, C.yellow, { edge: .3 }); });
+  const pit = grp("pit", growIn(6, 6.3, 7.0, "gy"), { pivot: [0, -3400, 0] });
+  box(pit, 23700, -3400, 39250, 26500, -3100, EX.z1, C.conc, { mat: 1, edge: .35 });
+  box(pit, 23700, -3100, 39250, 26500, -150, 39450, C.conc, { mat: 1, edge: .35 });
+  box(pit, 23700, -3100, 39450, 23900, -150, EX.z1, C.conc, { mat: 1, edge: .35 });
+  box(pit, 26300, -3100, 39450, 26500, -150, EX.z1, C.conc, { mat: 1, edge: .35 });
+  const tank = grp("tank", dropIn(6, 7.1, 8.3, 4300));
+  const plate = (x0, y0, z0, x1, y1, z1, col) => box(tank, x0, y0, z0, x1, y1, z1, col || C.tank, { mat: 6, edge: .45 });
+  plate(TX0, TT - 30, TZN, TX1, TT, TZC);
+  plate(TX0, TB, TZN, TX1, TT, TZN + 30, C.tankIn);
+  plate(TX0, TM - 30, TL, TX1, TM, TZC);
+  plate(TX0, TB, TL - 30, TX1, TM, TL);
+  plate(TX0, TB, TZN, TX1, TB + 30, TL);
+  [TX0, TX1 - 30].forEach(x => { plate(x, TM, TZN, x + 30, TT, TZC); plate(x, TB, TZN, x + 30, TM, TL); });
+  [24800, 25400].forEach(x => { plate(x, TB + 250, TZN + 30, x + 24, TM, TL - 30, C.tankIn); plate(x, TM, TZN + 30, x + 24, TT - 220, TZC, C.tankIn); });
+  const ext = grp("ext", growIn(6, 8.4, 9.0, "gy"), { pivot: [0, TT, 0] });
+  box(ext, 24700, TT, TZN + 100, 25500, -190, TZN + 130, C.tank, { mat: 6, edge: .4 });
+  box(ext, 24700, TT, TZN + 130, 24730, -190, TZC, C.tank, { mat: 6, edge: .4 });
+  box(ext, 25470, TT, TZN + 130, 25500, -190, TZC, C.tank, { mat: 6, edge: .4 });
+  box(ext, 24600, -190, TZN + 20, 25600, -150, TZC, C.iron, { edge: .45 });
+  const fill = grp("fill", [tr(6, 9.6, 10.6, "gy", 0.001, 1, "inout"), tr(6, 9.6, 9.7, "op", 0, 0.38, "lin")], { pivot: [0, -3100, 0] });
+  box(fill, 23900, -3100, 39450, 26300, -700, EX.z1, C.fill, { edge: 0, shadow: false });
+
+  // ---------- step 8: AGF trench steel per R49 section 1, then the SOG 1 mat
+  function trenchSteel(i, axis, a0, a1, c, toc, t0) {
+    const P = (s, d, y) => (axis === "x" ? [s, y, c + d] : [c + d, y, s]);
+    const gB = grp("tbar" + i, dropIn(7, t0, t0 + .8, 500)), gC = grp("tcon" + i, fadeIn(7, t0 + .9, t0 + 1.4));
+    const R = (g, s0, d0, y0, s1, d1, y1) => pipe(g, P(s0, d0, y0), P(s1, d1, y1), 16, C.rebar, { geo: 3, shadow: false });
+    const yb = toc - 462, yt = toc - 198, r = yt - yb;
+    for (let s = a0 + 150; s <= a1 - 149; s += 300) {
+      R(gB, s, -262, yb, s, 262, yb);
+      R(gB, s, -262, yb, s, -262 - r, yt); R(gB, s, 262, yb, s, 262 + r, yt);
+      R(gB, s, -262 - r, yt, s, -262 - r - 585, yt); R(gB, s, 262 + r, yt, s, 262 + r + 585, yt);
+      if (s + 150 < a1) { R(gB, s + 150, -220, yt + 16, s + 150, -1680, yt + 16); R(gB, s + 150, 220, yt + 16, s + 150, 1680, yt + 16); }
+    }
+    [-180, 0, 180].forEach(d => R(gC, a0 - 75, d, yb + 16, a1 + 75, d, yb + 16));
+    [700, 1000].forEach(d => { R(gC, a0 - 650, d, yt - 16, a1 + 650, d, yt - 16); R(gC, a0 - 650, -d, yt - 16, a1 + 650, -d, yt - 16); });
+  }
+  TRENCH.forEach((t, i) => trenchSteel(i, "x", t.x0, t.x1, ZV, TOC, [1.0, 0.4, 1.4][i]));
+  trenchSteel(3, "z", P2.z0, P2.z1, P2.xc, P2.toc, 1.8);
+  const mat1 = grp("mat1", [tr(7, 3.4, 7.2, "sw", -4500, 72000, "inout"), tr(7, 3.4, 3.5, "op", 0, 1, "lin")]);
+  lines(mat1, { top: F(-196), x0: XW + 60, x1: XE - 60, z0: 60, z1: 35590, sx: 300, sz: 300, holes: HT(150, 0).concat(HD(200)) }, C.rebar);
+
+  // ---------- step 9: SOG 1 in two pours (break at grid 11), with the thickenings; saw cuts
+  const SOG_SW = [tr(8, 0.8, 3.8, "sw", -4500, 35000, "inout"), tr(8, 0.8, 0.9, "op", 0, 1, "lin"), tr(8, 4.4, 7.4, "sw", 35000, 72000, "inout")];
+  const sogG = layer("sog", 2, { top: F(-150), bot: F(-315), z1: 35650, holes: HT(150, 0).concat(HD(160)), zSplit: 34450 }, C.slab, 15,
+    SOG_SW.concat([tr(8, 0.8, 1.2, "wet", 0, 9000, "lin"), tr(8, 7.4, 8.4, "wet", 9000, 0, "inout"), tr(8, 7.6, 8.6, "js", 0, 1, "lin")]), { jt: 1, hideAt: starts[11] + 5.3 });
+  const thick = grp("thick", SOG_SW);
+  TRENCH.forEach(t => {
+    box(thick, t.x0 - 300, TOC - 500, ZV - 350, t.x1 + 300, TOC - 300, ZV + 350, C.slab, { mat: 1, edge: 0 });
+    box(thick, t.x0 - 475, TOC - 475, ZV - 475, t.x1 + 475, TOC - 300, ZV + 475, C.slab, { mat: 1, edge: 0 });
+  });
+  box(thick, P2.xc - 350, P2.toc - 500, P2.z0 - 300, P2.xc + 350, P2.toc - 300, P2.z1 + 300, C.slab, { mat: 1, edge: 0 });
+  box(thick, P2.xc - 475, P2.toc - 475, P2.z0 - 475, P2.xc + 475, P2.toc - 300, P2.z1 + 475, C.slab, { mat: 1, edge: 0 });
+  const bulk = grp("bulk", [...fadeIn(8, 0.5, 0.9), tr(8, 4.3, 4.7, "op", 1, 0, "lin")]);
+  for (let z = 0; z < 35650; z += 891.25) { const z1 = Math.min(35650, z + 891.25), y = fin(35000, (z + z1) / 2); box(bulk, 35000, y - 330, z, 35045, y - 120, z1, C.stake, { edge: .25 }); }
+  function screed(name, tracks) {
+    const g = grp(name, tracks);
+    box(g, -1100, 350, -1150, 1400, 1350, 1150, C.yellow, { edge: .45 });
+    [[-700, -1270], [-700, 1270], [1000, -1270], [1000, 1270]].forEach(([x, z]) => cyl(g, x, 400, z, 800, 240, "z", C.tire, { edge: .3 }));
+    pipe(g, [-1100, 1050, 0], [-5600, 900, 0], 320, C.dark, { geo: 0, edge: .4 });
+    box(g, -6100, 120, -1900, -5600, 560, 1900, C.yellow, { edge: .45 });
+    box(g, 500, 1350, -70, 640, 3300, 70, C.dark, { edge: .3 });
+    box(g, 430, 3300, -140, 710, 3450, 140, C.red, { edge: .3, em: .6, emc: [1, .25, .2] });
+    box(g, 0, 1350, -500, 900, 1900, 500, C.dark, { edge: .35 });
+    return g;
+  }
+  const SCR_T = [tr(8, 0.7, 1.0, "op", 0, 1, "lin"), tr(8, 7.3, 7.6, "op", 1, 0, "lin"), tr(11, 0.5, 0.8, "op", 0, 1, "lin"), tr(11, 5.2, 5.5, "op", 1, 0, "lin")];
+  const scr = [screed("scr0", SCR_T), screed("scr1", SCR_T)];
+
+  // ---------- step 10: topping steel
+  const mat2 = grp("mat2", [tr(9, 0.8, 6.0, "sw", -4500, 72000, "inout"), tr(9, 0.8, 0.9, "op", 0, 1, "lin")]);
+  lines(mat2, { top: F(-70), x0: XW + 60, x1: XE - 60, z0: 60, z1: 34390, sx: 300, sz: 300, holes: HT(150, 0).concat(HD(200)) }, C.rebar);
+
+  // ---------- step 11: radiant manifolds + hePEX loops
+  const manif = grp("manif", dropIn(10, 0.4, 1.1, 700));
+  const MAN = [[XW, 27000, "x"], [XW, 33500, "x"], [57840, 0, "z"]];
+  MAN.forEach(([x, z, ax]) => {
+    if (ax === "x") {
+      box(manif, x, 250, z - 650, x + 220, 1100, z + 650, C.manif, { mat: 6, edge: .45 });
+      for (let k = 0; k < 8; k++) { const zz = z - 560 + k * 160; pipe(manif, [x + 110, 250, zz], [x + 110, -40, zz], 25, C.pex, { geo: 3, shadow: false }); pipe(manif, [x + 110, -52, zz], [x + 330, -52, zz], 25, C.pex, { geo: 3, shadow: false }); }
+    } else {
+      box(manif, x - 650, 250, z, x + 650, 1100, z + 220, C.manif, { mat: 6, edge: .45 });
+      for (let k = 0; k < 8; k++) { const xx = x - 560 + k * 160; pipe(manif, [xx, 250, z + 110], [xx, -40, z + 110], 25, C.pex, { geo: 3, shadow: false }); pipe(manif, [xx, -52, z + 110], [xx, -52, z + 330], 25, C.pex, { geo: 3, shadow: false }); }
+    }
+  });
+  const pexG = grp("pex", [tr(10, 1.0, 7.6, "sw", -4500, 72000, "inout"), tr(10, 1.0, 1.1, "op", 0, 1, "lin")]);
+  [C.pex, [0.80, 0.24, 0.10], [0.98, 0.50, 0.22]].forEach((col, b) => lines(pexG, { top: F(-52), x0: XW + 250, x1: XE - 250, z0: 250, z1: 34200, sz: 225, keep: z => Math.floor(z / 1800) % 3 === b, holes: HT(450, 450).concat(HD(450)) }, col));
+
+  // ---------- step 12: topping in two pours, joints, grates and strainers
+  const topG = layer("topping", 1, { top: F(0), bot: F(-150), z1: 34450, holes: HT(150, 0).concat(HD(160)) }, C.top, 15, [
+    tr(11, 0.6, 2.8, "sw", -4500, 35000, "inout"), tr(11, 0.6, 0.7, "op", 0, 1, "lin"), tr(11, 3.1, 5.3, "sw", 35000, 72000, "inout"),
+    tr(11, 0.6, 1.0, "wet", 0, 9000, "lin"), tr(11, 5.3, 6.1, "wet", 9000, 0, "inout"), tr(11, 5.9, 6.6, "js", 0, 1, "lin"),
+    tr(11, 5.6, 6.2, "ct", 0, 1, "lin"), tr(11, 7.4, 8.0, "ct", 1, 0, "lin")], { jt: 2 });
+  const grates = grp("grates", fadeIn(11, 5.6, 6.2));
+  TRENCH.forEach(t => box(grates, t.x0, TOC - 24, ZV - 100, t.x1, TOC - 2, ZV + 100, C.grate, { mat: 9, edge: .3 }));
+  box(grates, P2.xc - 100, P2.toc - 24, P2.z0, P2.xc + 100, P2.toc - 2, P2.z1, C.grate, { mat: 9, edge: .3 });
+  AD.forEach(([x, z]) => cyl(grates, x, -156, z, 230, 6, "y", C.strainer, { edge: .3 }));
+
+  // ---------- machines follow their fronts
+  const place = (g, x, y, z, ry) => { const st = g.st; st.cx = x; st.cy = y; st.cz = z; st.cry = ry || 0; };
+  function customs(T) {
+    const sr = val(roughG, "sr", T, -4500);
+    exc.forEach((e, k) => { const z = (k ? 27500 : 10500) + Math.sin(T * 0.5 + k * 2) * 2500; place(e.lo, sr + 6300, -400, z, 0); place(e.up, sr + 6300, -400, z, 22 * Math.sin(T * 1.7 + k * 1.9)); });
+    const sa = val(gAG, "sw", T, -4500);
+    rol.forEach((g, k) => place(g, sa - 2600, -525, (k ? 28500 : 9500) + Math.sin(T * 1.1 + k * 2.4) * 2600, 0));
+    const late = T >= starts[10], sp = val(late ? topG : sogG, "sw", T, -4500);
+    scr.forEach((g, k) => place(g, sp + 5800, late ? -235 : -385, (k ? 28000 : 10000) + Math.sin(T * 0.8 + k * 2.1) * 3500, 0));
+  }
+
+  // ======================= labels + dims (overlay)
+  const ovl = document.getElementById("ovl"), ovsvg = document.getElementById("ovsvg"), badgeEl = document.getElementById("badge"), outroEl = document.getElementById("outro");
+  const labels = [];
+  function lab(step, a, at, text, sub, o) {
+    o = o || {};
+    const el = document.createElement("div");
+    el.className = "lbl" + (o.hold ? " hold" : "") + (o.big ? " big" : "") + (o.minor ? " minor" : "");
+    el.style.setProperty("--c", "var(--" + (o.c || STEPS[step].c) + ")");
+    el.innerHTML = text + (sub ? "<small>" + sub + "</small>" : "");
+    ovl.appendChild(el);
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", o.hold ? "#c3322c" : "#13202b"); ln.setAttribute("stroke-width", "1.4"); ln.setAttribute("opacity", ".8");
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("fill", o.hold ? "#c3322c" : "#13202b"); dot.setAttribute("r", "3.2");
+    ovsvg.appendChild(ln); ovsvg.appendChild(dot);
+    labels.push({ step, a, at, off: o.off || [-6, -4], el, ln, dot, keep: !!o.keep, until: o.until == null ? null : o.until });
+  }
+  const dims = [];
+  function dim(step, a, p1, p2, text, o) {
+    o = o || {};
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", "#13202b"); ln.setAttribute("stroke-width", "1.6");
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "line"), t2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    [t1, t2].forEach(t => { t.setAttribute("stroke", "#13202b"); t.setAttribute("stroke-width", "2.2"); });
+    g.appendChild(ln); g.appendChild(t1); g.appendChild(t2); ovsvg.appendChild(g);
+    const el = document.createElement("div"); el.className = "dimt"; el.textContent = text; ovl.appendChild(el);
+    dims.push({ step, a, p1, p2, g, ln, t1, t2, el, keep: !!o.keep });
+  }
+  // step 1
+  lab(0, 3.0, [34000, 0, 0], "Grid H", null, { off: [0, -3], minor: true, until: 5.6, c: "mcl" });
+  lab(0, 3.0, [XE, 0, 30000], "Grid 6.1", null, { off: [3, 1], minor: true, until: 5.6, c: "mcl" });
+  lab(0, 3.0, [10000, 0, ZA], "Grid A", null, { off: [-2, 3], minor: true, until: 5.6, c: "mcl" });
+  lab(0, 3.6, [47000, -1700, 1870], "Storm 300ø pairs", "fed by the roof-drain leaders", { off: [3, -4] });
+  lab(0, 4.6, [45000, -1350, 31600], "Sanitary 100ø @ 1%", "a main under each row of drains", { off: [3, 3] });
+  lab(0, 5.4, [COLL, -1600, 26000], "Collector", "to OSI 1", { off: [-5, 2] });
+  lab(0, 6.0, [25100, -2300, 40200], "OSI 1 · new spot outside A", "RFI 326 R1 · drawings due", { off: [4, 3], hold: true });
+  lab(0, 6.8, [31580, -450, ZV], "Capped risers", "area drains + trench outlets", { off: [4, -3] });
+  // step 2
+  lab(1, 3.0, [9000, fin(9000, 30000) - 675, 30000], "Cut to subgrade", "675 below the finished floor", { off: [-4, 3] });
+  lab(1, 4.6, [21600, fin(21600, 8618) - 675 + 1000, 8618], "F2C grade stakes", "marks 1.000 above the underside of granular", { off: [-4, -4] });
+  lab(1, 6.8, [D3X, -700, R3.zd], "D3 pipe 1450 west of design", "F2C · move the pipe or the drain", { off: [3, 3], hold: true });
+  lab(1, 7.6, [42000, fin(42000, 19000) - 675, 19000], "Geotech reviews the subgrade", "S201 note 14", { off: [-2, -4] });
+  // step 3
+  lab(2, 1.8, [18000, subY(18000, 1200), 1200], "Conduits on the subgrade", "placeholder runs", { off: [-3, -4] });
+  lab(2, 4.2, [35000, 120, 37100], "Stub-ups at the columns", "capped", { off: [3, 3] });
+  lab(2, 5.6, [28000, subY(28000, 26000), 26000], "Real runs from O'Connor Electric", "not in the drawings reviewed", { off: [4, 2], hold: true });
+  // step 4
+  lab(3, 2.2, [8000, fin(8000, 30000) - 575, 30000], "Granular B (subbase)", null, { off: [-4, 3], until: 5.6 });
+  lab(3, 4.6, [8000, fin(8000, 9000) - 475, 9000], "Granular A (base)", "200 total, compacted", { off: [-4, -3], until: 5.8 });
+  lab(3, 6.6, [21000, LP - 475, R1.zd], "Area drain −153", "falls shown as 25 contours", { off: [3, -3] });
+  lab(3, 7.4, [14000, HP - 475, 11000], "Ridge −5", null, { off: [-3, -2], minor: true });
+  lab(3, 7.9, [28500, TOC - 575, ZV], "Trench strip left low", "for the thickening", { off: [-3, 3] });
+  // step 5
+  lab(4, 2.0, [9000, fin(9000, 30000) - 325, 30000], "150 rigid insulation", "S201 note 3: per architectural", { off: [-4, 3], until: 5.2 });
+  lab(4, 4.8, [9000, fin(9000, 9000) - 315, 9000], "Vapour barrier", "lapped, taped, sealed at risers", { off: [-4, -3], until: 5.4 });
+  lab(4, 7.3, [32600, TOC - 325, ZV + 475], "Stops at the thickening", "950 wide · confirm with RJC/DSA", { off: [3, -3], hold: true });
+  // step 6
+  lab(5, 1.6, [10500, TOC - 500, ZV], "Trench A · 15–14", null, { off: [-2, -3], minor: true, until: 4.4 });
+  lab(5, 2.2, [31500, TOC - 500, ZV], "Trench A · 12–11", null, { off: [-2, -3], minor: true, until: 4.4 });
+  lab(5, 2.8, [55400, TOC - 500, ZV], "Trench B · 9 to 8 + 4120", null, { off: [3, 3], minor: true, until: 4.4 });
+  lab(5, 3.4, [P2.xc, P2.toc - 500, 7850], "North–south trench · 7, G–F", null, { off: [3, -3], minor: true, until: 4.4 });
+  lab(5, 6.6, [32300, TOC - 500, ZV], "Lean mud slab, about 75", "thickness + mix not specified", { off: [3, -3], hold: true });
+  lab(5, 7.4, [33600, TOC - 500, ZV + 300], "Thickening bottom", "175 below SOG 1 (R49)", { off: [3, 2] });
+  dim(5, 7.0, [31100, TOC - 470, ZV - 475], [31100, TOC - 470, ZV + 475], "950");
+  // step 7
+  lab(6, 1.0, [30650, TOC - 260, ZV - 175], "Threaded rods in the mud slab", "pairs each side of the channel", { off: [-4, -3], until: 4.8 });
+  lab(6, 2.4, [33500, TOC - 150, ZV + 100], "Watts channel, 152 wide", "pre-sloped · 4″ bottom outlet", { off: [3, -3], until: 4.8 });
+  lab(6, 3.4, [34500, TOC, ZV - 150], "Frame level at −80", null, { off: [2, -4], minor: true, until: 4.8 });
+  lab(6, 5.9, [PIT.x0, -2000, 39500], "Shored excavation", "water table 252.100 · dewater", { off: [-4, -3], hold: true });
+  lab(6, 6.9, [26500, -1200, 39450], "Cast-in-place pit", "200 walls, 300 base (RFI 315)", { off: [4, -3] });
+  lab(6, 8.4, [25100, -2600, 40200], "J.R. Smith oil interceptor", "U/S 250.050 · 1500 extension", { off: [4, 2] });
+  lab(6, 9.2, [25100, -150, 39900], "H-20 cover at grade", null, { off: [-3, -4], minor: true });
+  lab(6, 9.9, [26150, -1000, 40100], "Fill: lean mix or 100% SPMDD", "RFI 315", { off: [5, 1] });
+  // step 8
+  lab(7, 1.4, [31100, TOC - 462, ZV + 262], "15M bent bars @ 300", "MK 15H04 · 30 clear", { off: [-4, -3], until: 4.6 });
+  lab(7, 2.6, [33100, TOC - 182, ZV + 1300], "15M top bars each side", "continuous + 15H02 @ 300", { off: [3, -3], until: 4.6 });
+  lab(7, 6.4, [14000, fin(14000, 30000) - 196, 30000], "SOG 1: 10M @ 300 each way", "40 from the top, on chairs", { off: [-4, 3] });
+  // step 9
+  lab(8, 2.2, [6000, fin(6000, 30000) - 150, 30000], "SOG 1: 175, 35 MPa C-1 + DCI", "placed with the thickenings", { off: [-4, 3] });
+  lab(8, 3.6, [35000, -150, 33000], "Pour break at grid 11", "40 m max · plan to confirm", { off: [3, 3], hold: true });
+  lab(8, 7.8, [52500, fin(52500, 30000) - 150, 30000], "Saw cuts 45 deep", "4200 max", { off: [3, 3] });
+  // step 10
+  lab(9, 2.2, [9000, fin(9000, 30000) - 70, 30000], "Topping: 10M @ 300 each way", "on chairs", { off: [-4, 3] });
+  lab(9, 4.4, [31500, TOC, ZV + 300], "Clear of the grates + drains", null, { off: [3, -3], minor: true });
+  lab(9, 5.6, [26000, fin(26000, 30000) - 70, 30000], "Bar height vs. tube cover?", "confirm with RJC + Kolostat", { off: [3, 3], hold: true });
+  // step 11
+  lab(10, 1.0, [XW, 900, 27000], "Manifolds at the west wall", "positions approximate", { off: [3, -4], until: 4.8 });
+  lab(10, 2.6, [4500, fin(4500, 30500) - 52, 30500], "hePEX @ 225 typical", "serpentines run east–west", { off: [3, 3], until: 4.8 });
+  lab(10, 6.8, [57840, 900, 110], "Manifold near grid 8", null, { off: [3, -3] });
+  lab(10, 7.4, [49000, LP - 52, R3.zd], "Clear of drains + trenches", null, { off: [3, 3], minor: true });
+  lab(10, 8.2, [22000, fin(22000, 28000) - 52, 28000], "Pressure-test; keep under pressure for the pour", null, { off: [-4, 3] });
+  // step 12
+  lab(11, 1.4, [6000, fin(6000, 30000), 30000], "Topping 150 + DCI", "finished to the falls", { off: [-4, 3], until: 6.6 });
+  lab(11, 3.6, [44000, fin(44000, 30000), 30000], "Emery hardener 3.0 kg/m²", "light-reflective · S201 note 8", { off: [3, 3], until: 6.6 });
+  lab(11, 5.8, [21000, LP, R1.zd], "Falls: −5 to −153 at the drains", "25 contours", { off: [3, -3], until: 6.8 });
+  lab(11, 8.6, [67200, fin(67200, 33900), 33900], "Topping 150", "tooled joints 35 deep, 3000 max", { off: [-4, -5], keep: true });
+  lab(11, 8.9, [67200, fin(67200, 35050) - 150, 35050], "SOG 1, 175", "35 MPa C-1 · saw cuts", { off: [-6, -2], keep: true });
+  lab(11, 9.2, [67200, fin(67200, 36050) - 315, 36050], "Vapour barrier", null, { off: [-6, 1], keep: true, minor: true });
+  lab(11, 9.5, [67200, fin(67200, 36750) - 325, 36750], "Insulation 150", null, { off: [-6, 3], keep: true });
+  lab(11, 9.8, [67200, fin(67200, 37650) - 475, 37650], "Granular A + B, 200", null, { off: [-5, 5], keep: true });
+  lab(11, 10.1, [XE, -1400, 34500], "Subgrade", "675 below the floor", { off: [4, 3], keep: true, minor: true });
+
+  // ======================= render
+  let stageW = 960, stageH = 540, dpr = 1, lensShift = -0.12, camScale = 1;
+  const PROJ = { vp: null };
+  const lerp3 = (a, b, k) => a.map((v, j) => v + (b[j] - v) * k);
+  function mixCam(a, b, k) { return { t: lerp3(a.t, b.t, k), yaw: a.yaw + (b.yaw - a.yaw) * k, pitch: a.pitch + (b.pitch - a.pitch) * k, d: Math.exp(Math.log(a.d) + (Math.log(b.d) - Math.log(a.d)) * k) }; }
+  function drift(i, tau) { return (i === STEPS.length - 1 ? 0.7 : 0.45) * tau; }   // slow yaw drift, degrees
+  function camRaw(i, tau) {
+    const s = STEPS[i];
+    const c = s.cam2 && tau > s.c2 ? mixCam(s.cam, s.cam2, EASE.inout(Math.min(1, (tau - s.c2) / (s.c2d || 2.2)))) : s.cam;
+    return { t: c.t, yaw: c.yaw + drift(i, tau), pitch: c.pitch, d: c.d };
+  }
+  function camAt(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    let c = camRaw(i, tau);
+    if (i > 0 && tau < CAM_T) c = mixCam(camRaw(i - 1, STEPS[i - 1].dur), c, EASE.inout(tau / CAM_T));
+    const d = c.d * camScale, y = c.yaw * Math.PI / 180, p = c.pitch * Math.PI / 180;
+    return { p: [c.t[0] - Math.sin(y) * Math.cos(p) * d, c.t[1] + Math.sin(p) * d, c.t[2] + Math.cos(y) * Math.cos(p) * d], t: c.t.slice() };
+  }
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+
+  function groupMatrix(g, T) {
+    const st = g.st;
+    st.op = val(g, "op", T, 1); st.tx = val(g, "tx", T, 0); st.ty = val(g, "ty", T, 0); st.tz = val(g, "tz", T, 0);
+    st.sc = val(g, "sc", T, 1); st.ry = val(g, "ry", T, 0); st.em = val(g, "em", T, 0);
+    st.gx = val(g, "gx", T, 1); st.gy = val(g, "gy", T, 1); st.gz = val(g, "gz", T, 1);
+    st.sw = val(g, "sw", T, null); st.sr = val(g, "sr", T, null);
+    if (st.sw != null && st.sw >= XE + 2000) st.sw = null;        // placing finished: draw whole
+    if (st.sr != null && st.sr <= XW - 1000) st.sr = null;        // removal not started
+    st.ct = val(g, "ct", T, 0); st.js = val(g, "js", T, 0); st.wet = val(g, "wet", T, 0);
+    const pv = g.pivot, ry = st.ry + (st.cry || 0);
+    let m = M.T(st.tx + (st.cx || 0) + pv[0], st.ty + (st.cy || 0) + pv[1], st.tz + (st.cz || 0) + pv[2]);
+    if (ry) m = M.mul(m, M.RY(ry * Math.PI / 180));
+    if (st.rx) m = M.mul(m, M.RX(st.rx));
+    const s = st.sc;
+    if (s !== 1 || st.gx !== 1 || st.gy !== 1 || st.gz !== 1) m = M.mul(m, M.S(s * st.gx, s * st.gy, s * st.gz));
+    m = M.mul(m, M.T(-pv[0], -pv[1], -pv[2]));
+    g.m = m;
+  }
+  function objMatrix(o) {
+    if (o.mesh) return o.g.m;
+    const sx = Math.max(o.s[0], .01), sy = Math.max(o.s[1], .01), sz = Math.max(o.s[2], .01);
+    if (!o.rot) return M.mul(M.mul(o.g.m, M.T(o.p[0], o.p[1], o.p[2])), M.S(sx, sy, sz));
+    let m = M.mul(o.g.m, M.T(o.p[0] + o.s[0] / 2, o.p[1] + o.s[1] / 2, o.p[2] + o.s[2] / 2));
+    if (o.rot[1]) m = M.mul(m, M.RY(o.rot[1] * Math.PI / 180));
+    if (o.rot[0]) m = M.mul(m, M.RX(o.rot[0] * Math.PI / 180));
+    if (o.rot[2]) m = M.mul(m, M.RZ(o.rot[2] * Math.PI / 180));
+    return M.mul(m, M.mul(M.T(-sx / 2, -sy / 2, -sz / 2), M.S(sx, sy, sz)));
+  }
+
+  function draw(T) {
+    customs(T);
+    const cam = camAt(T);
+    const aspect = stageW / stageH;
+    const proj = M.persp(36 * Math.PI / 180, aspect, 400, 400000);
+    proj[9] = lensShift;
+    const view = M.look(cam.p, cam.t, [0, 1, 0]);
+    const VP = M.mul(proj, view);
+    PROJ.vp = VP;
+    for (const g of groups) groupMatrix(g, T);
+    const list = [], meshO = [], meshT = [], meshL = [];
+    for (const o of objs) {
+      const a = o.a * o.g.st.op;
+      if (a <= 0.004) continue;
+      const m = objMatrix(o);
+      if (o.mesh || o.lines) {
+        const it = { o, m, a, d: Math.hypot(o.ctr[0] - cam.p[0], o.ctr[1] - cam.p[1], o.ctr[2] - cam.p[2]) };
+        (o.lines ? meshL : a >= .995 ? meshO : meshT).push(it);
+        continue;
+      }
+      const c = M.xf(m, [.5, .5, .5]);
+      list.push({ o, m, a, d: Math.hypot(c[0] - cam.p[0], c[1] - cam.p[1], c[2] - cam.p[2]) });
+    }
+    const clipped = it => it.o.g.st.sw != null || it.o.g.st.sr != null;
+    const opaque = list.filter(it => it.a >= .995).sort((a, b) => a.d - b.d);
+    const trans = list.filter(it => it.a < .995).sort((a, b) => b.d - a.d);
+    const casters = list.filter(it => it.o.shadow && it.a >= .9);
+    const GEO = { 0: [CUBE, 36, EDGES, 24], 1: [CYL, CYL_N, CEDGES, CEDGE_N], 3: [CYL8, CYL8_N, null, 0] };
+    const batches = arr => { const mp = new Map(); for (const it of arr) { const k = it.o.geo * 1000 + it.o.mat * 2 + (clipped(it) ? 1 : 0); let b = mp.get(k); if (!b) mp.set(k, b = []); b.push(it); } return mp; };
+    // shadow pass (boxes and pipes only; the layers just receive)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.viewport(0, 0, SHS, SHS);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.clear(gl.DEPTH_BUFFER_BIT); gl.colorMask(false, false, false, false);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
+    gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uLVP, false, LVP);
+    for (const gid of [0, 1, 3]) { const n = fillInst(casters.filter(it => it.o.geo === gid), false); if (n) { gl.bindVertexArray(GEO[gid][0]); gl.drawElementsInstanced(gl.TRIANGLES, GEO[gid][1], gl.UNSIGNED_SHORT, 0, n); } }
+    gl.colorMask(true, true, true, true); gl.disable(gl.POLYGON_OFFSET_FILL);
+    // main pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.905, 0.918, 0.926, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const useMain = P => {
+      const u = P.u; gl.useProgram(P.p);
+      gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uLVP, false, LVP);
+      gl.uniform3fv(u.uEye, cam.p); gl.uniform3fv(u.uLD, LD); gl.uniform3fv(u.uFog, [0.905, 0.918, 0.926]); gl.uniform2fv(u.uFogR, FOGR);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0); gl.uniform1f(u.uShOn, 1);
+    };
+    const useLine = () => { gl.useProgram(P_LINE.p); gl.uniformMatrix4fv(P_LINE.u.uVP, false, VP); };
+    const blendOn = () => { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); };
+    const drawMesh = (it, blend) => {
+      const o = it.o;
+      fillInst([it], blend); useMain(progFor(o.mat, clipped(it)));
+      if (blend) blendOn(); else { gl.disable(gl.BLEND); gl.depthMask(true); }
+      gl.enable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.bindVertexArray(o.mesh.vao);
+      const skip = o.hideAt != null && T >= o.hideAt ? o.mesh.top : 0;
+      if (o.mesh.n > skip) gl.drawElementsInstanced(gl.TRIANGLES, o.mesh.n - skip, gl.UNSIGNED_INT, skip * 4, 1);
+      gl.disable(gl.CULL_FACE);
+    };
+    const drawBatch = (arr, trans) => {
+      const gid = arr[0].o.geo, [V, N, E, EN] = GEO[gid];
+      const n = fillInst(arr, trans);
+      useMain(progFor(arr[0].o.mat, clipped(arr[0])));
+      if (trans) blendOn(); else { gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.CULL_FACE); }
+      gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 2);
+      gl.bindVertexArray(V); gl.drawElementsInstanced(gl.TRIANGLES, N, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+      if (!E) return;
+      blendOn(); useLine(); gl.bindVertexArray(E); gl.drawArraysInstanced(gl.LINES, 0, EN, n);
+    };
+    // 1. opaque layers, top layer first; 2. boxes and pipes by geometry + material, near to far
+    meshO.sort((a, b) => a.o.k - b.o.k).forEach(it => drawMesh(it, false));
+    for (const arr of batches(opaque).values()) drawBatch(arr, false);
+    // 3. bar mats and tubing (lines)
+    if (meshL.length) { blendOn(); useLine(); for (const it of meshL) { fillInst([it], true); gl.bindVertexArray(it.o.lines.vao); gl.drawArraysInstanced(gl.LINES, 0, it.o.lines.n, 1); } }
+    // 4. see-through layers, then see-through boxes
+    meshT.sort((a, b) => b.d - a.d).forEach(it => drawMesh(it, true));
+    for (const arr of batches(trans).values()) drawBatch(arr, true);
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+    overlay(T, cam);
+  }
+
+  function toScreen(p) {
+    const q = M.xf(PROJ.vp, p);
+    return { x: (q[0] * .5 + .5) * stageW, y: (1 - (q[1] * .5 + .5)) * stageH, behind: q[3] <= 0 };
+  }
+  function winOp(step, a, T, keep) {
+    const s0 = starts[step], s1 = s0 + STEPS[step].dur;
+    let op = 0;
+    if (T >= s0 + a) op = Math.min(1, (T - s0 - a) / .35);
+    if (!keep) { if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4)); if (T >= s1) op = 0; }
+    return op;
+  }
+  let lf = 14;
+  function overlay(T, cam) {
+    const intro = document.getElementById("intro");
+    const io = T < INTRO_T ? 1 : Math.max(0, 1 - (T - INTRO_T) / .5);
+    intro.style.opacity = poster ? 0 : io;
+    const chrome = poster ? 1 : 1 - io;
+    const oo = VIDEO ? Math.max(0, Math.min(1, (T - (TOTAL - 2.4)) / .5)) : 0;
+    outroEl.style.opacity = oo;
+    badgeEl.style.opacity = chrome; cap.style.opacity = stageWrap.classList.contains("narrow") ? 1 : chrome;
+    const narrow = stageWrap.classList.contains("narrow");
+    const topY = badgeEl.offsetTop + badgeEl.offsetHeight + 6;
+    const botY = narrow ? stageH - 6 : stageH - cap.offsetHeight - stageH * 0.026 - 8;
+    for (const L of labels) {
+      let op = poster ? (L.step === STEPS.length - 1 && L.keep ? 1 : 0) : winOp(L.step, L.a, T, L.keep);
+      if (!poster && L.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[L.step] - L.until) / .35));
+      op *= 1 - oo;
+      L.el.style.opacity = op; L.ln.style.opacity = op * .85; L.dot.style.opacity = op;
+      if (op <= 0) continue;
+      const s = toScreen(L.at);
+      const ox = L.off[0] * lf, oy = L.off[1] * lf;
+      const w = L.el.offsetWidth, h = L.el.offsetHeight;
+      let x = s.x + ox, y = s.y + oy;
+      let bx = ox < 0 ? x - w : x, by = oy < 0 ? y - h : y;
+      bx = Math.max(6, Math.min(stageW - w - 6, bx)); by = Math.max(topY, Math.min(botY - h, by));
+      L.el.style.transform = "translate(" + Math.round(bx) + "px," + Math.round(by) + "px)";
+      const ex = Math.max(bx, Math.min(s.x, bx + w)), ey = Math.max(by, Math.min(s.y, by + h));
+      L.ln.setAttribute("x1", ex); L.ln.setAttribute("y1", ey); L.ln.setAttribute("x2", s.x); L.ln.setAttribute("y2", s.y);
+      L.dot.setAttribute("cx", s.x); L.dot.setAttribute("cy", s.y);
+    }
+    for (const Dm of dims) {
+      const op = (poster ? 0 : winOp(Dm.step, Dm.a, T, Dm.keep)) * (1 - oo);
+      Dm.g.style.opacity = op; Dm.el.style.opacity = op;
+      if (op <= 0) continue;
+      const a = toScreen(Dm.p1), b = toScreen(Dm.p2);
+      Dm.ln.setAttribute("x1", a.x); Dm.ln.setAttribute("y1", a.y); Dm.ln.setAttribute("x2", b.x); Dm.ln.setAttribute("y2", b.y);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 7, ny = dx / l * 7;
+      Dm.t1.setAttribute("x1", a.x - nx); Dm.t1.setAttribute("y1", a.y - ny); Dm.t1.setAttribute("x2", a.x + nx); Dm.t1.setAttribute("y2", a.y + ny);
+      Dm.t2.setAttribute("x1", b.x - nx); Dm.t2.setAttribute("y1", b.y - ny); Dm.t2.setAttribute("x2", b.x + nx); Dm.t2.setAttribute("y2", b.y + ny);
+      const w = Dm.el.offsetWidth, h = Dm.el.offsetHeight;
+      Dm.el.style.transform = "translate(" + Math.round((a.x + b.x) / 2 - w / 2 + nx * 2.2) + "px," + Math.round((a.y + b.y) / 2 - h / 2 + ny * 2.2) + "px)";
+    }
+    // compass
+    const c0 = toScreen(cam.t), c1 = toScreen([cam.t[0], cam.t[1], cam.t[2] - 1000]);
+    const ang = Math.atan2(c1.x - c0.x, -(c1.y - c0.y)) * 180 / Math.PI;
+    document.getElementById("cneedle").setAttribute("transform", "rotate(" + ang.toFixed(1) + ")");
+  }
+
+  // ======================= UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs"), cap = $("cap");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step"; li.style.setProperty("--c", "var(--" + s.c + ")");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title + '</span><span class="w">' + s.who + '</span></button>' +
+      '<div class="step-body" hidden><ul>' + LIST[i].map(b => "<li>" + b + "</li>").join("") + "</ul>" +
+      (s.hold ? '<p class="hold"><b>Hold</b>' + s.hold + "</p>" : "") + '<p class="ref">' + s.ref + "</p></div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li); stepLis.push(li);
+    const b = document.createElement("button"); b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur); b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b); segFills.push(b.firstChild);
+  });
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shown = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = !VIDEO;
+  function updateUI(t) {
+    const i = stepAt(t);
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%"; segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    const key = poster + "|" + i;
+    if (key !== shown) {
+      shown = key;
+      const s = STEPS[i];
+      stepLis.forEach((li, k) => { const on = !poster && k === i; li.classList.toggle("active", on); li.querySelector(".step-head").setAttribute("aria-expanded", on); li.querySelector(".step-body").hidden = !on; });
+      const b = $("badge");
+      b.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      $("bNum").textContent = poster ? "✓" : String(i + 1);
+      $("bTitle").textContent = poster ? "Slab on grade complete" : s.title;
+      $("bWho").textContent = poster ? "" : s.who;
+      cap.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      cap.innerHTML = poster
+        ? "<ul><li>The vehicle bay slab on grade south of grid H and west of grid 6.1: underground plumbing, subgrade, granular, insulation and vapour barrier, trench drains, steel, SOG 1, radiant tubing and the topping.</li><li>Play it to see the 12 steps, each tied to the drawings and shop drawings.</li></ul><div class=\"ref\">M200 · A151 · S201 · AGF R49 · SK-01 · RFI 315, 326 R1 · Kolostat radiant R2</div>"
+        : "<ul>" + s.lines.map(x => "<li>" + x + "</li>").join("") + "</ul>" + (s.hold ? '<div class="hold"><b>Hold</b>' + s.hold + "</div>" : "") + '<div class="ref">' + s.ref + "</div>";
+    }
+    $("bigPlay").hidden = playing || !poster || VIDEO;
+  }
+  function render(t) { draw(t); updateUI(t); }
+  function setPlay() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts; render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) { const i = stepAt(T); T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001); playing = false; render(T); setPlay(); return; }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { const j = Math.min(i + 1, STEPS.length - 1); stopAt = stopEach ? Math.min(TOTAL, starts[j] + STEPS[j].dur - .001) : TOTAL; }
+    playing = true; lastTs = null; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); setPlay(); render(T);
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlay(); render(T); }
+  function goStep(i, auto) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i)); poster = false; cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlay(); return; }
+    T = starts[i] + (i === 0 ? 0 : 0); render(T);
+    if (auto) { stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; playing = true; lastTs = null; raf = requestAnimationFrame(tick); }
+    setPlay();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => { if (poster) return goStep(STEPS.length - 1, true); const i = stepAt(T); goStep(T - starts[i] > 1.5 ? i : i - 1, true); });
+  $("stopEach").addEventListener("click", e => { stopEach = !stopEach; e.currentTarget.setAttribute("aria-pressed", stopEach); if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; } });
+  $("speed").addEventListener("click", e => { speed = speed === 1 ? .5 : 1; e.currentTarget.textContent = speed === 1 ? "1×" : "½×"; });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select, summary")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    dpr = VIDEO ? 1 : Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(stageW * dpr); canvas.height = Math.round(stageH * dpr);
+    lf = Math.max(11, Math.min(24, stageW / 86));
+    stage.style.setProperty("--lf", lf + "px");
+    stage.style.setProperty("--tf", Math.max(14, Math.min(40, stageW / 50)) + "px");
+    stageWrap.style.setProperty("--cf", Math.max(12.5, Math.min(26, stageW / 74)) + "px");
+    stageWrap.classList.toggle("narrow", stageW < 640 && !VIDEO);
+    lensShift = stageWrap.classList.contains("narrow") ? 0 : -0.12;
+    camScale = stageWrap.classList.contains("narrow") ? 0.9 : 1;
+    render(T);
+  }
+  new ResizeObserver(measure).observe(stage);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  window.__total = TOTAL; window.__starts = starts.slice(); window.__durs = STEPS.map(s => s.dur);
+  measure(); setPlay();
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
