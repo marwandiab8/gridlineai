@@ -1,0 +1,959 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step animation of one Solatube SkyVault M74 DS-O tubular skylight going in at Docksteader: deck opening, blocking, VB, curb, insulation and SBS, tube and cap, dome, amplifier and diffuser, by trade with hold points.">
+<title>Solatube Install Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-sheet header, then a two-column bench (animated section + transport | step list) that stacks on phones, then a legend strip. */
+:root {
+  --bg: #e8ecee;
+  --panel: #fbfcfc;
+  --ink: #172027;
+  --muted: #59656f;
+  --line: #c9d1d7;
+  --grid: #e4e9ec;
+  --grid-major: #d2d9de;
+  --steel: #55616b;
+  --steel-f: #dde2e6;
+  --mcl: #8a4f1d;
+  --mcl-f: #f3e1cc;
+  --tri: #1d7341;
+  --tri-f: #dcefe2;
+  --tri-d: #124a2a;
+  --tri-l: #8acda3;
+  --brv: #1f56c6;
+  --brv-f: #e0e9fb;
+  --hold: #c3322c;
+  --hold-f: #fdeceb;
+  --sun: #e39d00;
+  --tint: #f0f5ff;
+  --water: #2a8ed8;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --grid: #18212a; --grid-major: #212d36; --steel: #9ca8b2; --steel-f: #212a31;
+    --mcl: #dca068; --mcl-f: #3a2a1b; --tri: #5ec686; --tri-f: #15301f; --tri-d: #95e3b2; --tri-l: #2c6a44;
+    --brv: #82a8ff; --brv-f: #18243e; --hold: #ff7064; --hold-f: #3b1715; --sun: #ffc441; --tint: #152034; --water: #5cb6f2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --grid: #18212a; --grid-major: #212d36; --steel: #9ca8b2; --steel-f: #212a31;
+  --mcl: #dca068; --mcl-f: #3a2a1b; --tri: #5ec686; --tri-f: #15301f; --tri-d: #95e3b2; --tri-l: #2c6a44;
+  --brv: #82a8ff; --brv-f: #18243e; --hold: #ff7064; --hold-f: #3b1715; --sun: #ffc441; --tint: #152034; --water: #5cb6f2;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.page { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--brv); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--brv); outline-offset: 2px; }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; }
+.rfi ul { margin: 10px 0 4px; padding-left: 20px; display: grid; gap: 6px; max-width: 82ch; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 880px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage {
+  position: relative; width: 100%; aspect-ratio: 5 / 4; max-width: 100%;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+}
+@media (max-width: 880px) { .stage { aspect-ratio: 1 / 1.05; } }
+.stage svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage-tag {
+  position: absolute; top: 10px; right: 12px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); background: var(--panel); padding: 2px 6px; border-radius: 3px;
+}
+.stage-step {
+  position: absolute; top: 10px; left: 12px; display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-display); font-weight: 600; font-size: 18px; letter-spacing: .03em; text-transform: uppercase;
+  background: var(--panel); padding: 2px 8px 2px 2px; border-radius: 4px; max-width: calc(100% - 24px);
+}
+.stage-step .n {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--c, var(--ink)); color: var(--panel); font-size: 16px; flex: none;
+}
+.stage-step .w { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--c, var(--muted)); letter-spacing: .05em; }
+.callout {
+  position: absolute; left: 12px; bottom: 12px; max-width: min(380px, calc(100% - 24px));
+  font-size: 13.5px; line-height: 1.4; padding: 8px 10px 8px 12px; border-radius: 4px;
+  background: var(--panel); border: 1.5px solid var(--brv); border-left-width: 5px; color: var(--ink);
+}
+.callout.hold { border-color: var(--hold); background: var(--hold-f); }
+.callout b { font-family: var(--font-display); font-size: 15px; letter-spacing: .06em; text-transform: uppercase; margin-right: 6px; }
+.callout.hold b { color: var(--hold); }
+.callout.note b { color: var(--brv); }
+.big-play {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--panel); background: var(--ink); padding: 10px 18px 10px 14px; border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+}
+.big-play svg { width: 18px; height: 18px; position: static; fill: currentColor; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible { outline: 3px solid var(--brv); outline-offset: 2px; }
+
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 24px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer;
+  font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 5px;
+}
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro { margin: 0; color: var(--muted); font-size: 14px; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head {
+  width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 8px 12px 8px 10px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit;
+}
+.step-head .n {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  font-family: var(--font-display); font-weight: 700; font-size: 17px; color: var(--c); border: 2px solid var(--c);
+}
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.step-body .chk, .step-body .hold, .step-body .note { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .chk b { color: var(--tri); }
+.step-body .hold { color: var(--ink); background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body .hold b { color: var(--hold); }
+.step-body .note b { color: var(--brv); }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; border: 1.5px solid var(--c); background: var(--cf); display: inline-block; }
+.legend .ln { width: 22px; height: 0; border: 0; border-top: 2.5px dashed var(--hold); background: none; border-radius: 0; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 110ch; }
+@media (max-width: 560px) {
+  .stage-tag { display: none; }
+  .stage-step { font-size: 15px; gap: 6px; }
+  .stage-step .n { width: 22px; height: 22px; font-size: 14px; }
+  .stage-step .w { display: none; }
+  .big-play { font-size: 15px; padding: 8px 14px 8px 11px; bottom: 12px; }
+  .callout { font-size: 12.5px; }
+}
+.big-play { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .big-play { box-shadow: none; } }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>Solatube install, step by step</h1>
+      <p class="sub">SkyVault M74 DS-O tubular skylight. One unit shown in section; repeat for all 6 once the mock-up is accepted.</p>
+    </div>
+    <div class="sheet-no"><b>SK-SOL-03</b> animation<br>based on SK-SOL-01/02 · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="Animated section">
+      <div class="stage" id="stage">
+        <svg id="scene" role="img" aria-label="Section through one Solatube unit, assembled step by step"></svg>
+        <div class="stage-step" id="stageStep"><span class="n" id="stageNum">8</span><span id="stageTitle">Installed unit</span><span class="w" id="stageWho"></span></div>
+        <div class="stage-tag" id="stageTag">Section looking east · N ← → S</div>
+        <div class="callout" id="callout" hidden></div>
+        <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span>Play the install · 77 s</span></button>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00 / 1:17</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="steps-col" aria-label="Install steps">
+      <p class="intro" id="intro">Press play to watch one unit go in, in order, about 77 seconds. Or pick a step to see it on its own. Colours show which trade does the work.</p>
+      <ol class="steps" id="steps"></ol>
+    </aside>
+  </main>
+
+  <details class="rfi">
+    <summary>Settle with DSA, RJC and Solatube before the mock-up</summary>
+    <ul>
+      <li><strong>Cap fit over the roofing.</strong> The 35″ metal curb inside the 35⅝″ cap leaves about 8 mm a side. Two-ply SBS (≈7 mm) plus a term bar (≈3 mm) likely won’t fit under the skirt, and Solatube’s cut sheet says its curbs are designed for single-ply. Dry-fit a cap on the mock-up curb.</li>
+      <li><strong>VB and air barrier at the curb.</strong> Confirm the tie-in at the curb and the rough opening (spec 08 63 00 3.2.5, RJC’s comment on Triumph’s submittal).</li>
+      <li><strong>Thermal Insulation Panel or trim ring ‘R’.</strong> RFI 251: DSA asked for an interface detail. A TIP sits in the insulation layer and changes the tube lengths.</li>
+      <li><strong>Reviewed R1.</strong> R1 has to show the ETL 40″ tube (R0 showed 20″), with the P.Eng design and the engineered thermal and air/vapour package.</li>
+      <li><strong>Dome.</strong> The shop drawing says DP; the spec and the cut sheet say DPP.</li>
+      <li><strong>Cap screws.</strong> Solatube’s instructions say 6 per side; the DSA-requested curb markup shows 4″ o.c.</li>
+      <li><strong>Deck opening.</strong> Reinforcement around the Ø749 opening per structural.</li>
+      <li><strong>Cold weather.</strong> Seals and tape need 70 °F (21 °C) or warmer. A November install needs heat and hoarding or Solatube’s written cold-weather procedure.</li>
+      <li><strong>Locations and clearances.</strong> The 6 units aren’t tagged on A104 Rev.24. The diffuser hangs about 1.05 m below the deck; keep 6″ (152 mm) clear of joists, sprinklers, the EV cable tray and fans.</li>
+    </ul>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--mcl); --cf: var(--mcl-f)"><i></i>MCL</span>
+    <span style="--c: var(--tri); --cf: var(--tri-f)"><i></i>Triumph roofing</span>
+    <span style="--c: var(--brv); --cf: var(--brv-f)"><i></i>Bravura (Solatube)</span>
+    <span style="--c: var(--steel); --cf: var(--steel-f)"><i></i>Steel deck / existing</span>
+    <span><i class="ln"></i>Hold point / to be confirmed</span>
+  </footer>
+  <p class="notes">Schematic, approximately to scale. Dimensions in mm and inches. Drawn from Solatube shop drawing M74 DS-O-C-DP-FC-A Rev 2 (R0), the Solatube metal insulated curb drawing Rev A with the DSA-requested markup, Solatube’s M74 DS installation instructions, spec 08 63 00, Triumph detail 18/A210, RFI 251 and MCL sketches SK-SOL-01/02. Tube length assumes the ETL 40″ extension. Not a substitute for Solatube’s engineered shop drawings or RJC’s detail.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.getElementById("scene");
+  const stage = document.getElementById("stage");
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  // ---------------- steps
+  const STEPS = [
+    { title: "Deck opening + blocking", who: "MCL", c: "mcl", dur: 9, cam: [0, 240, 2200, 1400],
+      bullets: ["Confirm the 6 unit locations with DSA before cutting.",
+                "Cut the deck opening, Ø749 mm (29½″) minimum. Reinforce it per structural.",
+                "Two tiers of wood blocking under the curb. Top of blocking = top of insulation (2 × 3¾″ = 7½″); adjust where the roof is tapered."],
+      check: "Blocking level and square, opening centred." },
+    { title: "Vapour barrier", who: "Triumph", c: "tri", dur: 8, cam: [0, 240, 2200, 1400],
+      bullets: ["DynaGrip Base SD/SA on the deck, turned up and over the blocking."],
+      hold: "Confirm the VB tie-in at the curb and opening with RJC before the roofing goes on.",
+      callout: { at: 3.3, kind: "hold", text: "Confirm the VB tie-in detail with RJC." } },
+    { title: "Set the Solatube curb", who: "MCL", c: "mcl", dur: 8, cam: [0, 330, 2200, 1400],
+      bullets: ["C16 metal insulated curb: 35″ O.D. × 16″ high with a 2″ flange, centred on the opening.",
+                "Top level, walls plumb, diagonals X = Y ± 1/16″.",
+                "Fasten the flange to the blocking."],
+      check: "Curb top at least 7½″ above the finished roof (about 15″ expected)." },
+    { title: "Insulation + SBS up the curb", who: "Triumph", c: "tri", dur: 10, cam: [520, 340, 1150, 950],
+      bullets: ["2 × 3¾″ ENRGY 3 polyiso in asphalt, ½″ cover board tight to the curb.",
+                "Cant, then the Dynalastic 180 S base sheet and Dynaweld cap sheet up the curb face.",
+                "Term bar and sealant in the top 4″, where the cap skirt will land."],
+      hold: "Dry-fit a curb cap over the finished SBS on the mock-up curb (about 8 mm per side to spare), then water test, before Bravura starts.",
+      callout: { at: 6.5, kind: "hold", text: "Dry-fit a cap and water test before Bravura starts." } },
+    { title: "Tube + curb cap", who: "Bravura · roof", c: "brv", dur: 10, cam: [0, 230, 2500, 2050],
+      bullets: ["Pre-install meeting held (72 h notice).",
+                "Hook the ETL 40″ tube to the cap collar with the Tab-Lock, close the tube belt, foil-tape the tab and seams. Keep the seams on opposite sides.",
+                "Lower the tube through the curb and seat the cap on its foam seal.",
+                "#10 × 2″ screws with bonded washers into the curb nailer, 6 per side (the markup shows 4″ o.c.; confirm on R1)."],
+      note: "Seals and foil tape go on clean, dry surfaces at 70 °F (21 °C) or warmer.",
+      callout: { at: 0.8, kind: "note", text: "Seals and tape at 70 °F (21 °C) or warmer." } },
+    { title: "HD collector + dome", who: "Bravura · roof", c: "brv", dur: 9, cam: [0, 720, 2700, 2500],
+      bullets: ["Set the DPP dome and HD collector on the cap.",
+                "Turn it so the LightTracker faces true south (correct the compass about 10° W).",
+                "Retainer band, then 4 wire-rope bridles to the anchors at the cap corners."],
+      check: "Foam and pile seals continuous, no gaps at the corners." },
+    { title: "Amplifier + diffuser", who: "Bravura · below", c: "brv", dur: 11, cam: [0, -560, 2800, 2550],
+      bullets: ["Work from a scissor lift in Vehicle Bay 102.",
+                "Pack mineral wool in the rough opening. Trim ring ‘R’ at the underside of the deck (TBC).",
+                "Amplifier: bend each Tab-Lock out 90°, line up the holes, 15 rivets, foil tape, tube belt.",
+                "L2 prismatic diffuser with its dress ring seal."],
+      check: "6″ (152 mm) clear to joists, sprinklers, EV cable tray, fans and lights.",
+      callout: { at: 8.0, kind: "note", text: "Check the 6″ clearance at all 6 units." } },
+    { title: "QA + mock-up review", who: "MCL + DSA / RJC", c: "mcl", dur: 12, cam: [0, -40, 3000, 3560],
+      callout: { at: 7.6, kind: "note", text: "Unit #1 is the mock-up. DSA and RJC review it before units 2–6 go in." },
+      bullets: ["Unit #1 is the mock-up. DSA and RJC review it before units 2–6.",
+                "Water test at the curb and cap; run the spec 08 63 00 QA checklist.",
+                "Photograph each layer before it gets covered.",
+                "Close-out: 10-year warranty, reviewed R1 and P.Eng letter, as-built locations."] }
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc;
+  const CAM_T = 1.4;
+
+  // ---------------- geometry (mm; x from tube centreline, y up from top of steel deck)
+  const DECK = 38, I1 = 95.25, INS = 190.5, RB = 203.2, ROOF = 210.2;
+  const CURB_B = 190.5, CURB_T = 596.9, CO = 444.5, CI = 406.4, FL = 495.3, NAIL = 38.1;
+  const TOF = 603.9, SKIRT = 101.6, CAPO = 457.5, CAPI = 452.4, COL_R = 366, COLLAR_L = 130;
+  const TUBE_R = 362, TUBE_TOP = TOF - 110, TUBE_BOT = TOF - 1070;
+  const AMP_RB = 457, AMP_BOT = TUBE_BOT - 602, DIF_BOT = TUBE_BOT - 622, DIF_R = 474.4;
+  const DOME_R = 399.5, DOME_TOP = TOF + 1095.2, DOME_CYL_T = DOME_TOP - 132, DOME_BASE = DOME_CYL_T - 915;
+  const OPEN_R = 374.7, BLK_O = CI + 89, CANT = 89, TB_Y0 = TOF - 80, TB_Y1 = TOF - 55, SCREW_X = (CI + CO) / 2;
+  const R2 = Math.SQRT2, XE = 1900;
+
+  // ---------------- svg helpers
+  function mk(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  const r1 = v => Math.round(v * 10) / 10;
+  const D = (pts, close) => "M" + pts.map(([x, y]) => r1(x) + " " + r1(-y)).join("L") + (close ? "Z" : "");
+  const BOX = (x0, y0, x1, y1) => D([[x0, y0], [x1, y0], [x1, y1], [x0, y1]], true);
+  const M = (pts, sg) => pts.map(([x, y]) => [sg * x, y]);
+  function sty(e, s) { for (const k in s) e.style.setProperty(k, s[k]); return e; }
+  function P(parent, d, s, scaling) {
+    const e = mk("path", { d }, parent);
+    if (!scaling) e.setAttribute("vector-effect", "non-scaling-stroke");
+    sty(e, Object.assign({ fill: "none" }, s));
+    return e;
+  }
+  const S = (c, w, extra) => Object.assign({ stroke: "var(--" + c + ")", "stroke-width": w + "px" }, extra || {});
+  const F = (c) => ({ fill: "var(--" + c + ")" });
+
+  const defs = mk("defs", null, svg);
+  function pattern(id, w, h, inner) {
+    const p = mk("pattern", { id, patternUnits: "userSpaceOnUse", width: w, height: h }, defs);
+    p.innerHTML = inner;
+  }
+  pattern("pIns", 36, 36, '<path d="M0 36L36 0M0 0L36 36" style="stroke:var(--tri);stroke-width:1.3;opacity:.5"/>');
+  pattern("pWool", 44, 26, '<path d="M0 13C7 -1 15 -1 22 13S37 27 44 13" style="fill:none;stroke:var(--brv);stroke-width:1.8;opacity:.75"/>');
+  pattern("pCB", 16, 16, '<circle cx="8" cy="8" r="2" style="fill:var(--tri);opacity:.55"/>');
+  pattern("pCurb", 14, 14, '<path d="M0 14L14 0M-4 4L4 -4M10 18L18 10" style="stroke:var(--mcl);stroke-width:1.1;opacity:.5"/>');
+  pattern("pPrism", 12, 12, '<path d="M6 0L6 12" style="stroke:var(--brv);stroke-width:1.4;opacity:.6"/>');
+  const lg = mk("linearGradient", { id: "gSun", x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+  mk("stop", { offset: 0, style: "stop-color:var(--sun);stop-opacity:.42" }, lg);
+  mk("stop", { offset: 1, style: "stop-color:var(--sun);stop-opacity:0" }, lg);
+
+  // grid
+  const gridG = mk("g", null, svg);
+  for (let v = -3000; v <= 3000; v += 100) {
+    const major = v % 500 === 0;
+    const c = major ? "grid-major" : "grid";
+    P(gridG, "M" + v + " -3000V3000", S(c, 1));
+    P(gridG, "M-3000 " + v + "H3000", S(c, 1));
+  }
+  const world = mk("g", null, svg);
+  const Lback = mk("g", null, world), Lroof = mk("g", null, world), Lsol = mk("g", null, world), Ltop = mk("g", null, world);
+  const labelsG = mk("g", null, svg);
+
+  // ---------------- timeline items
+  const EASE = {
+    lin: t => t,
+    out: t => 1 - Math.pow(1 - t, 3),
+    in: t => t * t * t,
+    inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
+  };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .25, "op", 0, 1, "lin")];
+  const slideIn = (s, a, b, dx) => [tr(s, a, b, "tx", dx, 0, "out"), tr(s, a, a + .3, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const popIn = (s, a, b) => [tr(s, a, b, "sc", 0, 1, "back"), tr(s, a, a + .08, "op", 0, 1, "lin")];
+  const drawIn = (s, a, b) => [tr(s, a, b, "dr", 0, 1, "inout"), tr(s, a, a + .05, "op", 0, 1, "lin")];
+  const items = [];
+  function item(node, tracks, opts) {
+    opts = opts || {};
+    tracks.sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a));
+    const it = { node, tracks, pivot: opts.pivot || [0, 0], draws: opts.draws || null, custom: opts.custom || null };
+    items.push(it);
+    return it;
+  }
+  let maskN = 0;
+  function drawPath(parent, pts, s) {
+    const d = D(pts);
+    const id = "mk" + (++maskN);
+    const m = mk("mask", { id, maskUnits: "userSpaceOnUse", x: -6000, y: -6000, width: 12000, height: 12000 }, defs);
+    const mp = mk("path", { d, fill: "none", stroke: "#fff", "stroke-width": 90, "stroke-linejoin": "round" }, m);
+    const vis = P(parent, d, s);
+    vis.setAttribute("mask", "url(#" + id + ")");
+    const len = vis.getTotalLength();
+    mp.setAttribute("stroke-dasharray", len + " " + len);
+    return { mp, len };
+  }
+  function val(it, prop, T, def) {
+    let v, found = false;
+    for (const k of it.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  function applyItem(it, T, upp) {
+    if (it.custom) { it.custom(T, upp); return; }
+    const op = val(it, "op", T, 1), tx = val(it, "tx", T, 0), ty = val(it, "ty", T, 0), sc = val(it, "sc", T, 1), dr = val(it, "dr", T, 1);
+    it.node.style.opacity = op;
+    let tf = "";
+    if (tx || ty) tf += "translate(" + r1(tx) + " " + r1(-ty) + ")";
+    if (sc !== 1) {
+      const [px, py] = it.pivot;
+      tf += " translate(" + px + " " + (-py) + ") scale(" + Math.max(sc, .0001).toFixed(4) + ") translate(" + (-px) + " " + py + ")";
+    }
+    it.node.setAttribute("transform", tf);
+    if (it.draws) for (const dw of it.draws) dw.mp.setAttribute("stroke-dashoffset", r1(dw.len * (1 - dr)));
+  }
+
+  // ---------------- scene
+  function deckProfile(xa, xb) {
+    const p = 152.4, tf = 63.5, w = 19.05, bf = p - tf - 2 * w;
+    let x = -31.75 - Math.ceil((-31.75 - xa) / p) * p;
+    const pts = [];
+    while (x < xb + p) {
+      pts.push([x, 0], [x + tf, 0], [x + tf + w, -DECK], [x + tf + w + bf, -DECK]);
+      x += p;
+    }
+    pts.push([x, 0]);
+    return pts;
+  }
+  function clipX(pts, xa, xb) {
+    const out = [];
+    for (let k = 0; k < pts.length - 1; k++) {
+      const [x1, y1] = pts[k], [x2, y2] = pts[k + 1];
+      if (x2 < xa || x1 > xb) continue;
+      const at = x => (x2 === x1 ? y1 : y1 + (y2 - y1) * (x - x1) / (x2 - x1));
+      const sx = Math.max(x1, xa), ex = Math.min(x2, xb);
+      if (!out.length) out.push([sx, at(sx)]);
+      out.push([ex, at(ex)]);
+    }
+    return out;
+  }
+  const arc = [];
+  for (let k = 0; k <= 36; k++) { const t = Math.PI * k / 36; arc.push([DOME_R * Math.cos(t), DOME_CYL_T + 132 * Math.sin(t)]); }
+
+  // light cone + glow (step 8)
+  const cone = mk("path", { d: D([[-DIF_R + 30, DIF_BOT], [DIF_R - 30, DIF_BOT], [1350, -2150], [-1350, -2150]], true), fill: "url(#gSun)" }, Lback);
+  item(cone, fadeIn(7, 6.2, 7.6));
+
+  // insulation (step 4)
+  for (const sg of [-1, 1]) {
+    [[0, I1, .2, 1.2], [I1, INS, 1.0, 2.0]].forEach(([y0, y1, a, b]) => {
+      const g = mk("g", null, Lroof);
+      P(g, BOX(sg * (BLK_O + 1), y0, sg * XE, y1), Object.assign(F("tri-f"), S("tri", 1)));
+      P(g, BOX(sg * (BLK_O + 1), y0, sg * XE, y1), { fill: "url(#pIns)" });
+      item(g, slideIn(3, a + (sg > 0 ? 0 : .1), b + (sg > 0 ? 0 : .1), sg * 700));
+    });
+    const g = mk("g", null, Lroof);
+    P(g, BOX(sg * (CO + .5), INS + 1, sg * XE, RB), Object.assign(F("tri-f"), S("tri", 1)));
+    P(g, BOX(sg * (CO + .5), INS + 1, sg * XE, RB), { fill: "url(#pCB)" });
+    item(g, slideIn(3, 1.9, 2.7, sg * 700));
+  }
+  // blocking (step 1)
+  for (const sg of [-1, 1]) {
+    [[0, I1, 2.6, 3.4], [I1, INS, 3.4, 4.2]].forEach(([y0, y1, a, b]) => {
+      const g = mk("g", null, Lroof);
+      P(g, BOX(sg * CI, y0, sg * BLK_O, y1), Object.assign(F("mcl-f"), S("mcl", 1.5)));
+      P(g, D([[sg * CI, y0], [sg * BLK_O, y1]]), S("mcl", 1));
+      P(g, D([[sg * CI, y1], [sg * BLK_O, y0]]), S("mcl", 1));
+      const o = sg > 0 ? .15 : 0;
+      item(g, dropIn(0, a + o, b + o, 650));
+    });
+  }
+  // mineral wool (step 7)
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Lroof);
+    P(g, D(M([[TUBE_R + 2, -DECK], [OPEN_R - 1, -DECK], [OPEN_R - 1, 0], [CI - 3, 0], [CI - 3, INS], [TUBE_R + 2, INS]], sg), true),
+      Object.assign({ fill: "url(#pWool)" }, S("brv", 1)));
+    item(g, fadeIn(6, 2.2, 3.0));
+  }
+  // steel deck (always), cut-out drops in step 1
+  const prof = deckProfile(-XE, XE);
+  const deckS = S("steel", 2.2, { "stroke-linejoin": "round" });
+  P(Lroof, D(clipX(prof, -XE, -OPEN_R)), deckS);
+  P(Lroof, D(clipX(prof, OPEN_R, XE)), deckS);
+  const cutG = mk("g", null, Lroof);
+  P(cutG, D(clipX(prof, -OPEN_R, OPEN_R)), deckS);
+  item(cutG, [tr(0, 1.3, 2.3, "ty", 0, -420, "in"), tr(0, 1.6, 2.3, "op", 1, 0, "lin")]);
+  // vapour barrier (step 2)
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Lroof);
+    const dw = drawPath(g, M([[CI, INS + 2], [BLK_O + 2, INS + 2], [BLK_O + 2, 2], [XE, 2]], sg),
+      S("tri", 3, { "stroke-dasharray": "12 4 3 4", "stroke-linejoin": "round" }));
+    item(g, drawIn(1, .2, 2.6), { draws: [dw] });
+    const g2 = mk("g", null, Lroof);
+    const dw2 = drawPath(g2, M([[CI - 2, INS + 2], [CI - 2, 2], [OPEN_R + 3, 2]], sg), S("hold", 2.4, { "stroke-dasharray": "5 4" }));
+    item(g2, drawIn(1, 2.6, 3.4), { draws: [dw2] });
+  }
+  // curb (step 3)
+  const curbG = mk("g", null, Lroof);
+  for (const sg of [-1, 1]) {
+    P(curbG, BOX(sg * CI, CURB_B, sg * CO, CURB_T - NAIL), F("mcl-f"));
+    P(curbG, BOX(sg * CI, CURB_B, sg * CO, CURB_T - NAIL), { fill: "url(#pCurb)" });
+    P(curbG, BOX(sg * CI, CURB_T - NAIL, sg * CO, CURB_T), Object.assign(F("mcl-f"), S("mcl", 1)));
+    P(curbG, D([[sg * CI, CURB_T - NAIL], [sg * CO, CURB_T]]), S("mcl", .8));
+    P(curbG, D([[sg * CI, CURB_T], [sg * CO, CURB_T - NAIL]]), S("mcl", .8));
+    P(curbG, D(M([[FL, CURB_B], [CO, CURB_B], [CO, CURB_T], [CI, CURB_T], [CI, CURB_B], [CO, CURB_B]], sg)), S("mcl", 2.2));
+  }
+  item(curbG, dropIn(2, .2, 1.6, 1000));
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Ltop);
+    sty(mk("circle", { cx: sg * 472, cy: -(CURB_B + 9), r: 10 }, g), F("mcl"));
+    const o = sg > 0 ? .15 : 0;
+    item(g, popIn(2, 2.0 + o, 2.4 + o), { pivot: [sg * 472, CURB_B + 9] });
+  }
+  const lvl = mk("g", null, Ltop);
+  P(lvl, BOX(-560, CURB_T + 14, 560, CURB_T + 64), Object.assign(F("panel"), S("ink", 1.4)));
+  P(lvl, BOX(-64, CURB_T + 22, 64, CURB_T + 56), Object.assign(F("tri-f"), S("tri", 1.2)));
+  sty(mk("circle", { cx: 0, cy: -(CURB_T + 39), r: 12 }, lvl), F("tri"));
+  P(lvl, D([[-28, CURB_T + 22], [-28, CURB_T + 56]]), S("tri", 1));
+  P(lvl, D([[28, CURB_T + 22], [28, CURB_T + 56]]), S("tri", 1));
+  item(lvl, [tr(2, 2.6, 3.2, "ty", 260, 0, "out"), tr(2, 2.6, 2.9, "op", 0, 1, "lin"), tr(2, 6.0, 6.6, "op", 1, 0, "lin")]);
+  // cant + SBS + term bar (step 4)
+  const memPts = (d, top) => [[CO + d, top], [CO + d, RB + CANT + d * (R2 - 1)], [CO + CANT + d * (R2 - 1), RB + d], [XE, RB + d]];
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Lroof);
+    P(g, D(M([[CO + .5, RB], [CO + CANT, RB], [CO + .5, RB + CANT]], sg), true), Object.assign(F("tri-f"), S("tri", 1.2)));
+    item(g, popIn(3, 2.5, 3.1), { pivot: [sg * CO, RB] });
+    const gb = mk("g", null, Lroof);
+    const db = drawPath(gb, M(memPts(1.5, TOF - 62), sg), S("tri-l", 5, { "stroke-linejoin": "round" }));
+    item(gb, drawIn(3, 3.1, 4.6), { draws: [db] });
+    const gc = mk("g", null, Lroof);
+    const dc = drawPath(gc, M(memPts(5, TOF - 52), sg), S("tri-d", 3.2, { "stroke-linejoin": "round" }));
+    item(gc, drawIn(3, 4.4, 5.9), { draws: [dc] });
+    const gt = mk("g", null, Lroof);
+    P(gt, BOX(sg * (CO + 7), TB_Y0, sg * (CO + 10.2), TB_Y1), Object.assign(F("tri-d"), S("hold", 1.6)));
+    item(gt, popIn(3, 5.9, 6.3), { pivot: [sg * (CO + 8.6), (TB_Y0 + TB_Y1) / 2] });
+  }
+  const fitG = mk("g", null, Ltop);
+  sty(mk("circle", { cx: CO + 8.6, cy: -(TOF - 67), r: 58, "vector-effect": "non-scaling-stroke" }, fitG), S("hold", 2.2, { fill: "none", "stroke-dasharray": "6 4" }));
+  item(fitG, popIn(3, 6.1, 6.6).concat([tr(4, 0, .5, "op", 1, 0, "lin")]), { pivot: [CO + 8.6, TOF - 67] });
+  // trim ring (step 7)
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Lroof);
+    P(g, BOX(sg * (TUBE_R + 1), -DECK - 7, sg * (TUBE_R + 80), -DECK), Object.assign(F("brv-f"), S("hold", 1.4, { "stroke-dasharray": "4 3" })));
+    item(g, fadeIn(6, 2.6, 3.2));
+  }
+
+  // cap + tube (step 5)
+  const capG = mk("g", null, Lsol);
+  P(capG, BOX(-TUBE_R, TUBE_BOT, TUBE_R, TOF), F("tint"));
+  for (const sg of [-1, 1]) {
+    P(capG, BOX(sg * (CI + 3), CURB_T, sg * (CO - 3), TOF - 4), { fill: "var(--muted)", opacity: ".6" });
+    P(capG, D(M([[CAPI, TOF - SKIRT], [CAPO, TOF - SKIRT], [CAPO, TOF], [COL_R, TOF], [COL_R, TOF - 4], [CAPI, TOF - 4]], sg), true),
+      Object.assign(F("brv-f"), S("brv", 1.6)));
+    P(capG, D([[sg * COL_R, TOF - 4], [sg * COL_R, TOF - COLLAR_L]]), S("brv", 2));
+    P(capG, D([[sg * (TUBE_R + .5), TUBE_TOP], [sg * (TUBE_R + .5), TUBE_BOT]]), S("brv", 2.6));
+    P(capG, BOX(sg * (COL_R + .5), TOF - COLLAR_L - 8, sg * (COL_R + 9), TOF - COLLAR_L + 22), F("brv"));
+  }
+  item(capG, [tr(4, 1.0, 3.6, "ty", 1750, 0, "inout"), tr(4, 1.0, 1.3, "op", 0, 1, "lin")]);
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Ltop);
+    P(g, D([[sg * SCREW_X, TOF + 5], [sg * SCREW_X, TOF - 50]]), S("brv", 2.4));
+    P(g, BOX(sg * (SCREW_X - 10), TOF, sg * (SCREW_X + 10), TOF + 8), F("brv"));
+    const o = sg > 0 ? .2 : 0;
+    item(g, popIn(4, 3.8 + o, 4.2 + o), { pivot: [sg * SCREW_X, TOF] });
+    const gf = mk("g", null, Ltop);
+    P(gf, BOX(sg * (COL_R - 12), TOF - COLLAR_L - 18, sg * (COL_R + 16), TOF - COLLAR_L + 32), F("sun"));
+    item(gf, [tr(4, 4.8, 5.1, "op", 0, .9, "lin"), tr(4, 5.1, 6.0, "op", .9, 0, "lin")]);
+  }
+
+  // amplifier + diffuser (step 7)
+  const ampG = mk("g", null, Lsol);
+  P(ampG, D([[-TUBE_R, TUBE_BOT], [TUBE_R, TUBE_BOT], [AMP_RB, AMP_BOT], [-AMP_RB, AMP_BOT]], true), F("tint"));
+  for (const sg of [-1, 1]) {
+    P(ampG, D([[sg * (TUBE_R + .5), TUBE_BOT], [sg * AMP_RB, AMP_BOT]]), S("brv", 2.6));
+    for (const f of [.35, .7]) P(ampG, D([[sg * TUBE_R * f, TUBE_BOT], [sg * AMP_RB * f, AMP_BOT]]), S("brv", 1, { opacity: ".35" }));
+    P(ampG, BOX(sg * (TUBE_R + 1), TUBE_BOT - 8, sg * (TUBE_R + 9), TUBE_BOT + 18), F("brv"));
+  }
+  item(ampG, [tr(6, 3.0, 4.8, "ty", -480, 0, "out"), tr(6, 3.0, 3.3, "op", 0, 1, "lin")]);
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Ltop);
+    sty(mk("circle", { cx: sg * (TUBE_R + 16), cy: -(TUBE_BOT + 4), r: 11 }, g), F("brv"));
+    sty(mk("circle", { cx: sg * (TUBE_R + 16), cy: -(TUBE_BOT + 4), r: 44, "vector-effect": "non-scaling-stroke" }, g), S("sun", 2, { fill: "none" }));
+    const o = sg > 0 ? .2 : 0;
+    item(g, popIn(6, 4.8 + o, 5.2 + o), { pivot: [sg * (TUBE_R + 16), TUBE_BOT + 4] });
+  }
+  const difG = mk("g", null, Lsol);
+  P(difG, BOX(-(DIF_R - 28), DIF_BOT + 4, DIF_R - 28, AMP_BOT), Object.assign({ fill: "url(#pPrism)" }, S("brv", 1.4)));
+  for (const sg of [-1, 1]) P(difG, BOX(sg * (DIF_R - 30), DIF_BOT, sg * DIF_R, AMP_BOT + 8), F("brv"));
+  item(difG, [tr(6, 5.4, 6.8, "ty", -360, 0, "out"), tr(6, 5.4, 5.7, "op", 0, 1, "lin")]);
+
+  // dome (step 6)
+  const domeG = mk("g", null, Lsol);
+  P(domeG, D([[DOME_R, DOME_BASE]].concat(arc, [[-DOME_R, DOME_BASE]]), true), F("tint"));
+  P(domeG, BOX(-COL_R, TOF - 1, COL_R, DOME_BASE + 4), F("tint"));
+  for (const sg of [-1, 1]) {
+    P(domeG, D(M([[DOME_R - 2, TOF], [DOME_R + 24, TOF], [DOME_R + 24, TOF + 12], [DOME_R + 5, DOME_BASE + 3], [DOME_R - 2, DOME_BASE + 3]], sg), true),
+      Object.assign(F("brv-f"), S("brv", 1.4)));
+    P(domeG, D([[sg * DOME_R, DOME_BASE + 3], [sg * DOME_R, DOME_CYL_T]]), S("brv", 2.4));
+    P(domeG, D([[sg * (DOME_R - 14), DOME_BASE + 12], [sg * (DOME_R - 14), DOME_CYL_T - 8]]), S("brv", 1, { opacity: ".6" }));
+    P(domeG, BOX(sg * (DOME_R - 3), DOME_CYL_T - 10, sg * (DOME_R + 6), DOME_CYL_T + 3), F("brv"));
+  }
+  P(domeG, D(arc), S("brv", 2.4));
+  P(domeG, BOX(-(DOME_R - 16), DOME_CYL_T - 30, DOME_R - 16, DOME_CYL_T - 12), Object.assign({ fill: "url(#pPrism)" }, S("brv", 1)));
+  const ltD = (() => {
+    const p0 = [-391, DOME_BASE + 45], p1 = [-372, DOME_CYL_T - 240], p2 = [-185, DOME_CYL_T - 60], out = [];
+    for (let k = 0; k <= 20; k++) {
+      const t = k / 20;
+      out.push([(1 - t) * (1 - t) * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0], (1 - t) * (1 - t) * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]]);
+    }
+    return D(out);
+  })();
+  const ltGlow = P(domeG, ltD, S("sun", 10, { "stroke-linecap": "round", opacity: "0" }));
+  P(domeG, ltD, S("brv", 3.6, { "stroke-linecap": "round" }));
+  item(domeG, [tr(5, .8, 3.2, "ty", 1650, 0, "inout"), tr(5, .8, 1.1, "op", 0, 1, "lin")]);
+  item(ltGlow, [tr(5, 4.8, 5.2, "op", 0, .85, "lin"), tr(5, 5.2, 6.6, "op", .85, 0, "lin")]);
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Ltop);
+    P(g, BOX(sg * (CAPO - 16), TOF, sg * (CAPO - 3), TOF + 12), F("brv"));
+    const dw = drawPath(g, [[sg * (DOME_R + 6), DOME_CYL_T - 6], [sg * (CAPO - 9), TOF + 12]], S("brv", 1.6, { "stroke-dasharray": "7 4" }));
+    const o = sg > 0 ? .25 : 0;
+    item(g, drawIn(5, 3.4 + o, 4.8 + o), { draws: [dw] });
+  }
+  // 6" clearance (step 7)
+  for (const sg of [-1, 1]) {
+    const g = mk("g", null, Ltop);
+    const dw = drawPath(g, M([[TUBE_R + 152, -DECK], [TUBE_R + 152, TUBE_BOT], [AMP_RB + 152, AMP_BOT], [DIF_R + 152, DIF_BOT]], sg),
+      S("muted", 1.6, { "stroke-dasharray": "9 6" }));
+    item(g, drawIn(6, 6.8, 8.0), { draws: [dw] });
+  }
+  // scissor lift (step 7)
+  const liftG = mk("g", null, Ltop);
+  {
+    const yT = -1560, yM = -1660, yP = -1770;
+    P(liftG, BOX(-700, yP - 34, 700, yP), Object.assign(F("steel-f"), S("steel", 1.6)));
+    P(liftG, D([[-700, yT], [700, yT]]), S("steel", 3));
+    P(liftG, D([[-700, yM], [700, yM]]), S("steel", 2));
+    for (const x of [-700, -233, 233, 700]) P(liftG, D([[x, yT], [x, yP]]), S("steel", 2));
+    P(liftG, D([[-650, yP - 34], [650, yP - 420]]), S("steel", 2));
+    P(liftG, D([[650, yP - 34], [-650, yP - 420]]), S("steel", 2));
+  }
+  item(liftG, [tr(6, .6, 2.2, "ty", -800, 0, "out"), tr(6, .6, .9, "op", 0, 1, "lin"), tr(6, 8.6, 9.8, "ty", 0, -800, "in"), tr(6, 8.8, 9.8, "op", 1, 0, "lin")]);
+  // daylight (step 8)
+  const glow = mk("path", { d: D([[DOME_R, DOME_BASE]].concat(arc, [[-DOME_R, DOME_BASE], [-TUBE_R, TOF], [-TUBE_R, TUBE_BOT], [-AMP_RB, AMP_BOT], [AMP_RB, AMP_BOT], [TUBE_R, TUBE_BOT], [TUBE_R, TOF]]), true) }, Lback);
+  sty(glow, { fill: "var(--sun)" });
+  item(glow, [tr(7, 6.0, 7.4, "op", 0, .14, "lin")]);
+  Lback.appendChild(glow);
+  const rays = [
+    [[1500, 2850], [210, 1640], [-388, 1160], [330, 430], [-345, -230], [80, DIF_BOT], [440, -2100]],
+    [[1760, 2560], [320, 1500], [-380, 930], [340, -40], [-140, DIF_BOT], [-640, -2100]]
+  ];
+  rays.forEach((r, k) => {
+    const g = mk("g", null, Ltop);
+    const dw = drawPath(g, r, S("sun", 2.6, { "stroke-linejoin": "round", "stroke-linecap": "round", opacity: ".95" }));
+    item(g, drawIn(7, 4.2 + k * .45, 6.6 + k * .45), { draws: [dw] });
+  });
+  // water test drops (step 8)
+  const dropsG = mk("g", null, Ltop);
+  const dropXs = [-330, -170, -30, 110, 250, 360, -560, 560, -470, 470, -650, 650];
+  const impact = x => {
+    const a = Math.abs(x);
+    if (a <= DOME_R) return DOME_CYL_T + 132 * Math.sqrt(1 - (x / DOME_R) ** 2);
+    if (a <= CAPO + 4) return TOF + 12;
+    return ROOF;
+  };
+  const drops = dropXs.map((x, k) => {
+    const p = P(dropsG, "", F("water"));
+    const ring = P(dropsG, "", S("water", 1.4));
+    return { x, p, ring, ph: (k * .37) % 1, y1: impact(x) };
+  });
+  item(dropsG, [], {
+    custom: (T, upp) => {
+      const s = 7, a = starts[s] + .8, b = starts[s] + 4.3;
+      if (T < a || T > b) { dropsG.style.opacity = 0; return; }
+      dropsG.style.opacity = 1;
+      const sz = 3.4 * upp;
+      for (const dr of drops) {
+        const local = (((T - a) / .9) + dr.ph) % 1;
+        const y = 2400 + (dr.y1 - 2400) * local * local;
+        const X = dr.x, Y = -y;
+        dr.p.setAttribute("d", "M" + X + " " + (Y - 1.7 * sz) + "C" + (X + sz) + " " + (Y - .4 * sz) + " " + (X + sz) + " " + (Y + .9 * sz) + " " + X + " " + (Y + sz) +
+          "C" + (X - sz) + " " + (Y + .9 * sz) + " " + (X - sz) + " " + (Y - .4 * sz) + " " + X + " " + (Y - 1.7 * sz) + "Z");
+        dr.p.style.opacity = local > .96 ? 0 : 1;
+        if (local > .82) {
+          const q = (local - .82) / .18, rr = (1 + q * 3) * sz;
+          dr.ring.setAttribute("d", "M" + (X - rr) + " " + (-dr.y1) + "a" + rr + " " + (rr * .35) + " 0 1 0 " + (2 * rr) + " 0a" + rr + " " + (rr * .35) + " 0 1 0 " + (-2 * rr) + " 0");
+          dr.ring.style.opacity = 1 - q;
+        } else dr.ring.style.opacity = 0;
+      }
+    }
+  });
+
+  // ---------------- labels (scene-anchored, constant on-screen size)
+  const labels = [];
+  function label(step, a, at, lines, target, o) {
+    o = o || {};
+    const g = mk("g", null, labelsG);
+    const col = o.hold ? "var(--hold)" : "var(--ink)";
+    const ln = mk("line", { "vector-effect": "non-scaling-stroke" }, g);
+    sty(ln, { stroke: col, "stroke-width": "1.2px", opacity: ".75" });
+    const dot = mk("circle", { r: 3 }, g);
+    sty(dot, { fill: col });
+    const tx = mk("text", { "text-anchor": o.anchor || "middle", x: at[0], y: -at[1] }, g);
+    sty(tx, { fill: col, "font-family": "var(--font-display)", "font-weight": "600", "letter-spacing": ".045em",
+              "paint-order": "stroke", stroke: "var(--panel)", "stroke-linejoin": "round" });
+    lines.forEach((t, k) => { const s = mk("tspan", { x: at[0], dy: k ? "1.16em" : "0" }, tx); s.textContent = t; });
+    if (!target) { ln.style.display = "none"; dot.style.display = "none"; }
+    labels.push({ g, ln, dot, tx, target, step, a, keep: !!o.keep });
+  }
+  label(0, 1.8, [0, -300], ["DECK OPENING Ø749 (29½″) MIN.", "REINFORCE PER STRUCTURAL"], [OPEN_R, -19]);
+  label(0, 4.4, [-560, 760], ["2 TIERS WOOD BLOCKING", "TOP = TOP OF INSULATION"], [-450, 150]);
+  label(1, 1.0, [-640, 700], ["DYNAGRIP SD/SA VAPOUR", "BARRIER ON THE DECK,", "UP + OVER THE BLOCKING"], [-820, 2]);
+  label(1, 3.2, [520, -300], ["VB TIE-IN AT CURB + OPENING", "CONFIRM DETAIL WITH RJC"], [CI - 2, 70], { hold: true });
+  label(2, 1.8, [-640, 900], ["SOLATUBE C16 METAL CURB", "35″ × 16″ · SET BY MCL"], [-CO, 470]);
+  label(2, 3.0, [640, 900], ["LEVEL · PLUMB", "DIAGONALS X = Y ± 1/16″"], [420, CURB_T + 50]);
+  label(2, 2.6, [700, -280], ["FLANGE FASTENED", "TO THE BLOCKING"], [472, CURB_B + 9]);
+  label(3, 1.6, [850, -40], ["2 × 3¾″ POLYISO", "+ ½″ COVER BOARD"], [760, 120]);
+  label(3, 4.4, [800, 640], ["2-PLY SBS UP THE CURB", "DYNALASTIC + DYNAWELD"], [CO + 5, 420]);
+  label(3, 6.2, [60, 700], ["TERM BAR UNDER THE SKIRT", "CHECK CAP FIT (≈8 MM/SIDE)"], [CO + 8.6, TOF - 67], { hold: true, anchor: "start" });
+  label(4, 3.0, [-760, 1040], ["CAP + ETL 40″ TUBE", "LOWERED THROUGH THE CURB"], [-CAPO, TOF - 40]);
+  label(4, 4.4, [760, 1040], ["#10 × 2″ SCREWS + BONDED", "WASHERS INTO THE NAILER"], [SCREW_X, TOF + 4]);
+  label(4, 5.0, [760, -330], ["TAB-LOCK, TUBE BELT", "+ FOIL TAPE AT THE JOINT"], [COL_R + 9, TOF - COLLAR_L + 6]);
+  label(5, 2.8, [-880, 1650], ["HD COLLECTOR", "DPP DUAL DOME Ø799"], [-DOME_R, 1330]);
+  label(5, 4.6, [880, 1450], ["4 WIRE-ROPE BRIDLES", "TO THE CORNER ANCHORS"], [DOME_R + 34, 1120]);
+  label(5, 5.2, [-880, 420], ["LIGHTTRACKER (N SIDE)", "FACES TRUE SOUTH →"], [-378, 1150]);
+  label(6, 1.8, [-900, -1430], ["WORK FROM A SCISSOR LIFT"], [-700, -1560]);
+  label(6, 2.8, [-900, 480], ["MINERAL WOOL +", "TRIM RING ‘R’ (TBC)"], [-388, -24]);
+  label(6, 4.8, [900, -250], ["AMPLIFIER: 15 RIVETS,", "FOIL TAPE, TUBE BELT"], [TUBE_R + 16, TUBE_BOT + 4]);
+  label(6, 6.6, [930, -1330], ["L2 PRISMATIC DIFFUSER", "Ø949 (37⅜″)"], [DIF_R, DIF_BOT + 12]);
+  label(6, 7.8, [-1020, -760], ["6″ (152) CLEAR ZONE", "TO JOISTS, SPRINKLERS,", "EV TRAY + FANS"], [-551, -700]);
+  label(7, 1.8, [-1020, 1150], ["WATER TEST AT", "THE CURB + CAP"], [-CAPO, TOF + 6], { keep: true });
+  label(7, 6.8, [1200, -1100], ["DAYLIGHT INTO", "VEHICLE BAY 102"], null, { keep: true });
+
+  let labelPx = 13;
+  function updateLabels(T, upp) {
+    const fs = labelPx * upp;
+    for (const L of labels) {
+      const s0 = starts[L.step], s1 = s0 + STEPS[L.step].dur;
+      let op = 0;
+      if (T >= s0 + L.a) op = Math.min(1, (T - s0 - L.a) / .4);
+      if (!L.keep) {
+        if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4));
+        if (T >= s1) op = 0;
+      }
+      L.g.style.opacity = op;
+      if (op <= 0) continue;
+      L.tx.style.fontSize = fs + "px";
+      L.tx.style.strokeWidth = (3.4 * upp) + "px";
+      if (L.target) {
+        const bb = L.tx.getBBox();
+        const tx = L.target[0], ty = -L.target[1];
+        let sx = Math.max(bb.x, Math.min(tx, bb.x + bb.width));
+        let sy = Math.max(bb.y, Math.min(ty, bb.y + bb.height));
+        const dx = tx - sx, dy = ty - sy, dist = Math.hypot(dx, dy) || 1;
+        sx += dx / dist * fs * .3; sy += dy / dist * fs * .3;
+        L.ln.setAttribute("x1", r1(sx)); L.ln.setAttribute("y1", r1(sy));
+        L.ln.setAttribute("x2", r1(tx)); L.ln.setAttribute("y2", r1(ty));
+        L.dot.setAttribute("cx", r1(tx)); L.dot.setAttribute("cy", r1(ty)); L.dot.setAttribute("r", r1(3 * upp));
+      }
+    }
+  }
+
+  // ---------------- camera
+  let stageW = 800, stageH = 640;
+  function camAt(i, tau) {
+    const c1 = STEPS[i].cam;
+    if (i === 0 || tau >= CAM_T) return c1;
+    const c0 = STEPS[i - 1].cam, p = EASE.inout(Math.max(0, tau) / CAM_T);
+    return c1.map((v, k) => c0[k] + (v - c0[k]) * p);
+  }
+  function applyCam(c) {
+    const ratio = stageW / stageH;
+    let [cx, cy, w, h] = c;
+    if (w / h < ratio) w = h * ratio; else h = w / ratio;
+    svg.setAttribute("viewBox", r1(cx - w / 2) + " " + r1(-(cy + h / 2)) + " " + r1(w) + " " + r1(h));
+    return w / stageW;
+  }
+
+  // ---------------- UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step";
+    li.style.setProperty("--c", "var(--" + s.c + ")");
+    const extra = (s.check ? '<p class="chk"><b>Check</b>' + s.check + "</p>" : "") +
+                  (s.hold ? '<p class="hold"><b>Hold</b>' + s.hold + "</p>" : "") +
+                  (s.note ? '<p class="note"><b>Note</b>' + s.note + "</p>" : "");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title +
+      '</span><span class="w">' + s.who + '</span></button><div class="step-body" hidden><ul>' +
+      s.bullets.map(b => "<li>" + b + "</li>").join("") + "</ul>" + extra + "</div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li);
+    stepLis.push(li);
+    const b = document.createElement("button");
+    b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur);
+    b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b);
+    segFills.push(b.firstChild);
+  });
+
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shownStep = -1, shownCallout = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = true;
+
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+
+  function updateUI(t, i) {
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%";
+      segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    if (i !== shownStep || String(poster) !== stageStep.dataset.poster) {
+      shownStep = i;
+      stageStep.dataset.poster = String(poster);
+      stepLis.forEach((li, k) => {
+        const on = !poster && k === i;
+        li.classList.toggle("active", on);
+        li.querySelector(".step-head").setAttribute("aria-expanded", on);
+        li.querySelector(".step-body").hidden = !on;
+      });
+      const s = STEPS[i];
+      stageStep.style.setProperty("--c", poster ? "var(--ink)" : "var(--" + s.c + ")");
+      $("stageNum").textContent = poster ? "✓" : String(i + 1);
+      $("stageTitle").textContent = poster ? "Installed unit" : s.title;
+      $("stageWho").textContent = poster ? "" : s.who;
+    }
+    const s = STEPS[i], tau = t - starts[i];
+    let co = "";
+    if (!poster && s.callout && tau >= s.callout.at) co = s.callout.kind + "|" + s.callout.text;
+    if (co !== shownCallout) {
+      shownCallout = co;
+      const el = $("callout");
+      if (!co) el.hidden = true;
+      else {
+        el.className = "callout " + s.callout.kind;
+        el.innerHTML = "<b>" + (s.callout.kind === "hold" ? "Hold" : "Note") + "</b>" + s.callout.text;
+        el.hidden = false;
+      }
+    }
+    $("bigPlay").hidden = playing || !poster;
+  }
+  const stageStep = $("stageStep");
+
+  function render(t) {
+    const i = stepAt(t), tau = t - starts[i];
+    const upp = applyCam(camAt(i, tau));
+    for (const it of items) applyItem(it, t, upp);
+    updateLabels(t, upp);
+    updateUI(t, i);
+  }
+
+  function setPlayButton() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts;
+    render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) {
+      const i = stepAt(T);
+      T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001);
+      playing = false; render(T); setPlayButton(); return;
+    }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { stopAt = stopEach ? Math.min(TOTAL, starts[Math.min(i + 1, STEPS.length - 1)] + STEPS[Math.min(i + 1, STEPS.length - 1)].dur - .001) : TOTAL; }
+    playing = true; lastTs = null;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
+    setPlayButton(); render(T);
+  }
+  function pause() {
+    playing = false; cancelAnimationFrame(raf); setPlayButton(); render(T);
+  }
+  function goStep(i, autoplay) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i));
+    poster = false;
+    cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlayButton(); return; }
+    T = starts[i];
+    render(T);
+    if (autoplay) {
+      stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL;
+      playing = true; lastTs = null; raf = requestAnimationFrame(tick);
+    }
+    setPlayButton();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => {
+    if (poster) return goStep(STEPS.length - 1, true);
+    const i = stepAt(T);
+    goStep(T - starts[i] > 1.5 ? i : i - 1, true);
+  });
+  $("stopEach").addEventListener("click", e => {
+    stopEach = !stopEach;
+    e.currentTarget.setAttribute("aria-pressed", stopEach);
+    if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; }
+  });
+  $("speed").addEventListener("click", e => {
+    speed = speed === 1 ? .5 : 1;
+    e.currentTarget.textContent = speed === 1 ? "1×" : "½×";
+  });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    labelPx = Math.max(11, Math.min(14, stageW / 52));
+    render(T);
+  }
+  new ResizeObserver(measure).observe(stage);
+  reduceMQ.addEventListener && reduceMQ.addEventListener("change", () => render(T));
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  measure();
+  setPlayButton();
+})();
+</script>
+</body>
+</html>
