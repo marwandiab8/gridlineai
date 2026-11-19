@@ -9,13 +9,14 @@ section **09 Construction Sequences** of `public/shop-drawings/index.html`, and 
 | Roof Flow Lab, Level 2 west roof water-flow simulator (7 built-in scenarios) | `/shop-drawings/sequences/roof-flow-lab/` | 2026-11-16 | F2C as-built top-of-deck survey (221 readings, surveyed Nov 5 2026, revised Nov 11); S203B for the design-deck comparison |
 | Solatube tubular skylights, one unit from deck opening to diffuser (8 steps) | `/shop-drawings/sequences/solatube-install/` | 2026-11-18 | Solatube shop dwg M74 DS-O-C-DP-FC-A Rev 2 (R0), metal curb dwg Rev A + DSA-requested markup, M74 DS install instructions, spec 08 63 00, Triumph 18/A210, RFI 251, MCL sketches SK-SOL-01/02 |
 | Walk-in cooler #10, Norbec box from the slab depression to start-up (12 steps, 3D WebGL) | `/shop-drawings/sequences/walk-in-cooler-install/` | 2026-11-19 | Norbec stamped shop dwg S-294496 rev 02 (sheets 1/11–11/11), MCL transmittal Aug 25 2025 (job 2025-048), Bohn PT0078MBNAMCA data sheet, IM4 operating instructions, Kason 1236 sheets |
+| Car Wash 117, Istobal Flex 5 XL rollover gantry from the trench drains to the test wash (11 steps, 3D WebGL) | `/shop-drawings/sequences/car-wash-install/` | 2026-11-19 | Istobal layout drawings for National Wash, sheets 1/7–7/7 (title blocks rev 4.0, May 7 2025; MCL transmittal Aug 20 2025), spec 11 11 26, National Wash scope review minutes (Apr 8 2025), RFI 080, M202, A105, S506 |
 
 ## 3D sequences
 
-The walk-in cooler page draws its model with WebGL 2 straight from the page script (boxes, shadows and a see-through
-cutaway), with labels, dimensions and captions in an HTML overlay. It still needs no library and no build step.
-Opening it with `window.__VIDEO = true` set before the script runs gives a full-frame 16:9 stage, and
-`window.__seek(seconds)` draws any moment; that is how its MP4 was filmed.
+The walk-in cooler and car wash pages draw their models with WebGL 2 straight from the page script (boxes and
+cylinders, shadows, cutaway walls), with labels, dimensions and captions in an HTML overlay. They still need no library
+and no build step. Opening one with `window.__VIDEO = true` set before the script runs gives a full-frame 16:9 stage, and
+`window.__seek(seconds)` draws any moment; that is how their MP4s were filmed.
 
 ## Simulators
 
