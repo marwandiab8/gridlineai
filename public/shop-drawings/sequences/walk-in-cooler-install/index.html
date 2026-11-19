@@ -1,0 +1,1090 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step 3D animation of Norbec walk-in cooler #10 going in at Docksteader: slab depression, spacers, floor, walls and door, ceiling, seismic anchoring, trims, door and bumpers, Bohn top-mount unit, top enclosure, controls and start-up, each step tied to the stamped shop drawing.">
+<title>Walk-in Cooler Install Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-sheet header, then a 16:9 3D stage with an in-frame caption band (so the same frame works as a video), transport, step list, questions fold-out and legend. */
+:root {
+  --bg: #e8ecee;
+  --panel: #fbfcfc;
+  --ink: #172027;
+  --muted: #59656f;
+  --line: #c9d1d7;
+  --mcl: #8a4f1d;
+  --nor: #1f56c6;
+  --ref: #0d7a6f;
+  --ele: #a85d00;
+  --mec: #6d3fc0;
+  --hold: #c3322c;
+  --hold-f: #fdeceb;
+  --font-display: "Barlow Condensed", "Arial Narrow", "TeX Gyre Heros Cn", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --mcl: #dca068; --nor: #82a8ff; --ref: #4fd1c0; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --mcl: #dca068; --nor: #82a8ff; --ref: #4fd1c0; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--nor); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 66ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage-wrap { position: relative; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #e7eaec; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ov { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-display); color: #13202b; }
+.ov #ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  font-size: var(--lf, 14px); line-height: 1.15; padding: .28em .55em .3em .5em; background: rgba(255,255,255,.95); color: #13202b;
+  border-left: .32em solid var(--c, #1f56c6); border-radius: .25em; box-shadow: 0 .08em .3em rgba(0,0,0,.18); }
+.lbl small { display: block; font-size: .78em; font-weight: 500; color: #46525c; letter-spacing: .02em; }
+.lbl.hold { color: #b3261e; border-left-color: #c3322c; }
+.lbl.big { font-size: calc(var(--lf, 14px) * 1.9); font-family: var(--font-mono); letter-spacing: 0; border-left-color: #0d7a6f; }
+.dimt { position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; font-size: calc(var(--lf, 14px) * .92); color: #13202b; background: rgba(255,255,255,.9); padding: .1em .35em; border-radius: .2em; white-space: nowrap; }
+.badge { position: absolute; top: 2.2%; left: 1.6%; display: flex; align-items: center; gap: .45em; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--tf, 22px); letter-spacing: .03em; text-transform: uppercase; background: rgba(255,255,255,.94); padding: .12em .6em .12em .14em; border-radius: .35em; color: #13202b; }
+.badge .n { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--c, #13202b); color: #fff; font-size: .9em; flex: none; }
+.badge .w { font-family: var(--font-mono); font-weight: 600; font-size: .5em; color: var(--c, #59656f); letter-spacing: .06em; }
+.tag { position: absolute; top: 2.4%; right: 1.6%; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * .78); letter-spacing: .06em; text-transform: uppercase; color: #3d4a54; background: rgba(255,255,255,.88); padding: .25em .55em; border-radius: .25em; text-align: right; line-height: 1.45; }
+.compass { position: absolute; right: 1.8%; top: 14%; width: calc(var(--lf, 14px) * 3.6); height: calc(var(--lf, 14px) * 3.6); }
+.cap { position: absolute; left: 1.6%; right: 1.6%; bottom: 2.6%; display: grid; grid-template-columns: minmax(0, 1fr); gap: .25em;
+  font-family: var(--font-body); font-size: var(--cf, 14px); line-height: 1.32; color: #13202b; background: rgba(255,255,255,.95);
+  border-left: .35em solid var(--c, #1f56c6); border-radius: .3em; padding: .6em .9em .65em; box-shadow: 0 .1em .5em rgba(0,0,0,.16); pointer-events: none; }
+.cap ul { margin: 0; padding: 0 0 0 1.05em; display: grid; gap: .12em; }
+.cap .ref { font-family: var(--font-mono); font-size: .74em; color: #4b5863; letter-spacing: .03em; }
+.cap .hold { color: #b3261e; font-weight: 600; }
+.cap .hold b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; margin-right: .35em; }
+.intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.intro div { background: rgba(255,255,255,.93); padding: .7em 1.2em .8em; border-radius: .35em; font-family: var(--font-display); color: #13202b; box-shadow: 0 .2em 1em rgba(0,0,0,.15); }
+.intro h2 { margin: 0; font-size: calc(var(--tf, 22px) * 2.1); line-height: 1; letter-spacing: .02em; font-weight: 700; text-transform: uppercase; }
+.intro p { margin: .35em 0 0; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * 1.05); letter-spacing: .05em; color: #3d4a54; text-transform: uppercase; }
+.big-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: #fff; background: #172027;
+  padding: 10px 18px 10px 14px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; pointer-events: auto; }
+.big-play svg { width: 18px; height: 18px; fill: currentColor; }
+.narrow .stage { aspect-ratio: 4 / 3; }
+.narrow .cap { position: static; margin-top: 8px; font-size: 13.5px; }
+.narrow .tag, .narrow .compass { display: none; }
+.narrow .badge { font-size: 14px; }
+.narrow .lbl.minor { display: none; }
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 24px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible, .back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--nor); outline-offset: 2px; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro-p { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 6px; align-items: start; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.step-head .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--c); border: 2px solid var(--c); }
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.step-body p { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.step-body .hold { background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+.step-body .hold b { color: var(--hold); }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; }
+.rfi ul { margin: 10px 0 4px; padding-left: 20px; display: grid; gap: 6px; max-width: 90ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; background: var(--c); display: inline-block; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 120ch; }
+/* video mode: stage only, full frame */
+body.video { padding: 0; background: #000; }
+body.video .page > :not(.bench), body.video .transport, body.video .steps-col, body.video .big-play { display: none !important; }
+body.video .page { max-width: none; gap: 0; }
+body.video .stage { border: 0; border-radius: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>Walk-in cooler install, step by step</h1>
+      <p class="sub">Norbec walk-in cooler (contract S-294496) with a Bohn top-mount unit, in the 5″ floor depression. 3D sequence built from the stamped shop drawing, rev 02.</p>
+    </div>
+    <div class="sheet-no"><b>SK-WIC-01</b> animation<br>from Norbec S-294496 rev 02 · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="3D animation">
+      <div class="stage-wrap" id="stageWrap">
+        <div class="stage" id="stage">
+          <canvas id="gl" role="img" aria-label="3D model of the walk-in cooler being installed step by step"></canvas>
+          <div class="ov" id="ov">
+            <svg id="ovsvg"></svg>
+            <div id="ovl"></div>
+            <div class="badge" id="badge"><span class="n" id="bNum">✓</span><span id="bTitle">Installed cooler</span><span class="w" id="bWho"></span></div>
+            <div class="tag">Walk-in cooler #10 · Norbec S-294496<br>Docksteader Paramedic Services</div>
+            <svg class="compass" id="compass" viewBox="-50 -50 100 100" aria-hidden="true"><circle r="47" fill="rgba(255,255,255,.9)" stroke="#13202b" stroke-width="2.5"/><g id="cneedle"><path d="M0 -22 L10 16 L0 9 L-10 16 Z" fill="#c3322c"/><text x="0" y="-27" font-family="Barlow Condensed, TeX Gyre Heros Cn, Arial Narrow, sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="#13202b">N</text></g></svg>
+            <div class="intro" id="intro"><div><h2>Walk-in cooler install</h2><p>Norbec S-294496 · Docksteader Paramedic Services · 12 steps</p></div></div>
+            <div class="intro" id="outro" style="opacity:0"><div><h2>Cooler #10 installed</h2><p>Schematic from Norbec S-294496 rev 02 · not a substitute for the stamped shop drawing</p></div></div>
+          </div>
+          <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="bigPlayText">Play the install</span></button>
+        </div>
+        <div class="cap" id="cap" aria-live="polite"></div>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="steps-col" aria-label="Install steps">
+      <p class="intro-p">Press play to watch the cooler go in, in order. Or pick a step to see it on its own. Each step lists what the stamped shop drawing requires and where on the drawing it comes from. Colours show the trade.</p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </main>
+
+  <details class="rfi">
+    <summary>Settle before the cooler is delivered</summary>
+    <ul>
+      <li><strong>Floor depression.</strong> The 5″ depression (9′-1″ × 11′-1½″, level to ¼″ in 10′) has to be in the slab. MCL's note on the submittal: DSA to issue an SI for it.</li>
+      <li><strong>Service space above the unit.</strong> Bohn asks for 2′ clear above the PT0078 to lift its top panel. The unit is about 20″ tall and the section shows 24″ (to be confirmed) from the cooler to the structure, which leaves about 4″.</li>
+      <li><strong>Ventilation of the space above.</strong> With the top enclosure panels fixed, that space has to be ventilated by others so the unit sees 90 °F (32 °C) or less. It rejects 11,600 BTU/h. Confirm with mechanical who provides it and how.</li>
+      <li><strong>Power.</strong> The unit comes with a cord and needs a NEMA 6-15R receptacle (208–230 V, MCA 9.7 A, MOPD 15 A). IM4, the light and the heaters need 120 V/15 A, and the dry contact goes to the alarm system. Per Norbec there's only one unit and one light fixture.</li>
+      <li><strong>Floor finish.</strong> The inside and outside floor finish blanks on page 2/11 are empty. The 5″ depression includes the floor finish, so confirm what goes on it.</li>
+      <li><strong>Bumpers and handle.</strong> The drawing shows grey recycled plastic bumpers; DSA wants HDPE white. The handle is chrome per DSA.</li>
+      <li><strong>Grout in front of the door.</strong> Noted "by others" in detail A. Assign it.</li>
+      <li><strong>Seismic screws.</strong> The moldings fix to the building wall with concrete screws #14 × 1½″ @ 16″ for block, Tek screws for steel studs. Confirm the wall type at the north, east and south walls.</li>
+      <li><strong>Site verification.</strong> The sub verifies all dimensions on site and coordinates delivery with the MCL superintendent (MCL comment).</li>
+    </ul>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--mcl)"><i></i>MCL / by others</span>
+    <span style="--c: var(--nor)"><i></i>Cooler installer (Norbec)</span>
+    <span style="--c: var(--ref)"><i></i>Refrigeration trade</span>
+    <span style="--c: var(--ele)"><i></i>Electrical trade</span>
+    <span style="--c: var(--mec)"><i></i>Mechanical (by others)</span>
+    <span style="--c: var(--hold)"><i></i>Hold / to confirm</span>
+  </footer>
+  <p class="notes">Approximately to scale. Dimensions in feet-inches with mm in brackets, from Norbec shop drawing S-294496 rev 02 (stamped), pages 1–11, the Bohn PT0078MBNAMCA data sheet and the Kason 1236 sheet in the same submittal. Panel joints, spacer, anchor and molding counts are drawn to suit; the actual layout is Norbec's. The south block wall is drawn see-through so the work stays visible. Not a substitute for the stamped shop drawing.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const VIDEO = !!window.__VIDEO;
+  if (VIDEO) document.body.classList.add("video");
+
+  // ======================= steps
+  // camera: target, yaw (0 = from the south, 90 = from the west), pitch, distance (mm)
+  const cv = (t, yaw, pitch, d) => { const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180; return [[t[0] - Math.sin(y) * Math.cos(p) * d, t[1] + Math.sin(p) * d, t[2] + Math.cos(y) * Math.cos(p) * d], t]; };
+  const STEPS = [
+    { title: "Slab depression", who: "MCL", c: "mcl", dur: 9,
+      cam: cv([1350, -60, 1650], 52, 38, 10400),
+      lines: ["5″ [127] deep including floor finish, 9′-1″ × 11′-1½″ [2769 × 3391]",
+              "Level to ¼″ in 10′; clean, dry and clear before the panels arrive",
+              "DSA to issue an SI for the depression (MCL comment on the submittal)"],
+      ref: "Shop dwg 2/11 depression layout · 1/11 notes" },
+    { title: "Floor spacers", who: "Cooler installer", c: "nor", dur: 7,
+      cam: cv([1350, -110, 1650], 48, 44, 8400),
+      lines: ["1″ [25] 16 ga galv. steel spacers, run east–west as the layout shows",
+              "Air moves under the floor panels, which keeps condensation down",
+              "Peel the protective film off every panel before it gets assembled"],
+      ref: "Shop dwg 2/11 spacer orientation · 5/11 det. D" },
+    { title: "Floor panels", who: "Cooler installer", c: "nor", dur: 8,
+      cam: cv([1350, -60, 1650], 56, 40, 8800),
+      lines: ["4″ urethane floor panels: 18 ga galv. top on ½″ plywood",
+              "Camlocked together on the spacers; top of floor lands at finished floor",
+              "Gap to the depression edge: 1″ on the door side, 2″ on the others"],
+      ref: "Shop dwg 2/11 · 4/11 det. A, B" },
+    { title: "Walls + door section", who: "Cooler installer", c: "nor", dur: 10,
+      cam: cv([1350, 1000, 1650], 58, 26, 11200),
+      lines: ["86″ [2184] × 4″ camlock wall panels, Igloo White 26 ga, Class A",
+              "Keep a 2″ min. air space to the block walls on the north, east and south",
+              "PP-340 door section on the open west side, 10″ [254] from the north face"],
+      ref: "Shop dwg 2/11 · 5/11 det. C, D · 7/11" },
+    { title: "Ceiling panels", who: "Cooler installer", c: "nor", dur: 7,
+      cam: cv([1350, 1500, 1650], 52, 36, 11200),
+      lines: ["4″ ceiling panels camlocked onto the walls; top at 7′-6″ [2286] A.F.F.",
+              "8′-2″ span, so no suspension (Norbec needs it for spans over 12′)",
+              "Leave the opening for the unit's evaporator, near the east wall"],
+      ref: "Shop dwg 2/11 · 1/11 ceiling load notes · 7/11" },
+    { title: "Seal + seismic anchor", who: "Cooler installer", c: "nor", dur: 9,
+      cam: cv([1350, 500, 1650], 50, 48, 10200),
+      lines: ["Silicone every panel joint once the box is up (inside)",
+              "18 ga stainless 2″ × 2″ angle at the floor, stainless Tek #8 × ¾″ @ 16″",
+              "Hilti Kwik HUS-EZ ⅜″ × 5″ @ 16″ into the slab; pre-drill floor and spacer"],
+      ref: "Shop dwg 6/11 seismic anchoring · 7/11" },
+    { title: "Door gap, trims + seismic moldings", who: "Installer + MCL", c: "nor", dur: 9,
+      cam: cv([1100, 1100, 1650], 62, 32, 11000),
+      lines: ["Low-expansion urethane in the 1″ gap; 18 ga back-fill Z trim at the door",
+              "Grout infill in front of the opening (by others)",
+              "2″ × 5″ closing trims at the NW + SW corners; 14 ga seismic moldings at the walls"],
+      ref: "Shop dwg 4/11 det. A · 7/11 · 8/11" },
+    { title: "Door + bumpers", who: "Cooler installer", c: "nor", dur: 8,
+      cam: cv([0, 1050, 1700], 72, 12, 7800),
+      lines: ["PP-340 hinged door, 40″ × 78″: heated frame and integral heated threshold",
+              "Heated window 15″ × 20″; Kason 1236 lever handle, chrome per DSA",
+              "Bumpers 2″ × 6″ at 12″ and 24″; HDPE white per DSA (drawing shows grey)"],
+      ref: "Shop dwg 2/11 door options · 3/11 sections · Kason pp. 20–22" },
+    { title: "Refrigeration unit", who: "Refrigeration", c: "ref", dur: 8,
+      cam: cv([1750, 2350, 1700], 55, 34, 8600),
+      lines: ["Bohn PT0078MBNAMCA top-mount: 7,720 BTU/h at 35 °F, R-448A, 220 lb",
+              "Evaporator end over the ceiling opening, 7″ from the east wall (2″ min.)",
+              "Pre-charged, no piping; its cord needs a NEMA 6-15R receptacle"],
+      ref: "Shop dwg 2/11 plan · Bohn data sheet (submittal pp. 13–14)" },
+    { title: "Top enclosure + ventilation", who: "Installer + Mechanical", c: "mec", dur: 8,
+      cam: cv([1300, 2000, 1650], 58, 24, 11200),
+      lines: ["Enclosure panels fixed on the open west side, up to the structure (36″ max)",
+              "Ventilate that space (by others): 90 °F (32 °C) max around the unit",
+              "The unit rejects 11,600 BTU/h into it"],
+      hold: "Bohn wants 2′ clear above the unit for service. With 24″, about 4″ is left.",
+      ref: "Shop dwg 1/11 warnings · 2/11 · 3/11 section 1 · Bohn clearances" },
+    { title: "Light, controls + wiring", who: "Refrigeration + Electrical", c: "ele", dur: 10,
+      cam: cv([800, 1450, 1650], 60, 30, 10000),
+      lines: ["Vapour-proof LED on the ceiling over the door; IM4 module outside the door",
+              "Probe in the dark zone by the evaporator, never in front of the door",
+              "Grommets + silicone at every hole; power and final connections by electrical"],
+      ref: "Shop dwg 2/11 · 8/11, 9/11 · 10/11 wiring · 11/11 IM4 probe" },
+    { title: "Start-up + QA", who: "Refrigeration + MCL", c: "ref", dur: 10,
+      cam: cv([1350, 1150, 1650], 70, 20, 11800),
+      lines: ["Pull down to 35 °F. IM4 alarms: high 43 °F (6 °C), low 32 °F (0 °C), 45 min delay",
+              "Door alarm after 15 min; lights go off 5 min after the door closes",
+              "Turn the IM4 backup battery the right way up at first start-up; consultants review"],
+      ref: "IM4 operating instructions (submittal pp. 15–19)" }
+  ];
+  const LIST = [
+    ["Form the 5″ [127] depression in the slab, 9′-1″ × 11′-1½″ [2769 × 3391]; the depth includes the floor finish.", "Floor level within ¼″ in 10′, clean, dry and free of obstacles.", "Block walls on the north, east and south; the west side is open to the room (door side).", "MCL comment: DSA to issue an SI for the depression. The depression is 1″ bigger than the cooler on the west side and 2″ on the other three."],
+    ["1″ [25] galvanized steel spacers, 16 ga, laid east–west per the spacer orientation arrow.", "They hold the floor up so air can move under it (Norbec recommends spacers to limit condensation).", "Peel the protective film before assembly so it doesn't end up in the joints."],
+    ["4″ [102] urethane floor panels, 18 ga galvanized top with ½″ [13] plywood reinforcement, 26 ga Igloo White underside.", "Camlock the panels together on the spacers. Top of floor ends flush with the finished floor.", "Factory-applied Adbond #4552 on the joints."],
+    ["Wall panels 86″ [2184] high, 4″ urethane, Igloo White QC-5216 26 ga Silkline both faces, Class A.", "Set the panels along the north, east and south block walls with a 2″ [51] minimum air space (details C and D).", "Camlocks: 1168 RBP locking point with 1173 strike.", "PP-340 door section on the west wall, 10″ [254] from the north face, 40″ × 78″ opening."],
+    ["4″ ceiling panels camlocked to the walls. Top of cooler 7′-6″ [2286] above finished floor, 7′-11″ [2413] overall.", "Span is 8′-2″ inside, under the 12′ limit, so no suspension.", "No storage or equipment on the ceiling. The service point load is 300 lb."],
+    ["Silicone at every panel joint after installation (inside), per 7/11.", "Seismic kit: 18 ga stainless 2″ × 2″ angle around the floor, stainless Tek #8 × ¾″ @ 16″ into the walls.", "Hilti Kwik HUS-EZ ⅜″ × 5″ @ 16″ through the floor and spacer into the slab. Pre-drill the foam for the socket and the floor bottom and spacer oversize.", "Adbond #4552 under the spacers, applied on site."],
+    ["Door side: low-expansion urethane in the 1″ gap, applied on site, and an 18 ga back-fill Z trim at the threshold.", "Grout infill in front of the opening, by others.", "2″ × 5″ steel closing trims at the NW and SW corners where the cooler meets the block walls: Tek #8 × ¾″ @ 16″, silicone finishing joints.", "Seismic moldings above the cooler, 14 ga galvanized 4″ × 6″ × 50″: Tek #¼-14 × 1½″ into the ceiling (3″ min. lap), screws @ 16″ into the wall."],
+    ["PP-340 hinged door, 40″ × 78″, with heated frame, non-heated door, integral heated threshold and grey silicone 4551 around the threshold.", "Ardco heated window 15″ × 20″.", "Kason 1236 SafeGuard lever handle with inside release, chrome per DSA.", "Bumpers 2″ × 6″ at 12″ and 24″ centrelines, inside and outside, with 18 ga backing. DSA wants HDPE white."],
+    ["Bohn PT0078MBNAMCA (PTN), medium temp, 7,720 BTU/h at 35 °F room and 95 °F ambient, 500 CFM, R-448A pre-charged.", "208–230/1/60, MCA 9.7 A, MOPD 15 A, plug supplied (NEMA 6-15R), about 220 lb.", "Per the plan: one unit, long side east–west, evaporator end over the ceiling opening 7″ from the east wall (Bohn asks for 2″ min.).", "Mounting rails may be used; insulate the through-bolts so they don't sweat."],
+    ["Top enclosure panels fixed on the open west side, up to the structure. The section shows 24″ [610] to be confirmed; 36″ is the max.", "The closed space must be ventilated by others to keep the unit's air at 90 °F (32 °C) or less, or the warranty is void.", "Total heat rejection 11,600 BTU/h."],
+    ["Vapour-proof LED light on the ceiling over the door, 2 × #14 × ¾″ screws; its junction box sits on top of the ceiling.", "IM4 intelligence module and dry contact outside, next to the door; panic button inside; magnetic door switch; heated pressure relief vent.", "IM4 probe (40′ lead) in the dark zone near the evaporator, not in front of the door or near heat. Ø⅜–½″ hole, sealed with silicone.", "Grommets both sides of the panel, silicone at every penetration. Components installed by refrigeration; power and final connections by electrical."],
+    ["Start the unit and pull the box down to 35 °F.", "IM4 defaults: high alarm 43 °F (6 °C), low alarm 32 °F (0 °C), 45 min delay; door-open alarm 15 min; lights off 5 min after the door closes.", "The IM4 backup battery ships upside down; turn it the right way at first start-up.", "DSA and the mechanical and electrical consultants review the installed cooler."]
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc, CAM_T = 1.7, INTRO_T = 2.8;
+
+  // ======================= geometry (mm): x east, y up, z south; origin = cooler NW outer corner at finished floor
+  const W = 2692, L = 3289, PT = 102, WH = 2184, TOPC = 2286, STRUCT = TOPC + 610;
+  const DX0 = -25, DX1 = W + 51, DZ0 = -51, DZ1 = L + 51, DEP = 127;
+  const BW = 190, WALL_H = 3350;
+
+  // ======================= math
+  const M = {
+    I() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+    mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    T(x, y, z) { const m = M.I(); m[12] = x; m[13] = y; m[14] = z; return m; },
+    S(x, y, z) { const m = M.I(); m[0] = x; m[5] = y; m[10] = z; return m; },
+    RY(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; },
+    RX(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[5] = c; m[6] = s; m[9] = -s; m[10] = c; return m; },
+    persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), m = new Float32Array(16); m[0] = t / a; m[5] = t; m[10] = (fa + n) / (n - fa); m[11] = -1; m[14] = 2 * fa * n / (n - fa); return m; },
+    ortho(l, r, b, t, n, f) { const m = M.I(); m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n); m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n); return m; },
+    look(e, t, u) {
+      let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+      let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+      const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[4] = xy; m[5] = yy; m[6] = zy; m[8] = xz; m[9] = yz; m[10] = zz;
+      m[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); m[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); m[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); m[15] = 1;
+      return m;
+    },
+    xf(m, p) { const x = p[0], y = p[1], z = p[2]; const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, (m[2] * x + m[6] * y + m[10] * z + m[14]) / w, w]; }
+  };
+
+  // ======================= GL
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true, alpha: false });
+  const stage = document.getElementById("stage"), stageWrap = document.getElementById("stageWrap");
+  if (!gl) {
+    stage.insertAdjacentHTML("beforeend", '<p style="position:absolute;inset:auto 0 45% 0;text-align:center;font:600 16px var(--font-body);color:#13202b">This 3D view needs WebGL 2, which this browser doesn\'t offer.</p>');
+    return;
+  }
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  function prog(vs, fs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.bindAttribLocation(p, 1, "aNor"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+
+  const VS = `#version 300 es
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=7) in vec4 iSzA; layout(location=8) in vec4 iEm;
+  uniform mat4 uVP, uLVP;
+  out vec3 vW; out vec3 vN; out vec4 vL; out vec3 vLoc; out vec3 vLocN;
+  flat out vec4 vCol; flat out vec4 vSzA; flat out vec4 vEm;
+  void main(){
+    mat4 Mo = mat4(iM0, iM1, iM2, iM3);
+    vec4 w = Mo*vec4(aPos,1.0); vW = w.xyz;
+    vN = normalize(transpose(inverse(mat3(Mo)))*aNor);
+    vL = uLVP*w; vLoc = aPos; vLocN = aNor; vCol = iCol; vSzA = iSzA; vEm = iEm;
+    gl_Position = uVP*w;
+  }`;
+  const FS = `#version 300 es
+  precision highp float; precision highp sampler2DShadow;
+  in vec3 vW; in vec3 vN; in vec4 vL; in vec3 vLoc; in vec3 vLocN;
+  flat in vec4 vCol; flat in vec4 vSzA; flat in vec4 vEm;
+  uniform vec3 uEye; uniform vec3 uLD; uniform sampler2DShadow uSh; uniform float uShOn; uniform vec3 uFog;
+  out vec4 o;
+  float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float nz(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
+  void main(){
+    vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+    vec3 base = vCol.rgb; int mat = int(vCol.w + 0.5); vec3 sz = vSzA.xyz;
+    float specK = 0.10; float shin = 40.0;
+    vec3 lp = vLoc*sz;
+    if (mat==1){ float g = nz(vW.xz*0.012)*0.5 + nz(vW.xz*0.05)*0.3 + nz(vW.xz*0.35)*0.2; base *= 0.90 + 0.16*g; specK = 0.04; }
+    else if (mat==2){ vec2 p = abs(n.x)>0.5 ? vW.zy : vW.xy; float row = floor((p.y+300.0)/203.2); float off = mod(row,2.0)*203.2; float mx = mod(p.x+off, 406.4), my = mod(p.y+300.0, 203.2);
+      float j = max(1.0 - smoothstep(0.0, 9.0, min(mx, 406.4-mx)), 1.0 - smoothstep(0.0, 9.0, min(my, 203.2-my))); base *= mix(1.0, 0.80, j) * (0.95 + 0.07*nz(p*0.03)); specK = 0.03; }
+    else if (mat==3){ float a = (abs(vLocN.x)>0.5) ? lp.z : lp.x; if (abs(vLocN.y)>0.5) a = lp.x; float r = 0.5+0.5*sin(a*0.0628*3.14159); base *= 0.985 + 0.02*r; specK = 0.14; shin = 60.0; }
+    else if (mat==4){ float r = fract(lp.y/38.0); base *= mix(0.62, 1.0, smoothstep(0.15, 0.4, r)); specK = 0.18; }
+    else if (mat==5){ vec2 c = vec2(lp.z - sz.z*0.5, lp.y - sz.y*0.5); float d = length(c); float rings = smoothstep(0.35, 0.5, abs(fract(d/34.0)-0.5)); base = mix(vec3(0.16,0.18,0.2), base, rings*0.6); if (d > sz.y*0.5) base = vCol.rgb; specK = 0.08; }
+    else if (mat==6){ base *= 0.92 + 0.12*nz(vW.xz*0.08 + vW.y*0.05); specK = 0.35; shin = 30.0; }
+    float sh = 1.0;
+    if (uShOn > 0.5) {
+      vec3 pc = vL.xyz / vL.w * 0.5 + 0.5;
+      if (pc.x > 0.0 && pc.x < 1.0 && pc.y > 0.0 && pc.y < 1.0 && pc.z < 1.0) {
+        float bias = 0.0012; vec2 ts = vec2(1.0/float(textureSize(uSh, 0).x));
+        float s = texture(uSh, vec3(pc.xy + vec2(-0.75,-0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,-0.75)*ts, pc.z - bias))
+                + texture(uSh, vec3(pc.xy + vec2(-0.75,0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,0.75)*ts, pc.z - bias));
+        sh = 0.35 + 0.65*(s*0.25);
+      }
+    }
+    float dif = max(dot(n, -uLD), 0.0);
+    vec3 hemi = mix(vec3(0.70,0.71,0.73), vec3(1.0,1.0,1.0), n.y*0.5+0.5);
+    vec3 V = normalize(uEye - vW); vec3 H = normalize(V - uLD);
+    float sp = pow(max(dot(n,H),0.0), shin) * specK * sh;
+    vec3 col = base*(0.58*hemi + 0.62*dif*sh) + sp + vEm.rgb*vEm.w;
+    float d = length(uEye - vW);
+    col = mix(col, uFog, smoothstep(13000.0, 32000.0, d));
+    o = vec4(col, vSzA.w);
+  }`;
+  const DVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  uniform mat4 uLVP; void main(){ gl_Position = uLVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); }`;
+  const DFS = `#version 300 es
+  precision mediump float; out vec4 o; void main(){ o = vec4(1.0); }`;
+  const LVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP; flat out vec4 vC;
+  void main(){ gl_Position = uVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); vC = vec4(iCol.rgb*iMisc.y, iMisc.x); }`;
+  const LFS = `#version 300 es
+  precision mediump float; flat in vec4 vC; out vec4 o; void main(){ o = vC; }`;
+  const P_MAIN = prog(VS, FS), P_DEPTH = prog(DVS, DFS), P_LINE = prog(LVS, LFS);
+
+  // unit cube
+  const cubeF = [], cubeN = [], cubeI = [];
+  const faces = [[[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]], [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+                 [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]], [[0, -1, 0], [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]],
+                 [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]], [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]]];
+  faces.forEach(([nn, vs], f) => { vs.forEach(v => { cubeF.push(...v); cubeN.push(...nn); }); const b = f * 4; cubeI.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+  const edgeP = [0,0,0, 1,0,0, 1,0,0, 1,0,1, 1,0,1, 0,0,1, 0,0,1, 0,0,0, 0,1,0, 1,1,0, 1,1,0, 1,1,1, 1,1,1, 0,1,1, 0,1,1, 0,1,0, 0,0,0, 0,1,0, 1,0,0, 1,1,0, 1,0,1, 1,1,1, 0,0,1, 0,1,1];
+  function vao(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) { const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); }
+    if (idx) { const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW); }
+    gl.bindVertexArray(null); return v;
+  }
+  const CUBE = vao(cubeF, cubeN, cubeI), EDGES = vao(edgeP, null, null);
+  // per-instance data: model matrix (16), colour + material (4), size + alpha (4), emission (4), edge alpha + edge shade (4)
+  const IST = 32, INST = gl.createBuffer();
+  let instData = new Float32Array(IST * 512);
+  [CUBE, EDGES].forEach(v => {
+    gl.bindVertexArray(v); gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    [[2, 0], [3, 4], [4, 8], [5, 12], [6, 16], [7, 20], [8, 24], [9, 28]].forEach(([l, off]) => {
+      gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, IST * 4, off * 4); gl.vertexAttribDivisor(l, 1);
+    });
+    gl.bindVertexArray(null);
+  });
+  function fillInst(arr, trans) {
+    const n = arr.length;
+    if (instData.length < n * IST) instData = new Float32Array(n * IST * 2);
+    for (let k = 0; k < n; k++) {
+      const it = arr[k], o = it.o, b = k * IST;
+      instData.set(it.m, b);
+      instData[b + 16] = o.col[0]; instData[b + 17] = o.col[1]; instData[b + 18] = o.col[2]; instData[b + 19] = o.mat;
+      instData[b + 20] = o.s[0]; instData[b + 21] = o.s[1]; instData[b + 22] = o.s[2]; instData[b + 23] = it.a;
+      instData[b + 24] = o.emc[0]; instData[b + 25] = o.emc[1]; instData[b + 26] = o.emc[2]; instData[b + 27] = Math.max(o.em, o.g.st.em || 0);
+      instData[b + 28] = trans ? o.edge * Math.min(1, it.a * 2.2) : o.edge; instData[b + 29] = trans ? 0.4 : 0.42; instData[b + 30] = 0; instData[b + 31] = 0;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    gl.bufferData(gl.ARRAY_BUFFER, instData.subarray(0, Math.max(1, n) * IST), gl.STREAM_DRAW);
+    return n;
+  }
+  // shadow map
+  const SHS = 2048;
+  const shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, SHS, SHS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const LD = (() => { const v = [0.62, -1.0, -0.30]; const l = Math.hypot(...v); return v.map(x => x / l); })();
+  const LCTR = [1300, 900, 1650];
+  const LVP = M.mul(M.ortho(-5200, 5200, -5200, 5200, 100, 16000), M.look([LCTR[0] - LD[0] * 7000, LCTR[1] - LD[1] * 7000, LCTR[2] - LD[2] * 7000], LCTR, [0, 1, 0]));
+
+  // ======================= timeline + groups
+  const EASE = { lin: t => t, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const groups = [], objs = [];
+  function grp(name, tracks, o) {
+    o = o || {};
+    const g = { name, tracks: (tracks || []).slice().sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a)), pivot: o.pivot || [0, 0, 0], custom: o.custom || null, st: {} };
+    groups.push(g); return g;
+  }
+  function box(g, x0, y0, z0, x1, y1, z1, col, o) {
+    o = o || {};
+    const ob = { g, p: [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)], s: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], col, mat: o.mat || 0,
+      a: o.a == null ? 1 : o.a, edge: o.edge == null ? 0.62 : o.edge, shadow: o.shadow !== false, em: o.em || 0, emc: o.emc || [1, 1, 1], tag: o.tag || null };
+    objs.push(ob); return ob;
+  }
+  function val(g, prop, T, def) {
+    let v, found = false;
+    for (const k of g.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .2, "op", 0, 1, "lin")];
+  const slideIn = (s, a, b, dx, dz) => [tr(s, a, b, "tx", dx || 0, 0, "out"), tr(s, a, b, "tz", dz || 0, 0, "out"), tr(s, a, a + .25, "op", 0, 1, "lin")];
+  const popIn = (s, a, b) => [tr(s, a, b, "sc", 0.001, 1, "back"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const growIn = (s, a, b, ax) => [tr(s, a, b, ax, 0.001, 1, "inout"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const ghost = (s, a, b, to) => [tr(s, a, b, "op", 1, to, "inout")];
+  const unghost = (s, a, b, from) => [tr(s, a, b, "op", from, 1, "inout")];
+
+  // colours (linear-ish sRGB 0..1)
+  const C = {
+    conc: [0.74, 0.74, 0.72], concD: [0.66, 0.66, 0.64], cmu: [0.80, 0.79, 0.76], panel: [0.95, 0.955, 0.94], galv: [0.74, 0.77, 0.79], galvD: [0.58, 0.61, 0.64],
+    ss: [0.80, 0.82, 0.84], dark: [0.24, 0.26, 0.28], chrome: [0.86, 0.88, 0.90], glass: [0.55, 0.70, 0.80], white: [0.97, 0.97, 0.96], ure: [0.92, 0.78, 0.35],
+    grout: [0.55, 0.55, 0.53], unit: [0.80, 0.82, 0.83], sil: [0.92, 0.95, 0.97], red: [0.80, 0.18, 0.15], orange: [0.95, 0.55, 0.12], pvc: [0.60, 0.63, 0.66],
+    nylon: [0.93, 0.92, 0.88], im4: [0.18, 0.2, 0.22], heat: [0.92, 0.33, 0.18], cold: [0.35, 0.62, 0.95], green: [0.25, 0.75, 0.55]
+  };
+
+  // ---------- site (always): slab, depression, block walls N + E, south wall drawn see-through
+  const site = grp("site");
+  box(site, -6500, -260, -3400, DX0, 0, 7400, C.conc, { mat: 1, edge: 0 });
+  box(site, DX0, -260, DZ1 + BW, 6500, 0, 7400, C.conc, { mat: 1, edge: 0 });
+  box(site, DX0, -420, DZ0, DX1, -DEP, DZ1, [0.60, 0.61, 0.62], { mat: 1, edge: 0 });
+  box(site, -3200, -260, DZ0 - BW, DX1 + BW, WALL_H, DZ0, C.cmu, { mat: 2, edge: 0 });
+  box(site, DX1, -260, DZ0 - BW, DX1 + BW, WALL_H, DZ1 + BW, C.cmu, { mat: 2, edge: 0 });
+  box(site, -3200, -260, DZ1, DX1, WALL_H, DZ1 + BW, C.cmu, { mat: 2, a: .17, edge: .45, shadow: false });
+  // filler that "forms" the depression in step 1
+  const fill = grp("fill", [tr(0, 2.4, 4.0, "ty", 0, -150, "inout"), tr(0, 3.0, 4.0, "op", 1, 0, "lin")]);
+  box(fill, DX0, -DEP, DZ0, DX1, 0, DZ1, C.conc, { mat: 1, edge: 0 });
+  const formG = grp("form", [tr(0, 2.0, 2.6, "op", 0, 1, "lin"), tr(0, 6.6, 7.4, "op", 1, 0, "lin")]);
+  [[DX0, DZ0, DX1, DZ0 + 18], [DX0, DZ1 - 18, DX1, DZ1], [DX0, DZ0, DX0 + 18, DZ1], [DX1 - 18, DZ0, DX1, DZ1]].forEach(([a, b, c, d]) =>
+    box(formG, a, 0, b, c, 6, d, C.orange, { edge: 0, shadow: false, em: 0.25, emc: C.orange }));
+
+  // ---------- spacers (step 2)
+  const spZ = [25, 560, 1100, 1645, 2190, 2730, 3264];
+  spZ.forEach((zc, k) => { const g = grp("sp" + k, dropIn(1, .3 + k * .32, 1.0 + k * .32, 520)); box(g, 0, -DEP, zc - 25, W, -DEP + 25, zc + 26, C.galv, { mat: 6, edge: .55 }); });
+  [25, W - 25].forEach((xc, k) => { const g = grp("spn" + k, dropIn(1, 2.6 + k * .3, 3.3 + k * .3, 520)); box(g, xc - 25, -DEP, 51, xc + 26, -DEP + 25, L - 51, C.galv, { mat: 6, edge: .55 }); });
+  const airG = grp("air", [tr(1, 3.8, 4.4, "op", 0, .85, "lin"), tr(1, 6.2, 6.9, "op", .85, 0, "lin")]);
+  for (let k = 0; k < 6; k++) { const zc = (spZ[k] + spZ[k + 1]) / 2; box(airG, 300, -DEP + 4, zc - 18, W - 300, -DEP + 18, zc + 18, C.cold, { a: .85, edge: 0, shadow: false, em: .6, emc: C.cold }); }
+
+  // ---------- floor panels (step 3)
+  const fz = [0, 1096, 2193, L];
+  for (let k = 0; k < 3; k++) { const g = grp("fl" + k, slideIn(2, .3 + k * .8, 1.4 + k * .8, -1800, 0)); box(g, 0, -PT, fz[k], W, 0, fz[k + 1], C.galv, { mat: 6, edge: .5 }); }
+  const camG = grp("cam", [tr(2, 3.4, 3.8, "op", 0, 1, "lin"), tr(2, 3.4, 3.8, "em", 0, 1, "lin"), tr(2, 6.6, 7.6, "op", 1, 0, "lin")]);
+  [1096, 2193].forEach(zj => [450, 1346, 2242].forEach(xc => box(camG, xc - 22, 0, zj - 22, xc + 22, 8, zj + 22, [0.12, 0.34, 0.78], { edge: 0, shadow: false, em: 1, emc: [0.2, 0.45, 1] })));
+
+  // ---------- walls (step 4): north, east and south against the block walls first, then the open west side
+  const wallDefs = [];
+  wallDefs.push(["N3", 1795, 0, W, PT], ["N2", 897, 0, 1795, PT], ["N1", 0, 0, 897, PT]);
+  wallDefs.push(["E1", W - PT, PT, W, 1130], ["E2", W - PT, 1130, W, 2158], ["E3", W - PT, 2158, W, L - PT]);
+  wallDefs.push(["S3", 1795, L - PT, W, L], ["S2", 897, L - PT, 1795, L], ["S1", 0, L - PT, 897, L]);
+  wallDefs.push(["W3", 0, 2305, PT, L - PT], ["W2", 0, 1422, PT, 2305]);
+  function wallTracks(k, extraGhost) {
+    const a = .25 + k * .55;
+    const t = dropIn(3, a, a + .7, 700);
+    if (extraGhost) { t.push(...ghost(5, 0, .9, .14), ...unghost(6, 0, .8, .14), ...ghost(10, 0, .9, .14), ...unghost(11, 0, .8, .14)); }
+    return t;
+  }
+  wallDefs.forEach(([nm, x0, z0, x1, z1], k) => {
+    const isGhost = nm[0] === "S" || nm[0] === "W";
+    const g = grp(nm, wallTracks(k, isGhost));
+    box(g, x0, 0, z0, x1, WH, z1, C.panel, { mat: 3, edge: .55 });
+  });
+  // PP-340 door section (west wall, z 102..1422): jambs, header, heated frame and threshold
+  const dsec = grp("dsec", wallTracks(11, true));
+  box(dsec, 0, 0, PT, PT, WH, 254, C.panel, { mat: 3 });
+  box(dsec, 0, 1981, 254, PT, WH, 1270, C.panel, { mat: 3 });
+  box(dsec, 0, 0, 1270, PT, WH, 1422, C.panel, { mat: 3 });
+  box(dsec, -8, 0, 204, 0, 2031, 254, C.ss, { mat: 6, edge: .5 });
+  box(dsec, -8, 0, 1270, 0, 2031, 1320, C.ss, { mat: 6, edge: .5 });
+  box(dsec, -8, 1981, 204, 0, 2031, 1320, C.ss, { mat: 6, edge: .5 });
+  box(dsec, 0, 0, 254, PT, 6, 1270, C.ss, { mat: 6, edge: .4 });
+
+  // ---------- ceiling (step 5): three panels, the middle one with the evaporator opening
+  const OX0 = 1800, OX1 = 2395, OZ0 = 1345, OZ1 = 1990;
+  const ceil = [[0, 0, W, 1096], [0, 1096, OX0, 2193], [OX1, 1096, W, 2193], [OX0, 1096, OX1, OZ0], [OX0, OZ1, OX1, 2193], [0, 2193, W, L]];
+  ceil.forEach(([x0, z0, x1, z1], k) => {
+    const a = k < 3 ? .3 + k * .9 : (k < 5 ? 1.2 : 2.1);
+    const t = dropIn(4, a, a + .8, 900);
+    t.push(...ghost(5, 0, .9, .1), ...unghost(6, 0, .8, .1), ...ghost(10, 0, .9, .12), ...unghost(11, 0, .8, .12));
+    const g = grp("c" + k, t);
+    box(g, x0, WH, z0, x1, TOPC, z1, C.panel, { mat: 3, edge: .55 });
+  });
+
+  // ---------- silicone + seismic angle + anchors (step 6)
+  const silG = grp("sil", [...fadeIn(5, 1.0, 1.4), tr(5, 1.0, 1.6, "em", 0, 1, "lin"), tr(5, 6.5, 8.0, "em", 1, 0, "lin")]);
+  const S_ = 12, SILC = { edge: 0, shadow: false, emc: [0.2, 0.75, 1] };
+  [[PT, PT], [W - PT - S_, PT], [PT, L - PT - S_], [W - PT - S_, L - PT - S_]].forEach(([x, z]) => box(silG, x, 0, z, x + S_, WH, z + S_, C.sil, SILC));
+  [[897, PT], [1795, PT], [897, L - PT - S_], [1795, L - PT - S_]].forEach(([x, z]) => box(silG, x - 6, 0, z, x + 6, WH, z + S_, C.sil, SILC));
+  [[W - PT - S_, 1130], [W - PT - S_, 2158], [PT, 2305], [PT, 1422]].forEach(([x, z]) => box(silG, x, 0, z - 6, x + S_, WH, z + 6, C.sil, SILC));
+  [[PT, WH - S_, PT, W - PT, WH, PT + S_], [PT, WH - S_, L - PT - S_, W - PT, WH, L - PT], [PT, WH - S_, PT, PT + S_, WH, L - PT], [W - PT - S_, WH - S_, PT, W - PT, WH, L - PT],
+   [PT, WH - S_, 1090, W - PT, WH, 1102], [PT, WH - S_, 2187, W - PT, WH, 2199]].forEach(b => box(silG, b[0], b[1], b[2], b[3], b[4], b[5], C.sil, SILC));
+  const runs = [
+    ["aN", "gx", [PT, 0, PT, W - PT, 4, PT + 51], [PT, 0, PT, W - PT, 51, PT + 3], [PT, 0, PT]],
+    ["aE", "gz", [W - PT - 51, 0, PT, W - PT, 4, L - PT], [W - PT - 3, 0, PT, W - PT, 51, L - PT], [0, 0, PT]],
+    ["aS", "gx", [PT, 0, L - PT - 51, W - PT, 4, L - PT], [PT, 0, L - PT - 3, W - PT, 51, L - PT], [W - PT, 0, 0]],
+    ["aW", "gz", [PT, 0, 1270, PT + 51, 4, L - PT], [PT, 0, 1270, PT + 3, 51, L - PT], [0, 0, L - PT]],
+    ["aW0", "gz", [PT, 0, PT, PT + 51, 4, 254], [PT, 0, PT, PT + 3, 51, 254], [0, 0, PT]]
+  ];
+  runs.forEach(([nm, ax, hb, vb, pv], k) => {
+    const g = grp(nm, growIn(5, 2.0 + k * .5, 3.2 + k * .5, ax), { pivot: pv });
+    box(g, ...hb, C.ss, { mat: 6, edge: .5 }); box(g, ...vb, C.ss, { mat: 6, edge: .5 });
+  });
+  const anchors = [];
+  for (let x = 330; x < W - PT - 60; x += 406) { anchors.push([x, PT + 26]); anchors.push([W - x, L - PT - 26]); }
+  for (let z = 420; z < L - PT - 60; z += 406) anchors.push([W - PT - 26, z]);
+  for (let z = 1500; z < L - PT - 60; z += 406) anchors.push([PT + 26, z]);
+  anchors.sort((a, b) => Math.atan2(a[1] - 1645, a[0] - 1346) - Math.atan2(b[1] - 1645, b[0] - 1346));
+  anchors.forEach(([x, z], k) => { const g = grp("an" + k, popIn(5, 4.4 + k * .1, 4.8 + k * .1), { pivot: [x, 4, z] }); box(g, x - 13, 4, z - 13, x + 13, 18, z + 13, C.dark, { edge: .4 }); });
+
+  // ---------- door gap, closing trims, seismic moldings (step 7)
+  const ureG = grp("ure", growIn(6, .4, 1.8, "gz"), { pivot: [0, 0, DZ0] });
+  box(ureG, DX0, -PT + 8, DZ0, 0, -8, DZ1, C.ure, { edge: .4 });
+  const groutG = grp("grout", fadeIn(6, 1.8, 2.4));
+  box(groutG, DX0 - 2, -10, 254, 2, 0, 1270, C.grout, { mat: 1, edge: .4 });
+  const zG = grp("ztrim", fadeIn(6, 2.2, 2.6));
+  box(zG, DX0, 0, 254, 40, 3, 1270, C.galv, { mat: 6, edge: .4 });
+  const ctG = grp("ctrim", fadeIn(6, 2.8, 3.4));
+  box(ctG, -4, 0, DZ0, 0, TOPC, 76, C.white, { edge: .5 });
+  box(ctG, -4, 0, L - 76, 0, TOPC, DZ1, C.white, { edge: .5 });
+  const molds = [[65, 1335, "n"], [1357, 2627, "n"], [265, 1535, "e"], [1765, 3035, "e"], [65, 1335, "s"], [1357, 2627, "s"]];
+  molds.forEach(([a, b, side], k) => {
+    const g = grp("m" + k, dropIn(6, 4.0 + k * .35, 4.8 + k * .35, 500));
+    if (side === "n") { box(g, a, TOPC, DZ0, b, TOPC + 4, 76, C.galv, { mat: 6 }); box(g, a, TOPC, DZ0, b, TOPC + 152, DZ0 + 4, C.galv, { mat: 6 }); }
+    else if (side === "s") { box(g, a, TOPC, L - 76, b, TOPC + 4, DZ1, C.galv, { mat: 6 }); box(g, a, TOPC, DZ1 - 4, b, TOPC + 152, DZ1, C.galv, { mat: 6 }); }
+    else { box(g, W - 76, TOPC, a, DX1, TOPC + 4, b, C.galv, { mat: 6 }); box(g, DX1 - 4, TOPC, a, DX1, TOPC + 152, b, C.galv, { mat: 6 }); }
+  });
+
+  // ---------- door + bumpers (step 8)
+  const doorG = grp("door", [tr(7, .2, .5, "op", 0, 1, "lin"), tr(7, .2, .2, "ry", -78, -78, "lin"), tr(7, 1.6, 3.4, "ry", -78, 0, "inout"),
+                             tr(10, 0, .9, "op", 1, .2, "inout"), tr(11, 0, .8, "op", .2, 1, "inout")], { pivot: [-20, 0, 254] });
+  box(doorG, -20, 0, 254, 82, 1975, 1268, C.panel, { mat: 3, edge: .55 });
+  box(doorG, -24, 1295, 572, -18, 1803, 953, C.dark, { edge: 0 });
+  box(doorG, -27, 1320, 597, -21, 1778, 928, C.glass, { a: .75, edge: 0, mat: 6 });
+  box(doorG, -70, 940, 1120, -20, 1230, 1172, C.chrome, { mat: 6, edge: .5 });
+  box(doorG, -84, 1060, 1060, -70, 1110, 1172, C.chrome, { mat: 6, edge: .5 });
+  [300, 1000, 1700].forEach(y => box(doorG, -46, y, 240, -16, y + 160, 272, C.chrome, { mat: 6, edge: .5 }));
+  const bmpG = grp("bmp", [...fadeIn(7, 4.4, 5.2), ...ghost(10, 0, .9, .15), ...unghost(11, 0, .8, .15)]);
+  [[224, 376], [524, 676]].forEach(([y0, y1]) => { box(bmpG, -51, y0, 1430, 0, y1, 3150, C.white, { edge: .6 }); box(bmpG, PT, y0, 1430, PT + 51, y1, 3150, C.white, { edge: .6 }); });
+
+  // ---------- refrigeration unit (step 9): long side east-west, evaporator end 7" from the east wall
+  const UX0 = 1107, UXE = 1783, UX1 = 2412, UZ0 = 1305, UZ1 = 2030, UZC = (UZ0 + UZ1) / 2;
+  const unitG = grp("unit", dropIn(8, .5, 2.6, 1500, "inout"));
+  box(unitG, OX0, 2183, OZ0, OX1, TOPC, OZ1, C.unit, { mat: 6 });
+  box(unitG, UXE, TOPC, UZ0, UX1, TOPC + 457, UZ1, C.unit, { mat: 6, edge: .5 });
+  box(unitG, UX0, TOPC, UZ0, UXE, TOPC + 509, UZ1, C.unit, { mat: 4, edge: .5 });
+  box(unitG, UX0 - 8, TOPC + 6, UZC - 250, UX0, TOPC + 506, UZC + 250, C.dark, { mat: 5, edge: 0 });
+  box(unitG, UX0 - 50, TOPC, UZ0 + 15, UX1 + 50, TOPC + 18, UZ0 + 55, C.galvD, { mat: 6 });
+  box(unitG, UX0 - 50, TOPC, UZ1 - 55, UX1 + 50, TOPC + 18, UZ1 - 15, C.galvD, { mat: 6 });
+  const fanG = grp("fan", dropIn(8, .5, 2.6, 1500, "inout"), { pivot: [UX0 - 11, TOPC + 256, UZC] });
+  for (let k = 0; k < 3; k++) box(fanG, UX0 - 14, TOPC + 246, UZC - 210, UX0 - 8, TOPC + 266, UZC + 210, [0.55, 0.58, 0.6], { edge: 0, tag: "blade" + k });
+  const evapAir = grp("evapAir", [tr(8, 3.2, 3.8, "op", 0, .8, "lin"), tr(8, 6.6, 7.6, "op", .8, 0, "lin")]);
+  [1880, 2097, 2315].forEach(x => box(evapAir, x - 16, 1500, UZC - 16, x + 16, 2170, UZC + 16, C.cold, { a: .8, edge: 0, shadow: false, em: .7, emc: C.cold }));
+
+  // ---------- top enclosure on the open west side + ventilation (step 10)
+  const encl = grp("encl", [...dropIn(9, .3, 1.6, 700), tr(9, 3.0, 3.8, "op", 1, .25, "inout"), tr(10, 0, .9, "op", .25, .1, "inout"), tr(11, 0, .8, "op", .1, 1, "inout")]);
+  box(encl, 0, TOPC, DZ0, PT, STRUCT, DZ1, C.panel, { mat: 3, edge: .55 });
+  const structG = grp("struct", [tr(9, 1.6, 2.4, "op", 0, .9, "lin"), tr(9, 7.2, 8.0, "op", .9, 0, "lin")]);
+  box(structG, -200, STRUCT - 10, DZ0, DX1, STRUCT + 10, DZ0 + 6, C.orange, { edge: 0, shadow: false, em: .5, emc: C.orange });
+  box(structG, DX1 - 6, STRUCT - 10, DZ0, DX1, STRUCT + 10, DZ1, C.orange, { edge: 0, shadow: false, em: .5, emc: C.orange });
+  box(structG, -200, STRUCT - 10, DZ1 - 6, DX1, STRUCT + 10, DZ1, C.orange, { edge: 0, shadow: false, em: .5, emc: C.orange });
+  const heat = [];
+  for (let k = 0; k < 8; k++) heat.push({ x: UX0 + 80 + (k % 4) * 165, z: UZ0 + 40 + (k * 137) % 640, ph: k / 8 });
+  const heatG = grp("heat", []);
+  const heatObjs = heat.map(h => box(heatG, h.x - 14, 0, h.z - 14, h.x + 14, 180, h.z + 14, C.heat, { a: .9, edge: 0, shadow: false, em: .8, emc: C.heat }));
+
+  // ---------- light, controls and wiring (step 11)
+  const el = (nm, a, list) => { const g = grp(nm, popIn(10, a, a + .45), { pivot: list.pivot }); list.items.forEach(b => box(g, ...b.slice(0, 6), b[6], b[7] || {})); return g; };
+  el("light", 1.0, { pivot: [222, 2160, 767], items: [[110, 2140, 690, 335, 2184, 845, C.white, { em: 0, emc: [1, .97, .85], edge: .5, tag: "lamp", shadow: false }], [160, TOPC, 705, 285, TOPC + 60, 830, C.pvc, { edge: .5, shadow: false }]] });
+  el("im4", 1.6, { pivot: [-28, 1450, 1450], items: [[-55, 1300, 1370, 0, 1600, 1530, C.im4, { edge: .5 }], [-58, 1470, 1400, -55, 1560, 1500, [0.2, 0.9, 0.7], { em: .9, emc: [0.2, 0.9, 0.7], edge: 0 }]] });
+  el("panic", 2.4, { pivot: [114, 1110, 1370], items: [[PT, 1080, 1340, PT + 24, 1140, 1400, C.red, { em: .7, emc: C.red, edge: 0 }]] });
+  el("vent", 2.9, { pivot: [116, 1825, 2725], items: [[PT, 1750, 2650, PT + 30, 1900, 2800, C.galvD, { edge: .5 }], [-30, 1750, 2650, 0, 1900, 2800, C.galvD, { edge: .5 }]] });
+  el("probe", 3.4, { pivot: [1066, 2170, 2048], items: [[991, 2160, 2028, 1141, 2184, 2068, C.nylon, { edge: .5, shadow: false }], [1021, 2120, 2040, 1111, 2160, 2056, C.dark, { edge: 0, shadow: false }]] });
+  const condG = grp("cond", growIn(10, 4.0, 5.2, "gy"), { pivot: [0, 1600, 0] });
+  box(condG, -40, 1600, 1430, -19, 2311, 1451, C.pvc, { edge: .4, shadow: false });
+  const cond2 = grp("cond2", growIn(10, 5.0, 6.2, "gx"), { pivot: [-40, 0, 0] });
+  box(cond2, -40, 2290, 1430, 300, 2311, 1451, C.pvc, { edge: .4, shadow: false });
+  box(cond2, 290, 2290, 767, 311, 2311, 1451, C.pvc, { edge: .4, shadow: false });
+  const cond3 = grp("cond3", growIn(10, 6.0, 7.2, "gx"), { pivot: [300, 0, 0] });
+  box(cond3, 300, 2290, 1430, 1077, 2311, 1451, C.pvc, { edge: .4, shadow: false });
+  box(cond3, 1056, 2290, 1430, 1077, 2311, 2048, C.pvc, { edge: .4, shadow: false });
+  el("rcp", 6.8, { pivot: [1300, 2600, DZ0 + 5], items: [[1250, 2550, DZ0, 1350, 2650, DZ0 + 12, C.white, { edge: .6 }]] });
+  const cordG = grp("cord", growIn(10, 7.2, 8.0, "gz"), { pivot: [0, 0, UZ0] });
+  box(cordG, 1290, TOPC + 30, DZ0 + 12, 1312, TOPC + 52, UZ0, C.dark, { edge: 0, shadow: false });
+  const cordV = grp("cordV", growIn(10, 8.0, 8.6, "gy"), { pivot: [0, TOPC + 30, 0] });
+  box(cordV, 1290, TOPC + 30, DZ0 + 12, 1312, 2560, DZ0 + 34, C.dark, { edge: 0, shadow: false });
+
+  // ---------- start-up (step 12): lamp on, fan spins, cold behind the window
+  const coldG = grp("cold", [tr(11, 1.0, 2.0, "op", 0, .55, "lin"), tr(11, 8.4, 9.6, "op", .55, 0, "lin")]);
+  box(coldG, -26, 1330, 607, -24, 1768, 918, C.cold, { a: .5, edge: 0, shadow: false, em: 1, emc: [0.55, 0.8, 1] });
+
+  // custom animations: heat plumes, fan spin, lamp
+  const lampObj = objs.find(o => o.tag === "lamp");
+  function customs(T) {
+    const s9 = starts[9], t9 = T - s9;
+    const on9 = T >= s9 + 2.0 && T < s9 + STEPS[9].dur;
+    heat.forEach((h, k) => {
+      const ob = heatObjs[k];
+      if (!on9) { ob.a = 0; return; }
+      const ph = ((t9 - 2.0) / 1.6 + h.ph) % 1;
+      ob.p = [h.x - 14, TOPC + 540 + ph * 260, h.z - 14];
+      ob.a = .85 * Math.sin(Math.PI * ph);
+    });
+    const s11 = starts[11];
+    fanG.st.rx = T >= s11 + .5 ? (T - s11 - .5) * 9 : 0;
+    lampObj.em = (T >= starts[10] + 1.4 && T < starts[10] + STEPS[10].dur) || T >= s11 + .5 ? 1.1 : 0;
+  }
+
+  // ======================= labels + dims (overlay)
+  const ovl = document.getElementById("ovl"), ovsvg = document.getElementById("ovsvg"), badgeEl = document.getElementById("badge"), outroEl = document.getElementById("outro");
+  const labels = [];
+  function lab(step, a, at, text, sub, o) {
+    o = o || {};
+    const el = document.createElement("div");
+    el.className = "lbl" + (o.hold ? " hold" : "") + (o.big ? " big" : "") + (o.minor ? " minor" : "");
+    el.style.setProperty("--c", "var(--" + (o.c || STEPS[step].c) + ")");
+    el.innerHTML = text + (sub ? "<small>" + sub + "</small>" : "");
+    ovl.appendChild(el);
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", o.hold ? "#c3322c" : "#13202b"); ln.setAttribute("stroke-width", "1.4"); ln.setAttribute("opacity", ".8");
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("fill", o.hold ? "#c3322c" : "#13202b"); dot.setAttribute("r", "3.2");
+    ovsvg.appendChild(ln); ovsvg.appendChild(dot);
+    labels.push({ step, a, at, off: o.off || [-6, -4], el, ln, dot, keep: !!o.keep, until: o.until == null ? null : o.until });
+  }
+  const dims = [];
+  function dim(step, a, p1, p2, text, o) {
+    o = o || {};
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", "#13202b"); ln.setAttribute("stroke-width", "1.6");
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "line"), t2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    [t1, t2].forEach(t => { t.setAttribute("stroke", "#13202b"); t.setAttribute("stroke-width", "2.2"); });
+    g.appendChild(ln); g.appendChild(t1); g.appendChild(t2); ovsvg.appendChild(g);
+    const el = document.createElement("div"); el.className = "dimt"; el.textContent = text; ovl.appendChild(el);
+    dims.push({ step, a, p1, p2, g, ln, t1, t2, el, keep: !!o.keep });
+  }
+  // step 1
+  dim(0, 4.0, [DX0, 6, DZ1 + 60], [DX1, 6, DZ1 + 60], "9′-1″ [2769]");
+  dim(0, 4.4, [DX0 - 60, 6, DZ0], [DX0 - 60, 6, DZ1], "11′-1½″ [3391]");
+  dim(0, 4.8, [DX0 - 60, -DEP, DZ1 + 60], [DX0 - 60, 0, DZ1 + 60], "5″ [127]");
+  lab(0, 5.2, [1350, 2300, DZ0 - 2], "Block walls N, E + S", "2″ min. air space to the cooler", { off: [3, -3] });
+  // step 2
+  lab(1, 1.4, [1350, -110, 1100], "1″ galv. spacers, 16 ga", "run east–west per the layout", { off: [-7, -5] });
+  lab(1, 4.0, [2400, -110, 1920], "Air moves under the floor", "det. D, 5/11", { off: [4, -4] });
+  // step 3
+  lab(2, 1.6, [1200, 0, 2700], "4″ floor panel", "18 ga galv. top on ½″ plywood", { off: [-7, -4] });
+  lab(2, 3.6, [1346, 8, 1096], "Camlock joints", "Adbond #4552 factory-applied", { off: [5, -5] });
+  lab(2, 4.6, [-12, 0, 2600], "1″ gap on the door side", "2″ at the other sides", { off: [-6, 2] });
+  // step 4
+  lab(3, 1.0, [W - 40, WH, 30], "Along the block walls first", null, { off: [3, -4] });
+  lab(3, 3.2, [1800, 1500, L + 25], "2″ min. air space", "to the block walls", { off: [5, 1] });
+  lab(3, 5.4, [0, 1500, 2750], "86″ × 4″ wall panels", "Igloo White 26 ga · Class A", { off: [-6, 3] });
+  lab(3, 6.8, [0, 2000, 760], "PP-340 door section", "40″ × 78″ opening, 10″ from N face", { off: [-7, -3] });
+  // step 5
+  lab(4, 1.4, [700, TOPC, 2700], "4″ ceiling · top 7′-6″ A.F.F.", "7′-11″ [2413] overall", { off: [-7, -3] });
+  lab(4, 2.4, [(OX0 + OX1) / 2, TOPC, (OZ0 + OZ1) / 2], "Evaporator opening", "near the east wall", { off: [4, -4] });
+  lab(4, 3.4, [1346, TOPC, 500], "8′-2″ span: no suspension", "Norbec needs it over 12′", { off: [-2, -5] });
+  // step 6
+  lab(5, 1.4, [PT + 6, 1400, L - PT - 6], "Silicone every joint", "inside, after installation", { off: [-6, -3] });
+  lab(5, 2.6, [1600, 51, PT + 3], "SS angle 2″ × 2″, 18 ga", "Tek #8 × ¾″ SS @ 16″", { off: [3, -5] });
+  lab(5, 5.0, [anchors[Math.floor(anchors.length * .62)][0], 18, anchors[Math.floor(anchors.length * .62)][1]], "Hilti Kwik HUS-EZ ⅜″ × 5″", "@ 16″ into the slab", { off: [-5, 3] });
+  // step 7
+  lab(6, 1.0, [-12, -50, 2600], "Low-expansion urethane", "in the 1″ gap, on site", { off: [-6, 2] });
+  lab(6, 2.0, [-12, 0, 760], "Grout in front of the door", "by others · Z trim 18 ga", { off: [-7, -3] });
+  lab(6, 3.2, [-2, 1700, L - 20], "Closing trims 2″ × 5″", "NW + SW corners · Tek #8 @ 16″", { off: [-5, 2] });
+  lab(6, 4.8, [700, TOPC + 120, DZ0 + 2], "Seismic moldings 4″ × 6″ × 50″", "14 ga · screws @ 16″ · 3″ min. lap", { off: [-3, -5] });
+  // step 8
+  lab(7, 2.2, [-10, 6, 760], "Heated frame + threshold", "grey silicone 4551", { off: [-6, 3] });
+  lab(7, 3.0, [-27, 1700, 700], "Heated window 15″ × 20″", null, { off: [-6, -3] });
+  lab(7, 3.8, [-80, 1085, 1150], "Kason 1236 lever, chrome", null, { off: [5, -3] });
+  lab(7, 5.0, [-51, 450, 2400], "Bumpers 2″ × 6″ @ 12″ + 24″", "HDPE white per DSA · inside + out", { off: [4, 3] });
+  // step 9
+  lab(8, 2.8, [(UX0 + UXE) / 2, TOPC + 509, UZC], "Bohn PT0078MBNAMCA", "7,720 BTU/h @ 35 °F · R-448A · 220 lb", { off: [-6, -4] });
+  lab(8, 3.6, [UX1, TOPC + 300, UZ1], "Evaporator end, 7″ from east wall", "2″ min. per Bohn", { off: [4, -4] });
+  lab(8, 4.6, [UX0 - 8, TOPC + 250, UZC], "Condenser fan", "plug-in cord · NEMA 6-15R", { off: [-7, 2] });
+  // step 10
+  lab(9, 1.8, [50, 2600, 2700], "Top enclosure, west side, fixed", "24″ [610] to be confirmed · 36″ max", { off: [-7, 2] });
+  lab(9, 2.6, [-150, STRUCT, DZ0 + 3], "Underside of structure", "≈ 24″ above the cooler (TBC)", { off: [-2, -4], c: "hold" });
+  lab(9, 3.8, [(UX0 + UXE) / 2, TOPC + 760, UZC], "Ventilate: 90 °F (32 °C) max", "11,600 BTU/h heat · by others", { off: [-4, -4], hold: true });
+  // step 11
+  lab(10, 1.6, [222, 2140, 767], "Vapour-proof LED light", "junction box on the ceiling", { off: [-6, -4], until: 6.3 });
+  lab(10, 2.0, [-58, 1515, 1450], "IM4 module + dry contact", "outside, by the door", { off: [-6, 2] });
+  lab(10, 2.8, [PT + 24, 1110, 1370], "Panic button", null, { off: [4, 2], minor: true, until: 6.3 });
+  lab(10, 3.3, [PT + 30, 1825, 2725], "Heated pressure relief vent", null, { off: [4, -2], minor: true, until: 6.3 });
+  lab(10, 3.8, [1066, 2140, 2048], "IM4 probe in the dark zone", "not in front of the door", { off: [3, 3] });
+  lab(10, 6.6, [-30, 2300, 1440], "Seal every penetration", "grommets + silicone", { off: [-7, -3] });
+  lab(10, 7.6, [1300, 2600, DZ0 + 12], "6-15R receptacle", "by electrical", { off: [3, -3] });
+  // step 12
+  lab(11, 1.4, [-58, 1515, 1450], "35 °F", null, { big: true, off: [-4, -3], keep: true });
+  lab(11, 2.8, [-26, 1550, 762], "Door heaters + alarms tested", "door alarm 15 min · lights off 5 min", { off: [-7, 3], keep: true });
+  lab(11, 4.6, [0, STRUCT, 2600], "Ready for consultant review", "DSA · mechanical · electrical", { off: [3, -4], keep: true });
+
+  // ======================= render
+  let stageW = 960, stageH = 540, dpr = 1, lensShift = -0.12, camScale = 1;
+  const PROJ = { vp: null };
+  function camAt(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    const c1 = STEPS[i].cam;
+    let p = c1[0].slice(), t = c1[1].slice();
+    if (i > 0 && tau < CAM_T) {
+      const c0 = STEPS[i - 1].cam, k = EASE.inout(tau / CAM_T);
+      const d0 = drift(i - 1, STEPS[i - 1].dur);
+      p = c0[0].map((v, j) => v + (c1[0][j] - v) * k); t = c0[1].map((v, j) => v + (c1[1][j] - v) * k);
+      // blend from previous drift
+      const a0 = d0 * (1 - k);
+      p = rotAbout(p, t, a0);
+    }
+    const a = drift(i, tau);
+    if (!(i > 0 && tau < CAM_T)) p = rotAbout(p, t, a); else p = rotAbout(p, t, a * EASE.inout(tau / CAM_T));
+    if (camScale !== 1) p = t.map((v, j) => v + (p[j] - v) * camScale);
+    return { p, t };
+  }
+  function drift(i, tau) { return (i === STEPS.length - 1 ? 0.045 : 0.011) * tau; }
+  function rotAbout(p, t, a) { const dx = p[0] - t[0], dz = p[2] - t[2], c = Math.cos(a), s = Math.sin(a); return [t[0] + dx * c + dz * s, p[1], t[2] - dx * s + dz * c]; }
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+
+  function groupMatrix(g, T) {
+    const st = g.st;
+    st.op = val(g, "op", T, 1); st.tx = val(g, "tx", T, 0); st.ty = val(g, "ty", T, 0); st.tz = val(g, "tz", T, 0);
+    st.sc = val(g, "sc", T, 1); st.ry = val(g, "ry", T, 0); st.em = val(g, "em", T, 0);
+    st.gx = val(g, "gx", T, 1); st.gy = val(g, "gy", T, 1); st.gz = val(g, "gz", T, 1);
+    const rx = st.rx || 0;
+    const pv = g.pivot;
+    let m = M.T(st.tx + pv[0], st.ty + pv[1], st.tz + pv[2]);
+    if (st.ry) m = M.mul(m, M.RY(st.ry * Math.PI / 180));
+    if (rx) m = M.mul(m, M.RX(rx));
+    const s = st.sc;
+    if (s !== 1 || st.gx !== 1 || st.gy !== 1 || st.gz !== 1) m = M.mul(m, M.S(s * st.gx, s * st.gy, s * st.gz));
+    m = M.mul(m, M.T(-pv[0], -pv[1], -pv[2]));
+    g.m = m;
+  }
+  function objMatrix(o) {
+    let m = M.mul(o.g.m, M.T(o.p[0], o.p[1], o.p[2]));
+    if (o.tag && o.tag.startsWith("blade")) {
+      const k = +o.tag.slice(5);
+      const pv = fanG.pivot;
+      m = M.mul(M.mul(M.mul(o.g.m, M.T(pv[0], pv[1], pv[2])), M.RX(k * Math.PI / 3)), M.T(-pv[0], -pv[1], -pv[2]));
+      m = M.mul(m, M.T(o.p[0], o.p[1], o.p[2]));
+    }
+    return M.mul(m, M.S(Math.max(o.s[0], .01), Math.max(o.s[1], .01), Math.max(o.s[2], .01)));
+  }
+
+  function draw(T) {
+    customs(T);
+    const cam = camAt(T);
+    const aspect = stageW / stageH;
+    const proj = M.persp(36 * Math.PI / 180, aspect, 60, 40000);
+    proj[9] = lensShift;
+    const view = M.look(cam.p, cam.t, [0, 1, 0]);
+    const VP = M.mul(proj, view);
+    PROJ.vp = VP;
+    for (const g of groups) groupMatrix(g, T);
+    const list = [];
+    for (const o of objs) {
+      const a = o.a * o.g.st.op;
+      if (a <= 0.004) continue;
+      const m = objMatrix(o);
+      const c = M.xf(m, [.5, .5, .5]);
+      const d = Math.hypot(c[0] - cam.p[0], c[1] - cam.p[1], c[2] - cam.p[2]);
+      list.push({ o, m, a, d, k: o.g === site ? 1e9 : d });
+    }
+    const opaque = list.filter(it => it.a >= .995).sort((a, b) => a.k - b.k);
+    const trans = list.filter(it => it.a < .995).sort((a, b) => b.d - a.d);
+    const casters = list.filter(it => it.o.shadow && it.a >= .9);
+    // shadow pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.viewport(0, 0, SHS, SHS);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.clear(gl.DEPTH_BUFFER_BIT); gl.colorMask(false, false, false, false);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
+    gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uLVP, false, LVP); gl.bindVertexArray(CUBE);
+    let n = fillInst(casters, false);
+    if (n) gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+    gl.colorMask(true, true, true, true);
+    // main pass: opaque front to back, faces culled
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.905, 0.918, 0.926, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(P_MAIN.p);
+    const u = P_MAIN.u;
+    gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uLVP, false, LVP);
+    gl.uniform3fv(u.uEye, cam.p); gl.uniform3fv(u.uLD, LD); gl.uniform3fv(u.uFog, [0.905, 0.918, 0.926]);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0); gl.uniform1f(u.uShOn, 1);
+    gl.polygonOffset(1, 2);
+    gl.enable(gl.CULL_FACE);
+    gl.bindVertexArray(CUBE);
+    n = fillInst(opaque, false);
+    if (n) gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+    gl.disable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+    // edges of the opaque boxes (same instance data)
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    gl.useProgram(P_LINE.p); gl.uniformMatrix4fv(P_LINE.u.uVP, false, VP); gl.bindVertexArray(EDGES);
+    if (n) gl.drawArraysInstanced(gl.LINES, 0, 24, n);
+    // transparent boxes back to front, then their edges
+    if (trans.length) {
+      n = fillInst(trans, true);
+      gl.useProgram(P_MAIN.p); gl.bindVertexArray(CUBE);
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.useProgram(P_LINE.p); gl.bindVertexArray(EDGES);
+      gl.drawArraysInstanced(gl.LINES, 0, 24, n);
+    }
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+    overlay(T, cam);
+  }
+
+  function toScreen(p) {
+    const q = M.xf(PROJ.vp, p);
+    return { x: (q[0] * .5 + .5) * stageW, y: (1 - (q[1] * .5 + .5)) * stageH, behind: q[3] <= 0 };
+  }
+  function winOp(step, a, T, keep) {
+    const s0 = starts[step], s1 = s0 + STEPS[step].dur;
+    let op = 0;
+    if (T >= s0 + a) op = Math.min(1, (T - s0 - a) / .35);
+    if (!keep) { if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4)); if (T >= s1) op = 0; }
+    return op;
+  }
+  let lf = 14;
+  function overlay(T, cam) {
+    const intro = document.getElementById("intro");
+    const io = T < INTRO_T ? 1 : Math.max(0, 1 - (T - INTRO_T) / .5);
+    intro.style.opacity = poster ? 0 : io;
+    const chrome = poster ? 1 : 1 - io;
+    const oo = VIDEO ? Math.max(0, Math.min(1, (T - (TOTAL - 2.4)) / .5)) : 0;
+    outroEl.style.opacity = oo;
+    badgeEl.style.opacity = chrome; cap.style.opacity = stageWrap.classList.contains("narrow") ? 1 : chrome;
+    const narrow = stageWrap.classList.contains("narrow");
+    const topY = badgeEl.offsetTop + badgeEl.offsetHeight + 6;
+    const botY = narrow ? stageH - 6 : stageH - cap.offsetHeight - stageH * 0.026 - 8;
+    for (const L of labels) {
+      let op = poster ? (L.step === STEPS.length - 1 && L.keep ? 1 : 0) : winOp(L.step, L.a, T, L.keep);
+      if (!poster && L.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[L.step] - L.until) / .35));
+      op *= 1 - oo;
+      L.el.style.opacity = op; L.ln.style.opacity = op * .85; L.dot.style.opacity = op;
+      if (op <= 0) continue;
+      const s = toScreen(L.at);
+      const ox = L.off[0] * lf, oy = L.off[1] * lf;
+      const w = L.el.offsetWidth, h = L.el.offsetHeight;
+      let x = s.x + ox, y = s.y + oy;
+      let bx = ox < 0 ? x - w : x, by = oy < 0 ? y - h : y;
+      bx = Math.max(6, Math.min(stageW - w - 6, bx)); by = Math.max(topY, Math.min(botY - h, by));
+      L.el.style.transform = "translate(" + Math.round(bx) + "px," + Math.round(by) + "px)";
+      const ex = Math.max(bx, Math.min(s.x, bx + w)), ey = Math.max(by, Math.min(s.y, by + h));
+      L.ln.setAttribute("x1", ex); L.ln.setAttribute("y1", ey); L.ln.setAttribute("x2", s.x); L.ln.setAttribute("y2", s.y);
+      L.dot.setAttribute("cx", s.x); L.dot.setAttribute("cy", s.y);
+    }
+    for (const Dm of dims) {
+      const op = poster ? 0 : winOp(Dm.step, Dm.a, T, Dm.keep);
+      Dm.g.style.opacity = op; Dm.el.style.opacity = op;
+      if (op <= 0) continue;
+      const a = toScreen(Dm.p1), b = toScreen(Dm.p2);
+      Dm.ln.setAttribute("x1", a.x); Dm.ln.setAttribute("y1", a.y); Dm.ln.setAttribute("x2", b.x); Dm.ln.setAttribute("y2", b.y);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 7, ny = dx / l * 7;
+      Dm.t1.setAttribute("x1", a.x - nx); Dm.t1.setAttribute("y1", a.y - ny); Dm.t1.setAttribute("x2", a.x + nx); Dm.t1.setAttribute("y2", a.y + ny);
+      Dm.t2.setAttribute("x1", b.x - nx); Dm.t2.setAttribute("y1", b.y - ny); Dm.t2.setAttribute("x2", b.x + nx); Dm.t2.setAttribute("y2", b.y + ny);
+      const w = Dm.el.offsetWidth, h = Dm.el.offsetHeight;
+      Dm.el.style.transform = "translate(" + Math.round((a.x + b.x) / 2 - w / 2 + nx * 2.2) + "px," + Math.round((a.y + b.y) / 2 - h / 2 + ny * 2.2) + "px)";
+    }
+    // compass
+    const c0 = toScreen(cam.t), c1 = toScreen([cam.t[0], cam.t[1], cam.t[2] - 1000]);
+    const ang = Math.atan2(c1.x - c0.x, -(c1.y - c0.y)) * 180 / Math.PI;
+    document.getElementById("cneedle").setAttribute("transform", "rotate(" + ang.toFixed(1) + ")");
+  }
+
+  // ======================= UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs"), cap = $("cap");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step"; li.style.setProperty("--c", "var(--" + s.c + ")");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title + '</span><span class="w">' + s.who + '</span></button>' +
+      '<div class="step-body" hidden><ul>' + LIST[i].map(b => "<li>" + b + "</li>").join("") + "</ul>" +
+      (s.hold ? '<p class="hold"><b>Hold</b>' + s.hold + "</p>" : "") + '<p class="ref">' + s.ref + "</p></div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li); stepLis.push(li);
+    const b = document.createElement("button"); b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur); b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b); segFills.push(b.firstChild);
+  });
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shown = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = !VIDEO;
+  function updateUI(t) {
+    const i = stepAt(t);
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%"; segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    const key = poster + "|" + i;
+    if (key !== shown) {
+      shown = key;
+      const s = STEPS[i];
+      stepLis.forEach((li, k) => { const on = !poster && k === i; li.classList.toggle("active", on); li.querySelector(".step-head").setAttribute("aria-expanded", on); li.querySelector(".step-body").hidden = !on; });
+      const b = $("badge");
+      b.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      $("bNum").textContent = poster ? "✓" : String(i + 1);
+      $("bTitle").textContent = poster ? "Installed cooler" : s.title;
+      $("bWho").textContent = poster ? "" : s.who;
+      cap.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      cap.innerHTML = poster
+        ? "<ul><li>Norbec walk-in cooler #10, 8′-10″ × 10′-9½″ outside, in a 5″ floor depression, with a Bohn top-mount unit.</li><li>Play it to see the 12 install steps, each tied to the stamped shop drawing.</li></ul><div class=\"ref\">Norbec S-294496 rev 02 · stamped F. Desjardins, P.Eng.</div>"
+        : "<ul>" + s.lines.map(x => "<li>" + x + "</li>").join("") + "</ul>" + (s.hold ? '<div class="hold"><b>Hold</b>' + s.hold + "</div>" : "") + '<div class="ref">' + s.ref + "</div>";
+    }
+    $("bigPlay").hidden = playing || !poster || VIDEO;
+  }
+  function render(t) { draw(t); updateUI(t); }
+  function setPlay() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts; render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) { const i = stepAt(T); T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001); playing = false; render(T); setPlay(); return; }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { const j = Math.min(i + 1, STEPS.length - 1); stopAt = stopEach ? Math.min(TOTAL, starts[j] + STEPS[j].dur - .001) : TOTAL; }
+    playing = true; lastTs = null; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); setPlay(); render(T);
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlay(); render(T); }
+  function goStep(i, auto) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i)); poster = false; cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlay(); return; }
+    T = starts[i] + (i === 0 ? 0 : 0); render(T);
+    if (auto) { stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; playing = true; lastTs = null; raf = requestAnimationFrame(tick); }
+    setPlay();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => { if (poster) return goStep(STEPS.length - 1, true); const i = stepAt(T); goStep(T - starts[i] > 1.5 ? i : i - 1, true); });
+  $("stopEach").addEventListener("click", e => { stopEach = !stopEach; e.currentTarget.setAttribute("aria-pressed", stopEach); if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; } });
+  $("speed").addEventListener("click", e => { speed = speed === 1 ? .5 : 1; e.currentTarget.textContent = speed === 1 ? "1×" : "½×"; });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select, summary")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    dpr = VIDEO ? 1 : Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(stageW * dpr); canvas.height = Math.round(stageH * dpr);
+    lf = Math.max(11, Math.min(24, stageW / 86));
+    stage.style.setProperty("--lf", lf + "px");
+    stage.style.setProperty("--tf", Math.max(14, Math.min(40, stageW / 50)) + "px");
+    stageWrap.style.setProperty("--cf", Math.max(12.5, Math.min(26, stageW / 74)) + "px");
+    stageWrap.classList.toggle("narrow", stageW < 640 && !VIDEO);
+    lensShift = stageWrap.classList.contains("narrow") ? 0 : -0.12;
+    camScale = stageWrap.classList.contains("narrow") ? 0.9 : 1;
+    render(T);
+  }
+  new ResizeObserver(measure).observe(stage);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  window.__total = TOTAL; window.__starts = starts.slice(); window.__durs = STEPS.map(s => s.dur);
+  measure(); setPlay();
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
