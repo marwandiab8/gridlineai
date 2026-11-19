@@ -1,0 +1,1172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step 3D animation of the Istobal Flex 5 XL rollover car wash going into Car Wash 117 at Docksteader: trench drains, lane layout, utility rough-in, travel and guide rails, gantry, brushes, west-wall equipment, E-chain, final connections and the test wash, each step tied to the Istobal shop drawings and spec 11 11 26.">
+<title>Car Wash Install Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-sheet header, then a 16:9 3D stage with an in-frame caption band (so the same frame works as a video), transport, step list, questions fold-out and legend. */
+:root {
+  --bg: #e8ecee;
+  --panel: #fbfcfc;
+  --ink: #172027;
+  --muted: #59656f;
+  --line: #c9d1d7;
+  --mcl: #8a4f1d;
+  --nor: #1f56c6;
+  --ref: #0d7a6f;
+  --ele: #a85d00;
+  --mec: #6d3fc0;
+  --hold: #c3322c;
+  --hold-f: #fdeceb;
+  --font-display: "Barlow Condensed", "Arial Narrow", "TeX Gyre Heros Cn", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --mcl: #dca068; --nor: #82a8ff; --ref: #4fd1c0; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --mcl: #dca068; --nor: #82a8ff; --ref: #4fd1c0; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--nor); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 66ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage-wrap { position: relative; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #e7eaec; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ov { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-display); color: #13202b; }
+.ov #ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  font-size: var(--lf, 14px); line-height: 1.15; padding: .28em .55em .3em .5em; background: rgba(255,255,255,.95); color: #13202b;
+  border-left: .32em solid var(--c, #1f56c6); border-radius: .25em; box-shadow: 0 .08em .3em rgba(0,0,0,.18); }
+.lbl small { display: block; font-size: .78em; font-weight: 500; color: #46525c; letter-spacing: .02em; }
+.lbl.hold { color: #b3261e; border-left-color: #c3322c; }
+.lbl.big { font-size: calc(var(--lf, 14px) * 1.9); font-family: var(--font-mono); letter-spacing: 0; border-left-color: #0d7a6f; }
+.dimt { position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; font-size: calc(var(--lf, 14px) * .92); color: #13202b; background: rgba(255,255,255,.9); padding: .1em .35em; border-radius: .2em; white-space: nowrap; }
+.badge { position: absolute; top: 2.2%; left: 1.6%; display: flex; align-items: center; gap: .45em; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--tf, 22px); letter-spacing: .03em; text-transform: uppercase; background: rgba(255,255,255,.94); padding: .12em .6em .12em .14em; border-radius: .35em; color: #13202b; }
+.badge .n { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--c, #13202b); color: #fff; font-size: .9em; flex: none; }
+.badge .w { font-family: var(--font-mono); font-weight: 600; font-size: .5em; color: var(--c, #59656f); letter-spacing: .06em; }
+.tag { position: absolute; top: 2.4%; right: 1.6%; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * .78); letter-spacing: .06em; text-transform: uppercase; color: #3d4a54; background: rgba(255,255,255,.88); padding: .25em .55em; border-radius: .25em; text-align: right; line-height: 1.45; }
+.compass { position: absolute; right: 1.8%; top: 14%; width: calc(var(--lf, 14px) * 3.6); height: calc(var(--lf, 14px) * 3.6); }
+.cap { position: absolute; left: 1.6%; right: 1.6%; bottom: 2.6%; display: grid; grid-template-columns: minmax(0, 1fr); gap: .25em;
+  font-family: var(--font-body); font-size: var(--cf, 14px); line-height: 1.32; color: #13202b; background: rgba(255,255,255,.95);
+  border-left: .35em solid var(--c, #1f56c6); border-radius: .3em; padding: .6em .9em .65em; box-shadow: 0 .1em .5em rgba(0,0,0,.16); pointer-events: none; }
+.cap ul { margin: 0; padding: 0 0 0 1.05em; display: grid; gap: .12em; }
+.cap .ref { font-family: var(--font-mono); font-size: .74em; color: #4b5863; letter-spacing: .03em; }
+.cap .hold { color: #b3261e; font-weight: 600; }
+.cap .hold b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; margin-right: .35em; }
+.intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.intro div { background: rgba(255,255,255,.93); padding: .7em 1.2em .8em; border-radius: .35em; font-family: var(--font-display); color: #13202b; box-shadow: 0 .2em 1em rgba(0,0,0,.15); }
+.intro h2 { margin: 0; font-size: calc(var(--tf, 22px) * 2.1); line-height: 1; letter-spacing: .02em; font-weight: 700; text-transform: uppercase; }
+.intro p { margin: .35em 0 0; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * 1.05); letter-spacing: .05em; color: #3d4a54; text-transform: uppercase; }
+.big-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: #fff; background: #172027;
+  padding: 10px 18px 10px 14px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; pointer-events: auto; }
+.big-play svg { width: 18px; height: 18px; fill: currentColor; }
+.narrow .stage { aspect-ratio: 4 / 3; }
+.narrow .cap { position: static; margin-top: 8px; font-size: 13.5px; }
+.narrow .tag, .narrow .compass { display: none; }
+.narrow .badge { font-size: 14px; }
+.narrow .lbl.minor { display: none; }
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 24px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible, .back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--nor); outline-offset: 2px; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro-p { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 6px; align-items: start; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.step-head .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--c); border: 2px solid var(--c); }
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.step-body p { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.step-body .hold { background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+.step-body .hold b { color: var(--hold); }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; }
+.rfi ul { margin: 10px 0 4px; padding-left: 20px; display: grid; gap: 6px; max-width: 90ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; background: var(--c); display: inline-block; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 120ch; }
+/* video mode: stage only, full frame */
+body.video { padding: 0; background: #000; }
+body.video .page > :not(.bench), body.video .transport, body.video .steps-col, body.video .big-play { display: none !important; }
+body.video .page { max-width: none; gap: 0; }
+body.video .stage { border: 0; border-radius: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+</style>
+
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>Car wash install, step by step</h1>
+      <p class="sub">Istobal Flex 5 XL three-brush rollover gantry by National Wash, in Car Wash 117. 3D sequence built from the Istobal layout drawings, spec 11 11 26, the scope review minutes and the M202 plumbing plan.</p>
+    </div>
+    <div class="sheet-no"><b>SK-CW-01</b> animation<br>from Istobal layout rev 4.0 · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="3D animation">
+      <div class="stage-wrap" id="stageWrap">
+        <div class="stage" id="stage">
+          <canvas id="gl" role="img" aria-label="3D model of the car wash being installed step by step"></canvas>
+          <div class="ov" id="ov">
+            <svg id="ovsvg"></svg>
+            <div id="ovl"></div>
+            <div class="badge" id="badge"><span class="n" id="bNum">✓</span><span id="bTitle">Car wash installed</span><span class="w" id="bWho"></span></div>
+            <div class="tag">Car Wash 117 · Istobal Flex 5 XL<br>Docksteader Paramedic Services</div>
+            <svg class="compass" id="compass" viewBox="-50 -50 100 100" aria-hidden="true"><circle r="47" fill="rgba(255,255,255,.9)" stroke="#13202b" stroke-width="2.5"/><g id="cneedle"><path d="M0 -22 L10 16 L0 9 L-10 16 Z" fill="#c3322c"/><text x="0" y="-27" font-family="Barlow Condensed, TeX Gyre Heros Cn, Arial Narrow, sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="#13202b">N</text></g></svg>
+            <div class="intro" id="intro"><div><h2>Car wash install</h2><p>Istobal / National Wash · Car Wash 117 · 11 steps</p></div></div>
+            <div class="intro" id="outro" style="opacity:0"><div><h2>Car wash ready</h2><p>Schematic from the Istobal layout rev 4.0 · not a substitute for the shop drawings</p></div></div>
+          </div>
+          <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="bigPlayText">Play the install</span></button>
+        </div>
+        <div class="cap" id="cap" aria-live="polite"></div>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="steps-col" aria-label="Install steps">
+      <p class="intro-p">Press play to watch the car wash go in, in order. Or pick a step to see it on its own. Each step lists what the shop drawings and spec require and where it comes from. Colours show the trade.</p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </main>
+
+  <details class="rfi">
+    <summary>Settle before the car wash goes in</summary>
+    <ul>
+      <li><strong>Room size.</strong> The shop drawing shows the room 39′-7″ × 34′-11″ inside. A105 and M202 scale a little larger. Lay out the rails from the real walls: start 1′-8″ off the north wall, centreline 10′-8″ off the west wall, centred on the TD-1 / CB-1 trench.</li>
+      <li><strong>Wall sleeve.</strong> Istobal wants an 8″ × 12″ sleeve at 8′-6″ AFF, by the GC (sheet 3/7). Its location isn't shown and MCL asked. With the equipment inside the bay it may not be needed. Confirm with National Wash.</li>
+      <li><strong>Air compressor.</strong> Istobal needs one (2 HP, 26 gal, 145 psi min.) and it isn't on the mechanical drawings. RFI 080 (Sep 2025) says it will be added on the next mechanical change notice. Confirm it was, and where it goes.</li>
+      <li><strong>Dryers.</strong> The gantry load table (4/7) includes the lateral and contouring dryers, 67 A of the 88.4 A FLA. The scope review excluded the dryer (optional price). Settle it before the gantry circuit is sized.</li>
+      <li><strong>Seismic and supports.</strong> Spec 2.2.6 calls for P.Eng-sealed seismic design (OBC 4.1.8.18, CSA S832), and M202 notes the building is post-disaster. The scope review excludes seismic and supports for mounting equipment. Decide who designs and supplies them.</li>
+      <li><strong>Covers.</strong> The pump, chemical and control gear sits inside the wet bay. Istobal note 9 says some of it needs special covers. Confirm they're in National Wash's price.</li>
+      <li><strong>Brushes and options.</strong> Brush colour is DSA's pick (MCL asked for the catalogue on 2/7). The scope review had MCL confirming the wheel wash, vinyl wrap, on-board signs and dryer by RFI. Check the answers made it into the order.</li>
+      <li><strong>Clearances.</strong> Istobal needs a 10′-0″ min. door and 12′-6″ min. clear inside. S506 scales the openings about 12′ high and the underside of the Level 2 deck at 4.75 m (15′-7″). Keep lights, sprinklers and ducts above 12′-6″ over the lane.</li>
+      <li><strong>Reclaim.</strong> No water recirculation (the spec doesn't call for it), so note 5 (reclaim piping PVC Sch. 80) doesn't apply.</li>
+      <li><strong>Revision.</strong> The file is named REV 5.0 but the title blocks read rev 4.0 (May 7 2025). It went to DSA, M&amp;E and structural for approval on Aug 20 2025. Confirm the reviewed copy.</li>
+      <li><strong>Wash-Me Express.</strong> The vehicle cleaning station (spec 2.3) is located by SI-032 (RFI 94). It isn't in this animation.</li>
+    </ul>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--mcl)"><i></i>MCL / by others</span>
+    <span style="--c: var(--nor)"><i></i>National Wash (Istobal)</span>
+    <span style="--c: var(--ele)"><i></i>Electrical</span>
+    <span style="--c: var(--ref)"><i></i>Mechanical (MSB)</span>
+    <span style="--c: var(--hold)"><i></i>Hold / to confirm</span>
+  </footer>
+  <p class="notes">Approximately to scale. Feet-inches with mm in brackets, from the Istobal layout drawings for National Wash (sheets 1/7–7/7, title blocks rev 4.0, May 7 2025), spec 11 11 26, the National Wash scope review minutes (Apr 8 2025), RFI 080, M202, A105 and S506. Spacings marked "about" were scaled off the drawings. Equipment shapes are generic; rail brackets, base plates and the E-chain are drawn to suit. The east and south walls are cut down so the work stays visible. Not a substitute for the shop drawings.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const VIDEO = !!window.__VIDEO;
+  if (VIDEO) document.body.classList.add("video");
+
+  // ======================= steps
+  // camera: target, yaw (0 = from the south, 90 = from the west), pitch, distance (mm)
+  const cv = (t, yaw, pitch, d) => { const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180; return [[t[0] - Math.sin(y) * Math.cos(p) * d, t[1] + Math.sin(p) * d, t[2] + Math.cos(y) * Math.cos(p) * d], t]; };
+  const STEPS = [
+    { title: "Slab + trench drains", who: "MCL + Mechanical", c: "mcl", dur: 9,
+      cam: cv([5300, 0, 6500], -35, 50, 29000),
+      lines: ["Car Wash 117 and Bypass 116 share the room: exterior doors OHD116B + OHD116C, OHD116D to the vehicle bay",
+              "TD-1 trench drains at both north doors, across OHD116D and down the wash lane with CB-1",
+              "Drainage per M202; RFI 208 covers the car wash area"],
+      ref: "M202 plumbing + drainage · A105 · RFI 208" },
+    { title: "Lane layout", who: "MCL", c: "mcl", dur: 9,
+      cam: cv([5000, 0, 6700], -30, 57, 25500),
+      lines: ["Lane centreline 10′-8″ [3251] off the west wall, on the OHD116B door centre",
+              "Travel rails start 1′-8″ [508] from the north wall and run 36′-0″ [10 973]",
+              "Lay out from the real walls and the trench, not from the drawing's room size"],
+      hold: "The shop drawing shows the room 39′-7″ × 34′-11″; A105 and M202 scale a little larger. Field-verify first.",
+      ref: "Istobal sheet 3/7 dimensional layout" },
+    { title: "Utility rough-in", who: "Electrical + Mechanical", c: "ele", dur: 10,
+      cam: cv([700, 1900, 6400], -72, 20, 10600),
+      lines: ["Main disconnect, panel and all high-voltage lines by the contractor; 208 V 3-phase",
+              "City water 43–87 psi, 22 GPM min., backflow + PRV by others; 1″ drops with shut-offs 4′–5′ AFF",
+              "Air: ½″ FPT drop with a shut-off 4′–5′ AFF; compressor by others (RFI 080)"],
+      hold: "Wall sleeve 8″ × 12″ at 8′-6″ AFF is the GC's. Its location isn't shown (MCL asked).",
+      ref: "Istobal sheets 1/7, 3/7, 6/7, 7/7 · RFI 080" },
+    { title: "Travel rails", who: "National Wash", c: "nor", dur: 8,
+      cam: cv([3250, 0, 6200], -30, 38, 17500),
+      lines: ["Two galvanized travel rails, 36′-0″ long, about 11′-6″ apart on the lane centreline",
+              "Set level and true: the gantry's wheels run on them the full length",
+              "They stop 1′-8″ short of the north wall"],
+      ref: "Istobal sheet 2/7 (TR) · 3/7" },
+    { title: "Guide rails", who: "National Wash", c: "nor", dur: 8,
+      cam: cv([3250, 0, 3300], -24, 34, 12500),
+      lines: ["3″ guide rails inside the travel rails, about 8′-8″ apart",
+              "Flared ends at OHD116B steer the vehicle onto the centreline",
+              "They hold the vehicle in the lane while the gantry passes over it"],
+      ref: "Istobal sheet 2/7 (3GR) · 3/7" },
+    { title: "Gantry", who: "National Wash", c: "nor", dur: 9,
+      cam: cv([3250, 1700, 9800], -36, 24, 14500),
+      lines: ["Istobal Flex 5 XL three-brush gantry (FX3) set on the travel rails",
+              "Hot-dip galvanized frame, powder-coated covers, PLC controls",
+              "Washes vehicles up to 114″ [2895] high; parks at the OHD116D end"],
+      ref: "Spec 11 11 26 2.2 · Istobal sheets 2/7, 3/7" },
+    { title: "Brushes, wheel blasters + signs", who: "National Wash", c: "nor", dur: 9,
+      cam: cv([3250, 1700, 10400], -140, 16, 11500),
+      lines: ["Two side brushes and one top brush; colour is DSA's pick (MCL asked for the catalogue)",
+              "Two wheel blasters for the high-pressure wheel wash",
+              "On-board lighted signs and pictograms guide the driver in"],
+      ref: "Spec 2.2.2, 2.2.4 · Istobal sheets 2/7, 4/7" },
+    { title: "Equipment along the west wall", who: "National Wash", c: "nor", dur: 10,
+      cam: cv([300, 1000, 5000], -78, 16, 11000),
+      lines: ["EVO chemical delivery with its pails, the blue 50-gal tank and the HP pump stand (2 × 7.4 HP)",
+              "A8 high-voltage and A0 low-voltage junction boxes; command post A3 at the entrance",
+              "It all sits in the wet bay: Istobal says some of it needs special covers"],
+      ref: "Istobal sheets 1/7 (note 9), 2/7, 4/7" },
+    { title: "E-chain + process lines", who: "National Wash", c: "nor", dur: 9,
+      cam: cv([900, 150, 7300], -112, 40, 9200),
+      lines: ["The E-chain carries the hoses and cables from the fixed equipment to the moving gantry",
+              "High-pressure, chemical and air lines (after the compressor) are the installer's, with tank interconnects",
+              "Pump suction pipe 32′-10″ max. long, 9′-10″ max. depth"],
+      ref: "Istobal sheet 7/7 notes 3, 5" },
+    { title: "Final connections", who: "Electrical + Mechanical", c: "ele", dur: 9,
+      cam: cv([500, 1700, 5600], -78, 16, 10000),
+      lines: ["Gantry on one circuit, 88.4 A FLA; HP pump stand one circuit per motor (22.1 A each); EVO booster 8.4 A",
+              "A8 to the gantry by Istobal; 24 V controls; shielded CAT5 command post → A0 → gantry",
+              "Final water and air connections by mechanical (scope review, Apr 8 2025)"],
+      ref: "Istobal sheets 4/7, 5/7, 6/7 · scope review minutes" },
+    { title: "Test wash + training", who: "National Wash + MCL", c: "nor", dur: 16,
+      cam: cv([3250, 1300, 5600], -34, 28, 21500),
+      lines: ["First ambulance in through OHD116B; the gantry runs the 36′ rails over it and back",
+              "Door 10′-0″ min. high; 12′-6″ min. clear inside over the lane",
+              "Testing, start-up and training by National Wash and the factory rep"],
+      ref: "Istobal sheet 1/7 notes 7, 8 · spec 3.3, 3.4 · scope review" }
+  ];
+  const LIST = [
+    ["Car Wash 117 (west lane) and Bypass 116 (east lane) are one room with CMU walls and the Level 2 deck above.", "Exterior overhead doors OHD116B (wash lane) and OHD116C (bypass) on the north wall; OHD116D on the south wall opens to the vehicle bay.", "TD-1 trench drains run along both north doors and across OHD116D. A TD-1 / CB-1 trench runs down the middle of the wash lane, under the vehicle.", "Drainage is per M202; RFI 208 (MSB RFI 37) covers the car wash area."],
+    ["Lane centreline 10′-8″ [3251] off the west wall, on the centre of OHD116B (sheet 3/7).", "Travel rails start 1′-8″ [508] from the north wall and run 36′-0″ [10 973]; guide rails start 1′-2″ [356] from it.", "The shop drawing shows the room 39′-7″ × 34′-11″ inside and calls every location approximate. A105 and M202 scale a little larger, so lay out from the real walls and centre the lane on the trench."],
+    ["Electrical: main disconnect, main panel and all high-voltage lines are the contractor's (sheet 6/7 note 4); 208 V 3-phase.", "Mechanical: city water 43–87 psi and 22 GPM min., backflow and PRV by others; 1″ cold water drops with shut-offs 4′–5′ AFF next to the equipment, FPT outlet (7/7 notes 1, 2).", "Air: ½″ FPT drop with a shut-off 4′–5′ AFF; compressor 2 HP, 26 gal, 145 psi min., by others. It isn't on the mechanical drawings (RFI 080).", "Wall sleeve 8″ × 12″ at 8′-6″ AFF, by the GC (3/7). Its location isn't shown."],
+    ["Two galvanized travel rails (TR), 36′-0″ long, about 11′-6″ apart, centred on the lane.", "Set level and true on the slab; the gantry's drive wheels run on them.", "They stop 1′-8″ short of the north wall and about 1′-11″ short of the OHD116D opening."],
+    ["3″ guide rails (3GR) inside the travel rails, about 8′-8″ apart.", "Their flared ends face OHD116B and steer the vehicle onto the centreline.", "They keep the vehicle in the lane while the gantry travels over it."],
+    ["Istobal Flex 5 XL, three brushes (FX3 on the label layout), basis of design in spec 2.2.5.", "Hot-dip galvanized structure, powder-coated covers (colour by the consultant), PLC controls.", "Covers vehicles up to 114″ [2895] high. Parks at the south (OHD116D) end of the rails."],
+    ["Two side brushes and one top brush. Colour is DSA's pick; MCL asked for the catalogue on sheet 2/7.", "Two wheel blasters give the high-pressure wheel wash (spec 2.2.4, 4/7 motor list).", "On-board lighted signs and pictograms (spec 2.2.4) tell the driver when to stop.", "The 4/7 load table also lists lateral and contouring dryers; the scope review excluded the dryer."],
+    ["EVO chemical delivery system with its chemical pails and booster pump.", "Blue 50-gal tank and the high-pressure pump stand (2 × 7.4 HP, 22.1 A each).", "A8 high-voltage and A0 low-voltage junction boxes on the wall; command post A3 at the entrance.", "Istobal note 9: technical equipment inside the wash bay needs special covers."],
+    ["The E-chain (cable and hose carrier) runs beside the west rail from the fixed point at the equipment to the gantry.", "Installer's scope: high-pressure lines, air lines after the compressor, chemical lines, connections from the ball valves and tank interconnects (7/7 note 5).", "Suction pipe 32′-10″ max. long and 9′-10″ max. depth (7/7 note 3)."],
+    ["Gantry: one circuit, 88.4 A FLA at 208 V 3-phase (4/7). HP pump stand: one circuit per motor, 22.1 A each. EVO booster 8.4 A.", "The A8 junction box to the gantry is Istobal's; everything upstream is the contractor's. Control wiring 24 V.", "RJ45: router to the command post, command post to A0 (shielded), pay station to the router, A0 to the gantry (6/7).", "Final electrical and mechanical connections by the E&M subs (scope review, Apr 8 2025)."],
+    ["Run a test wash: the vehicle enters through OHD116B and stops on the signs; the gantry travels the rails over it and back.", "Door opening 10′-0″ min. and inside clearance 12′-6″ min. (1/7 notes 7, 8). The Level 2 deck is about 15′-7″ up; keep lights, sprinklers and ducts above 12′-6″.", "Adjust and lubricate; repair any damaged finishes (spec 3.3).", "Testing, start-up and training by National Wash and the factory rep (spec 3.4, scope review)."]
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc, CAM_T = 1.7, INTRO_T = 2.8;
+
+  // ======================= geometry (mm): x east, y up, z south; origin = NW inside corner of Car Wash 117 at finished floor
+  const RW = 10643, RL = 12065, RH = 4750, WT = 190, NT = 240, CUT = 1000;   // room per sheet 3/7: 34'-11" x 39'-7"
+  const LX = 3251;                          // wash lane centreline, 10'-8" off the west wall
+  const RG = 1750, GR = 1320;               // travel rails and guide rails each side of the centreline (scaled)
+  const RZ0 = 508, RZ1 = 508 + 10973;       // travel rails: 1'-8" off the north wall, 36'-0" long
+  const GZ0 = 1073, GZ1 = 9290;             // guide rails, straight part
+  const DOOR_H = 3770;                      // scaled from S506
+  const D1 = [1575, 4928], D2 = [5486, 8839], DS = [1245, 8788];   // OHD116B, OHD116C, OHD116D
+  const GZ = 10550, GTRAV = 1800 - 10550;   // gantry park centre and travel to the north end
+  const VF = 9350;                          // vehicle front when stopped
+
+  // ======================= math
+  const M = {
+    I() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+    mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    T(x, y, z) { const m = M.I(); m[12] = x; m[13] = y; m[14] = z; return m; },
+    S(x, y, z) { const m = M.I(); m[0] = x; m[5] = y; m[10] = z; return m; },
+    RY(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; },
+    RX(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[5] = c; m[6] = s; m[9] = -s; m[10] = c; return m; },
+    RZ(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[1] = s; m[4] = -s; m[5] = c; return m; },
+    persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), m = new Float32Array(16); m[0] = t / a; m[5] = t; m[10] = (fa + n) / (n - fa); m[11] = -1; m[14] = 2 * fa * n / (n - fa); return m; },
+    ortho(l, r, b, t, n, f) { const m = M.I(); m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n); m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n); return m; },
+    look(e, t, u) {
+      let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+      let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+      const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[4] = xy; m[5] = yy; m[6] = zy; m[8] = xz; m[9] = yz; m[10] = zz;
+      m[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); m[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); m[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); m[15] = 1;
+      return m;
+    },
+    xf(m, p) { const x = p[0], y = p[1], z = p[2]; const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, (m[2] * x + m[6] * y + m[10] * z + m[14]) / w, w]; }
+  };
+
+  // ======================= GL
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true, alpha: false });
+  const stage = document.getElementById("stage"), stageWrap = document.getElementById("stageWrap");
+  if (!gl) {
+    stage.insertAdjacentHTML("beforeend", '<p style="position:absolute;inset:auto 0 45% 0;text-align:center;font:600 16px var(--font-body);color:#13202b">This 3D view needs WebGL 2, which this browser doesn\'t offer.</p>');
+    return;
+  }
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  function prog(vs, fs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.bindAttribLocation(p, 1, "aNor"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+
+  const VS = `#version 300 es
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=7) in vec4 iSzA; layout(location=8) in vec4 iEm; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP, uLVP;
+  out vec3 vW; out vec3 vN; out vec4 vL; out vec3 vLoc; out vec3 vLocN;
+  flat out vec4 vCol; flat out vec4 vSzA; flat out vec4 vEm; flat out vec4 vMisc;
+  void main(){
+    mat4 Mo = mat4(iM0, iM1, iM2, iM3);
+    vec4 w = Mo*vec4(aPos,1.0); vW = w.xyz;
+    vN = normalize(transpose(inverse(mat3(Mo)))*aNor);
+    vL = uLVP*w; vLoc = aPos; vLocN = aNor; vCol = iCol; vSzA = iSzA; vEm = iEm; vMisc = iMisc;
+    gl_Position = uVP*w;
+  }`;
+  const FS = `#version 300 es
+  precision highp float; precision highp sampler2DShadow;
+  in vec3 vW; in vec3 vN; in vec4 vL; in vec3 vLoc; in vec3 vLocN;
+  flat in vec4 vCol; flat in vec4 vSzA; flat in vec4 vEm; flat in vec4 vMisc;
+  uniform vec3 uEye; uniform vec3 uLD; uniform sampler2DShadow uSh; uniform float uShOn; uniform vec3 uFog;
+  out vec4 o;
+  float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float nz(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
+  void main(){
+    vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+    vec3 base = vCol.rgb; int mat = int(vCol.w + 0.5); vec3 sz = vSzA.xyz;
+    float specK = 0.10; float shin = 40.0;
+    vec3 lp = vLoc*sz;
+    if (mat==1){ float g = nz(vW.xz*0.012)*0.5 + nz(vW.xz*0.05)*0.3 + nz(vW.xz*0.35)*0.2; base *= 0.90 + 0.16*g; specK = 0.04; }
+    else if (mat==2){ vec2 p = abs(n.x)>0.5 ? vW.zy : vW.xy; float row = floor((p.y+300.0)/203.2); float off = mod(row,2.0)*203.2; float mx = mod(p.x+off, 406.4), my = mod(p.y+300.0, 203.2);
+      float j = max(1.0 - smoothstep(0.0, 9.0, min(mx, 406.4-mx)), 1.0 - smoothstep(0.0, 9.0, min(my, 203.2-my))); base *= mix(1.0, 0.80, j) * (0.95 + 0.07*nz(p*0.03)); specK = 0.03; }
+    else if (mat==3){ float a = (abs(vLocN.x)>0.5) ? lp.z : lp.x; if (abs(vLocN.y)>0.5) a = lp.x; float r = 0.5+0.5*sin(a*0.0628*3.14159); base *= 0.985 + 0.02*r; specK = 0.14; shin = 60.0; }
+    else if (mat==4){ float r = fract(lp.y/38.0); base *= mix(0.62, 1.0, smoothstep(0.15, 0.4, r)); specK = 0.18; }
+    else if (mat==5){ vec2 c = vec2(lp.z - sz.z*0.5, lp.y - sz.y*0.5); float d = length(c); float rings = smoothstep(0.35, 0.5, abs(fract(d/34.0)-0.5)); base = mix(vec3(0.16,0.18,0.2), base, rings*0.6); if (d > sz.y*0.5) base = vCol.rgb; specK = 0.08; }
+    else if (mat==6){ base *= 0.92 + 0.12*nz(vW.xz*0.08 + vW.y*0.05); specK = 0.35; shin = 30.0; }
+    else if (mat==7){ float ang = atan(vLoc.z-0.5, vLoc.x-0.5); float st = fract(ang*3.8197 + vMisc.z); float br = smoothstep(0.0,0.3,st)*smoothstep(1.0,0.55,st); base *= 0.5 + 0.65*br; base *= 0.88 + 0.24*nz(vec2(ang*30.0, vLoc.y*80.0)); specK = 0.04; }
+    else if (mat==8){ float r = fract(lp.z/62.0); base *= mix(0.45, 1.0, step(0.2, r)); specK = 0.1; }
+    else if (mat==9){ float a = sz.x > sz.z ? lp.x : lp.z; base *= mix(0.3, 1.0, step(0.5, fract(a/28.0))); specK = 0.2; }
+    float sh = 1.0;
+    if (uShOn > 0.5) {
+      vec3 pc = vL.xyz / vL.w * 0.5 + 0.5;
+      if (pc.x > 0.0 && pc.x < 1.0 && pc.y > 0.0 && pc.y < 1.0 && pc.z < 1.0) {
+        float bias = 0.00045; vec2 ts = vec2(1.0/float(textureSize(uSh, 0).x));
+        float s = texture(uSh, vec3(pc.xy + vec2(-0.75,-0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,-0.75)*ts, pc.z - bias))
+                + texture(uSh, vec3(pc.xy + vec2(-0.75,0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,0.75)*ts, pc.z - bias));
+        sh = 0.35 + 0.65*(s*0.25);
+      }
+    }
+    float dif = max(dot(n, -uLD), 0.0);
+    vec3 hemi = mix(vec3(0.70,0.71,0.73), vec3(1.0,1.0,1.0), n.y*0.5+0.5);
+    vec3 V = normalize(uEye - vW); vec3 H = normalize(V - uLD);
+    float sp = pow(max(dot(n,H),0.0), shin) * specK * sh;
+    vec3 col = base*(0.58*hemi + 0.62*dif*sh) + sp + vEm.rgb*vEm.w;
+    float d = length(uEye - vW);
+    col = mix(col, uFog, smoothstep(32000.0, 90000.0, d));
+    o = vec4(col, vSzA.w);
+  }`;
+  const DVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  uniform mat4 uLVP; void main(){ gl_Position = uLVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); }`;
+  const DFS = `#version 300 es
+  precision mediump float; out vec4 o; void main(){ o = vec4(1.0); }`;
+  const LVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP; flat out vec4 vC;
+  void main(){ gl_Position = uVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); vC = vec4(iCol.rgb*iMisc.y, iMisc.x); }`;
+  const LFS = `#version 300 es
+  precision mediump float; flat in vec4 vC; out vec4 o; void main(){ o = vC; }`;
+  const P_MAIN = prog(VS, FS), P_DEPTH = prog(DVS, DFS), P_LINE = prog(LVS, LFS);
+
+  // unit cube
+  const cubeF = [], cubeN = [], cubeI = [];
+  const faces = [[[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]], [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+                 [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]], [[0, -1, 0], [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]],
+                 [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]], [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]]];
+  faces.forEach(([nn, vs], f) => { vs.forEach(v => { cubeF.push(...v); cubeN.push(...nn); }); const b = f * 4; cubeI.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+  const edgeP = [0,0,0, 1,0,0, 1,0,0, 1,0,1, 1,0,1, 0,0,1, 0,0,1, 0,0,0, 0,1,0, 1,1,0, 1,1,0, 1,1,1, 1,1,1, 0,1,1, 0,1,1, 0,1,0, 0,0,0, 0,1,0, 1,0,0, 1,1,0, 1,0,1, 1,1,1, 0,0,1, 0,1,1];
+  function vao(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) { const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); }
+    if (idx) { const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW); }
+    gl.bindVertexArray(null); return v;
+  }
+  const CUBE = vao(cubeF, cubeN, cubeI), EDGES = vao(edgeP, null, null);
+  // unit cylinder in the same [0,1] box, axis along y
+  const cylF = [], cylN = [], cylI = [], cylE = [], SEG = 24;
+  for (let k = 0; k <= SEG; k++) { const a = k / SEG * Math.PI * 2, x = Math.cos(a), z = Math.sin(a); cylF.push(.5 + .5 * x, 0, .5 + .5 * z, .5 + .5 * x, 1, .5 + .5 * z); cylN.push(x, 0, z, x, 0, z); }
+  for (let k = 0; k < SEG; k++) { const b = k * 2; cylI.push(b, b + 1, b + 3, b, b + 3, b + 2); }
+  [[1, 1], [0, -1]].forEach(([y, ny]) => {
+    const c0 = cylF.length / 3; cylF.push(.5, y, .5); cylN.push(0, ny, 0);
+    for (let k = 0; k <= SEG; k++) { const a = k / SEG * Math.PI * 2; cylF.push(.5 + .5 * Math.cos(a), y, .5 + .5 * Math.sin(a)); cylN.push(0, ny, 0); }
+    for (let k = 0; k < SEG; k++) { if (ny > 0) cylI.push(c0, c0 + 2 + k, c0 + 1 + k); else cylI.push(c0, c0 + 1 + k, c0 + 2 + k); }
+  });
+  for (const y of [0, 1]) for (let k = 0; k < SEG; k++) { const a0 = k / SEG * Math.PI * 2, a1 = (k + 1) / SEG * Math.PI * 2; cylE.push(.5 + .5 * Math.cos(a0), y, .5 + .5 * Math.sin(a0), .5 + .5 * Math.cos(a1), y, .5 + .5 * Math.sin(a1)); }
+  const CYL = vao(cylF, cylN, cylI), CEDGES = vao(cylE, null, null), CYL_N = cylI.length, CEDGE_N = cylE.length / 3;
+  // per-instance data: model matrix (16), colour + material (4), size + alpha (4), emission (4), edge alpha + edge shade (4)
+  const IST = 32, INST = gl.createBuffer();
+  let instData = new Float32Array(IST * 512);
+  [CUBE, EDGES, CYL, CEDGES].forEach(v => {
+    gl.bindVertexArray(v); gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    [[2, 0], [3, 4], [4, 8], [5, 12], [6, 16], [7, 20], [8, 24], [9, 28]].forEach(([l, off]) => {
+      gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, IST * 4, off * 4); gl.vertexAttribDivisor(l, 1);
+    });
+    gl.bindVertexArray(null);
+  });
+  function fillInst(arr, trans) {
+    const n = arr.length;
+    if (instData.length < n * IST) instData = new Float32Array(n * IST * 2);
+    for (let k = 0; k < n; k++) {
+      const it = arr[k], o = it.o, b = k * IST;
+      instData.set(it.m, b);
+      instData[b + 16] = o.col[0]; instData[b + 17] = o.col[1]; instData[b + 18] = o.col[2]; instData[b + 19] = o.mat;
+      instData[b + 20] = o.s[0]; instData[b + 21] = o.s[1]; instData[b + 22] = o.s[2]; instData[b + 23] = it.a;
+      instData[b + 24] = o.emc[0]; instData[b + 25] = o.emc[1]; instData[b + 26] = o.emc[2]; instData[b + 27] = Math.max(o.em, o.g.st.em || 0);
+      instData[b + 28] = trans ? o.edge * Math.min(1, it.a * 2.2) : o.edge; instData[b + 29] = trans ? 0.4 : 0.42; instData[b + 30] = o.ph || 0; instData[b + 31] = 0;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    gl.bufferData(gl.ARRAY_BUFFER, instData.subarray(0, Math.max(1, n) * IST), gl.STREAM_DRAW);
+    return n;
+  }
+  // shadow map
+  const SHS = 2048;
+  const shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, SHS, SHS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const LD = (() => { const v = [-0.45, -1.0, -0.55]; const l = Math.hypot(...v); return v.map(x => x / l); })();
+  const LCTR = [5000, 1500, 6000];
+  const LVP = M.mul(M.ortho(-12500, 12500, -12500, 12500, 100, 48000), M.look([LCTR[0] - LD[0] * 22000, LCTR[1] - LD[1] * 22000, LCTR[2] - LD[2] * 22000], LCTR, [0, 1, 0]));
+
+  // ======================= timeline + groups
+  const EASE = { lin: t => t, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const groups = [], objs = [];
+  function grp(name, tracks, o) {
+    o = o || {};
+    const g = { name, tracks: (tracks || []).slice().sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a)), pivot: o.pivot || [0, 0, 0], custom: o.custom || null, st: {} };
+    groups.push(g); return g;
+  }
+  function box(g, x0, y0, z0, x1, y1, z1, col, o) {
+    o = o || {};
+    const ob = { g, p: [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)], s: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], col, mat: o.mat || 0,
+      a: o.a == null ? 1 : o.a, edge: o.edge == null ? 0.62 : o.edge, shadow: o.shadow !== false, em: o.em || 0, emc: o.emc || [1, 1, 1], tag: o.tag || null,
+      geo: o.geo || 0, rot: o.rot || null, ph: o.ph || 0 };
+    objs.push(ob); return ob;
+  }
+  function cyl(g, cx, cy, cz, dia, len, axis, col, o) {
+    o = Object.assign({}, o || {}); o.geo = 1;
+    if (axis === "x") o.rot = [0, 0, 90]; else if (axis === "z") o.rot = [90, 0, 0];
+    return box(g, cx - dia / 2, cy - len / 2, cz - dia / 2, cx + dia / 2, cy + len / 2, cz + dia / 2, col, o);
+  }
+  function val(g, prop, T, def) {
+    let v, found = false;
+    for (const k of g.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .2, "op", 0, 1, "lin")];
+  const slideIn = (s, a, b, dx, dz) => [tr(s, a, b, "tx", dx || 0, 0, "out"), tr(s, a, b, "tz", dz || 0, 0, "out"), tr(s, a, a + .25, "op", 0, 1, "lin")];
+  const popIn = (s, a, b) => [tr(s, a, b, "sc", 0.001, 1, "back"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const growIn = (s, a, b, ax) => [tr(s, a, b, ax, 0.001, 1, "inout"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const ghost = (s, a, b, to) => [tr(s, a, b, "op", 1, to, "inout")];
+  const unghost = (s, a, b, from) => [tr(s, a, b, "op", from, 1, "inout")];
+
+  // colours (linear-ish sRGB 0..1)
+  const C = {
+    conc: [0.74, 0.74, 0.72], concD: [0.66, 0.66, 0.64], cmu: [0.80, 0.79, 0.76], panel: [0.95, 0.955, 0.94], galv: [0.74, 0.77, 0.79], galvD: [0.58, 0.61, 0.64],
+    ss: [0.80, 0.82, 0.84], dark: [0.24, 0.26, 0.28], chrome: [0.86, 0.88, 0.90], glass: [0.55, 0.70, 0.80], white: [0.97, 0.97, 0.96], ure: [0.92, 0.78, 0.35],
+    grout: [0.55, 0.55, 0.53], unit: [0.80, 0.82, 0.83], sil: [0.92, 0.95, 0.97], red: [0.80, 0.18, 0.15], orange: [0.95, 0.55, 0.12], pvc: [0.60, 0.63, 0.66],
+    nylon: [0.93, 0.92, 0.88], im4: [0.18, 0.2, 0.22], heat: [0.92, 0.33, 0.18], cold: [0.35, 0.62, 0.95], green: [0.25, 0.75, 0.55],
+    cut: [0.30, 0.31, 0.33], door: [0.70, 0.72, 0.74], grate: [0.36, 0.38, 0.40], cw: [0.22, 0.48, 0.85], airY: [0.95, 0.78, 0.18], hose: [0.55, 0.12, 0.10],
+    box: [0.62, 0.64, 0.67], tank: [0.16, 0.42, 0.80], gcov: [0.90, 0.91, 0.92], gacc: [0.20, 0.38, 0.70], brush: [0.40, 0.50, 0.64], tire: [0.12, 0.12, 0.13],
+    glassDk: [0.16, 0.21, 0.27], stripe: [0.82, 0.14, 0.12], amber: [0.98, 0.62, 0.10], water: [0.62, 0.82, 0.98], cat5: [0.20, 0.45, 0.90]
+  };
+
+  // ---------- site (always): slab, exterior apron, CMU walls (east + south cut down), door hardware
+  const site = grp("site");
+  box(site, -9000, -200, -NT, RW + 9000, 0, RL + 14000, C.conc, { mat: 1, edge: 0 });
+  box(site, -9000, -230, -16000, RW + 9000, -30, -NT, C.concD, { mat: 1, edge: 0 });
+  const wall = (x0, y0, z0, x1, y1, z1) => box(site, x0, y0, z0, x1, y1, z1, C.cmu, { mat: 2, edge: .25 });
+  wall(-WT, 0, -NT, 0, RH, RL + WT);
+  wall(0, 0, -NT, D1[0], RH, 0); wall(D1[1], 0, -NT, D2[0], RH, 0); wall(D2[1], 0, -NT, RW + WT, RH, 0);
+  wall(D1[0], DOOR_H, -NT, D1[1], RH, 0); wall(D2[0], DOOR_H, -NT, D2[1], RH, 0);
+  wall(RW, 0, 0, RW + WT, CUT, RL + WT);
+  wall(0, 0, RL, DS[0], CUT, RL + WT); wall(DS[1], 0, RL, RW, CUT, RL + WT);
+  [[RW, 0, RW + WT, RL + WT], [0, RL, DS[0], RL + WT], [DS[1], RL, RW, RL + WT]].forEach(([x0, z0, x1, z1]) => box(site, x0, CUT, z0, x1, CUT + 14, z1, C.cut, { edge: 0, shadow: false }));
+  [D1, D2].forEach(([a, b]) => {
+    box(site, a - 120, DOOR_H + 20, 0, b + 120, DOOR_H + 470, 430, C.galvD, { mat: 6, edge: .45 });
+    box(site, a - 90, 0, 0, a, DOOR_H + 20, 140, C.galvD, { edge: .4 });
+    box(site, b, 0, 0, b + 90, DOOR_H + 20, 140, C.galvD, { edge: .4 });
+  });
+  const door1 = grp("door1", [tr(10, 0.2, 1.3, "gy", 1, 0.03, "inout")], { pivot: [0, DOOR_H, 0] });
+  box(door1, D1[0], 0, -150, D1[1], DOOR_H, -110, C.door, { mat: 4, edge: .35 });
+  const door2 = grp("door2");
+  box(door2, D2[0], 0, -150, D2[1], DOOR_H, -110, C.door, { mat: 4, edge: .35 });
+
+  // ---------- step 1: trench drains
+  const td = grp("td", [...fadeIn(0, 2.4, 3.2), tr(0, 2.4, 3.0, "em", 0, .55, "lin"), tr(0, 7.0, 8.6, "em", .55, 0, "lin")]);
+  const grate = (x0, z0, x1, z1) => box(td, x0, -6, z0, x1, 4, z1, C.grate, { mat: 9, edge: .35, shadow: false, emc: [0.95, 0.55, 0.15] });
+  grate(D1[0], 160, D1[1], 360); grate(D2[0], 160, D2[1], 360);
+  grate(LX - 90, 3700, LX + 90, 7900); grate(LX - 230, 5570, LX + 230, 6030);
+  grate(DS[0], 11760, DS[1], 11960); grate(4800, 11720, 5260, 12000);
+
+  // ---------- step 2: layout lines
+  const chalk = grp("chalk", [...fadeIn(1, 0.6, 1.4), tr(3, 3.6, 4.6, "op", 1, 0, "lin")]);
+  const cl = (x0, z0, x1, z1) => box(chalk, x0, 0, z0, x1, 6, z1, C.orange, { edge: 0, shadow: false, em: .5, emc: C.orange });
+  cl(LX - 12, 0, LX + 12, RL);
+  cl(LX - RG - 10, RZ0, LX - RG + 10, RZ1); cl(LX + RG - 10, RZ0, LX + RG + 10, RZ1);
+  cl(LX - RG - 200, RZ0 - 10, LX + RG + 200, RZ0 + 10);
+
+  // ---------- step 3: rough-in on the west wall
+  const disc = grp("disc", popIn(2, 0.6, 1.0), { pivot: [90, 1620, 4475] });
+  box(disc, 0, 1300, 4250, 180, 1950, 4700, C.box, { edge: .5 });
+  box(disc, 180, 1550, 4560, 230, 1720, 4620, C.red, { edge: 0 });
+  const ruffE = grp("ruffE", growIn(2, 1.0, 2.0, "gy"), { pivot: [0, 1950, 0] });
+  box(ruffE, 40, 1950, 4455, 80, 3600, 4495, C.pvc, { edge: .3 });
+  const cwm = grp("cwm", growIn(2, 2.0, 3.2, "gz"), { pivot: [0, 0, 2400] });
+  box(cwm, 50, 2950, 2400, 120, 3020, 9500, C.cw, { edge: .3 });
+  const bfp = grp("bfp", popIn(2, 1.8, 2.3), { pivot: [130, 2950, 2600] });
+  box(bfp, 20, 2780, 2420, 240, 3120, 2780, C.cw, { edge: .5 });
+  box(bfp, 240, 2880, 2560, 300, 3040, 2640, C.red, { edge: 0 });
+  const cwd = grp("cwd", growIn(2, 3.2, 4.0, "gy"), { pivot: [0, 3000, 0] });
+  [5350, 9350].forEach(z => { box(cwd, 65, 1370, z - 20, 105, 3000, z + 20, C.cw, { edge: .3 }); box(cwd, 40, 1300, z - 60, 140, 1440, z + 60, C.cw, { edge: .4 }); box(cwd, 140, 1350, z - 80, 220, 1390, z + 80, C.red, { edge: 0 }); });
+  const airm = grp("airm", growIn(2, 4.0, 5.0, "gz"), { pivot: [0, 0, 2400] });
+  box(airm, 50, 3150, 2400, 110, 3210, 5200, C.airY, { edge: .3 });
+  const aird = grp("aird", growIn(2, 5.0, 5.6, "gy"), { pivot: [0, 3180, 0] });
+  box(aird, 60, 1370, 5180, 100, 3180, 5220, C.airY, { edge: .3 }); box(aird, 40, 1300, 5140, 140, 1440, 5260, C.airY, { edge: .4 }); box(aird, 140, 1350, 5120, 220, 1390, 5280, C.red, { edge: 0 });
+  const slv = grp("slv", [...fadeIn(2, 6.0, 6.5), tr(2, 6.0, 6.5, "em", 0, .8, "lin"), tr(2, 9.2, 9.9, "em", .8, .25, "lin")]);
+  box(slv, 0, 2591, 7600, 40, 2794, 7905, C.dark, { edge: .8, emc: [0.9, 0.2, 0.15] });
+
+  // ---------- step 4: travel rails (TR), anchored about every 500 mm (sheet 3/7)
+  [LX - RG, LX + RG].forEach((xc, k) => {
+    const g = grp("rail" + k, dropIn(3, 0.4 + k * 1.1, 1.6 + k * 1.1, 900));
+    box(g, xc - 45, 20, RZ0, xc + 45, 120, RZ1, C.galv, { mat: 6, edge: .55 });
+    for (let z = RZ0 + 120; z < RZ1; z += 495) box(g, xc - 105, 0, z - 45, xc + 105, 20, z + 45, C.galvD, { edge: .3 });
+  });
+
+  // ---------- step 5: 3" guide rails (3GR) with flared entry ends (sheet 3/7)
+  [-1, 1].forEach((sg, k) => {
+    const g = grp("guide" + k, dropIn(4, 0.4 + k * 1.0, 1.5 + k * 1.0, 700));
+    const xc = LX + sg * GR;
+    box(g, xc - 38, 90, GZ0, xc + 38, 166, GZ1, C.galv, { mat: 6, edge: .5 });
+    [1414, 2970, 4694, 6434, 7748, 9049].forEach(z => box(g, xc + sg * 30 - 40, 0, z - 45, xc + sg * 30 + 40, 125, z + 45, C.galvD, { edge: .35 }));
+    const cx = xc + sg * 113, cz = (165 + GZ0) / 2;
+    box(g, cx - 38, 90, cz - 468, cx + 38, 166, cz + 468, C.galv, { mat: 6, edge: .5, rot: [0, -sg * 14, 0] });
+    box(g, xc + sg * 230 - 40, 0, 400 - 45, xc + sg * 230 + 40, 125, 400 + 45, C.galvD, { edge: .35 });
+  });
+
+  // ---------- step 6: gantry frame (moves in the test wash)
+  const GMOV = [tr(10, 4.0, 8.0, "tz", 0, GTRAV, "inout"), tr(10, 8.0, 12.0, "tz", GTRAV, 0, "inout")];
+  const XW = LX - RG, XE = LX + RG;
+  const gframe = grp("gframe", [...dropIn(5, 0.3, 2.2, 2400, "inout"), ...GMOV]);
+  [XW, XE].forEach(xr => {
+    const out = xr < LX ? -1 : 1;
+    box(gframe, xr - 160, 330, GZ - 980, xr + 160, 480, GZ + 980, C.dark, { edge: .5 });
+    [GZ - 700, GZ + 700].forEach(zc => {
+      cyl(gframe, xr, 250, zc, 260, 110, "x", C.tire, { edge: .35 });
+      box(gframe, xr - 125, 190, zc - 190, xr - 62, 430, zc + 190, C.dark, { edge: .4 });
+      box(gframe, xr + 62, 190, zc - 190, xr + 125, 430, zc + 190, C.dark, { edge: .4 });
+    });
+    [GZ - 800, GZ + 800].forEach(zc => box(gframe, xr - 150, 480, zc - 150, xr + 150, 3400, zc + 150, C.gcov, { edge: .5 }));
+    box(gframe, xr - 170, 3400, GZ - 980, xr + 170, 3560, GZ + 980, C.gcov, { edge: .5 });
+    box(gframe, xr + out * 150, 1100, GZ - 650, xr + out * 178, 3400, GZ + 650, C.gacc, { edge: .4 });
+  });
+  box(gframe, XW - 230, 3560, GZ - 870, XE + 230, 3780, GZ + 870, C.gcov, { edge: .45 });
+  [GZ - 870, GZ + 870].forEach(z => cyl(gframe, LX, 3670, z, 220, XE - XW + 460, "x", C.gcov, { edge: .2 }));
+  [LX - 1400, LX + 1400].forEach(x => box(gframe, x - 40, 1350, GZ - 640, x + 40, 3560, GZ - 560, C.galvD, { edge: .4 }));
+
+  // ---------- step 7: brushes, wheel blasters, spray arch, signs (all move with the gantry)
+  const brushObjs = [];
+  const bside = grp("bside", [...popIn(6, 0.5, 1.3), ...GMOV], { pivot: [LX, 1700, GZ + 200] });
+  [LX - 1520, LX + 1520].forEach(x => {
+    brushObjs.push(cyl(bside, x, 1700, GZ + 200, 900, 2300, "y", C.brush, { mat: 7, edge: .12 }));
+    box(bside, x - 30, 2850, GZ + 170, x + 30, 3560, GZ + 230, C.ss, { mat: 6, edge: .4 });
+    box(bside, x - 95, 2950, GZ + 105, x + 95, 3200, GZ + 295, C.dark, { edge: .45 });
+  });
+  const btop = grp("btop", [...popIn(6, 1.4, 2.2), ...GMOV], { pivot: [LX, 3200, GZ - 600] });
+  brushObjs.push(cyl(btop, LX, 3200, GZ - 600, 700, 2700, "x", C.brush, { mat: 7, edge: .12, tag: "bt" }));
+  [LX - 1400, LX + 1400].forEach(x => box(btop, x - 55, 3130, GZ - 665, x + 55, 3270, GZ - 535, C.dark, { edge: .45 }));
+  const wbl = grp("wbl", [...fadeIn(6, 2.6, 3.2), tr(6, 2.6, 3.2, "em", 0, .7, "lin"), tr(6, 7.0, 8.4, "em", .7, 0, "lin"), ...GMOV]);
+  [[XW + 170, XW + 290], [XE - 290, XE - 170]].forEach(([a, b]) => box(wbl, a, 180, GZ - 940, b, 600, GZ - 700, C.dark, { edge: .45, emc: [0.3, 0.6, 1] }));
+  const garch = grp("garch", [...fadeIn(6, 3.4, 4.0), ...GMOV]);
+  [XW + 200, XE - 250].forEach(x => box(garch, x, 300, GZ - 1000, x + 50, 3300, GZ - 950, C.ss, { mat: 6, edge: .4 }));
+  box(garch, XW + 200, 3250, GZ - 1000, XE - 200, 3300, GZ - 950, C.ss, { mat: 6, edge: .4 });
+  for (let k = 0; k < 9; k++) { const y = 500 + k * 310; box(garch, XW + 250, y, GZ - 995, XW + 290, y + 40, GZ - 965, C.dark, { edge: 0 }); box(garch, XE - 290, y, GZ - 995, XE - 250, y + 40, GZ - 965, C.dark, { edge: 0 }); }
+  for (let k = 0; k < 7; k++) { const x = LX - 1200 + k * 400; box(garch, x - 20, 3210, GZ - 995, x + 20, 3250, GZ - 965, C.dark, { edge: 0 }); }
+  const signs = grp("signs", [...popIn(6, 4.4, 5.0), ...GMOV], { pivot: [LX, 3610, GZ - 1000] });
+  const sign1 = box(signs, LX - 1000, 3470, GZ - 1012, LX - 300, 3750, GZ - 990, [0.10, 0.22, 0.12], { edge: .5, emc: [0.15, 0.85, 0.35] });
+  const sign2 = box(signs, LX + 300, 3470, GZ - 1012, LX + 1000, 3750, GZ - 990, [0.24, 0.08, 0.07], { edge: .5, emc: [0.95, 0.16, 0.12] });
+
+  // ---------- step 8: equipment along the west wall (positions from sheets 2/7 and 3/7)
+  const evo = grp("evo", popIn(7, 0.5, 1.1), { pivot: [300, 700, 6250] });
+  box(evo, 0, 0, 5450, 620, 430, 7050, C.galvD, { edge: .5 });
+  const pailC = [[0.85, 0.35, 0.55], [0.30, 0.55, 0.90], [0.95, 0.80, 0.25], [0.35, 0.75, 0.45], [0.92, 0.92, 0.90], [0.95, 0.55, 0.20]];
+  pailC.forEach((c, k) => cyl(evo, 320, 620, 5600 + k * 260, 240, 380, "y", c, { edge: .3 }));
+  box(evo, 0, 1150, 5700, 240, 1950, 6450, C.white, { edge: .5 });
+  box(evo, 240, 1600, 5850, 250, 1850, 6150, C.glassDk, { edge: 0, em: .4, emc: [0.3, 0.6, 1] });
+  const a8 = grp("a8", popIn(7, 1.4, 1.9), { pivot: [100, 1550, 6800] });
+  box(a8, 0, 1250, 6600, 200, 1850, 7000, C.box, { edge: .55 });
+  const a0 = grp("a0", popIn(7, 1.9, 2.4), { pivot: [80, 1550, 7230] });
+  box(a0, 0, 1350, 7080, 160, 1750, 7380, C.box, { edge: .55 });
+  const tank = grp("tank", popIn(7, 2.6, 3.2), { pivot: [330, 430, 7480] });
+  cyl(tank, 330, 430, 7480, 560, 860, "y", C.tank, { edge: .4 });
+  const hps = grp("hps", popIn(7, 3.4, 4.2), { pivot: [410, 820, 8700] });
+  [[0, 8200], [780, 8200], [0, 9160], [780, 9160]].forEach(([x, z]) => box(hps, x, 0, z, x + 40, 1650, z + 40, C.galvD, { edge: .4 }));
+  [300, 850, 1400].forEach(y => box(hps, 0, y, 8200, 820, y + 30, 9200, C.galvD, { edge: .4 }));
+  [330, 880].forEach(y => { cyl(hps, 410, y + 190, 8550, 300, 450, "z", C.gacc, { edge: .4 }); box(hps, 250, y, 8800, 570, y + 300, 9100, C.dark, { edge: .4 }); });
+  box(hps, 100, 1430, 8350, 700, 1640, 9000, C.box, { edge: .5 });
+  const cmd = grp("cmd", popIn(7, 4.8, 5.4), { pivot: [380, 800, 430] });
+  box(cmd, 260, 0, 320, 500, 1050, 540, C.dark, { edge: .5 });
+  box(cmd, 200, 1050, 260, 560, 1700, 600, C.white, { edge: .55 });
+  box(cmd, 560, 1250, 300, 572, 1560, 560, C.glassDk, { edge: 0, em: .6, emc: [0.3, 0.6, 1] });
+
+  // ---------- step 9: E-chain in a guide channel; fixed end beside the EVO bench (sheet 3/7); lines from the equipment
+  const EX0 = 891, EW = 180, EZF = 5400, ECL = 6258, TZ0 = 1150, TZ1 = 11050;
+  const etray = grp("etray", growIn(8, 0.4, 1.6, "gz"), { pivot: [0, 0, TZ1] });
+  box(etray, EX0 - 20, 0, TZ0, EX0 + EW + 20, 12, TZ1, C.galvD, { edge: .4 });
+  box(etray, EX0 - 20, 0, TZ0, EX0 - 4, 110, TZ1, C.galv, { mat: 6, edge: .35 });
+  box(etray, EX0 + EW + 4, 0, TZ0, EX0 + EW + 20, 110, TZ1, C.galv, { mat: 6, edge: .35 });
+  box(etray, EX0, 82, TZ0, EX0 + 22, 98, EZF - 120, C.galvD, { edge: .25 });
+  box(etray, EX0 + EW - 22, 82, TZ0, EX0 + EW, 98, EZF - 120, C.galvD, { edge: .25 });
+  const efix = grp("efix", popIn(8, 1.2, 1.6), { pivot: [720, 200, 5230] });
+  box(efix, 560, 0, 5060, EX0 - 20, 420, EZF, C.dark, { edge: .5 });
+  box(efix, EX0 - 20, 12, EZF - 60, EX0 + EW, 94, EZF, C.dark, { edge: .4 });
+  const echain = grp("echain", fadeIn(8, 1.5, 2.3));
+  const CH = [0.22, 0.23, 0.25];
+  const eL = box(echain, EX0, 14, EZF, EX0 + EW, 96, 10800, CH, { mat: 8, edge: .3 });
+  const eB = cyl(echain, EX0 + EW / 2, 97, 10800, 170, EW, "x", CH, { edge: .25 });
+  const eU = box(echain, EX0, 98, 10000, EX0 + EW, 180, 10800, CH, { mat: 8, edge: .3 });
+  const eA = box(echain, EX0 + EW, 100, 10000, XW - 125, 180, 10120, C.galvD, { edge: .4 });
+  const eV = box(echain, XW - 165, 100, 10000, XW - 125, 340, 10120, C.galvD, { edge: .4 });
+  const elines = grp("elines", growIn(8, 2.6, 4.0, "gz"), { pivot: [0, 0, EZF] });
+  box(elines, 650, 0, EZF, 700, 50, 8300, C.hose, { edge: .2 });
+  box(elines, 712, 0, EZF, 750, 40, 6020, [0.85, 0.75, 0.30], { edge: .2 });
+  box(elines, 762, 0, EZF, 792, 30, 7160, C.dark, { edge: .2 });
+  const elx = grp("elx", fadeIn(8, 4.0, 4.6));
+  box(elx, 623, 0, 5980, 750, 40, 6020, [0.85, 0.75, 0.30], { edge: .2 });
+  box(elx, 60, 0, 7120, 792, 30, 7160, C.dark, { edge: .2 });
+  box(elx, 60, 0, 7120, 100, 1350, 7160, C.dark, { edge: .2 });
+
+  // ---------- step 10: final connections
+  const pwr = grp("pwr", growIn(9, 0.4, 1.8, "gz"), { pivot: [0, 0, 4475] });
+  box(pwr, 40, 2240, 4475, 80, 2280, 8700, C.pvc, { edge: .3 });
+  const pdrop = grp("pdrop", growIn(9, 1.8, 2.6, "gy"), { pivot: [0, 2260, 0] });
+  box(pdrop, 40, 1850, 6780, 80, 2260, 6820, C.pvc, { edge: .3 }); box(pdrop, 40, 1640, 8680, 80, 2260, 8720, C.pvc, { edge: .3 });
+  const c5 = grp("c5", growIn(9, 2.8, 4.4, "gz"), { pivot: [0, 0, 430] });
+  box(c5, 15, 2380, 430, 45, 2410, 7230, C.cat5, { edge: .2, em: .3, emc: C.cat5 });
+  const c5d = grp("c5d", growIn(9, 4.4, 5.0, "gy"), { pivot: [0, 2400, 0] });
+  box(c5d, 15, 1700, 415, 45, 2400, 445, C.cat5, { edge: .2 }); box(c5d, 15, 1750, 7215, 45, 2400, 7245, C.cat5, { edge: .2 });
+  const flex = grp("flex", fadeIn(9, 5.2, 6.0));
+  box(flex, 120, 430, 5330, 170, 1370, 5370, C.cw, { edge: .2 });
+  box(flex, 120, 1440, 9330, 170, 1650, 9370, C.cw, { edge: .2 }); box(flex, 120, 1600, 9150, 170, 1650, 9370, C.cw, { edge: .2 });
+  box(flex, 120, 1440, 5180, 170, 1950, 5220, C.airY, { edge: .2 }); box(flex, 120, 1900, 5180, 170, 1950, 5720, C.airY, { edge: .2 });
+
+  // ---------- step 11: test vehicle (generic ambulance), spray, clearance line
+  const vehG = grp("veh", [...fadeIn(10, 0.3, 0.7), tr(10, 0.6, 3.6, "tz", -15500, 0, "out")]);
+  const vb = (x0, y0, z0, x1, y1, z1, c, o) => box(vehG, LX + x0, y0, VF + z0, LX + x1, y1, VF + z1, c, o);
+  vb(-1200, 520, -6700, 1200, 2850, -2250, C.white, { edge: .45 });
+  vb(-1205, 1250, -6690, 1205, 1500, -2260, C.stripe, { edge: 0 });
+  vb(-1020, 500, -2262, 1020, 2350, -700, C.white, { edge: .45 });
+  vb(-1000, 500, -712, 1000, 1250, -60, C.white, { edge: .45 });
+  vb(-900, 1450, -704, 900, 2200, -688, C.glassDk, { edge: 0 });
+  vb(-1023, 1450, -1900, 1023, 2150, -950, C.glassDk, { edge: 0 });
+  vb(-1025, 1150, -2240, 1025, 1350, -710, C.stripe, { edge: 0 });
+  vb(-1050, 330, -70, 1050, 600, 0, C.dark, { edge: .3 });
+  vb(-850, 800, -12, -550, 950, 0, C.white, { edge: 0, em: 1, emc: [1, 0.97, 0.85] }); vb(550, 800, -12, 850, 950, 0, C.white, { edge: 0, em: 1, emc: [1, 0.97, 0.85] });
+  vb(-700, 2350, -1050, 700, 2470, -850, C.amber, { edge: 0, em: .8, emc: C.amber });
+  [-1150, 1150].forEach(x => vb(x - 100, 1650, -1000, x + 100, 1980, -900, C.dark, { edge: 0 }));
+  [[-1200, -6700], [1080, -6700], [-1200, -2380], [1080, -2380]].forEach(([x, z]) => vb(x, 2700, z, x + 120, 2850, z + 120, C.stripe, { edge: 0, em: .6, emc: C.stripe }));
+  [[-1150], [1150]].forEach(([x]) => { cyl(vehG, LX + x * 0.86, 410, VF - 1150, 820, 280, "x", C.tire, { edge: .3 }); cyl(vehG, LX + x * 0.86, 410, VF - 5350, 820, 300, "x", C.tire, { edge: .3 }); });
+  const sprayG = grp("spray");
+  const SPRAY = [];
+  for (let k = 0; k < 42; k++) SPRAY.push(box(sprayG, 0, 0, 0, 80, 80, 80, C.water, { a: 0, edge: 0, shadow: false, em: .5, emc: [0.7, 0.88, 1] }));
+  const clr = grp("clr", [...fadeIn(10, 12.6, 13.4), tr(10, 12.6, 13.4, "em", 0, 1, "lin")]);
+  box(clr, 0, 3805, 0, RW, 3825, 40, C.orange, { edge: 0, shadow: false, emc: C.orange });
+  box(clr, 0, 3805, 0, 40, 3825, RL, C.orange, { edge: 0, shadow: false, emc: C.orange });
+
+  // custom animations: gantry-driven E-chain, brush spin + top-brush profile, spray, signs
+  const sst = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const vR = VF - 6700, vC = VF - 2250, vH = VF - 700;
+  const roofAt = z => (z >= vR && z < vC) ? 2850 : (z >= vC && z < vH) ? 2350 : (z >= vH && z <= VF) ? 1250 : -1;
+  const brushAxis = z => { let m = -1; for (let k = -2; k <= 2; k++) { const r = roofAt(z + k * 175); if (r > 0) m = Math.max(m, r + 300); } return m < 0 ? 3200 : Math.min(3200, m); };
+  function customs(T) {
+    const s10 = starts[10], t10 = T - s10;
+    const gzc = GZ + val(gframe, "tz", T, 0);
+    const runA = s10 + 4.0, runB = s10 + 12.0;
+    const spin = T < runA ? 0 : (Math.min(T, runB + 0.6) - runA) * 3.0;
+    brushObjs.forEach(o => { o.ph = o.tag === "bt" ? -spin : spin; });
+    // the top brush rides the roof: box 2850, cab 2350, hood 1250
+    let ax = 0;
+    for (let k = -3; k <= 3; k++) ax += brushAxis(gzc - 600 + k * 100);
+    ax /= 7;
+    const engaged = sst(runA - 0.4, runA + 0.2, T) * (1 - sst(runB, runB + 0.6, T));
+    btop.st.cy = (ax - 3200) * engaged;
+    // E-chain: fixed end at EZF, moving end on the gantry's west truck; the bend travels at half speed
+    const zm = gzc - 460, zb = (ECL + EZF + zm) / 2;
+    eL.p = [EX0, 14, EZF]; eL.s = [EW, 82, Math.max(1, zb - EZF)];
+    eB.p = [EX0 + EW / 2 - 85, 97 - EW / 2, zb - 85];
+    eU.p = [EX0, 98, Math.min(zm, zb)]; eU.s = [EW, 82, Math.max(1, Math.abs(zb - zm))];
+    eA.p = [EX0 + EW, 100, zm - 60]; eV.p = [XW - 165, 100, zm - 60];
+    // spray from the arch while the gantry runs
+    const on = T > runA && T < runB;
+    SPRAY.forEach((o, k) => {
+      if (!on) { o.a = 0; return; }
+      const ph = ((T - runA) * 1.9 + k * 0.6180339) % 1, side = k % 3, h = (k * 0.37) % 1;
+      if (side === 0) o.p = [XW + 300 + ph * 650, 420 + h * 2600, gzc - 1000 - ph * 260];
+      else if (side === 1) o.p = [XE - 380 - ph * 650, 420 + h * 2600, gzc - 1000 - ph * 260];
+      else o.p = [LX - 1250 + h * 2500, 3150 - ph * 700, gzc - 1000 - ph * 260];
+      o.a = 0.7 * Math.sin(Math.PI * ph);
+    });
+    // signs: green = drive in, red = stop
+    const demo = T >= starts[6] + 5.0 && T < starts[6] + STEPS[6].dur;
+    sign1.em = (t10 > 0.5 && t10 < 3.6) || t10 > 12.4 ? 1.3 : demo ? 1.0 : 0.12;
+    sign2.em = t10 >= 3.6 && t10 <= 12.4 ? 1.3 : 0.12;
+  }
+
+  // ======================= labels + dims (overlay)
+  const ovl = document.getElementById("ovl"), ovsvg = document.getElementById("ovsvg"), badgeEl = document.getElementById("badge"), outroEl = document.getElementById("outro");
+  const labels = [];
+  function lab(step, a, at, text, sub, o) {
+    o = o || {};
+    const el = document.createElement("div");
+    el.className = "lbl" + (o.hold ? " hold" : "") + (o.big ? " big" : "") + (o.minor ? " minor" : "");
+    el.style.setProperty("--c", "var(--" + (o.c || STEPS[step].c) + ")");
+    el.innerHTML = text + (sub ? "<small>" + sub + "</small>" : "");
+    ovl.appendChild(el);
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", o.hold ? "#c3322c" : "#13202b"); ln.setAttribute("stroke-width", "1.4"); ln.setAttribute("opacity", ".8");
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("fill", o.hold ? "#c3322c" : "#13202b"); dot.setAttribute("r", "3.2");
+    ovsvg.appendChild(ln); ovsvg.appendChild(dot);
+    labels.push({ step, a, at, off: o.off || [-6, -4], el, ln, dot, keep: !!o.keep, until: o.until == null ? null : o.until });
+  }
+  const dims = [];
+  function dim(step, a, p1, p2, text, o) {
+    o = o || {};
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", "#13202b"); ln.setAttribute("stroke-width", "1.6");
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "line"), t2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    [t1, t2].forEach(t => { t.setAttribute("stroke", "#13202b"); t.setAttribute("stroke-width", "2.2"); });
+    g.appendChild(ln); g.appendChild(t1); g.appendChild(t2); ovsvg.appendChild(g);
+    const el = document.createElement("div"); el.className = "dimt"; el.textContent = text; ovl.appendChild(el);
+    dims.push({ step, a, p1, p2, g, ln, t1, t2, el, keep: !!o.keep });
+  }
+  // step 1
+  lab(0, 1.0, [LX, 0, 4300], "Car Wash 117", "wash lane", { off: [-7, 1] });
+  lab(0, 1.4, [7160, 0, 3000], "Bypass 116", "second lane", { off: [4, -2] });
+  lab(0, 3.0, [LX, 0, 6600], "TD-1 + CB-1 down the lane", "trench drains also at both north doors + OHD116D", { off: [5, 2], c: "ref" });
+  lab(0, 4.2, [(D1[0] + D1[1]) / 2, 2600, 0], "OHD116B", "exterior · wash lane", { off: [-4, -4] });
+  lab(0, 4.8, [(D2[0] + D2[1]) / 2, 2600, 0], "OHD116C", "exterior · bypass", { off: [3, -4], minor: true });
+  lab(0, 5.4, [(DS[0] + DS[1]) / 2, 0, RL], "OHD116D", "to the vehicle bay", { off: [3, 2] });
+  // step 2
+  dim(1, 1.6, [0, 8, 2000], [LX, 8, 2000], "10′-8″ [3251]");
+  dim(1, 2.4, [LX + RG + 260, 8, 0], [LX + RG + 260, 8, RZ0], "1′-8″");
+  dim(1, 3.2, [LX + RG + 260, 8, RZ0], [LX + RG + 260, 8, RZ1], "36′-0″ rails [10 973]");
+  dim(1, 4.4, [RW + 450, 8, 0], [RW + 450, 8, RL], "39′-7″ (sheet 3/7)");
+  dim(1, 5.0, [0, 8, RL + 450], [RW, 8, RL + 450], "34′-11″ (sheet 3/7)");
+  lab(1, 1.0, [LX, 0, 7400], "Lane centreline", "on the OHD116B door centre", { off: [-6, 2] });
+  // step 3
+  lab(2, 1.0, [180, 1700, 4475], "Main disconnect + panel", "by the contractor · 208 V 3-ph", { off: [5, -3] });
+  lab(2, 2.4, [130, 2950, 2600], "City water 43–87 psi, 22 GPM", "backflow + PRV by others", { off: [-6, -3], c: "ref" });
+  lab(2, 3.8, [220, 1370, 5350], "1″ CW drops, shut-off 4′–5′ AFF", "next to the equipment", { off: [5, 2], c: "ref" });
+  lab(2, 5.2, [220, 1370, 5200], "Air drop ½″ FPT", "compressor by others · RFI 080", { off: [-2, 3], c: "ref" });
+  lab(2, 6.4, [40, 2690, 7750], "Wall sleeve 8″ × 12″ @ 8′-6″", "by the GC · location?", { off: [5, -3], hold: true });
+  // step 4
+  lab(3, 2.0, [LX - RG, 120, 4200], "Travel rails 36′-0″", "galvanized · about 11′-6″ apart", { off: [5, -3] });
+  lab(3, 3.4, [LX + RG, 20, 9100], "Set level and true", null, { off: [4, 2], minor: true });
+  // step 5
+  lab(4, 1.8, [LX - GR, 166, 4500], "3″ guide rails", "about 8′-8″ apart", { off: [-5, -3] });
+  lab(4, 3.2, [LX + GR + 150, 166, 700], "Flared entry at OHD116B", null, { off: [4, -3] });
+  // step 6
+  lab(5, 2.4, [LX, 3780, GZ], "Istobal Flex 5 XL gantry", "galvanized frame · powder-coated covers", { off: [-4, -4] });
+  lab(5, 3.4, [XE, 250, GZ + 700], "Drive wheels on the travel rails", null, { off: [4, 2] });
+  dim(5, 4.6, [XE - 420, 0, GZ - 1000], [XE - 420, 2895, GZ - 1000], "114″ [2895] max. vehicle");
+  // step 7
+  lab(6, 1.0, [LX - 1520, 2300, GZ + 200], "Side brushes ×2", "colour: DSA to pick", { off: [-5, -2] });
+  lab(6, 2.0, [LX + 400, 2950, GZ - 600], "Top brush", null, { off: [6, 1] });
+  lab(6, 3.0, [XW + 230, 420, GZ - 820], "Wheel blasters", "HP wheel wash", { off: [-5, 2] });
+  lab(6, 5.0, [LX - 650, 3750, GZ - 1010], "Lighted signs", "drive in · stop", { off: [-6, -3] });
+  // step 8
+  lab(7, 1.2, [320, 820, 5800], "EVO chemical delivery", "pails + booster pump", { off: [5, 3] });
+  lab(7, 2.0, [200, 1850, 6800], "A8 HV junction box", null, { off: [5, -4] });
+  lab(7, 2.5, [160, 1750, 7230], "A0 LV junction box", null, { off: [6, -2], minor: true });
+  lab(7, 3.2, [330, 860, 7480], "Blue 50-gal tank", null, { off: [5, 1] });
+  lab(7, 4.2, [410, 1650, 8700], "HP pump stand", "2 × 7.4 HP · 22.1 A each", { off: [5, -2] });
+  lab(7, 5.4, [560, 1600, 430], "Command post A3", "at the entrance", { off: [4, -3] });
+  lab(7, 6.6, [300, 430, 7050], "Special covers in the wet bay", "Istobal note 9", { off: [-1, 4], hold: true });
+  // step 9
+  lab(8, 2.4, [EX0 + EW / 2, 180, 9300], "E-chain to the gantry", "in its guide channel", { off: [4, 3] });
+  lab(8, 1.6, [720, 420, 5230], "Fixed end", null, { off: [-4, -3], minor: true });
+  lab(8, 4.0, [675, 50, 7600], "HP + chemical lines", "installer's scope", { off: [5, 2] });
+  lab(8, 5.2, [410, 1650, 8700], "Pump suction 32′-10″ max.", "9′-10″ max. depth", { off: [-2, -4], minor: true });
+  // step 10
+  lab(9, 1.4, [60, 2260, 6200], "Gantry 88.4 A FLA, 1 circuit", "HP pumps 22.1 A each · EVO 8.4 A", { off: [5, -3] });
+  lab(9, 3.4, [30, 2395, 3200], "Shielded CAT5", "command post → A0 → gantry", { off: [5, -3] });
+  lab(9, 5.6, [145, 1100, 5350], "Final water + air", "by mechanical", { off: [5, 3], c: "ref" });
+  // step 11
+  lab(10, 2.0, [LX, 2850, VF - 4000], "Test vehicle", "up to 114″ high", { off: [-5, -4], until: 3.8 });
+  lab(10, 4.6, [LX, 3780, GZ - 4000], "Gantry runs the 36′ rails", "over the vehicle and back", { off: [4, -4], until: 11.8 });
+  dim(10, 12.8, [D1[0] + 300, 0, -40], [D1[0] + 300, 3048, -40], "10′-0″ min.", { keep: true });
+  lab(10, 13.0, [RW * 0.4, 3815, 20], "12′-6″ min. clear inside", "Istobal note 8", { off: [2, -3], keep: true });
+  lab(10, 13.6, [LX, 3780, GZ], "Start-up + training", "National Wash + factory rep", { off: [-5, -3], keep: true });
+
+  // ======================= render
+  let stageW = 960, stageH = 540, dpr = 1, lensShift = -0.12, camScale = 1;
+  const PROJ = { vp: null };
+  function camAt(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    const c1 = STEPS[i].cam;
+    let p = c1[0].slice(), t = c1[1].slice();
+    if (i > 0 && tau < CAM_T) {
+      const c0 = STEPS[i - 1].cam, k = EASE.inout(tau / CAM_T);
+      const d0 = drift(i - 1, STEPS[i - 1].dur);
+      p = c0[0].map((v, j) => v + (c1[0][j] - v) * k); t = c0[1].map((v, j) => v + (c1[1][j] - v) * k);
+      // blend from previous drift
+      const a0 = d0 * (1 - k);
+      p = rotAbout(p, t, a0);
+    }
+    const a = drift(i, tau);
+    if (!(i > 0 && tau < CAM_T)) p = rotAbout(p, t, a); else p = rotAbout(p, t, a * EASE.inout(tau / CAM_T));
+    if (camScale !== 1) p = t.map((v, j) => v + (p[j] - v) * camScale);
+    return { p, t };
+  }
+  function drift(i, tau) { return (i === STEPS.length - 1 ? 0.02 : 0.011) * tau; }
+  function rotAbout(p, t, a) { const dx = p[0] - t[0], dz = p[2] - t[2], c = Math.cos(a), s = Math.sin(a); return [t[0] + dx * c + dz * s, p[1], t[2] - dx * s + dz * c]; }
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+
+  function groupMatrix(g, T) {
+    const st = g.st;
+    st.op = val(g, "op", T, 1); st.tx = val(g, "tx", T, 0); st.ty = val(g, "ty", T, 0); st.tz = val(g, "tz", T, 0);
+    st.sc = val(g, "sc", T, 1); st.ry = val(g, "ry", T, 0); st.em = val(g, "em", T, 0);
+    st.gx = val(g, "gx", T, 1); st.gy = val(g, "gy", T, 1); st.gz = val(g, "gz", T, 1);
+    const rx = st.rx || 0;
+    const pv = g.pivot;
+    let m = M.T(st.tx + pv[0], st.ty + (st.cy || 0) + pv[1], st.tz + pv[2]);
+    if (st.ry) m = M.mul(m, M.RY(st.ry * Math.PI / 180));
+    if (rx) m = M.mul(m, M.RX(rx));
+    const s = st.sc;
+    if (s !== 1 || st.gx !== 1 || st.gy !== 1 || st.gz !== 1) m = M.mul(m, M.S(s * st.gx, s * st.gy, s * st.gz));
+    m = M.mul(m, M.T(-pv[0], -pv[1], -pv[2]));
+    g.m = m;
+  }
+  function objMatrix(o) {
+    const sx = Math.max(o.s[0], .01), sy = Math.max(o.s[1], .01), sz = Math.max(o.s[2], .01);
+    if (!o.rot) return M.mul(M.mul(o.g.m, M.T(o.p[0], o.p[1], o.p[2])), M.S(sx, sy, sz));
+    let m = M.mul(o.g.m, M.T(o.p[0] + o.s[0] / 2, o.p[1] + o.s[1] / 2, o.p[2] + o.s[2] / 2));
+    if (o.rot[1]) m = M.mul(m, M.RY(o.rot[1] * Math.PI / 180));
+    if (o.rot[0]) m = M.mul(m, M.RX(o.rot[0] * Math.PI / 180));
+    if (o.rot[2]) m = M.mul(m, M.RZ(o.rot[2] * Math.PI / 180));
+    return M.mul(m, M.mul(M.T(-sx / 2, -sy / 2, -sz / 2), M.S(sx, sy, sz)));
+  }
+
+  function draw(T) {
+    customs(T);
+    const cam = camAt(T);
+    const aspect = stageW / stageH;
+    const proj = M.persp(36 * Math.PI / 180, aspect, 120, 140000);
+    proj[9] = lensShift;
+    const view = M.look(cam.p, cam.t, [0, 1, 0]);
+    const VP = M.mul(proj, view);
+    PROJ.vp = VP;
+    for (const g of groups) groupMatrix(g, T);
+    const list = [];
+    for (const o of objs) {
+      const a = o.a * o.g.st.op;
+      if (a <= 0.004) continue;
+      const m = objMatrix(o);
+      const c = M.xf(m, [.5, .5, .5]);
+      const d = Math.hypot(c[0] - cam.p[0], c[1] - cam.p[1], c[2] - cam.p[2]);
+      list.push({ o, m, a, d, k: o.g === site ? 1e9 : d });
+    }
+    const opaque = list.filter(it => it.a >= .995).sort((a, b) => a.k - b.k);
+    const trans = list.filter(it => it.a < .995).sort((a, b) => b.d - a.d);
+    const casters = list.filter(it => it.o.shadow && it.a >= .9);
+    const GEOS = [[0, CUBE, 36, EDGES, 24], [1, CYL, CYL_N, CEDGES, CEDGE_N]];
+    const of = (arr, gid) => arr.filter(it => it.o.geo === gid);
+    // shadow pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.viewport(0, 0, SHS, SHS);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.clear(gl.DEPTH_BUFFER_BIT); gl.colorMask(false, false, false, false);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
+    gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uLVP, false, LVP);
+    for (const [gid, V, N] of GEOS) { const n = fillInst(of(casters, gid), false); if (n) { gl.bindVertexArray(V); gl.drawElementsInstanced(gl.TRIANGLES, N, gl.UNSIGNED_SHORT, 0, n); } }
+    gl.colorMask(true, true, true, true);
+    // main pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.905, 0.918, 0.926, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const u = P_MAIN.u;
+    const mainUniforms = () => {
+      gl.useProgram(P_MAIN.p);
+      gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uLVP, false, LVP);
+      gl.uniform3fv(u.uEye, cam.p); gl.uniform3fv(u.uLD, LD); gl.uniform3fv(u.uFog, [0.905, 0.918, 0.926]);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0); gl.uniform1f(u.uShOn, 1);
+    };
+    const lineUniforms = () => { gl.useProgram(P_LINE.p); gl.uniformMatrix4fv(P_LINE.u.uVP, false, VP); };
+    for (const [gid, V, N, E, EN] of GEOS) {
+      const n = fillInst(of(opaque, gid), false);
+      if (!n) continue;
+      mainUniforms();
+      gl.disable(gl.BLEND); gl.depthMask(true);
+      gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 2); gl.enable(gl.CULL_FACE);
+      gl.bindVertexArray(V); gl.drawElementsInstanced(gl.TRIANGLES, N, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+      lineUniforms(); gl.bindVertexArray(E); gl.drawArraysInstanced(gl.LINES, 0, EN, n);
+    }
+    for (const [gid, V, N, E, EN] of GEOS) {
+      const n = fillInst(of(trans, gid), true);
+      if (!n) continue;
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+      mainUniforms(); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 2);
+      gl.bindVertexArray(V); gl.drawElementsInstanced(gl.TRIANGLES, N, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+      lineUniforms(); gl.bindVertexArray(E); gl.drawArraysInstanced(gl.LINES, 0, EN, n);
+    }
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+    overlay(T, cam);
+  }
+
+  function toScreen(p) {
+    const q = M.xf(PROJ.vp, p);
+    return { x: (q[0] * .5 + .5) * stageW, y: (1 - (q[1] * .5 + .5)) * stageH, behind: q[3] <= 0 };
+  }
+  function winOp(step, a, T, keep) {
+    const s0 = starts[step], s1 = s0 + STEPS[step].dur;
+    let op = 0;
+    if (T >= s0 + a) op = Math.min(1, (T - s0 - a) / .35);
+    if (!keep) { if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4)); if (T >= s1) op = 0; }
+    return op;
+  }
+  let lf = 14;
+  function overlay(T, cam) {
+    const intro = document.getElementById("intro");
+    const io = T < INTRO_T ? 1 : Math.max(0, 1 - (T - INTRO_T) / .5);
+    intro.style.opacity = poster ? 0 : io;
+    const chrome = poster ? 1 : 1 - io;
+    const oo = VIDEO ? Math.max(0, Math.min(1, (T - (TOTAL - 2.4)) / .5)) : 0;
+    outroEl.style.opacity = oo;
+    badgeEl.style.opacity = chrome; cap.style.opacity = stageWrap.classList.contains("narrow") ? 1 : chrome;
+    const narrow = stageWrap.classList.contains("narrow");
+    const topY = badgeEl.offsetTop + badgeEl.offsetHeight + 6;
+    const botY = narrow ? stageH - 6 : stageH - cap.offsetHeight - stageH * 0.026 - 8;
+    for (const L of labels) {
+      let op = poster ? (L.step === STEPS.length - 1 && L.keep ? 1 : 0) : winOp(L.step, L.a, T, L.keep);
+      if (!poster && L.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[L.step] - L.until) / .35));
+      op *= 1 - oo;
+      L.el.style.opacity = op; L.ln.style.opacity = op * .85; L.dot.style.opacity = op;
+      if (op <= 0) continue;
+      const s = toScreen(L.at);
+      const ox = L.off[0] * lf, oy = L.off[1] * lf;
+      const w = L.el.offsetWidth, h = L.el.offsetHeight;
+      let x = s.x + ox, y = s.y + oy;
+      let bx = ox < 0 ? x - w : x, by = oy < 0 ? y - h : y;
+      bx = Math.max(6, Math.min(stageW - w - 6, bx)); by = Math.max(topY, Math.min(botY - h, by));
+      L.el.style.transform = "translate(" + Math.round(bx) + "px," + Math.round(by) + "px)";
+      const ex = Math.max(bx, Math.min(s.x, bx + w)), ey = Math.max(by, Math.min(s.y, by + h));
+      L.ln.setAttribute("x1", ex); L.ln.setAttribute("y1", ey); L.ln.setAttribute("x2", s.x); L.ln.setAttribute("y2", s.y);
+      L.dot.setAttribute("cx", s.x); L.dot.setAttribute("cy", s.y);
+    }
+    for (const Dm of dims) {
+      const op = (poster ? 0 : winOp(Dm.step, Dm.a, T, Dm.keep)) * (1 - oo);
+      Dm.g.style.opacity = op; Dm.el.style.opacity = op;
+      if (op <= 0) continue;
+      const a = toScreen(Dm.p1), b = toScreen(Dm.p2);
+      Dm.ln.setAttribute("x1", a.x); Dm.ln.setAttribute("y1", a.y); Dm.ln.setAttribute("x2", b.x); Dm.ln.setAttribute("y2", b.y);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 7, ny = dx / l * 7;
+      Dm.t1.setAttribute("x1", a.x - nx); Dm.t1.setAttribute("y1", a.y - ny); Dm.t1.setAttribute("x2", a.x + nx); Dm.t1.setAttribute("y2", a.y + ny);
+      Dm.t2.setAttribute("x1", b.x - nx); Dm.t2.setAttribute("y1", b.y - ny); Dm.t2.setAttribute("x2", b.x + nx); Dm.t2.setAttribute("y2", b.y + ny);
+      const w = Dm.el.offsetWidth, h = Dm.el.offsetHeight;
+      Dm.el.style.transform = "translate(" + Math.round((a.x + b.x) / 2 - w / 2 + nx * 2.2) + "px," + Math.round((a.y + b.y) / 2 - h / 2 + ny * 2.2) + "px)";
+    }
+    // compass
+    const c0 = toScreen(cam.t), c1 = toScreen([cam.t[0], cam.t[1], cam.t[2] - 1000]);
+    const ang = Math.atan2(c1.x - c0.x, -(c1.y - c0.y)) * 180 / Math.PI;
+    document.getElementById("cneedle").setAttribute("transform", "rotate(" + ang.toFixed(1) + ")");
+  }
+
+  // ======================= UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs"), cap = $("cap");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step"; li.style.setProperty("--c", "var(--" + s.c + ")");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title + '</span><span class="w">' + s.who + '</span></button>' +
+      '<div class="step-body" hidden><ul>' + LIST[i].map(b => "<li>" + b + "</li>").join("") + "</ul>" +
+      (s.hold ? '<p class="hold"><b>Hold</b>' + s.hold + "</p>" : "") + '<p class="ref">' + s.ref + "</p></div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li); stepLis.push(li);
+    const b = document.createElement("button"); b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur); b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b); segFills.push(b.firstChild);
+  });
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shown = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = !VIDEO;
+  function updateUI(t) {
+    const i = stepAt(t);
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%"; segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    const key = poster + "|" + i;
+    if (key !== shown) {
+      shown = key;
+      const s = STEPS[i];
+      stepLis.forEach((li, k) => { const on = !poster && k === i; li.classList.toggle("active", on); li.querySelector(".step-head").setAttribute("aria-expanded", on); li.querySelector(".step-body").hidden = !on; });
+      const b = $("badge");
+      b.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      $("bNum").textContent = poster ? "✓" : String(i + 1);
+      $("bTitle").textContent = poster ? "Car wash installed" : s.title;
+      $("bWho").textContent = poster ? "" : s.who;
+      cap.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      cap.innerHTML = poster
+        ? "<ul><li>Istobal Flex 5 XL rollover gantry on 36′ rails in Car Wash 117, with its pump, chemical and control gear along the west wall.</li><li>Play it to see the 11 install steps, each tied to the drawings and spec.</li></ul><div class=\"ref\">Istobal layout rev 4.0 for National Wash · spec 11 11 26</div>"
+        : "<ul>" + s.lines.map(x => "<li>" + x + "</li>").join("") + "</ul>" + (s.hold ? '<div class="hold"><b>Hold</b>' + s.hold + "</div>" : "") + '<div class="ref">' + s.ref + "</div>";
+    }
+    $("bigPlay").hidden = playing || !poster || VIDEO;
+  }
+  function render(t) { draw(t); updateUI(t); }
+  function setPlay() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts; render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) { const i = stepAt(T); T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001); playing = false; render(T); setPlay(); return; }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { const j = Math.min(i + 1, STEPS.length - 1); stopAt = stopEach ? Math.min(TOTAL, starts[j] + STEPS[j].dur - .001) : TOTAL; }
+    playing = true; lastTs = null; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); setPlay(); render(T);
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlay(); render(T); }
+  function goStep(i, auto) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i)); poster = false; cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlay(); return; }
+    T = starts[i] + (i === 0 ? 0 : 0); render(T);
+    if (auto) { stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; playing = true; lastTs = null; raf = requestAnimationFrame(tick); }
+    setPlay();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => { if (poster) return goStep(STEPS.length - 1, true); const i = stepAt(T); goStep(T - starts[i] > 1.5 ? i : i - 1, true); });
+  $("stopEach").addEventListener("click", e => { stopEach = !stopEach; e.currentTarget.setAttribute("aria-pressed", stopEach); if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; } });
+  $("speed").addEventListener("click", e => { speed = speed === 1 ? .5 : 1; e.currentTarget.textContent = speed === 1 ? "1×" : "½×"; });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select, summary")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    dpr = VIDEO ? 1 : Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(stageW * dpr); canvas.height = Math.round(stageH * dpr);
+    lf = Math.max(11, Math.min(24, stageW / 86));
+    stage.style.setProperty("--lf", lf + "px");
+    stage.style.setProperty("--tf", Math.max(14, Math.min(40, stageW / 50)) + "px");
+    stageWrap.style.setProperty("--cf", Math.max(12.5, Math.min(26, stageW / 74)) + "px");
+    stageWrap.classList.toggle("narrow", stageW < 640 && !VIDEO);
+    lensShift = stageWrap.classList.contains("narrow") ? 0 : -0.12;
+    camScale = stageWrap.classList.contains("narrow") ? 0.9 : 1;
+    render(T);
+  }
+  new ResizeObserver(measure).observe(stage);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  window.__total = TOTAL; window.__starts = starts.slice(); window.__durs = STEPS.map(s => s.dur);
+  measure(); setPlay();
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
