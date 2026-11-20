@@ -39,7 +39,15 @@ class FakeQuery {
   }
 }
 
-class FakeCollection extends FakeQuery {}
+class FakeCollection extends FakeQuery {
+  doc(id) {
+    const { db, col } = this;
+    return {
+      async get() { const data = db.rows.get(col)?.get(id); return new FakeDocSnap(id, data == null ? null : data); },
+      async set(data, options = {}) { if (!db.rows.has(col)) db.rows.set(col, new Map()); const current = options.merge ? db.rows.get(col).get(id) || {} : {}; db.rows.get(col).set(id, { ...current, ...data }); },
+    };
+  }
+}
 
 class FakeDb {
   constructor(seed = {}) {
@@ -313,4 +321,22 @@ test("health export records are scoped per member/token", async () => {
   const { response } = await call({ db, request: req({ token: "alice-token", body: sleepBody }), client });
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.delivered, 1);
+});
+
+test("every export is recorded as a heartbeat, with the day's step total", async () => {
+  const db = seededDb();
+  const response = res();
+  await handleHealthExportEventRequest({
+    db,
+    req: req({ token: "secret-token", body: { data: { metrics: [{ name: "step_count", units: "count", data: [{ date: "2026-11-16 09:00:00 -0500", qty: 800 }, { date: "2026-11-16 10:00:00 -0500", qty: 434 }] }] } } }),
+    res: response,
+    logger: { info() {}, warn() {}, error() {} },
+    client: fakeClient(),
+  });
+  assert.equal(response.statusCode, 200);
+  const heartbeat = db.rows.get("heartbeats").get("user@example.com");
+  assert.equal(heartbeat.healthStepsDateKey, "2026-11-16");
+  assert.equal(heartbeat.healthStepsTotal, 1234);
+  assert.equal(heartbeat.healthCount, 1);
+  assert.ok(Math.abs(heartbeat.healthLastAtMs - Date.now()) < 60000);
 });

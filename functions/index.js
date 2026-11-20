@@ -156,6 +156,7 @@ const {
 const { handleOwnTracksEventRequest } = require("./ownTracksIntegration");
 const { closeStaleDrives } = require("./driveDetection");
 const { runTrackingHealthCheck } = require("./trackingHealth");
+const { handlePlaceReply } = require("./unknownStops");
 const { recordAndDeliver } = require("./stayClosing");
 const { handleLeavingWorkEtaRequest, relayEtaContactReply } = require("./leavingWorkEta");
 const { handlePlaceLogRequest } = require("./placesIntegration");
@@ -5266,6 +5267,15 @@ exports.inboundSms = onRequest(
         return;
       }
 
+      // A reply to a "New place logged" text (unknownStops.js): OK keeps the place, "PLACE name, activity" renames
+      // it. Anything else carries on to the assistant as usual.
+      const placeReply = await handlePlaceReply({ db, FieldValue, from, body: bodyTrimmedForCommands || body, deps: { logger, runId } });
+      if (placeReply.handled) {
+        logger.info("inboundSms: place reply", { runId, reply: placeReply.reply });
+        sendTwiml(res, placeReply.reply);
+        return;
+      }
+
       if (labourAdminQueryCandidate && !labourAdminRequestKey) {
         logger.warn("inboundSms: labour query missing MessageSid", {
           runId,
@@ -7302,9 +7312,14 @@ exports.healthExportEvents = onRequest(
     timeoutSeconds: 120,
     memory: "512MiB",
     cors: true,
-    secrets: [TIME_LEFT_INGESTION_TOKEN],
+    // Twilio: each export is a heartbeat, and thousands of steps while OwnTracks is quiet texts the member once.
+    secrets: [TIME_LEFT_INGESTION_TOKEN, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER],
   },
-  async (req, res) => handleHealthExportEventRequest({ db, req, res, logger })
+  async (req, res) => {
+    const { smsClient, fromPhone } = etaTwilio();
+    const sendSms = smsClient && fromPhone ? (to, body) => smsClient.messages.create({ to, from: fromPhone, body }) : null;
+    return handleHealthExportEventRequest({ db, FieldValue, req, res, logger, sendSms });
+  }
 );
 
 // "Known Places" dashboard (public/places.html): any signed-in active app member may read their

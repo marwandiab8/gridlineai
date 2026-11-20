@@ -24,6 +24,7 @@ const { haversineMeters } = require("./placeLearning");
 const { parseShortcutEventPayload } = require("./iosShortcutsIntegration");
 const { closeStaysFromEvidence, recordAndDeliver, formatStay } = require("./stayClosing");
 const { visitPlaceAtDriveEnd } = require("./autoVisits");
+const { applyEvidenceToPendingStop, openPendingStop } = require("./unknownStops");
 
 const COL_DRIVE_DETECTION = "driveDetection";
 const COL_SHORTCUT_EVENTS = "iosShortcutEvents";
@@ -337,7 +338,9 @@ async function recordDriveEmission({ db, FieldValue, member, emission, deviceNam
     // Parking at one of your known places is a visit there (autoVisits.js), unless OwnTracks reported the
     // arrival itself (Home/Work/Gym) or you were already checked in.
     if (emission.kind === "finish" && !result.duplicate) {
-      await visitPlaceAtDriveEnd({ db, FieldValue, member, stop: emission, deviceName, timezone, deps });
+      const visit = await visitPlaceAtDriveEnd({ db, FieldValue, member, stop: emission, deviceName, timezone, deps });
+      // Somewhere new: remember the spot, and name it when you leave (unknownStops.js).
+      if (visit && visit.skipped === "unknown_place") await openPendingStop({ db, FieldValue, member, stop: emission, deps });
     }
     // Setting off ends any "Log this place" stay you drove away from, at the moment you left.
     if (emission.kind === "start" && !result.duplicate) {
@@ -351,6 +354,7 @@ async function recordDriveEmission({ db, FieldValue, member, emission, deviceNam
         deps,
         evidence: { latitude: emission.latitude, longitude: emission.longitude, at: new Date(emission.atMs), eventType: "start_drive" },
       });
+      await applyEvidenceToPendingStop({ db, FieldValue, member, deps, evidence: { latitude: emission.latitude, longitude: emission.longitude, atMs: emission.atMs, eventType: "start_drive" } });
     }
     return { recorded: !result.duplicate, shortcutEventId: result.shortcutEventId };
   } catch (err) {
