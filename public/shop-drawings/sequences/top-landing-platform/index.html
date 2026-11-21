@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step 3D animation of the temporary top landing platform at Level 2 of the Docksteader elevator hoistway: design sign-off, access, steel bearing angles, 2×10 framing, two layers of plywood, guardrails and opening cover, rated-load posting, handover to Schindler and removal, from Schindler shop drawing 3/12 and O. Reg. 213/91.">
+<title>Elevator Top Landing Platform Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* VOICE: site superintendent's build sheet, plain and exact.
+   IDEA: a drawing sheet with a live 3D sequence on it, same family as SK-ELV-01.
+   PICTURE: the top of the hoistway cut open, the temporary platform going in piece by piece, then coming out.
+   COLOUR and TYPE: concrete greys, brown for MCL, blue for Schindler, teal for O. Reg. 213/91, red for holds; Barlow Condensed titles, Plex body and dims.
+   LAYOUT: sheet header, 16:9 stage with caption band (doubles as the video frame), transport, step list, open items, legend. */
+:root {
+  --bg: #e8ecee; --panel: #fbfcfc; --ink: #172027; --muted: #59656f; --line: #c9d1d7;
+  --mcl: #8a4f1d; --sch: #1f56c6; --ele: #a85d00; --mec: #6d3fc0; --hold: #c3322c; --hold-f: #fdeceb;
+  --font-display: "Barlow Condensed", "Arial Narrow", "TeX Gyre Heros Cn", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --mcl: #dca068; --sch: #82a8ff; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --mcl: #dca068; --sch: #82a8ff; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; min-width: 0; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; overflow-x: clip;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: max(20px, env(safe-area-inset-top, 0px)); padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+}
+.page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--sch); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage-wrap { position: relative; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #e7eaec; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ov { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-display); color: #13202b; }
+.ov #ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  font-size: var(--lf, 14px); line-height: 1.15; padding: .28em .55em .3em .5em; background: rgba(255,255,255,.95); color: #13202b;
+  border-left: .32em solid var(--c, #1f56c6); border-radius: .25em; box-shadow: 0 .08em .3em rgba(0,0,0,.18); }
+.lbl small { display: block; font-size: .78em; font-weight: 500; color: #46525c; letter-spacing: .02em; }
+.lbl.hold { color: #b3261e; border-left-color: #c3322c; }
+.dimt { position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; font-size: calc(var(--lf, 14px) * .92); color: #13202b; background: rgba(255,255,255,.9); padding: .1em .35em; border-radius: .2em; white-space: nowrap; }
+.badge { position: absolute; top: 2.2%; left: 1.6%; display: flex; align-items: center; gap: .45em; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--tf, 22px); letter-spacing: .03em; text-transform: uppercase; background: rgba(255,255,255,.94); padding: .12em .6em .12em .14em; border-radius: .35em; color: #13202b; }
+.badge .n { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--c, #13202b); color: #fff; font-size: .9em; flex: none; }
+.badge .w { font-family: var(--font-mono); font-weight: 600; font-size: .5em; color: var(--c, #59656f); letter-spacing: .06em; }
+.tag { position: absolute; top: 2.4%; right: 1.6%; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * .78); letter-spacing: .06em; text-transform: uppercase; color: #3d4a54; background: rgba(255,255,255,.88); padding: .25em .55em; border-radius: .25em; text-align: right; line-height: 1.45; }
+.cap { position: absolute; left: 1.6%; right: 1.6%; bottom: 2.6%; display: grid; grid-template-columns: minmax(0, 1fr); gap: .25em;
+  font-family: var(--font-body); font-size: var(--cf, 14px); line-height: 1.32; color: #13202b; background: rgba(255,255,255,.95);
+  border-left: .35em solid var(--c, #1f56c6); border-radius: .3em; padding: .6em .9em .65em; box-shadow: 0 .1em .5em rgba(0,0,0,.16); pointer-events: none; }
+.cap ul { margin: 0; padding: 0 0 0 1.05em; display: grid; gap: .12em; }
+.cap .ref { font-family: var(--font-mono); font-size: .74em; color: #4b5863; letter-spacing: .03em; }
+.cap .hold { color: #b3261e; font-weight: 600; }
+.cap .hold b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; margin-right: .35em; }
+.intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.intro div { background: rgba(255,255,255,.93); padding: .7em 1.2em .8em; border-radius: .35em; font-family: var(--font-display); color: #13202b; box-shadow: 0 .2em 1em rgba(0,0,0,.15); }
+.intro h2 { margin: 0; font-size: calc(var(--tf, 22px) * 2.1); line-height: 1; letter-spacing: .02em; font-weight: 700; text-transform: uppercase; }
+.intro p { margin: .35em 0 0; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * 1.05); letter-spacing: .05em; color: #3d4a54; text-transform: uppercase; }
+.big-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: #fff; background: #172027;
+  padding: 10px 18px 10px 14px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; pointer-events: auto; min-height: 44px; }
+.big-play svg { width: 18px; height: 18px; fill: currentColor; }
+.narrow .stage { aspect-ratio: 4 / 3; }
+.narrow .cap { position: static; margin-top: 8px; font-size: 13.5px; }
+.narrow .tag { display: none; }
+.narrow .badge { font-size: 14px; }
+.narrow .lbl.minor { display: none; }
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 26px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; cursor: pointer; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible, .back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--sch); outline-offset: 2px; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro-p { margin: 0; color: var(--muted); font-size: 14px; max-width: 86ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 6px; align-items: start; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; min-height: 44px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.step-head .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--c); border: 2px solid var(--c); }
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.step-body p { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.step-body .hold { background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+.step-body .hold b { color: var(--hold); }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; min-height: 32px; }
+.rfi ol { margin: 10px 0 4px; padding-left: 22px; display: grid; gap: 7px; max-width: 96ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; background: var(--c); display: inline-block; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 120ch; }
+/* video mode: stage only, full frame */
+body.video { padding: 0; background: #000; }
+body.video .page > :not(.bench), body.video .transport, body.video .steps-col, body.video .big-play { display: none !important; }
+body.video .page { max-width: none; gap: 0; }
+body.video .stage { border: 0; border-radius: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+@media (prefers-reduced-motion: reduce) { .seg i { transition: none; } }
+:root { --code: #0f766e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --code: #4fd1c5; } }
+:root[data-theme="dark"] { --code: #4fd1c5; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>Temporary top landing platform, step by step</h1>
+      <p class="sub">The work platform at Level 2 that Schindler needs before it will install the 3300 elevator. MCL designs, builds, maintains and removes it. 3D sequence built from Schindler shop drawing 3/12 (notes 1–6 and Section A-A) and O. Reg. 213/91. It goes with the <a href="/shop-drawings/sequences/elevator-install/">elevator install sequence (SK-ELV-01)</a>.</p>
+    </div>
+    <div class="sheet-no"><b>SK-ELV-02</b> animation<br>from Schindler WBS 11944614 R3 sheet 3/12 · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="3D animation">
+      <div class="stage-wrap" id="stageWrap">
+        <div class="stage" id="stage">
+          <canvas id="gl" role="img" aria-label="3D model of the top of the elevator hoistway with the temporary top landing platform being built step by step"></canvas>
+          <div class="ov" id="ov">
+            <svg id="ovsvg"></svg>
+            <div id="ovl"></div>
+            <div class="badge" id="badge"><span class="n" id="bNum">✓</span><span id="bTitle">Completed platform</span><span class="w" id="bWho"></span></div>
+            <div class="tag">Top landing platform · Level 2<br>Docksteader PRPS Reporting Station</div>
+            <div class="intro" id="intro"><div><h2>Top landing platform</h2><p>Schindler 3300 · Docksteader PRPS · 12 steps</p></div></div>
+            <div class="intro" id="outro" style="opacity:0"><div><h2>Platform out, wall in</h2><p>Schematic from Schindler 3/12 + O. Reg. 213/91 · not an engineered design</p></div></div>
+          </div>
+          <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span>Play the build</span></button>
+        </div>
+        <div class="cap" id="cap" aria-live="polite"></div>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="steps-col" aria-label="Build steps">
+      <p class="intro-p">Press play to watch the platform go in, in order, or pick a step to see it on its own. Schindler only gives a spec on sheet 3/12; the design, the build, the upkeep and the removal are MCL's. Each step lists what the drawing or the regulation requires. Brown is MCL, blue is Schindler, teal is an O. Reg. 213/91 requirement, red is a hold.</p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </main>
+
+  <details class="rfi">
+    <summary>Settle before you build</summary>
+    <ol>
+      <li><strong>Design.</strong> Sheet 3/12 says the platform is "designed &amp; provided by others" and note 35 on 1/12 puts erection, maintenance and removal on others too, securely fastened to the structure and to code. Nothing engineered is on file, and Schindler drawing TD440 (referenced in note 35) isn't in Drive. Ask Schindler for TD440 and get an engineer's letter covering the capacity and the angle anchors.</li>
+      <li><strong>Rated load.</strong> Schindler asks for 1,000 lb [454 kg] (note 2). O. Reg. 213/91 s. 134 requires every work platform to be designed for at least 2.4 kN/m²: about 8.8 kN [2,000 lb] spread over this 5′-11⅞″ × 6′-7⅜″ (3.7 m²) deck. The engineer sets the number you post.</li>
+      <li><strong>Front wall anchors.</strong> The front angle goes into the CMU front wall just under the Level 2 slab edge. Grouted cells or through-bolts, as the engineer specifies.</li>
+      <li><strong>Fall protection anchorage.</strong> Sheet 3/12 shows one hoist beam on the car C/L. Item 30 on 1/12 asks for two rated hoist beams per hoistway, or alternative anchorage (5,000 lb per person attached, or an engineered system) that Schindler checks before it mobilizes. Confirm which applies.</li>
+      <li><strong>Deck level.</strong> Note 5 wants the deck level with the top floor opening. If the Level 2 topping isn't poured yet when the platform goes in, agree the deck height with Schindler's superintendent.</li>
+      <li><strong>Crew and date.</strong> No crew or sub is named for it in Drive yet. It's critical item 3: Schindler won't mobilize until it's in, and the elevator is on site right after Christmas (Alvin and Kathy, Nov 20). Removal is on Schindler's call (note 1), and the front wall at the top landing waits until it's out (note 6).</li>
+    </ol>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--mcl)"><i></i>MCL</span>
+    <span style="--c: var(--sch)"><i></i>Schindler (elevator)</span>
+    <span style="--c: var(--code)"><i></i>O. Reg. 213/91 requirement</span>
+    <span style="--c: var(--hold)"><i></i>Hold / to confirm</span>
+  </footer>
+  <p class="notes">Approximately to scale. Dimensions in feet-inches with mm in brackets, from Schindler shop drawing 3/12 (temporary hoistway platform plan, notes 1–6, Section A-A), 1/12 note 35 and item 30, and the 4/12 barrier detail (WBS 11944614 sub 002, submittal 14 21 23-1 R3, reviewed as noted by DSA on Oct 22 2026); Alvin Hernandez's and Kathy Schaeffer's emails of Nov 20 2026; and O. Reg. 213/91 (consolidated from Jan 1 2026). The blocking rows and the opening are drawn from the 3/12 plan. The Level 2 barricade is hidden in steps 2–9 and 12 so the work stays visible; on site it stays up until the entrance is in. Anchors, fasteners, the access scaffold, the guardrail posts, the opening cover and the lifeline hardware are drawn to suit and aren't designed: the engineer's letter governs. Not a substitute for the reviewed shop drawings or an engineered design.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const VIDEO = !!window.__VIDEO;
+  if (VIDEO) document.body.classList.add("video");
+
+  // ======================= steps
+  // camera: target, yaw (0 = from the front / landing side, + = from the left), pitch, distance (mm)
+  const cv = (t, yaw, pitch, d) => { const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180; return [[t[0] - Math.sin(y) * Math.cos(p) * d, t[1] + Math.sin(p) * d, t[2] + Math.cos(y) * Math.cos(p) * d], t]; };
+  const STEPS = [
+    { title: "Design sign-off + prep", who: "MCL + engineer", c: "mcl", dur: 10,
+      cams: [[0, cv([1300, 3300, 1000], -26, 5, 24000)], [4.8, cv([1300, 6900, 1000], -32, 5, 10500)]],
+      lines: ["Ours to design, build, maintain and remove (3/12 notes 3 + 6, 1/12 note 35). Alvin, Nov 20: MCL builds it for Schindler's use",
+              "Build to Schindler's 3/12 spec, with an engineer's letter for the load rating and the angle anchors",
+              "Hoist beam in with its SWL marked, Level 2 opening barricaded. The deck will sit 21′-4⅞″ above the pit floor"],
+      hold: "No engineered design or Schindler TD440 on file yet. Get both before building: it's critical item 3 for Christmas.",
+      ref: "Schindler dwg 3/12 notes 1–6 · 1/12 note 35 · Alvin + Kathy emails, Nov 20" },
+    { title: "Access + layout", who: "MCL", c: "mcl", dur: 9,
+      cams: [[0, cv([1300, 1500, 1000], 24, 8, 17500)], [4.2, cv([1340, 4720, 400], 20, 15, 6000)]],
+      lines: ["Access to the angles isn't on the drawing: e.g. a guardrailed scaffold tower from the pit floor",
+              "Top of angle = Level 2 floor − 10½″ [267]: 9¼″ joist + 1¼″ plywood, so the deck finishes flush",
+              "Platform 5′-11⅞″ [1826] wide: 1′-5″ [431] off the CWT wall, 1′-2⅝″ [372] off the far wall"],
+      ref: "Schindler dwg 3/12 platform plan + note 5 · O. Reg. 213/91 ss. 126–136 (scaffolds)" },
+    { title: "Rear bearing angle", who: "MCL", c: "mcl", dur: 8,
+      cam: cv([1340, 4660, 150], 18, 16, 5400),
+      lines: ["6″ × 6″ × ⅜″ [152 × 152 × 10] steel angle, at least as long as the platform is wide",
+              "Horizontal leg out under the platform, vertical leg down the wall (Section A-A)",
+              "Anchored into the concrete rear wall per the engineer; rated 1,500 lb [680 kg]; level"],
+      ref: "Schindler dwg 3/12 note 3 + Section A-A" },
+    { title: "Front bearing angle", who: "MCL", c: "mcl", dur: 8,
+      cam: cv([1340, 4660, 1900], 200, 24, 5200),
+      lines: ["Same angle on the front wall, just under the Level 2 slab edge",
+              "Same elevation as the rear angle: check level across the hoistway",
+              "The front wall is CMU: grouted cells or through-bolts, as the engineer specifies"],
+      ref: "Schindler dwg 3/12 note 3 + Section A-A · front wall CMU (A702)" },
+    { title: "Rim boards + joists", who: "MCL", c: "mcl", dur: 10,
+      cam: cv([1340, 4850, 1000], -32, 34, 6600),
+      lines: ["2×10 Douglas Fir grade 2: rim boards on both angles, then 6 joists between them",
+              "Joists at 1′-4″ [406] max. (13⅝″ and 15¾″ shown); edge joists flush with the platform edges",
+              "Fasten the framing down to the angles so nothing can slip off its bearing"],
+      ref: "Schindler dwg 3/12 plan + notes 1, 3 · O. Reg. 213/91 s. 135" },
+    { title: "Blocking + 1′-0″ opening", who: "MCL", c: "mcl", dur: 8,
+      cam: cv([1345, 4900, 1010], -18, 56, 4900),
+      lines: ["Solid 2×10 blocking between the joists in 3 rows, as drawn on the 3/12 plan",
+              "Frame the 1′-0″ [305] square opening on the car C/L with 2×10 headers",
+              "The blocking rows carry the plywood joints"],
+      ref: "Schindler dwg 3/12 temporary hoistway platform plan" },
+    { title: "Plywood, first layer", who: "MCL", c: "mcl", dur: 8,
+      cam: cv([1345, 4950, 1000], 24, 40, 5800),
+      lines: ["⅝″ [16] CDX plywood across the joists",
+              "Joint on the middle blocking row; cut the 1′-0″ opening",
+              "Fasten to every joist and to the blocking"],
+      ref: "Schindler dwg 3/12 note 2" },
+    { title: "Plywood, second layer", who: "MCL", c: "mcl", dur: 9,
+      cams: [[0, cv([1345, 4950, 1000], 24, 40, 5800)], [4.4, cv([1300, 1900, 1000], 26, 10, 16000)]],
+      lines: ["Second ⅝″ CDX layer, joints on the outer blocking rows, offset from the first",
+              "Deck flush with the Level 2 floor at the opening",
+              "Strike the access scaffold from below once the deck is fastened"],
+      ref: "Schindler dwg 3/12 notes 2, 5" },
+    { title: "Guard the edges + opening", who: "MCL", c: "mcl", dur: 10,
+      cams: [[0, cv([1340, 5450, 1000], -34, 22, 7400)], [5.0, cv([1300, 3000, 1000], -28, 4, 22500)]],
+      lines: ["Both side gaps drop 21′-4⅞″ [6524] to the pit: guardrail per s. 26.3, top rail 0.9–1.1 m, mid rail, 3½″ toe board",
+              "Cover the 1′-0″ opening when it isn't in use: a work platform can't have unguarded openings",
+              "Only where a guardrail isn't practicable (e.g. Schindler setting rails), tie off to the hoist beam"],
+      hold: "One hoist beam is drawn on 3/12; 1/12 item 30 wants two rated beams or alternative anchorage. Confirm with Schindler.",
+      ref: "O. Reg. 213/91 ss. 26.1, 26.3, 135 · Schindler dwg 3/12 note 5 · 1/12 item 30" },
+    { title: "Rate, post + inspect", who: "MCL", c: "mcl", dur: 8,
+      cam: cv([1650, 5550, 2400], 22, 10, 5600),
+      lines: ["The engineer sets the rated load; post it at the Level 2 opening and never exceed it",
+              "A competent person inspects the platform before Schindler uses it",
+              "MCL maintains it until it comes out"],
+      hold: "Schindler asks for 1,000 lb; O. Reg. 213/91 s. 134 asks for 2.4 kN/m², about 2,000 lb on this 3.7 m² deck.",
+      ref: "Schindler dwg 3/12 note 2 · 1/12 note 35 · O. Reg. 213/91 s. 134" },
+    { title: "Hand over to Schindler", who: "Schindler", c: "sch", dur: 8,
+      cam: cv([1300, 3600, 1000], 26, 6, 16500),
+      lines: ["Schindler's superintendent accepts the platform and its timing",
+              "Plumb lines drop from the platform, here through the side gaps, to set the rail lines",
+              "The Level 2 barricade stays up; its removable side opens for access"],
+      ref: "Schindler dwg 3/12 note 1 · 4/12 barrier detail" },
+    { title: "Remove it, then close the wall", who: "MCL, then Schindler", c: "mcl", dur: 13,
+      cams: [[0, cv([1340, 4900, 1000], -30, 30, 7000)], [5.8, cv([1700, 6000, 2300], 22, 8, 7800)]],
+      lines: ["Out when Schindler's superintendent says so; MCL takes it down, tied off, in reverse order",
+              "Angles last; patch the anchor holes",
+              "Then Schindler sets the Level 2 entrance and MCL builds the front wall at the top landing"],
+      ref: "Schindler dwg 3/12 notes 1, 6 · 1/12 note 35" }
+  ];
+  const LIST = [
+    ["Schindler puts the design on us: \"platform designed &amp; provided by others\" (3/12 note 3), and \"erection, maintenance and removal are by others\", securely fastened to the building structure and to code (1/12 note 35). Alvin, Nov 20: MCL builds it for Schindler's use.",
+     "What's on file is a spec, not a design: 2×10 Douglas Fir grade 2 at 1′-4″ max., 2 layers of ⅝″ CDX, rated 1,000 lb [454 kg], on 6×6×⅜ angles rated 1,500 lb [680 kg]. Note 35 refers to Schindler drawing TD440, which isn't in Drive. Get TD440 and an engineer's letter covering the load rating and the angle anchors before building.",
+     "Agree the install and removal dates with Schindler's superintendent (note 1). It's critical item 3: Schindler won't mobilize until it's in, and the elevator is on site right after Christmas (Kathy, Nov 20).",
+     "Hoist beam in and marked with its safe working load, 7,500 lb [3,402 kg] (3/12 note 9). Barricade on the Level 2 opening (4/12 detail) and nobody working below.",
+     "The deck sits 21′-4⅞″ [6524] above the pit floor. Everyone working at the hoistway edge needs fall protection; Schindler's alternative anchorage is 5,000 lb per person attached (1/12 item 30)."],
+    ["Access to the angle elevation isn't on Schindler's drawing. One way: a 5′ × 5′ frame scaffold tower from the pit floor, its guardrailed deck about 4′ below the angles. At about 5 m to its deck it's well under the 15 m where O. Reg. 213/91 s. 130 calls for an engineered scaffold design, but it still has to meet ss. 126–136.",
+     "Top of angle = Level 2 floor − 10½″ [267]: a 9¼″ 2×10 plus 1¼″ of plywood, so the deck finishes flush with the floor at the opening (note 5). If the Level 2 topping isn't poured yet, agree the deck level with Schindler's superintendent.",
+     "Mark the platform edges on both walls: 1′-5″ [431] clear of the CWT wall and 1′-2⅝″ [372] clear of the far wall. That makes the platform 5′-11⅞″ [1826] wide, centred on the car C/L.",
+     "The angles run at least the platform width; the 3/12 plan draws them about 6″ past each side."],
+    ["Steel bearing angle 6″ × 6″ × ⅜″ [152 × 152 × 10], at least as long as the platform is wide (note 3).",
+     "Section A-A: horizontal leg out to carry the platform, vertical leg down the wall face.",
+     "The rear wall is concrete: anchor type, size and spacing per the engineer's letter. The angle is rated 1,500 lb [680 kg] (note 3). Check it level along its length."],
+    ["Same angle on the front wall, just under the Level 2 slab edge, at exactly the same elevation as the rear one.",
+     "The front wall is CMU (DSA: see A702): anchor into grouted cells or through-bolt, as the engineer specifies.",
+     "Check across the hoistway that both bearing seats are level with each other (Section A-A)."],
+    ["2×10 Douglas Fir grade 2 throughout (note 1).",
+     "Rim boards on both angles against the walls, then 6 joists between them. The edge joists sit flush with the platform edges.",
+     "Joists at 1′-4″ [406] max. (3/12 plan); shown at 13⅝″ [347] and 15¾″ [400], with the wider middle bay over the opening.",
+     "Fasten the framing down to the angles (\"platform affixed to top of bearing angle\", note 3) and to each other, so no piece can slip off its support (O. Reg. 213/91 s. 135)."],
+    ["Solid 2×10 blocking between the joists in three rows, where the 3/12 plan draws it.",
+     "Frame the 1′-0″ [305] square opening shown on the 3/12 plan, centred on the car C/L between the two middle joists, with 2×10 headers each side.",
+     "The blocking rows also carry the plywood joints in the next two steps."],
+    ["⅝″ [16] CDX plywood (note 2), face grain across the joists.",
+     "Two pieces, with the joint on the middle blocking row. Cut out the 1′-0″ opening.",
+     "Fasten to every joist and to the blocking."],
+    ["Second ⅝″ CDX layer (note 2) with its joints on the outer blocking rows, offset from the first layer's.",
+     "Deck flush with the Level 2 floor at the opening (note 5). Total depth 10½″ [267] on the angle seats.",
+     "Strike the access scaffold from below once the deck is fastened."],
+    ["Both side gaps, 1′-5″ and 1′-2⅝″, are open to the pit 21′-4⅞″ [6524] below. O. Reg. 213/91 s. 135: a work platform needs a guardrail as s. 26.3 requires, and no unguarded openings.",
+     "Guardrail per s. 26.3: top rail 0.9–1.1 m above the deck (42″ shown), intermediate rail midway, toe board at least 89 mm [3½″]. It has to take a 675 N lateral point load on the top rail, among other loads.",
+     "Where a guardrail isn't practicable, e.g. while Schindler sets rails in a gap, s. 26.1 allows the next best method: travel restraint, then fall restricting, then fall arrest. Note 5 keeps the hoist beam within easy reach for lifelines.",
+     "Cover the 1′-0″ opening whenever it isn't in use: cleated so it can't slide, secured and marked."],
+    ["The rated load comes from the engineer. Schindler: at least 1,000 lb [454 kg] (note 2). O. Reg. 213/91 s. 134: designed for at least 2.4 kN/m², about 8.8 kN [2,000 lb] spread over this 3.7 m² deck.",
+     "Post the rated load at the Level 2 opening. Never load it past that (s. 134).",
+     "A competent person inspects it before Schindler uses it; MCL maintains it until it comes out (1/12 note 35)."],
+    ["Schindler's superintendent accepts it and sets the timing (note 1).",
+     "Schindler drops plumb lines from the platform (here through the side gaps) to set the rail lines, and works off the platform with the hoist beam overhead.",
+     "The Level 2 barricade stays up; its removable side opens for access (4/12 detail)."],
+    ["Comes out when Schindler's superintendent says so (note 1); MCL removes it (note 6).",
+     "Reverse order, tied off: cover and guardrails, deck, blocking, joists, rims, then the angles. Patch the anchor holes.",
+     "Only then does Schindler set the Level 2 entrance, and MCL build the front wall at the top landing (note 6)."]
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc, CAM_T = 1.7, INTRO_T = 2.8;
+  const POSTER_T = starts[8] + 4.7;
+  const POSTER_CAM = cv([1345, 5050, 1000], -32, 30, 7200);
+
+  // ======================= geometry (mm): x across the hoistway (0 = CWT/motor wall), y up (0 = Level 1 floor), z toward the front (0 = rear wall)
+  const BS = 2629, TS = 2017, WT = 200, FW = 200;
+  const YP = -1524, Y2 = 5000, YB = 8970, YBT = 9170, YR = 9221, YRT = 9421, YPB = YP - 250;
+  const CCX = 1345, CCZ = 1032, RO0 = 1008, ROH = 2337;
+  const DCL = 1744, BT = 1067, HT = 2134, D0 = DCL - BT / 2, D1 = DCL + BT / 2;
+  const PX0 = 431, PX1 = BS - 372;                         // platform edges (3/12)
+  const AT = 4733, JT = AT + 235, L1T = JT + 16;           // top of angle, top of joists, top of first ply
+  const AX0 = PX0 - 150, AX1 = PX1 + 150;                  // angles run past each side, as drawn
+  const JOFF = [0, 347, 694, 1094, 1441, 1788];            // joist faces from the CWT-side edge
+  const ZR = 430, ZM = CCZ, ZF = TS - 381;                 // blocking rows
+  const HX0 = CCX - 152.5, HX1 = CCX + 152.5, HZ0 = CCZ - 152.5, HZ1 = CCZ + 152.5;   // 1'-0" opening
+  const SX0 = CCX - 762, SX1 = CCX + 762, SZ0 = CCZ - 762, SZ1 = CCZ + 762, SDK = 3380; // access scaffold
+  const GX = [215, BS - 186];                              // plumb lines, mid-gap
+
+  // ======================= math
+  const M = {
+    I() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+    mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    T(x, y, z) { const m = M.I(); m[12] = x; m[13] = y; m[14] = z; return m; },
+    S(x, y, z) { const m = M.I(); m[0] = x; m[5] = y; m[10] = z; return m; },
+    RY(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; },
+    persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), m = new Float32Array(16); m[0] = t / a; m[5] = t; m[10] = (fa + n) / (n - fa); m[11] = -1; m[14] = 2 * fa * n / (n - fa); return m; },
+    ortho(l, r, b, t, n, f) { const m = M.I(); m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n); m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n); return m; },
+    look(e, t, u) {
+      let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+      let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+      const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[4] = xy; m[5] = yy; m[6] = zy; m[8] = xz; m[9] = yz; m[10] = zz;
+      m[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); m[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); m[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); m[15] = 1;
+      return m;
+    },
+    xf(m, p) { const x = p[0], y = p[1], z = p[2]; const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, (m[2] * x + m[6] * y + m[10] * z + m[14]) / w, w]; }
+  };
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+
+  // ======================= GL
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true, alpha: false });
+  const stage = document.getElementById("stage"), stageWrap = document.getElementById("stageWrap");
+  if (!gl) {
+    stage.insertAdjacentHTML("beforeend", '<p style="position:absolute;inset:auto 0 45% 0;text-align:center;font:600 16px var(--font-body);color:#13202b">This 3D view needs WebGL 2, which this browser doesn\'t offer.</p>');
+    return;
+  }
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  function prog(vs, fs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.bindAttribLocation(p, 1, "aNor"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+
+  const VS = `#version 300 es
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=7) in vec4 iSzA; layout(location=8) in vec4 iEm;
+  uniform mat4 uVP, uLVP;
+  out vec3 vW; out vec3 vN; out vec4 vL; out vec3 vLoc; out vec3 vLocN;
+  flat out vec4 vCol; flat out vec4 vSzA; flat out vec4 vEm;
+  void main(){
+    mat4 Mo = mat4(iM0, iM1, iM2, iM3);
+    vec4 w = Mo*vec4(aPos,1.0); vW = w.xyz;
+    vN = normalize(transpose(inverse(mat3(Mo)))*aNor);
+    vL = uLVP*w; vLoc = aPos; vLocN = aNor; vCol = iCol; vSzA = iSzA; vEm = iEm;
+    gl_Position = uVP*w;
+  }`;
+  const FS = `#version 300 es
+  precision highp float; precision highp sampler2DShadow;
+  in vec3 vW; in vec3 vN; in vec4 vL; in vec3 vLoc; in vec3 vLocN;
+  flat in vec4 vCol; flat in vec4 vSzA; flat in vec4 vEm;
+  uniform vec3 uEye; uniform vec3 uLD; uniform sampler2DShadow uSh; uniform float uShOn; uniform vec3 uFog;
+  out vec4 o;
+  float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float nz(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
+  void main(){
+    vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+    vec3 base = vCol.rgb; int mat = int(vCol.w + 0.5); vec3 sz = vSzA.xyz;
+    float specK = 0.10; float shin = 40.0;
+    vec3 lp = vLoc*sz;
+    if (mat==1){ vec2 q = abs(n.y)>0.5 ? vW.xz : (abs(n.x)>0.5 ? vW.zy : vW.xy); float g = nz(q*0.012)*0.5 + nz(q*0.05)*0.3 + nz(q*0.35)*0.2; base *= 0.90 + 0.16*g; specK = 0.04; }
+    else if (mat==2){ vec2 p = abs(n.x)>0.5 ? vW.zy : vW.xy; float row = floor((p.y+300.0)/203.2); float off = mod(row,2.0)*203.2; float mx = mod(p.x+off, 406.4), my = mod(p.y+300.0, 203.2);
+      float j = max(1.0 - smoothstep(0.0, 9.0, min(mx, 406.4-mx)), 1.0 - smoothstep(0.0, 9.0, min(my, 203.2-my))); base *= mix(1.0, 0.80, j) * (0.95 + 0.07*nz(p*0.03)); specK = 0.03; }
+    else if (mat==4){ float r = fract(lp.y/22.0); base *= mix(0.55, 1.0, smoothstep(0.2, 0.45, r)); specK = 0.18; }
+    else if (mat==5){ vec2 c = vec2(lp.z - sz.z*0.5, lp.y - sz.y*0.5); float d = length(c); if (abs(vLocN.x)>0.5){ float rings = smoothstep(0.35, 0.5, abs(fract(d/26.0)-0.5)); base = mix(vec3(0.16,0.18,0.2), base, rings*0.6); if (d > min(sz.y,sz.z)*0.5) base = vCol.rgb*1.25; } specK = 0.2; }
+    else if (mat==6){ base *= 0.92 + 0.12*nz(vW.xz*0.08 + vW.y*0.05); specK = 0.35; shin = 30.0; }
+    else if (mat==7){ vec2 c = vec2(lp.x - sz.x*0.5, lp.y - sz.y*0.5); float d = length(c); if (abs(vLocN.z)>0.5){ float r = min(sz.x, sz.y)*0.5; float rings = smoothstep(0.3, 0.5, abs(fract(d/(r*0.3))-0.5)); base = mix(base*0.55, base*1.25, rings); if (d > r) base = vec3(0.62,0.64,0.66); } specK = 0.3; }
+    else if (mat==8){ vec2 p = abs(n.z)>0.5 ? vW.xy : vW.zy; float g = max(step(0.78, fract(p.x/55.0)), step(0.78, fract(p.y/55.0))); base *= mix(0.72, 1.12, g); specK = 0.05; }
+    float sh = 1.0;
+    if (uShOn > 0.5) {
+      vec3 pc = vL.xyz / vL.w * 0.5 + 0.5;
+      if (pc.x > 0.0 && pc.x < 1.0 && pc.y > 0.0 && pc.y < 1.0 && pc.z < 1.0) {
+        float bias = 0.0010; vec2 ts = vec2(1.0/float(textureSize(uSh, 0).x));
+        float s = texture(uSh, vec3(pc.xy + vec2(-0.75,-0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,-0.75)*ts, pc.z - bias))
+                + texture(uSh, vec3(pc.xy + vec2(-0.75,0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,0.75)*ts, pc.z - bias));
+        sh = 0.4 + 0.6*(s*0.25);
+      }
+    }
+    float dif = max(dot(n, -uLD), 0.0);
+    vec3 hemi = mix(vec3(0.70,0.71,0.73), vec3(1.0,1.0,1.0), n.y*0.5+0.5);
+    vec3 V = normalize(uEye - vW); vec3 H = normalize(V - uLD);
+    float sp = pow(max(dot(n,H),0.0), shin) * specK * sh;
+    vec3 col = base*(0.6*hemi + 0.6*dif*sh) + sp + vEm.rgb*vEm.w;
+    float d = length(uEye - vW);
+    col = mix(col, uFog, smoothstep(34000.0, 70000.0, d));
+    o = vec4(col, vSzA.w);
+  }`;
+  const DVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  uniform mat4 uLVP; void main(){ gl_Position = uLVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); }`;
+  const DFS = `#version 300 es
+  precision mediump float; out vec4 o; void main(){ o = vec4(1.0); }`;
+  const LVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP; flat out vec4 vC;
+  void main(){ gl_Position = uVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); vC = vec4(iCol.rgb*iMisc.y, iMisc.x); }`;
+  const LFS = `#version 300 es
+  precision mediump float; flat in vec4 vC; out vec4 o; void main(){ o = vC; }`;
+  const P_MAIN = prog(VS, FS), P_DEPTH = prog(DVS, DFS), P_LINE = prog(LVS, LFS);
+
+  // unit cube
+  const cubeF = [], cubeN = [], cubeI = [];
+  const faces = [[[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]], [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+                 [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]], [[0, -1, 0], [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]],
+                 [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]], [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]]];
+  faces.forEach(([nn, vs], f) => { vs.forEach(v => { cubeF.push(...v); cubeN.push(...nn); }); const b = f * 4; cubeI.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+  const edgeP = [0,0,0, 1,0,0, 1,0,0, 1,0,1, 1,0,1, 0,0,1, 0,0,1, 0,0,0, 0,1,0, 1,1,0, 1,1,0, 1,1,1, 1,1,1, 0,1,1, 0,1,1, 0,1,0, 0,0,0, 0,1,0, 1,0,0, 1,1,0, 1,0,1, 1,1,1, 0,0,1, 0,1,1];
+  function vao(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) { const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); }
+    if (idx) { const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW); }
+    gl.bindVertexArray(null); return v;
+  }
+  const CUBE = vao(cubeF, cubeN, cubeI), EDGES = vao(edgeP, null, null);
+  // per-instance data: model matrix (16), colour + material (4), size + alpha (4), emission (4), edge alpha + edge shade (4)
+  const IST = 32, INST = gl.createBuffer();
+  let instData = new Float32Array(IST * 1024);
+  [CUBE, EDGES].forEach(v => {
+    gl.bindVertexArray(v); gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    [[2, 0], [3, 4], [4, 8], [5, 12], [6, 16], [7, 20], [8, 24], [9, 28]].forEach(([l, off]) => {
+      gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, IST * 4, off * 4); gl.vertexAttribDivisor(l, 1);
+    });
+    gl.bindVertexArray(null);
+  });
+  function fillInst(arr, trans) {
+    const n = arr.length;
+    if (instData.length < n * IST) instData = new Float32Array(n * IST * 2);
+    for (let k = 0; k < n; k++) {
+      const it = arr[k], o = it.o, b = k * IST;
+      instData.set(it.m, b);
+      instData[b + 16] = o.col[0]; instData[b + 17] = o.col[1]; instData[b + 18] = o.col[2]; instData[b + 19] = o.mat;
+      instData[b + 20] = o.s[0]; instData[b + 21] = o.s[1]; instData[b + 22] = o.s[2]; instData[b + 23] = it.a;
+      instData[b + 24] = o.emc[0]; instData[b + 25] = o.emc[1]; instData[b + 26] = o.emc[2]; instData[b + 27] = Math.max(o.em, o.g.st.em || 0);
+      instData[b + 28] = trans ? o.edge * Math.min(1, it.a * 2.2) : o.edge; instData[b + 29] = trans ? 0.4 : 0.42; instData[b + 30] = 0; instData[b + 31] = 0;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    gl.bufferData(gl.ARRAY_BUFFER, instData.subarray(0, Math.max(1, n) * IST), gl.STREAM_DRAW);
+    return n;
+  }
+  // shadow map
+  const SHS = 2048;
+  const shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, SHS, SHS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const LD = (() => { const v = [-0.34, -1.0, -0.58]; const l = Math.hypot(...v); return v.map(x => x / l); })();
+  const LCTR = [2400, 3700, 1000];
+  const LVP = M.mul(M.ortho(-7800, 7800, -7800, 7800, 100, 24000), M.look([LCTR[0] - LD[0] * 10000, LCTR[1] - LD[1] * 10000, LCTR[2] - LD[2] * 10000], LCTR, [0, 1, 0]));
+
+  // ======================= timeline + groups
+  const EASE = { lin: t => t, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const groups = [], objs = [];
+  function grp(name, tracks, o) {
+    o = o || {};
+    const g = { name, tracks: (tracks || []).slice().sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a)), pivot: o.pivot || [0, 0, 0], st: {}, dx: 0, dy: 0 };
+    groups.push(g); return g;
+  }
+  function box(g, x0, y0, z0, x1, y1, z1, col, o) {
+    o = o || {};
+    const ob = { g, p: [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)], s: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], col, mat: o.mat || 0,
+      a: o.a == null ? 1 : o.a, edge: o.edge == null ? 0.62 : o.edge, shadow: o.shadow !== false, em: o.em || 0, emc: o.emc || [1, 1, 1], tag: o.tag || null };
+    objs.push(ob); return ob;
+  }
+  function val(g, prop, T, def) {
+    let v, found = false;
+    for (const k of g.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .2, "op", 0, 1, "lin")];
+  const slideIn = (s, a, b, dx, dz) => [tr(s, a, b, "tx", dx || 0, 0, "out"), tr(s, a, b, "tz", dz || 0, 0, "out"), tr(s, a, a + .25, "op", 0, 1, "lin")];
+  const popIn = (s, a, b) => [tr(s, a, b, "sc", 0.001, 1, "back"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const growIn = (s, a, b, ax) => [tr(s, a, b, ax, 0.001, 1, "inout"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const ghost = (s, a, b, to) => [tr(s, a, b, "op", 1, to, "inout")];
+  const unghost = (s, a, b, from) => [tr(s, a, b, "op", from, 1, "inout")];
+  const fadeOut = (s, a, b) => [tr(s, a, b, "op", 1, 0, "lin")];
+
+  const C = {
+    conc: [0.74, 0.74, 0.72], cmu: [0.80, 0.79, 0.76], steel: [0.46, 0.50, 0.54], steelD: [0.32, 0.35, 0.38],
+    galv: [0.74, 0.77, 0.79], galvD: [0.58, 0.61, 0.64], ss: [0.80, 0.82, 0.84], alum: [0.86, 0.87, 0.88],
+    dark: [0.20, 0.22, 0.24], belt: [0.09, 0.10, 0.11], wood: [0.80, 0.64, 0.42], ply: [0.88, 0.76, 0.56],
+    orange: [0.95, 0.50, 0.10], yellow: [0.96, 0.80, 0.20], red: [0.80, 0.18, 0.15], white: [0.97, 0.97, 0.96],
+    mach: [0.30, 0.40, 0.38], grey: [0.62, 0.64, 0.66], floor: [0.30, 0.34, 0.40], grout: [0.55, 0.55, 0.53],
+    cable: [0.14, 0.14, 0.15], blue: [0.22, 0.45, 0.85], ceil: [0.90, 0.91, 0.92]
+  };
+  function bar(g, p0, p1, w, col, o) {
+    const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]], L = Math.hypot(d[0], d[1], d[2]);
+    const ex = d.map(v => v / L), up = Math.abs(ex[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const dt = up[0] * ex[0] + up[1] * ex[1] + up[2] * ex[2];
+    let ey = [up[0] - dt * ex[0], up[1] - dt * ex[1], up[2] - dt * ex[2]]; const le = Math.hypot(ey[0], ey[1], ey[2]); ey = ey.map(v => v / le);
+    const ez = [ex[1] * ey[2] - ex[2] * ey[1], ex[2] * ey[0] - ex[0] * ey[2], ex[0] * ey[1] - ex[1] * ey[0]];
+    const B = M.I(); B[0] = ex[0]; B[1] = ex[1]; B[2] = ex[2]; B[4] = ey[0]; B[5] = ey[1]; B[6] = ey[2]; B[8] = ez[0]; B[9] = ez[1]; B[10] = ez[2];
+    const c = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, (p0[2] + p1[2]) / 2];
+    const ob = box(g, 0, 0, 0, L, w, w, col, o);
+    ob.local = M.mul(M.mul(M.T(c[0], c[1], c[2]), B), M.mul(M.T(-L / 2, -w / 2, -w / 2), M.S(L, w, w)));
+    return ob;
+  }
+  const HL = [1, .78, .35];
+  const pulse = (s, a, b, k) => [tr(s, a, (a + b) / 2, "em", 0, k || .55, "lin"), tr(s, (a + b) / 2, b, "em", k || .55, 0, "lin")];
+  const outTr = (a, b) => [tr(11, a, b, "ty", 0, 700, "in"), tr(11, a, b, "tz", 0, 1100, "in"), tr(11, a + (b - a) * .45, b, "op", 1, 0, "lin")];
+
+  // ---------- site: pit, walls, roof slab, CMU front wall see-through, far wall see-through, floors outside
+  const site = grp("site");
+  const SOLID = { mat: 1, edge: 0.35, shadow: false };
+  box(site, -WT, YPB, -WT, BS + WT, YP, TS + FW, C.conc, { mat: 1, edge: 0.35 });
+  box(site, -WT, YP, -WT, 0, YRT, TS + FW, C.conc, SOLID);
+  const rearW = grp("rearW", [...ghost(3, 0, .8, .12), ...unghost(4, 0, .9, .12)]);
+  box(rearW, 0, YP, -WT, BS, YRT, 0, C.conc, SOLID);
+  box(site, 0, YR, 0, BS, YRT, TS, C.conc, SOLID);
+  box(site, BS, YPB, -WT, BS + WT, YRT, TS + FW, C.conc, { mat: 1, a: 0.18, edge: 0.45, shadow: false });
+  const GF = { mat: 2, a: 0.15, edge: 0.45, shadow: false }, GFC = { mat: 1, a: 0.18, edge: 0.45, shadow: false };
+  box(site, 0, YP, TS, BS, -200, TS + FW, C.conc, GFC);
+  box(site, 0, -200, TS, BS, 0, TS + FW, C.conc, GFC);
+  box(site, 0, 0, TS, RO0, 4800, TS + FW, C.cmu, GF);
+  box(site, RO0, ROH, TS, BS, 4800, TS + FW, C.cmu, GF);
+  box(site, 0, 4800, TS, BS, Y2, TS + FW, C.conc, GFC);
+  box(site, 0, Y2, TS, RO0, YR, TS + FW, C.cmu, GF);
+  box(site, RO0, Y2 + ROH, TS, BS, YR, TS + FW, C.cmu, GF);
+  box(site, 0, YR, TS, BS, YRT, TS + FW, C.conc, GFC);
+  box(site, -1500, -200, TS + FW, BS + WT + 1100, 0, TS + FW + 2400, C.conc, { mat: 1, a: .25, edge: .35, shadow: false });
+  box(site, -1500, 4800, TS + FW, BS + WT + 1100, Y2, TS + FW + 1600, C.conc, { mat: 1, a: .4, edge: .4, shadow: false });
+
+  // ---------- hoist beam, SWL, lifeline anchor
+  const beamG = grp("beam");
+  box(beamG, 0, YB, CCZ - 68, BS, YB + 10, CCZ + 68, C.steel, { mat: 6 });
+  box(beamG, 0, YB + 10, CCZ - 5, BS, YBT - 10, CCZ + 5, C.steel, { mat: 6 });
+  box(beamG, 0, YBT - 10, CCZ - 68, BS, YBT, CCZ + 68, C.steel, { mat: 6 });
+  const swlG = grp("swl", [...fadeIn(0, 3.2, 3.8), ...pulse(0, 6.0, 7.6, .8)]);
+  box(swlG, 560, YB + 30, CCZ + 5, 1060, YB + 170, CCZ + 9, C.yellow, { edge: .5, shadow: false, emc: C.yellow });
+  const srlG = grp("srl", [...popIn(0, 5.0, 5.5), ...pulse(8, 6.6, 8.4, .7)], { pivot: [1900, YB, CCZ] });
+  box(srlG, 1855, YB - 70, CCZ - 80, 1945, YB + 14, CCZ - 66, C.orange, { edge: .5, emc: C.orange });
+  box(srlG, 1855, YB - 70, CCZ + 66, 1945, YB + 14, CCZ + 80, C.orange, { edge: .5, emc: C.orange });
+  box(srlG, 1870, YB - 110, CCZ - 80, 1930, YB - 70, CCZ + 80, C.orange, { edge: .5, emc: C.orange });
+  box(srlG, 1850, YB - 400, CCZ - 70, 1950, YB - 110, CCZ + 70, C.dark, { edge: .5, emc: C.orange });
+  box(srlG, 1848, YB - 300, CCZ - 72, 1952, YB - 260, CCZ + 72, C.orange, { edge: 0, emc: C.orange });
+  box(srlG, 1897, 6240, CCZ - 3, 1903, YB - 400, CCZ + 3, C.yellow, { edge: 0, shadow: false, emc: C.yellow });
+  box(srlG, 1885, 6160, CCZ - 10, 1915, 6240, CCZ + 10, C.steelD, { edge: .4 });
+
+  // ---------- Level 2 barricade (4/12 detail): right half slides open at handover
+  const ZB = TS + FW + 260;
+  (() => {
+    const trL = [...fadeIn(0, 6.6, 7.2), ...fadeOut(1, 0, .8), ...fadeIn(9, 0, .8), ...fadeOut(11, 0, .7)];
+    const trR = [...trL, tr(10, 1.0, 2.2, "tx", 0, 900, "inout"), tr(10, 6.0, 7.2, "tx", 900, 0, "inout")];
+    const gL = grp("barL", trL), gR = grp("barR", trR);
+    const y0 = Y2, z0 = ZB, z1 = ZB + 40, x0 = RO0 - 60, x1 = BS + 60, xm = (x0 + x1) / 2;
+    const W = { edge: .5 }, NET = { mat: 8, a: .6, edge: 0, shadow: false, em: .12, emc: C.orange };
+    box(gL, x0, y0, z0, x0 + 38, y0 + 1067, z1, C.wood, W); box(gL, xm - 19, y0, z0, xm + 19, y0 + 1067, z1, C.wood, W);
+    [[1029, 1067], [515, 553], [0, 89]].forEach(([a, b]) => box(gL, x0, y0 + a, z0, xm + 19, y0 + b, z1, C.wood, W));
+    box(gL, x0 + 38, y0 + 89, z0 + 16, xm - 19, y0 + 1029, z0 + 22, C.orange, NET);
+    box(gR, x1 - 38, y0, z0, x1, y0 + 1067, z1, C.wood, W);
+    [[1029, 1067], [515, 553], [0, 89]].forEach(([a, b]) => box(gR, xm + 19, y0 + a, z0, x1, y0 + b, z1, C.wood, W));
+    box(gR, xm + 19, y0 + 89, z0 + 16, x1 - 38, y0 + 1029, z0 + 22, C.orange, NET);
+  })();
+
+  // ---------- step 1: where the platform goes
+  const ghostPlat = grp("ghostPlat", [...fadeIn(0, 3.6, 4.3), ...fadeOut(1, 0, .7)]);
+  box(ghostPlat, PX0, AT, 0, PX1, Y2, TS, C.orange, { a: .3, edge: .9, shadow: false, em: .35, emc: C.orange });
+
+  // ---------- step 2: access scaffold (example) + layout marks
+  const scf = grp("scf", [...fadeIn(1, .3, 1.3), tr(7, 6.3, 8.4, "ty", 0, -2600, "in"), tr(7, 6.9, 8.5, "op", 1, 0, "lin")]);
+  const SA = { a: .66, edge: .45, shadow: false };
+  const LV = [YP + 150, 406, 2336, SDK - 90];
+  [[SX0, SZ0], [SX1 - 48, SZ0], [SX0, SZ1 - 48], [SX1 - 48, SZ1 - 48]].forEach(([x, z]) => {
+    box(scf, x, YP, z, x + 48, SDK + 1067, z + 48, C.galv, SA);
+    box(scf, x - 40, YP, z - 40, x + 88, YP + 12, z + 88, C.steelD, SA);
+  });
+  LV.forEach(y => [SZ0, SZ1 - 42].forEach(z => box(scf, SX0, y, z, SX1, y + 42, z + 42, C.galv, SA)));
+  for (let y = YP + 150; y <= SDK - 90; y += 480) [SX0, SX1 - 42].forEach(x => box(scf, x, y, SZ0, x + 42, y + 42, SZ1, C.galv, SA));
+  for (let k = 0; k < LV.length - 1; k++) [SZ0 + 21, SZ1 - 21].forEach(z => {
+    bar(scf, [SX0 + 30, LV[k] + 21, z], [SX1 - 30, LV[k + 1] + 21, z], 30, C.galvD, SA);
+    bar(scf, [SX0 + 30, LV[k + 1] + 21, z], [SX1 - 30, LV[k] + 21, z], 30, C.galvD, SA);
+  });
+  box(scf, SX0, SDK - 45, SZ0, SX1, SDK, SZ1, C.wood, { a: .8, edge: .5, shadow: false });
+  [[SDK + 1025, 42], [SDK + 510, 42], [SDK, 89]].forEach(([y, h]) => {
+    box(scf, SX0, y, SZ0, SX1, y + h, SZ0 + 30, C.galv, SA); box(scf, SX0, y, SZ1 - 30, SX1, y + h, SZ1, C.galv, SA);
+    box(scf, SX0, y, SZ0, SX0 + 30, y + h, SZ1, C.galv, SA); box(scf, SX1 - 30, y, SZ0, SX1, y + h, SZ1, C.galv, SA);
+  });
+  const LM = { edge: 0, shadow: false, em: 1.2, emc: [1, .15, .1] };
+  const layR = grp("layR", [...fadeIn(1, 5.6, 6.2), ...fadeOut(2, 1.6, 2.2)]);
+  const layF = grp("layF", [...fadeIn(1, 6.0, 6.6), ...fadeOut(3, 1.6, 2.2)]);
+  box(layR, AX0, AT - 7, 1, AX1, AT + 7, 6, C.red, LM);
+  box(layF, AX0, AT - 7, TS - 6, AX1, AT + 7, TS - 1, C.red, LM);
+  [PX0, PX1].forEach(x => {
+    box(layR, x - 4, AT - 90, 1, x + 4, AT + 230, 5, C.red, LM);
+    box(layF, x - 4, AT - 90, TS - 5, x + 4, AT + 230, TS - 1, C.red, LM);
+  });
+
+  // ---------- steps 3-4: bearing angles + anchors
+  function angle(name, front, tracks) {
+    const g = grp(name, tracks), o = { mat: 6, emc: HL };
+    if (!front) { box(g, AX0, AT - 152, 0, AX1, AT, 10, C.steel, o); box(g, AX0, AT - 10, 10, AX1, AT, 152, C.steel, o); }
+    else { box(g, AX0, AT - 152, TS - 10, AX1, AT, TS, C.steel, o); box(g, AX0, AT - 10, TS - 152, AX1, AT, TS - 10, C.steel, o); }
+  }
+  angle("angR", false, [...slideIn(2, .4, 1.6, 0, 520), ...pulse(2, 1.6, 3.0), ...outTr(4.6, 5.6)]);
+  angle("angF", true, [...slideIn(3, .4, 1.6, 0, -520), ...pulse(3, 1.6, 3.0), ...outTr(4.8, 5.8)]);
+  const ANX = [AX0 + 110, (AX0 + CCX) / 2, CCX, (CCX + AX1) / 2, AX1 - 110];
+  [false, true].forEach(front => ANX.forEach((x, k) => {
+    const s = front ? 3 : 2, a = 2.0 + k * .16, z = front ? TS - 10 : 10, dz = front ? -1 : 1;
+    const g = grp("anc" + (front ? "F" : "R") + k, [...popIn(s, a, a + .45), ...fadeOut(11, 5.4, 5.9)], { pivot: [x, AT - 85, z] });
+    const zA = z, zB = z + dz * 6, zC = z + dz * 22;
+    box(g, x - 24, AT - 109, Math.min(zA, zB), x + 24, AT - 61, Math.max(zA, zB), C.galv, { edge: .5 });
+    box(g, x - 15, AT - 100, Math.min(zB, zC), x + 15, AT - 70, Math.max(zB, zC), C.steelD, { edge: .5 });
+  }));
+
+  // ---------- step 5: rims + joists
+  const WD = { edge: .5, emc: HL };
+  const rimR = grp("rimR", [...dropIn(4, .3, 1.1, 420), ...pulse(4, 1.1, 2.0), ...outTr(4.0, 4.8)]);
+  box(rimR, PX0, AT, 0, PX1, JT, 38, C.wood, WD);
+  const rimF = grp("rimF", [...dropIn(4, .8, 1.6, 420), ...pulse(4, 1.6, 2.5), ...outTr(4.2, 5.0)]);
+  box(rimF, PX0, AT, TS - 38, PX1, JT, TS, C.wood, WD);
+  JOFF.forEach((o, k) => {
+    const g = grp("joist" + k, [...dropIn(4, 2.4 + k * .42, 3.2 + k * .42, 520), ...outTr(3.0 + k * .12, 4.0 + k * .12)]);
+    box(g, PX0 + o, AT, 38, PX0 + o + 38, JT, TS - 38, C.wood, WD);
+  });
+
+  // ---------- step 6: blocking + opening headers
+  const bays = [0, 1, 2, 3, 4].map(b => [PX0 + JOFF[b] + 38, PX0 + JOFF[b + 1]]);
+  function blockRow(name, zc, skipMid, a) {
+    const g = grp(name, [...dropIn(5, a, a + .8, 300), ...pulse(5, a + .8, a + 1.6), ...outTr(2.4, 3.2)]);
+    bays.forEach(([x0, x1], b) => { if (!(skipMid && b === 2)) box(g, x0, AT, zc - 19, x1, JT, zc + 19, C.wood, WD); });
+  }
+  blockRow("blkR", ZR, false, .3); blockRow("blkM", ZM, true, .9); blockRow("blkF", ZF, false, 1.5);
+  const hdr = grp("hdr", [...dropIn(5, 2.4, 3.2, 300), ...pulse(5, 3.2, 4.6, .7), ...outTr(2.4, 3.2)]);
+  box(hdr, bays[2][0], AT, HZ0 - 38, bays[2][1], JT, HZ0, C.wood, WD);
+  box(hdr, bays[2][0], AT, HZ1, bays[2][1], JT, HZ1 + 38, C.wood, WD);
+
+  // ---------- steps 7-8: two layers of 5/8" CDX
+  const P1 = { edge: .14, emc: HL }, CP2 = [0.84, 0.70, 0.49];
+  function plyPiece(name, y0, y1, z0, z1, col, tracks) {
+    const g = grp(name, tracks);
+    const hz0 = Math.max(z0, HZ0), hz1 = Math.min(z1, HZ1);
+    if (hz1 > hz0) {
+      if (hz0 > z0) box(g, PX0, y0, z0, PX1, y1, hz0, col, P1);
+      if (z1 > hz1) box(g, PX0, y0, hz1, PX1, y1, z1, col, P1);
+      box(g, PX0, y0, hz0, HX0, y1, hz1, col, P1); box(g, HX1, y0, hz0, PX1, y1, hz1, col, P1);
+    } else box(g, PX0, y0, z0, PX1, y1, z1, col, P1);
+    return g;
+  }
+  function joint(g, y, z) {
+    const J = { edge: 0, shadow: false, a: .7 };
+    if (z > HZ0 && z < HZ1) { box(g, PX0, y, z - 4, HX0, y + 1.5, z + 4, C.dark, J); box(g, HX1, y, z - 4, PX1, y + 1.5, z + 4, C.dark, J); }
+    else box(g, PX0, y, z - 4, PX1, y + 1.5, z + 4, C.dark, J);
+  }
+  plyPiece("p1a", JT, L1T, 0, ZM, C.ply, [...dropIn(6, .5, 1.3, 320), ...pulse(6, 1.3, 2.2), ...outTr(1.8, 2.8)]);
+  joint(plyPiece("p1b", JT, L1T, ZM, TS, C.ply, [...dropIn(6, 1.5, 2.3, 320), ...pulse(6, 2.3, 3.2), ...outTr(1.9, 2.9)]), L1T, ZM);
+  plyPiece("p2a", L1T, Y2, 0, ZR, CP2, [...dropIn(7, .4, 1.1, 320), ...outTr(1.1, 2.1)]);
+  joint(plyPiece("p2b", L1T, Y2, ZR, ZF, CP2, [...dropIn(7, 1.0, 1.8, 320), ...pulse(7, 1.8, 2.8), ...outTr(1.2, 2.2)]), Y2, ZR);
+  joint(plyPiece("p2c", L1T, Y2, ZF, TS, CP2, [...dropIn(7, 1.7, 2.4, 320), ...outTr(1.3, 2.3)]), Y2, ZF);
+
+  // ---------- step 9: guardrails on both open sides + opening cover
+  function guard(name, xPost, xRail, tracks) {
+    const g = grp(name, tracks), o = { edge: .5, emc: [0.35, 0.95, 0.85] };
+    [40, CCZ - 45, TS - 129].forEach(z => box(g, xPost, Y2, z, xPost + 38, Y2 + 1067, z + 89, C.wood, o));
+    box(g, xRail, Y2 + 978, 0, xRail + 38, Y2 + 1067, TS, C.wood, o);
+    box(g, xRail, Y2 + 489, 0, xRail + 38, Y2 + 578, TS, C.wood, o);
+    box(g, xRail, Y2, 0, xRail + 38, Y2 + 89, TS, C.wood, o);
+  }
+  guard("grdL", PX0, PX0 - 38, [...dropIn(8, .4, 1.2, 420), ...pulse(8, 1.2, 2.4), ...outTr(.3, 1.3)]);
+  guard("grdR", PX1 - 38, PX1, [...dropIn(8, .9, 1.7, 420), ...pulse(8, 1.7, 2.9), ...outTr(.4, 1.4)]);
+  const cover = grp("cover", [...dropIn(8, 2.6, 3.3, 260), ...pulse(8, 3.3, 4.6, .8), ...outTr(.2, 1.0)]);
+  box(cover, HX0 - 90, Y2, HZ0 - 90, HX1 + 90, Y2 + 19, HZ1 + 90, C.yellow, { edge: .6, emc: C.yellow });
+  box(cover, HX0 + 15, Y2 - 38, CCZ - 100, HX1 - 15, Y2, CCZ - 62, C.wood, { edge: .4 });
+  box(cover, HX0 + 15, Y2 - 38, CCZ + 62, HX1 - 15, Y2, CCZ + 100, C.wood, { edge: .4 });
+
+  // ---------- step 10: rated-load sign + inspection tag
+  const sign = grp("sign", [...popIn(9, .9, 1.4), ...fadeOut(11, .2, .8)], { pivot: [1380, Y2 + 800, ZB + 45] });
+  box(sign, 1060, Y2 + 600, ZB + 40, 1700, Y2 + 1000, ZB + 50, C.white, { edge: .7 });
+  box(sign, 1060, Y2 + 920, ZB + 50, 1700, Y2 + 1000, ZB + 53, C.red, { edge: 0, em: .3, emc: C.red });
+  [660, 700, 740, 780].forEach((y, k) => box(sign, 1110, Y2 + y + 120, ZB + 50, 1650 - k * 90, Y2 + y + 138, ZB + 52, C.dark, { edge: 0 }));
+  const tagG = grp("tag", [...popIn(9, 2.6, 3.0), ...fadeOut(11, .3, .8)], { pivot: [PX0 - 41, Y2 + 930, TS - 220] });
+  box(tagG, PX0 - 44, Y2 + 860, TS - 270, PX0 - 38, Y2 + 990, TS - 170, [0.18, 0.66, 0.30], { edge: .5, em: .25, emc: [0.2, .8, .35] });
+
+  // ---------- step 11: Schindler's plumb lines through the side gaps
+  const plumb = grp("plumb", [...growIn(10, 2.2, 3.6, "gy"), ...fadeOut(11, 0, .6)], { pivot: [0, Y2 + 140, 0] });
+  GX.forEach(x => [CCZ - 110, CCZ + 110].forEach(z => {
+    box(plumb, x - 3, YP + 300, z - 3, x + 3, Y2 + 100, z + 3, C.dark, { edge: 0, shadow: false });
+    box(plumb, x - 22, YP + 240, z - 22, x + 22, YP + 300, z + 22, C.steelD, { edge: .4 });
+  }));
+  box(plumb, 0, Y2 + 100, CCZ - 160, PX0 + 140, Y2 + 140, CCZ + 160, C.wood, { edge: .5 });
+  box(plumb, PX1 - 140, Y2 + 100, CCZ - 160, BS, Y2 + 140, CCZ + 160, C.wood, { edge: .5 });
+
+  // ---------- step 12: Level 2 entrance, then the front wall
+  const entr = grp("entr", [...fadeIn(11, 6.6, 7.4), ...pulse(11, 7.4, 8.6, .45)]);
+  const SSo = { edge: .5, emc: [.6, .8, 1] };
+  box(entr, D0 - 90, Y2, TS + 20, D0, Y2 + HT + 90, TS + 140, C.ss, SSo);
+  box(entr, D1, Y2, TS + 20, D1 + 90, Y2 + HT + 90, TS + 140, C.ss, SSo);
+  box(entr, D0, Y2 + HT, TS + 20, D1, Y2 + HT + 90, TS + 140, C.ss, SSo);
+  box(entr, D0, Y2, TS + 40, DCL + 10, Y2 + HT, TS + 60, C.ss, SSo); box(entr, DCL - 10, Y2, TS + 20, D1, Y2 + HT, TS + 40, C.ss, SSo);
+  box(entr, D0 - 90, Y2 - 12, TS - 60, D1 + 90, Y2, TS + 60, C.alum, { edge: .5 });
+  const infill = grp("infill", [...fadeIn(11, 7.8, 8.8), ...pulse(11, 8.8, 10.4, .4)]);
+  const IF = { mat: 2, a: .6, edge: .5, shadow: false, emc: HL };
+  box(infill, RO0, Y2, TS, D0 - 90, Y2 + ROH, TS + FW, C.cmu, IF);
+  box(infill, D1 + 90, Y2, TS, BS, Y2 + ROH, TS + FW, C.cmu, IF);
+  box(infill, D0 - 90, Y2 + HT + 90, TS, D1 + 90, Y2 + ROH, TS + FW, C.cmu, IF);
+
+  // ======================= labels + dims (overlay)
+  const ovl = document.getElementById("ovl"), ovsvg = document.getElementById("ovsvg"), badgeEl = document.getElementById("badge"), outroEl = document.getElementById("outro");
+  const labels = [];
+  function lab(step, a, at, text, sub, o) {
+    o = o || {};
+    const el = document.createElement("div");
+    el.className = "lbl" + (o.hold ? " hold" : "") + (o.minor ? " minor" : "");
+    el.style.setProperty("--c", "var(--" + (o.c || (step === "P" ? "mcl" : STEPS[step].c)) + ")");
+    el.innerHTML = text + (sub ? "<small>" + sub + "</small>" : "");
+    ovl.appendChild(el);
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", o.hold ? "#c3322c" : "#13202b"); ln.setAttribute("stroke-width", "1.4"); ln.setAttribute("opacity", ".8");
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("fill", o.hold ? "#c3322c" : "#13202b"); dot.setAttribute("r", "3.2");
+    ovsvg.appendChild(ln); ovsvg.appendChild(dot);
+    labels.push({ step, a, at, off: o.off || [-6, -4], el, ln, dot, keep: !!o.keep, minor: !!o.minor, until: o.until == null ? null : o.until });
+  }
+  const dims = [];
+  function dim(step, a, p1, p2, text, o) {
+    o = o || {};
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", "#13202b"); ln.setAttribute("stroke-width", "1.6");
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "line"), t2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    [t1, t2].forEach(t => { t.setAttribute("stroke", "#13202b"); t.setAttribute("stroke-width", "2.2"); });
+    g.appendChild(ln); g.appendChild(t1); g.appendChild(t2); ovsvg.appendChild(g);
+    const el = document.createElement("div"); el.className = "dimt"; el.textContent = text; ovl.appendChild(el);
+    dims.push({ step, a, p1, p2, g, ln, t1, t2, el, keep: !!o.keep, until: o.until == null ? null : o.until, side: o.side || 1 });
+  }
+  const DX = BS + WT + 160, DZ = TS + FW;
+  // 1 design + prep
+  lab(0, 3.3, [-WT, Y2, DZ], "Level 2", null, { off: [-4, -1] });
+  lab(0, 3.5, [-WT, 0, DZ], "Level 1", null, { off: [-4, -1], minor: true, until: 4.4 });
+  dim(0, 3.9, [DX, YP, DZ], [DX, Y2, DZ], "21′-4⅞″ [6524] deck to pit floor");
+  lab(0, 4.4, [PX0, Y2, 300], "Platform goes here", "Level 2, level with the opening", { off: [-7, -3], until: 6.4 });
+  lab(0, 6.6, [810, YB + 170, CCZ + 9], "Hoist beam, SWL 7,500 lb", "marked on the beam (3/12 note 9)", { off: [-7, -2] });
+  lab(0, 7.1, [1900, YB - 250, CCZ + 70], "Lifeline anchor on the beam", "e.g. beam clamp + self-retracting lifeline", { off: [5, 2], minor: true });
+  lab(0, 7.6, [(RO0 + BS) / 2, Y2 + 1067, ZB + 40], "Barricade the Level 2 opening", "4/12 detail · removable side", { off: [5, -3] });
+  // 2 access + layout
+  lab(1, 1.3, [SX0, SDK + 1067, SZ1], "Access: e.g. a scaffold tower from the pit", "not on Schindler's drawing · guardrailed deck", { off: [-7, -3], until: 4.2 });
+  lab(1, 2.2, [SX1, 900, SZ1], "Tower ≈ 16′ to its work deck", "s. 130 engineer rule starts at 15 m", { off: [6, 2], c: "code", until: 4.2, minor: true });
+  lab(1, 6.1, [AX0, AT, 3], "Top of angle = Level 2 − 10½″ [267]", "9¼″ joist + 1¼″ plywood", { off: [-6, -4] });
+  dim(1, 6.5, [0, AT + 330, 3], [PX0, AT + 330, 3], "1′-5″");
+  dim(1, 6.8, [PX0, AT + 330, 3], [PX1, AT + 330, 3], "5′-11⅞″ [1826]");
+  dim(1, 7.1, [PX1, AT + 330, 3], [BS, AT + 330, 3], "1′-2⅝″");
+  // 3 rear angle
+  lab(2, 1.8, [AX1, AT - 76, 6], "6×6×⅜ steel angle", "≥ platform width · rated 1,500 lb [680 kg]", { off: [5, -3] });
+  lab(2, 3.0, [ANX[1], AT - 85, 30], "Anchors per the engineer", "concrete rear wall", { off: [-6, 3] });
+  lab(2, 4.2, [CCX + 400, AT, 152], "Leg out, leg down the wall", "Section A-A", { off: [5, 3], minor: true });
+  // 4 front angle
+  lab(3, 1.9, [AX1, AT - 76, TS - 6], "Same angle on the front wall", "same elevation as the rear one", { off: [5, -3] });
+  lab(3, 3.0, [ANX[3], AT - 85, TS - 30], "CMU wall: grouted cells or through-bolts", "anchors per the engineer", { off: [5, 3], hold: true });
+  lab(3, 4.3, [AX0 + 200, AT, 152], "Check level across the hoistway", "rear angle to front angle", { off: [-6, 3], minor: true });
+  // 5 rims + joists
+  lab(4, 1.4, [PX0, JT, 19], "2×10 rim boards on the angles", "Douglas Fir grade 2 (note 1)", { off: [-6, -3], until: 4.8 });
+  lab(4, 5.2, [PX0 + JOFF[1] + 19, JT, TS - 400], "6 joists @ 1′-4″ [406] max.", "13⅝″ and 15¾″ shown", { off: [-6, -4] });
+  dim(4, 5.6, [PX0 + JOFF[2] + 19, JT + 30, TS - 120], [PX0 + JOFF[3] + 19, JT + 30, TS - 120], "15¾″");
+  dim(4, 5.9, [PX0 + JOFF[3] + 19, JT + 30, TS - 120], [PX0 + JOFF[4] + 19, JT + 30, TS - 120], "13⅝″");
+  lab(4, 6.8, [PX1, AT, 120], "Fastened down to the angles", "note 3 · O. Reg. 213/91 s. 135", { off: [5, -3], c: "code" });
+  // 6 blocking + opening
+  lab(5, 1.6, [bays[0][0], JT, ZR], "Solid blocking, 3 rows", "as drawn on 3/12", { off: [-6, -3] });
+  lab(5, 3.6, [HX1, JT, HZ1 + 38], "1′-0″ [305] opening on the car C/L", "2×10 headers each side", { off: [5, 3] });
+  // 7 ply 1
+  lab(6, 2.0, [PX0 + 300, L1T, 420], "⅝″ CDX plywood, layer 1", "across the joists (note 2)", { off: [-6, -3] });
+  lab(6, 3.6, [PX1, L1T, ZM], "Joint on the middle blocking row", null, { off: [5, 2], minor: true });
+  // 8 ply 2 + strike scaffold
+  lab(7, 1.9, [PX0 + 300, Y2, 1300], "Layer 2, joints offset", "on the outer blocking rows (note 2)", { off: [-6, -3], until: 4.4 });
+  lab(7, 2.8, [PX1, Y2, TS], "Flush with the Level 2 floor", "note 5", { off: [5, 3], until: 4.4 });
+  lab(7, 6.1, [SX1, 2400, SZ1], "Strike the scaffold from below", "deck fastened first", { off: [6, -2], until: 8.2 });
+  // 9 guards + cover
+  lab(8, 1.6, [PX0 - 19, Y2 + 1067, 300], "Guardrail on both open sides", "top rail 0.9–1.1 m · O. Reg. 213/91 s. 26.3", { off: [-6, -3], c: "code", until: 4.8 });
+  lab(8, 2.5, [PX1 + 19, Y2 + 89, TS - 300], "Mid rail + 3½″ [89] toe board", null, { off: [5, 3], c: "code", minor: true, until: 4.8 });
+  lab(8, 3.6, [HX1 + 90, Y2 + 19, HZ1], "Cover the 1′-0″ opening", "cleated + marked · s. 135", { off: [5, 3], c: "code", until: 4.8 });
+  dim(8, 6.9, [GX[0], Y2, TS - 120], [GX[0], YP, TS - 120], "21′-4⅞″ to the pit");
+  lab(8, 7.4, [1900, 6500, CCZ], "Guardrail not practicable? Tie off", "to the hoist beam · note 5 · s. 26.1", { off: [5, -2], c: "code" });
+  // 10 rate + inspect
+  lab(9, 1.7, [1700, Y2 + 960, ZB + 50], "Post the rated load", "the engineer's number · never exceed it", { off: [5, -3] });
+  lab(9, 3.1, [PX0 - 44, Y2 + 925, TS - 220], "Inspection tag", "competent person, before first use", { off: [-6, -3] });
+  // 11 handover
+  lab(10, 2.0, [BS + 60, Y2 + 1067, ZB + 40], "Barricade side opens for access", "4/12 detail", { off: [5, -3], c: "mcl", until: 6.2 });
+  lab(10, 3.4, [GX[1], 2600, CCZ + 110], "Schindler's plumb lines", "through the side gaps to the pit", { off: [6, -2] });
+  lab(10, 4.6, [PX0, Y2, 300], "Schindler works off the platform", "accepted by its superintendent (note 1)", { off: [-6, -3] });
+  // 12 removal
+  lab(11, .6, [CCX, Y2 + 300, 1000], "Out when Schindler says so", "MCL takes it down, tied off (notes 1, 6)", { off: [5, -4], until: 5.6 });
+  lab(11, 4.6, [AX1, AT - 76, 6], "Angles last · patch the holes", null, { off: [5, 3], until: 5.8 });
+  lab(11, 7.5, [D0 - 90, Y2 + HT + 90, TS + 140], "Schindler sets the Level 2 entrance", null, { off: [-6, -3], c: "sch", keep: true });
+  lab(11, 8.8, [BS - 150, Y2 + ROH - 300, TS + FW], "Then MCL builds the front wall", "at the top landing (note 6)", { off: [5, -3], keep: true });
+  // poster
+  lab("P", 0, [PX0 + 200, Y2, 1500], "2 layers ⅝″ CDX on 2×10 DF", "joists @ 1′-4″ max.", { off: [-7, 2] });
+  lab("P", 0, [AX1, AT - 76, TS - 6], "6×6×⅜ angles, front + rear", "anchors per the engineer", { off: [5, 3] });
+  lab("P", 0, [PX1 + 19, Y2 + 1067, CCZ + 300], "Guardrails on the open sides", "O. Reg. 213/91 s. 26.3", { off: [5, -3], c: "code" });
+  lab("P", 0, [1900, 6300, CCZ], "Tie-off on the hoist beam", null, { off: [-6, -2], minor: true });
+
+  // ======================= render
+  let stageW = 960, stageH = 540, dpr = 1, lensShift = -0.12, camScale = 1;
+  const PROJ = { vp: null };
+  function camOf(i, tau) {
+    const s = STEPS[i];
+    if (!s.cams) return s.cam;
+    let c = s.cams[0][1];
+    for (let k = 1; k < s.cams.length; k++) {
+      const tk = s.cams[k][0], ck = s.cams[k][1];
+      if (tau < tk) break;
+      const e = EASE.inout(clamp01((tau - tk) / CAM_T));
+      c = [c[0].map((v, j) => v + (ck[0][j] - v) * e), c[1].map((v, j) => v + (ck[1][j] - v) * e)];
+    }
+    return c;
+  }
+  function drift(i, tau) { return (i === STEPS.length - 1 ? 0.012 : 0.009) * tau; }
+  function rotAbout(p, t, a) { const dx = p[0] - t[0], dz = p[2] - t[2], c = Math.cos(a), s = Math.sin(a); return [t[0] + dx * c + dz * s, p[1], t[2] - dx * s + dz * c]; }
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+  function camAt(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    const c1 = camOf(i, tau);
+    let p = c1[0].slice(), t = c1[1].slice();
+    if (i > 0 && tau < CAM_T) {
+      const c0 = camOf(i - 1, STEPS[i - 1].dur), k = EASE.inout(tau / CAM_T);
+      const p0 = rotAbout(c0[0], c0[1], drift(i - 1, STEPS[i - 1].dur));
+      p = p0.map((v, j) => v + (c1[0][j] - v) * k); t = c0[1].map((v, j) => v + (c1[1][j] - v) * k);
+      p = rotAbout(p, t, drift(i, tau) * k);
+    } else p = rotAbout(p, t, drift(i, tau));
+    if (camScale !== 1) p = t.map((v, j) => v + (p[j] - v) * camScale);
+    return { p, t };
+  }
+  function posterCam() {
+    let p = POSTER_CAM[0].slice(); const t = POSTER_CAM[1].slice();
+    if (camScale !== 1) p = t.map((v, j) => v + (p[j] - v) * camScale);
+    return { p, t };
+  }
+  function groupMatrix(g, T) {
+    const st = g.st;
+    st.op = val(g, "op", T, 1); st.tx = val(g, "tx", T, 0); st.ty = val(g, "ty", T, 0); st.tz = val(g, "tz", T, 0);
+    st.sc = val(g, "sc", T, 1); st.ry = val(g, "ry", T, 0); st.em = val(g, "em", T, 0);
+    st.gx = val(g, "gx", T, 1); st.gy = val(g, "gy", T, 1); st.gz = val(g, "gz", T, 1);
+    const pv = g.pivot;
+    let m = M.T(st.tx + g.dx + pv[0], st.ty + g.dy + pv[1], st.tz + pv[2]);
+    if (st.ry) m = M.mul(m, M.RY(st.ry * Math.PI / 180));
+    const s = st.sc;
+    if (s !== 1 || st.gx !== 1 || st.gy !== 1 || st.gz !== 1) m = M.mul(m, M.S(s * st.gx, s * st.gy, s * st.gz));
+    m = M.mul(m, M.T(-pv[0], -pv[1], -pv[2]));
+    g.m = m;
+  }
+  function objMatrix(o) {
+    if (o.local) return M.mul(o.g.m, o.local);
+    return M.mul(M.mul(o.g.m, M.T(o.p[0], o.p[1], o.p[2])), M.S(Math.max(o.s[0], .01), Math.max(o.s[1], .01), Math.max(o.s[2], .01)));
+  }
+
+  function draw(T) {
+    const ST = poster ? POSTER_T : T;
+    const cam = poster ? posterCam() : camAt(T);
+    const aspect = stageW / stageH;
+    const proj = M.persp(36 * Math.PI / 180, aspect, 80, 90000);
+    proj[9] = lensShift;
+    const view = M.look(cam.p, cam.t, [0, 1, 0]);
+    const VP = M.mul(proj, view);
+    PROJ.vp = VP;
+    for (const g of groups) groupMatrix(g, ST);
+    const list = [];
+    for (const o of objs) {
+      const a = o.a * o.g.st.op;
+      if (a <= 0.004) continue;
+      const m = objMatrix(o);
+      const c = M.xf(m, [.5, .5, .5]);
+      const d = Math.hypot(c[0] - cam.p[0], c[1] - cam.p[1], c[2] - cam.p[2]);
+      list.push({ o, m, a, d, k: o.g === site ? 1e9 : d });
+    }
+    const opaque = list.filter(it => it.a >= .995).sort((a, b) => a.k - b.k);
+    const trans = list.filter(it => it.a < .995).sort((a, b) => b.d - a.d);
+    const casters = list.filter(it => it.o.shadow && it.a >= .9);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.viewport(0, 0, SHS, SHS);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.clear(gl.DEPTH_BUFFER_BIT); gl.colorMask(false, false, false, false);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
+    gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uLVP, false, LVP); gl.bindVertexArray(CUBE);
+    let n = fillInst(casters, false);
+    if (n) gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+    gl.colorMask(true, true, true, true);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.905, 0.918, 0.926, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(P_MAIN.p);
+    const u = P_MAIN.u;
+    gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uLVP, false, LVP);
+    gl.uniform3fv(u.uEye, cam.p); gl.uniform3fv(u.uLD, LD); gl.uniform3fv(u.uFog, [0.905, 0.918, 0.926]);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0); gl.uniform1f(u.uShOn, 1);
+    gl.polygonOffset(1, 2);
+    gl.enable(gl.CULL_FACE);
+    gl.bindVertexArray(CUBE);
+    n = fillInst(opaque, false);
+    if (n) gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+    gl.disable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    gl.useProgram(P_LINE.p); gl.uniformMatrix4fv(P_LINE.u.uVP, false, VP); gl.bindVertexArray(EDGES);
+    if (n) gl.drawArraysInstanced(gl.LINES, 0, 24, n);
+    if (trans.length) {
+      n = fillInst(trans, true);
+      gl.useProgram(P_MAIN.p); gl.bindVertexArray(CUBE);
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.useProgram(P_LINE.p); gl.bindVertexArray(EDGES);
+      gl.drawArraysInstanced(gl.LINES, 0, 24, n);
+    }
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+    overlay(T);
+  }
+
+  function toScreen(p) {
+    const q = M.xf(PROJ.vp, p);
+    return { x: (q[0] * .5 + .5) * stageW, y: (1 - (q[1] * .5 + .5)) * stageH, behind: q[3] <= 0 };
+  }
+  function winOp(step, a, T, keep) {
+    const s0 = starts[step], s1 = s0 + STEPS[step].dur;
+    let op = 0;
+    if (T >= s0 + a) op = Math.min(1, (T - s0 - a) / .35);
+    if (!keep) { if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4)); if (T >= s1) op = 0; }
+    return op;
+  }
+  let lf = 14;
+  function overlay(T) {
+    const intro = document.getElementById("intro");
+    const io = T < INTRO_T ? 1 : Math.max(0, 1 - (T - INTRO_T) / .5);
+    intro.style.opacity = poster ? 0 : io;
+    const chrome = poster ? 1 : 1 - io;
+    const oo = VIDEO ? Math.max(0, Math.min(1, (T - (TOTAL - 2.4)) / .5)) : 0;
+    outroEl.style.opacity = oo;
+    const narrow = stageWrap.classList.contains("narrow");
+    badgeEl.style.opacity = chrome; cap.style.opacity = narrow ? 1 : chrome;
+    const topY = badgeEl.offsetTop + badgeEl.offsetHeight + 6;
+    const botY = narrow ? stageH - 6 : stageH - cap.offsetHeight - stageH * 0.026 - 8;
+    for (const L of labels) {
+      let op;
+      if (L.step === "P") op = poster && !(narrow && L.minor) ? 1 : 0;
+      else {
+        op = poster ? 0 : winOp(L.step, L.a, T, L.keep);
+        if (!poster && L.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[L.step] - L.until) / .35));
+      }
+      op *= 1 - oo;
+      L.el.style.opacity = op; L.ln.style.opacity = op * .85; L.dot.style.opacity = op;
+      if (op <= 0) continue;
+      const s = toScreen(L.at);
+      const ox = L.off[0] * lf, oy = L.off[1] * lf;
+      const w = L.el.offsetWidth, h = L.el.offsetHeight;
+      let x = s.x + ox, y = s.y + oy;
+      let bx = ox < 0 ? x - w : x, by = oy < 0 ? y - h : y;
+      bx = Math.max(6, Math.min(stageW - w - 6, bx)); by = Math.max(topY, Math.min(botY - h, by));
+      L.el.style.transform = "translate(" + Math.round(bx) + "px," + Math.round(by) + "px)";
+      const ex = Math.max(bx, Math.min(s.x, bx + w)), ey = Math.max(by, Math.min(s.y, by + h));
+      L.ln.setAttribute("x1", ex); L.ln.setAttribute("y1", ey); L.ln.setAttribute("x2", s.x); L.ln.setAttribute("y2", s.y);
+      L.dot.setAttribute("cx", s.x); L.dot.setAttribute("cy", s.y);
+    }
+    for (const Dm of dims) {
+      let op = poster ? 0 : winOp(Dm.step, Dm.a, T, Dm.keep);
+      if (!poster && Dm.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[Dm.step] - Dm.until) / .35));
+      op *= 1 - oo;
+      Dm.g.style.opacity = op; Dm.el.style.opacity = op;
+      if (op <= 0) continue;
+      const a = toScreen(Dm.p1), b = toScreen(Dm.p2);
+      Dm.ln.setAttribute("x1", a.x); Dm.ln.setAttribute("y1", a.y); Dm.ln.setAttribute("x2", b.x); Dm.ln.setAttribute("y2", b.y);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 7 * Dm.side, ny = dx / l * 7 * Dm.side;
+      Dm.t1.setAttribute("x1", a.x - nx); Dm.t1.setAttribute("y1", a.y - ny); Dm.t1.setAttribute("x2", a.x + nx); Dm.t1.setAttribute("y2", a.y + ny);
+      Dm.t2.setAttribute("x1", b.x - nx); Dm.t2.setAttribute("y1", b.y - ny); Dm.t2.setAttribute("x2", b.x + nx); Dm.t2.setAttribute("y2", b.y + ny);
+      const w = Dm.el.offsetWidth, h = Dm.el.offsetHeight;
+      Dm.el.style.transform = "translate(" + Math.round((a.x + b.x) / 2 - w / 2 + nx * 2.2) + "px," + Math.round((a.y + b.y) / 2 - h / 2 + ny * 2.2) + "px)";
+    }
+  }
+
+  // ======================= UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs"), cap = $("cap");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step"; li.style.setProperty("--c", "var(--" + s.c + ")");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title + '</span><span class="w">' + s.who + '</span></button>' +
+      '<div class="step-body" hidden><ul>' + LIST[i].map(b => "<li>" + b + "</li>").join("") + "</ul>" +
+      (s.hold ? '<p class="hold"><b>Hold</b>' + s.hold + "</p>" : "") + '<p class="ref">' + s.ref + "</p></div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li); stepLis.push(li);
+    const b = document.createElement("button"); b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur); b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b); segFills.push(b.firstChild);
+  });
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shown = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = !VIDEO;
+  function updateUI(t) {
+    const i = stepAt(t);
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = poster ? 0 : Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%"; segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(poster ? 0 : Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    const key = poster + "|" + i;
+    if (key !== shown) {
+      shown = key;
+      const s = STEPS[i];
+      stepLis.forEach((li, k) => { const on = !poster && k === i; li.classList.toggle("active", on); li.querySelector(".step-head").setAttribute("aria-expanded", on); li.querySelector(".step-body").hidden = !on; });
+      const b = $("badge");
+      b.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      $("bNum").textContent = poster ? "✓" : String(i + 1);
+      $("bTitle").textContent = poster ? "Completed platform" : s.title;
+      $("bWho").textContent = poster ? "" : s.who;
+      cap.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      cap.innerHTML = poster
+        ? "<ul><li>Temporary top landing platform at Level 2 for the Schindler 3300: 2×10 Douglas Fir on 6×6×⅜ steel angles, 2 layers of ⅝″ CDX, flush with the floor, guarded on the open sides.</li><li>Play it to see how MCL builds it in 12 steps, from design sign-off to removal, with Schindler's notes and the O. Reg. 213/91 rules that apply.</li></ul><div class=\"ref\">Schindler WBS 11944614 sheet 3/12 · submittal 14 21 23-1 R3 · O. Reg. 213/91</div>"
+        : "<ul>" + s.lines.map(x => "<li>" + x + "</li>").join("") + "</ul>" + (s.hold ? '<div class="hold"><b>Hold</b>' + s.hold + "</div>" : "") + '<div class="ref">' + s.ref + "</div>";
+    }
+    $("bigPlay").hidden = playing || !poster || VIDEO;
+  }
+  function render(t) { draw(t); updateUI(t); }
+  function setPlay() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts; render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) { const i = stepAt(T); T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001); playing = false; render(T); setPlay(); return; }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { const j = Math.min(i + 1, STEPS.length - 1); stopAt = stopEach ? Math.min(TOTAL, starts[j] + STEPS[j].dur - .001) : TOTAL; }
+    playing = true; lastTs = null; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); setPlay(); render(T);
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlay(); render(T); }
+  function goStep(i, auto) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i)); poster = false; cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlay(); return; }
+    T = starts[i]; render(T);
+    if (auto) { stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; playing = true; lastTs = null; raf = requestAnimationFrame(tick); }
+    setPlay();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => { if (poster) return goStep(STEPS.length - 1, true); const i = stepAt(T); goStep(T - starts[i] > 1.5 ? i : i - 1, true); });
+  $("stopEach").addEventListener("click", e => { stopEach = !stopEach; e.currentTarget.setAttribute("aria-pressed", stopEach); if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; } });
+  $("speed").addEventListener("click", e => { speed = speed === 1 ? .5 : 1; e.currentTarget.textContent = speed === 1 ? "1×" : "½×"; });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select, summary")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    dpr = VIDEO ? 1 : Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(stageW * dpr); canvas.height = Math.round(stageH * dpr);
+    lf = Math.max(11, Math.min(24, stageW / 86));
+    stage.style.setProperty("--lf", lf + "px");
+    stage.style.setProperty("--tf", Math.max(14, Math.min(40, stageW / 50)) + "px");
+    stageWrap.style.setProperty("--cf", Math.max(12.5, Math.min(26, stageW / 74)) + "px");
+    stageWrap.classList.toggle("narrow", stageW < 640 && !VIDEO);
+    lensShift = stageWrap.classList.contains("narrow") ? 0 : -0.12;
+    camScale = stageWrap.classList.contains("narrow") ? 0.9 : 1;
+    render(T);
+  }
+  const stageRO = new ResizeObserver(measure);
+  stageRO.observe(stage);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  window.__poster = () => { poster = true; playing = false; T = TOTAL; shown = ""; render(T); };
+  window.__total = TOTAL; window.__starts = starts.slice(); window.__durs = STEPS.map(s => s.dur);
+  measure(); setPlay();
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>

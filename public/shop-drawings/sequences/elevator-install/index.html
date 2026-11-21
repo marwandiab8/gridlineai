@@ -1,0 +1,1398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step 3D animation of the Schindler 3300 machine-room-less elevator going into the Docksteader hoistway: hoistway prep, hoist beam, top landing platform and barricades, electrical rough-in, rails, machine, counterweight and car, belts, entrances, cab, wiring and acceptance, from the reviewed-as-noted Schindler shop drawings (submittal 14 21 23-1 R3).">
+<title>Elevator Install Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* VOICE: site superintendent's install sheet, plain and exact.
+   IDEA: a drawing sheet with a live 3D sequence on it, same family as SK-WIC-01 and SK-CW-01.
+   PICTURE: the hoistway cut open, the elevator going in step by step, colour-coded by trade.
+   COLOUR and TYPE: concrete greys, one colour per trade, red for holds; Barlow Condensed titles, Plex body and dims.
+   LAYOUT: sheet header, 16:9 stage with caption band (doubles as the video frame), transport, step list, open items, legend. */
+:root {
+  --bg: #e8ecee; --panel: #fbfcfc; --ink: #172027; --muted: #59656f; --line: #c9d1d7;
+  --mcl: #8a4f1d; --sch: #1f56c6; --ele: #a85d00; --mec: #6d3fc0; --hold: #c3322c; --hold-f: #fdeceb;
+  --font-display: "Barlow Condensed", "Arial Narrow", "TeX Gyre Heros Cn", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --mcl: #dca068; --sch: #82a8ff; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --mcl: #dca068; --sch: #82a8ff; --ele: #f0a646; --mec: #b69bff; --hold: #ff7064; --hold-f: #3b1715;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+* { box-sizing: border-box; min-width: 0; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; overflow-x: clip;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: max(20px, env(safe-area-inset-top, 0px)); padding-bottom: max(28px, env(safe-area-inset-bottom, 0px));
+}
+.page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--sch); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage-wrap { position: relative; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #e7eaec; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ov { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-display); color: #13202b; }
+.ov #ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  font-size: var(--lf, 14px); line-height: 1.15; padding: .28em .55em .3em .5em; background: rgba(255,255,255,.95); color: #13202b;
+  border-left: .32em solid var(--c, #1f56c6); border-radius: .25em; box-shadow: 0 .08em .3em rgba(0,0,0,.18); }
+.lbl small { display: block; font-size: .78em; font-weight: 500; color: #46525c; letter-spacing: .02em; }
+.lbl.hold { color: #b3261e; border-left-color: #c3322c; }
+.dimt { position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; font-size: calc(var(--lf, 14px) * .92); color: #13202b; background: rgba(255,255,255,.9); padding: .1em .35em; border-radius: .2em; white-space: nowrap; }
+.badge { position: absolute; top: 2.2%; left: 1.6%; display: flex; align-items: center; gap: .45em; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--tf, 22px); letter-spacing: .03em; text-transform: uppercase; background: rgba(255,255,255,.94); padding: .12em .6em .12em .14em; border-radius: .35em; color: #13202b; }
+.badge .n { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--c, #13202b); color: #fff; font-size: .9em; flex: none; }
+.badge .w { font-family: var(--font-mono); font-weight: 600; font-size: .5em; color: var(--c, #59656f); letter-spacing: .06em; }
+.tag { position: absolute; top: 2.4%; right: 1.6%; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * .78); letter-spacing: .06em; text-transform: uppercase; color: #3d4a54; background: rgba(255,255,255,.88); padding: .25em .55em; border-radius: .25em; text-align: right; line-height: 1.45; }
+.cap { position: absolute; left: 1.6%; right: 1.6%; bottom: 2.6%; display: grid; grid-template-columns: minmax(0, 1fr); gap: .25em;
+  font-family: var(--font-body); font-size: var(--cf, 14px); line-height: 1.32; color: #13202b; background: rgba(255,255,255,.95);
+  border-left: .35em solid var(--c, #1f56c6); border-radius: .3em; padding: .6em .9em .65em; box-shadow: 0 .1em .5em rgba(0,0,0,.16); pointer-events: none; }
+.cap ul { margin: 0; padding: 0 0 0 1.05em; display: grid; gap: .12em; }
+.cap .ref { font-family: var(--font-mono); font-size: .74em; color: #4b5863; letter-spacing: .03em; }
+.cap .hold { color: #b3261e; font-weight: 600; }
+.cap .hold b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; margin-right: .35em; }
+.intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.intro div { background: rgba(255,255,255,.93); padding: .7em 1.2em .8em; border-radius: .35em; font-family: var(--font-display); color: #13202b; box-shadow: 0 .2em 1em rgba(0,0,0,.15); }
+.intro h2 { margin: 0; font-size: calc(var(--tf, 22px) * 2.1); line-height: 1; letter-spacing: .02em; font-weight: 700; text-transform: uppercase; }
+.intro p { margin: .35em 0 0; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * 1.05); letter-spacing: .05em; color: #3d4a54; text-transform: uppercase; }
+.big-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: #fff; background: #172027;
+  padding: 10px 18px 10px 14px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; pointer-events: auto; min-height: 44px; }
+.big-play svg { width: 18px; height: 18px; fill: currentColor; }
+.narrow .stage { aspect-ratio: 4 / 3; }
+.narrow .cap { position: static; margin-top: 8px; font-size: 13.5px; }
+.narrow .tag { display: none; }
+.narrow .badge { font-size: 14px; }
+.narrow .lbl.minor { display: none; }
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 26px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; cursor: pointer; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible, .back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--sch); outline-offset: 2px; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro-p { margin: 0; color: var(--muted); font-size: 14px; max-width: 86ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 6px; align-items: start; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; min-height: 44px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.step-head .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--c); border: 2px solid var(--c); }
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.step-body p { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.step-body .hold { background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+.step-body .hold b { color: var(--hold); }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; min-height: 32px; }
+.rfi ol { margin: 10px 0 4px; padding-left: 22px; display: grid; gap: 7px; max-width: 96ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; background: var(--c); display: inline-block; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 120ch; }
+/* video mode: stage only, full frame */
+body.video { padding: 0; background: #000; }
+body.video .page > :not(.bench), body.video .transport, body.video .steps-col, body.video .big-play { display: none !important; }
+body.video .page { max-width: none; gap: 0; }
+body.video .stage { border: 0; border-radius: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+@media (prefers-reduced-motion: reduce) { .seg i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>Elevator install, step by step</h1>
+      <p class="sub">Schindler 3300 machine-room-less traction elevator, 3,000 lb, 2 stops, in the as-built concrete hoistway. 3D sequence built from the reviewed-as-noted shop drawings, submittal 14 21 23-1 R3.</p>
+    </div>
+    <div class="sheet-no"><b>SK-ELV-01</b> animation<br>from Schindler WBS 11944614 R3 · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="3D animation">
+      <div class="stage-wrap" id="stageWrap">
+        <div class="stage" id="stage">
+          <canvas id="gl" role="img" aria-label="3D model of the elevator hoistway with the elevator being installed step by step"></canvas>
+          <div class="ov" id="ov">
+            <svg id="ovsvg"></svg>
+            <div id="ovl"></div>
+            <div class="badge" id="badge"><span class="n" id="bNum">✓</span><span id="bTitle">Installed elevator</span><span class="w" id="bWho"></span></div>
+            <div class="tag">Elevator · Schindler 3300 MRL<br>Docksteader PRPS Reporting Station</div>
+            <div class="intro" id="intro"><div><h2>Elevator install</h2><p>Schindler 3300 MRL · Docksteader PRPS · 13 steps</p></div></div>
+            <div class="intro" id="outro" style="opacity:0"><div><h2>Ready for acceptance</h2><p>Schematic from Schindler shop drawings R3 · not a substitute for the reviewed drawings</p></div></div>
+          </div>
+          <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span>Play the install</span></button>
+        </div>
+        <div class="cap" id="cap" aria-live="polite"></div>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="steps-col" aria-label="Install steps">
+      <p class="intro-p">Press play to watch the elevator go in, in order, or pick a step to see it on its own. Steps 1–4 are MCL's and the electrician's prep: Schindler won't mobilize until they're done. Each step lists what the shop drawing requires and which sheet it comes from. Colours show the trade.</p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </main>
+
+  <details class="rfi">
+    <summary>Settle before Schindler mobilizes</summary>
+    <ol>
+      <li><strong>Critical items by the Christmas break.</strong> Schindler's install supervisor walked the site on Nov 18. The elevator goes into production next week and is on site right after Christmas, and Schindler won't start until all nine items are done: disconnects mounted and fed (including the non-fused disconnect in the overhead), barricades, top landing platform, a marked laydown area, rollable access, pit electrical, overhead electrical, hoist beam stamped with its max. load (or an engineer's letter), and the hoistway complete, fire sealed and vented at the top. (Alvin and Kathy, Nov 20.)</li>
+      <li><strong>Hoist beam count.</strong> The overhead detail on sheet 3/12 shows one beam on the car C/L. Item 30 on sheet 1/12 calls for two rated hoist beams per hoistway, or alternative fall-arrest anchorage that Schindler checks before it mobilizes. Confirm with Schindler which applies.</li>
+      <li><strong>Emergency power.</strong> PC-082 (issued Nov 16) changes the battery-rescue device to emergency generator power operation at the Owner's request. The reviewed drawing still shows emergency power operation "No" and battery backup "Yes". The generator and transfer switch must run at least one elevator, with power-change pending signals to the controller (sheet 1/12 items 27, 36C).</li>
+      <li><strong>Emergency communications.</strong> RFI 325 R2 (Nov 20): analog phone cable from the demarc room to the elevator control room (Rm 108) and another to the fire alarm panel; Bell activates the line at the demarc. KJA: phone line plus an internet connection with 4 h UPS backup in the control room. Spectech: two data drops in Rm 108. Priced under PC-083 (CCN-E017, CCN-T08).</li>
+      <li><strong>Suspension belts.</strong> KJA flagged the STM-PV30 belts as non-fire-rated; Life Safety to verify acceptance.</li>
+      <li><strong>Handrail height.</strong> Sheet 7/12 shows the handrails at 2′-8 11⁄16″ [831]; DSA wants 860–920 mm above the floor. Schindler says the height can't change; DSA noted it subject to OBC and accessibility requirements.</li>
+      <li><strong>Finishes and COP.</strong> PC-082 changes the walls and ceiling to the Schindler 3300 standard finish and drops the voice annunciation key switch and the emergency lighting test switch. DSA asked for a credit for the deviation from the specified finish (RFI 293).</li>
+      <li><strong>Drawing corrections.</strong> Introba asks for the local building code to read OBC instead of IBC 2020, and all previous electrical comments still apply. DSA: outstanding items to be submitted for final review and records.</li>
+      <li><strong>Front wall.</strong> Keep the rough openings in the CMU front wall open until the entrances are set. The front wall at the top landing waits until the temporary platform comes out.</li>
+    </ol>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--mcl)"><i></i>MCL / by others</span>
+    <span style="--c: var(--sch)"><i></i>Schindler (elevator)</span>
+    <span style="--c: var(--ele)"><i></i>Electrical (by others)</span>
+    <span style="--c: var(--mec)"><i></i>Mechanical (by others)</span>
+    <span style="--c: var(--hold)"><i></i>Hold / to confirm</span>
+  </footer>
+  <p class="notes">Approximately to scale. Dimensions in feet-inches with mm in brackets, from Schindler shop drawings WBS 11944614 sub 002, sheets 1–12 (submittal 14 21 23-1 R3, reviewed as noted by DSA on Oct 22 2026), RFI 293, RFI 325 R2, PC-082, PC-083 and Alvin Hernandez's critical-items email of Nov 20 2026. Bracket hardware, the belt path, the car frame and the counterweight are drawn to suit; the equipment details and install method are Schindler's. Rm 108 is drawn beside the hoistway only to show what goes in it; its real location is on the architectural drawings. The front wall and the lone-rail wall are drawn see-through so the work stays visible. Not a substitute for the reviewed shop drawings.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const VIDEO = !!window.__VIDEO;
+  if (VIDEO) document.body.classList.add("video");
+
+  // ======================= steps
+  // camera: target, yaw (0 = from the front / landing side, + = from the left), pitch, distance (mm)
+  const cv = (t, yaw, pitch, d) => { const y = yaw * Math.PI / 180, p = pitch * Math.PI / 180; return [[t[0] - Math.sin(y) * Math.cos(p) * d, t[1] + Math.sin(p) * d, t[2] + Math.cos(y) * Math.cos(p) * d], t]; };
+  const STEPS = [
+    { title: "Hoistway ready", who: "MCL", c: "mcl", dur: 10,
+      cam: cv([1700, 3700, 1100], -30, 4, 25500),
+      lines: ["As-built concrete hoistway 8′-7½″ × 6′-7⅜″ [2629 × 2017]: pit 5′-0″, travel 16′-4⅞″, overhead 13′-0 5⁄16″",
+              "Plumb within +1″/−0″; pit floor dry and level within ½″; pit drain + backwater valve per mechanical (no sump)",
+              "Rough openings 5′-3 13⁄16″ × 7′-8″ in the CMU front wall: keep them open until the entrances are in"],
+      ref: "Schindler dwg 3/12 hoistway + pit plan · 4/12 elevation · 1/12 work by others, items 1, 12, 16, 18" },
+    { title: "Hoist beam", who: "MCL + structural", c: "mcl", dur: 8,
+      cam: cv([1300, 8650, 1000], -36, -4, 7800),
+      lines: ["Steel I-beam across the overhead on the car C/L, 3′-2¾″ [985] from the front wall",
+              "Min. live load 7,500 lb [3,402 kg] anywhere on the span; mark the safe working load (or engineer's letter)",
+              "Min. 2″ [51] from the beam to the top of the shaft"],
+      ref: "Schindler dwg 3/12 overhead hoist beams, note 9 · 4/12 · critical item 8" },
+    { title: "Top landing platform + barricades", who: "MCL", c: "mcl", dur: 10,
+      cams: [[0, cv([1300, 5000, 1000], -26, 16, 7600)], [5.0, cv([1500, 2800, 2200], -22, 6, 16500)]],
+      lines: ["Temporary platform at Level 2, level with the opening: 2×10 joists @ 16″ max., 2 layers ⅝″ plywood, rated 1,000 lb",
+              "On 6×6×⅜ angles fixed to the front and rear walls, rated 1,500 lb; 1′-5″ off the CWT wall, 1′-2⅝″ off the far wall",
+              "Barricade every opening: 42″ high, mid-rail + toe board, 200 lb. Mark the laydown area"],
+      ref: "Schindler dwg 3/12 temporary platform, notes 1–6 · 4/12 barrier detail · 1/12 items 2, 14 · critical items 2–5" },
+    { title: "Power, lights + disconnects", who: "Electrical", c: "ele", dur: 11,
+      cams: [[0, cv([1300, -250, 1100], -24, 18, 8800)], [3.8, cv([1400, 7950, 1000], -30, 2, 8000)], [7.0, cv([4300, 1100, 1300], -20, 24, 8600)]],
+      lines: ["Pit: sealed 10 fc light low on the rear wall, GFCI duplex, 3-way switch + GFCI on the strike side by the Level 1 door",
+              "Overhead: sealed 19 fc light, 3-way switch + GFCI, smoke + heat detector, non-fused disconnect",
+              "Rm 108 control room: JH, 20 kVA autotransformer, RCC; 8″ × 8″ cut-out to the hoistway; 3-phase power live"],
+      hold: "Critical items 1, 6, 7. Schindler won't mobilize until the whole list is done: target the Christmas break.",
+      ref: "Schindler dwg 12/12 pit + overhead electrical · 5/12 control space · 1/12 items 19–22, 26, 28" },
+    { title: "Plumb lines + pit", who: "Schindler", c: "sch", dur: 9,
+      cams: [[0, cv([1300, 1800, 1000], 22, 6, 13500)], [2.6, cv([1350, -600, 1100], 26, 24, 7400)]],
+      lines: ["Plumb lines from the top landing platform set the rail lines: 6′-11⅞″ [2131] between the car rails",
+              "Pit ladder by Schindler on the strike-side wall: 16″ rungs @ 12″, up to 48″ above the Level 1 sill",
+              "Pit set drilling: 2 spring car buffers and 1 spring CWT buffer, 2½″ stroke, 6″ runby"],
+      ref: "Schindler dwg 3/12 pit plan + vertical loads · 2/12 data · 11/12 hatch plan · 1/12 item 20" },
+    { title: "Guide rails + brackets", who: "Schindler", c: "sch", dur: 11,
+      cam: cv([1500, 3300, 1000], -28, 4, 24500),
+      lines: ["Car rails T127-1/B (12 lb/ft) and CWT rails T75 (6 lb/ft), 5 m lengths from the pit floor up",
+              "Brackets at 4 levels, 10′-9 15⁄16″ [3300] max. apart: Z-brackets on the far wall, omega + top L on the CWT wall",
+              "All bolted into the concrete (no inserts), aligned to 6′-11⅞″ [2131] and plumb"],
+      ref: "Schindler dwg 11/12 hatch plan, elevation + bracket selection · 4/12 notes 1A–1C, 6" },
+    { title: "Machine + governor", who: "Schindler", c: "sch", dur: 9,
+      cams: [[0, cv([900, 6300, 1100], -30, 6, 9500)], [4.4, cv([1500, 7650, 1000], -36, 4, 8200)]],
+      lines: ["FMB130 gearless machine lifted off the platform on the hoist beam, set on rail in the overhead on the CWT side",
+              "SA GBP 202 governor on the lone rail; 6 mm rope, 69′ [21 m], down to the tension sheave in the pit",
+              "No machine room: drive and controller sit in Rm 108, 45 ft of wiring away"],
+      ref: "Schindler dwg 2/12 traction + safety data · 11/12 hatch plan · 5/12 remote wire distance" },
+    { title: "Counterweight + car frame", who: "Schindler", c: "sch", dur: 10,
+      cams: [[0, cv([400, 4650, 1000], -62, 4, 7200)], [4.2, cv([1300, 1100, 1000], -30, 8, 9000)]],
+      lines: ["Counterweight 4 5⁄16″ [110] deep between the T75 rails, filled to 3,831 lb [1,738 kg]: 50% of the load",
+              "Car frame with Schindler RF1 safeties and sliding guide shoes; platform with the car sill",
+              "Two diverting pulleys under the car for the 2:1 underslung roping"],
+      ref: "Schindler dwg 2/12 system weights + safety data · 11/12 hatch plan" },
+    { title: "Suspension belts", who: "Schindler", c: "sch", dur: 9,
+      cam: cv([1500, 3700, 1000], -28, 4, 23000),
+      lines: ["4 STM-PV30 belts, 80′ [24.4 m] each, roped 2:1",
+              "Hitch at the top, down and under the car, up over the machine sheave, down around the CWT pulley, back up",
+              "Belts twist 180° between the car and the machine"],
+      hold: "KJA: the suspension belts are non-fire-rated. Life Safety to verify acceptance.",
+      ref: "Schindler dwg 2/12 traction data + field notes · KJA comment on 2/12" },
+    { title: "Landing entrances", who: "Schindler, then MCL", c: "sch", dur: 11,
+      cams: [[0, cv([1650, 5950, 1950], 24, 8, 7600)], [5.8, cv([1650, 950, 1950], 24, 8, 7600)]],
+      lines: ["Platform out first. Aluminum sills, #4 stainless frames, 2-speed doors 3′-6″ × 7′-0″, UL 10B 1.5 h",
+              "Landing door unit (inspection & test panel) in the top landing strike jamb",
+              "Then MCL fills the CMU around the frames and grouts the sills: Level 2 only after the platform is out"],
+      ref: "Schindler dwg 6/12 entrance details · 4/12 door rough opening · 3/12 note 6 · 1/12 items 12, 13" },
+    { title: "Cab + car door", who: "Schindler", c: "sch", dur: 10,
+      cam: cv([1550, 1250, 1100], -8, 7, 7600),
+      lines: ["Schindler 3300 standard cab: #4 brushed stainless walls (PC-082), round LED downlights, handrails on 3 walls",
+              "7′ COP on the front return; car door on a Fermator Compact operator with 3D door detection",
+              "MRM-1 resilient floor in the 3⁄8″ recess by the flooring sub, 250 lb max."],
+      ref: "Schindler dwg 7/12 car · 8/12 COP · PC-082 · DSA comments on RFI 293" },
+    { title: "Wiring + fixtures", who: "Schindler + Electrical", c: "ele", dur: 10,
+      cams: [[0, cv([2700, 1500, 1800], 26, 12, 11000)], [5.4, cv([2300, 4100, 1300], -24, 4, 24000)]],
+      lines: ["Duct and wiring from Rm 108 into the hoistway, up the front corner to the machine; traveling cable to the car",
+              "Hall fixtures flush in the frames: push buttons and access switches, fire recall + phone line monitor at Level 1",
+              "Fire alarm, phone line and data to the controller by the building"],
+      hold: "PC-083 (CCN-E017, CCN-T08) adds the RFI 325 emergency communications wiring: price it and get it in before start-up.",
+      ref: "Schindler dwg 9/12 fixtures · 5/12 · 1/12 items 21, 22, 26, 36 · RFI 325 R2 · PC-083" },
+    { title: "Test, inspect + hand over", who: "Schindler + MCL", c: "sch", dur: 12.5,
+      cam: cv([1900, 3700, 1100], -24, 4, 25500),
+      lines: ["Before automatic operation: cab floor, smoke + heat detectors to the controller, penetrations sealed, 100 lux at the sills",
+              "Schindler adjusts and tests the governor, safeties and buffers, then the TSSA acceptance inspection",
+              "Barricades and the temporary platform gone; walls closed and finished"],
+      hold: "PC-082: battery rescue changes to emergency generator power operation. The generator must run at least one elevator.",
+      ref: "Schindler dwg 1/12 item 36 · 2/12 electrical data · PC-082" }
+  ];
+  const LIST = [
+    ["Hoistway 8′-7½″ [2629] wide × 6′-7⅜″ [2017] deep, two stops, front entrances at Level 1 and Level 2. The consultant noted on sheet 3/12 that these are the as-built dimensions; RJC: structurally OK.",
+     "Pit 5′-0″ [1524]; travel and floor-to-floor 16′-4⅞″ [5000]; overhead 13′-0 5⁄16″ [3970] from Level 2 to the underside of the hoist beam. Tolerance on width, depth, pit and overhead: +1″/−0″.",
+     "Clear and plumb, +25 mm/−0 within the first 30.5 m, plumb within 1″ top to bottom. Pit floor dry, level (+½″ [12] max. out of level), free of bumps and debris. No occupied space below the pit.",
+     "Pit sealed and waterproofed. IRB: no sump pit on this project; pit drain and backwater valve per the mechanical drawings.",
+     "Front wall is CMU (DSA: see A702). Rough opening 5′-3 13⁄16″ [1621] wide × 7′-8″ [2337] high at each landing, from 3′-3 11⁄16″ [1008] off the CWT wall to the lone-rail wall, with 8″ [203] min. full-width support below the sill. Schindler: keep the RO open until the entrances are set, then fill it in.",
+     "Side and rear walls are concrete. Schindler supplies no inserts; the rail brackets are anchored into the concrete.",
+     "Hoistway dried in, fire-rated per code and vented at the top (A17.1 2.1.4)."],
+    ["The GC supplies and installs the steel I-beam in the overhead hoist beams detail: on the car C/L, 3′-2¾″ [985] from the front wall, spanning from the motor (CWT) wall across the hoistway. Lifting point [A] at the car C/L.",
+     "Each beam takes a minimum live load of 7,500 lb [3,402 kg] anywhere along the span and is marked with its safe working load (note 9). Critical item 8: installed and stamped with the max. load, or an engineer's letter.",
+     "Keep a minimum 2″ [50.8] from the hoist beam to the top of the shaft. The 13′-0 5⁄16″ overhead is measured from Level 2 to the underside of the beam.",
+     "Sheet 1/12 item 30: where two rated hoist beams per hoistway aren't feasible, the GC provides alternative anchorage (5,000 lb per person attached, or an engineered fall protection system). Schindler checks the documentation before mobilizing."],
+    ["Designed, provided, built and removed by others. Schindler's superintendent coordinates when it goes in and when it comes out (notes 1, 6).",
+     "2×10 Douglas Fir grade 2 joists at 1′-4″ [406] max. spacing, covered with 2 layers of ⅝″ [16] CDX plywood. Work platform rated 1,000 lb [454 kg].",
+     "Steel bearing angles 6″ × 6″ × ⅜″ [152 × 152 × 10] fixed to the front and rear walls, at least as wide as the platform, rated 1,500 lb [680 kg] (section A-A).",
+     "1′-5″ [431] off the CWT wall and 1′-2⅝″ [372] off the far wall, level with the top floor opening and in easy reach of the hoist beam for lifelines. A 1′-0″ [305] opening stays in the deck.",
+     "The front wall at the top landing isn't built until the platform is removed (note 6).",
+     "How to build the platform, step by step: <a href=\"/shop-drawings/sequences/top-landing-platform/\">SK-ELV-02, top landing platform</a>.",
+     "Barricades at every opening (sheet 1/12 item 14): freestanding, removable, 42″ high with mid-rail and kick board, taking 200 lb in any direction, plus screening or locked lobbies against falling debris. Sheet 4/12 detail: 3′-6″ [1067] 2×4 frame with orange safety netting, ⅛″ cable through grommets and a turnbuckle, 3½″ toe board, one side removable.",
+     "Also on the critical list: laydown area marked off within 100 ft of the hoistway, dry enclosed storage, and rollable (paved or planked) access for deliveries."],
+    ["Pit (sheet 12/12): sealed 2-lamp 4′ light for 10 fc low on the rear wall, no less than 32″ [813] below the bottom landing, with the GFCI duplex outlet beside it; 3-way light switch and GFCI outlet on the strike side, 12″ from the front wall and 60″ above the Level 1 floor, so they can be reached from the pit access door. GFCI, pit light and non-GFCI go in before elevator work starts.",
+     "Overhead: sealed 2-lamp 4′ light for 19 fc on the rear wall, 3-way switch and GFCI on the strike side, smoke and heat detector on the ceiling (heat only if sprinklered), sprinkler if required. Keep the counterweight side clear.",
+     "Disconnects: JH, a lockable fused disconnect (or breaker) for the 3-phase supply with a positively driven auxiliary contact; separate single-phase breakers for lights, receptacles, remote monitoring and the pit; and the non-fused disconnect in the overhead (critical item 1). Main supply 600 V, 3-phase, 60 Hz, through a 20 kVA step-down autotransformer to 480 V.",
+     "Rm 108 Elev. Control Room (control space at Level 1, sheet 5/12): 7′-2″ × 5′-7″ [2184 × 1702] min., with the RCC cabinet (Variodyn VAF025 drive and NX100 controller), the autotransformer, JH and the IoEE box. 36″ × 80″ lockable, self-closing, self-locking, fire-rated door. GC provides light, switch, receptacle, ventilation between 32 °F and 104 °F, and an 8″ × 8″ [203 × 203] cut-out for the duct to the hoistway.",
+     "Wire run from the control room to the machine in the overhead: 45 ft (145 ft max.). 3-phase power has to be installed and live before the elevator install starts (sheet 1/12 item 3)."],
+    ["Schindler mobilizes once the critical items are done; Kathy has the elevator on site right after Christmas.",
+     "Plumb lines from the top landing platform set the car rail, counterweight rail and entrance lines: car rails 6′-11⅞″ [2131] apart (BKS), rail bases 7 7⁄16″ [190] off the CWT wall and 5⅛″ [130] off the far wall, car C/L 3′-2¾″ [985] from the front wall.",
+     "Pit ladder supplied and installed by Schindler (note on 3/12), on the strike-side wall near the front, 5½″ [140] off the wall: non-slip rungs 16″ [400] wide @ 12″ [300], up to 48″ [1200] above the Level 1 sill, within 39″ [975] of the door unlocking means.",
+     "Pit set drilling: yes (2/12). Two spring car buffers (H06) and one spring CWT buffer (H01), 2½″ [64] stroke; car and CWT runby 6″ [152].",
+     "Pit loads (3/12): car buffers F9 9,596 lbf [42.7 kN]; CWT buffer F10 14,093 lbf [62.7 kN]; car rails F11 16,894 lbf [75.1 kN] and F12 20,995 lbf [93.4 kN]; CWT rails F13 and F14 3,974 lbf [17.7 kN].",
+     "Refuge space 24″ × 33″ × 43″ [610 × 838 × 1092] in the pit and on the car top stays clear (10/12)."],
+    ["Car guide rails 12 lb/ft (T127-1/B) and counterweight rails 6 lb/ft (T75), sliding guide shoes on both. Car rail stacks 16′-4⅞″ [5000] + 14′-9 15⁄16″ [4520]; CWT stacks 16′-4⅞″ [5000] + 14′-6¾″ [4439].",
+     "Bracket levels from the pit floor: 4′-6⅛″ [1374], then 8′-5⅜″ [2575], 8′-5⅜″ [2575] (at Level 2) and 7′-11 11⁄16″ [2430] into the overhead; 10′-9 15⁄16″ [3300] max.",
+     "Car side (far wall): 4 Z-brackets, Z-C-NS. CWT side (motor wall): 3 omega brackets, O-NS, carrying both CWT rails and the CWT-side car rail, anchors 5′-1¼″ [1556] apart; top L-brackets, L-NS, top connection only.",
+     "All brackets bolted with anchors into the concrete; no inserts (4/12). The building support may not deflect more than 1⁄16″ [1.5], or ⅛″ [3] in seismic locations.",
+     "Bracket reactions (4/12): car rail F 315 lbf [1401 N], P 138 lbf [614 N]; CWT rail F 74 lbf [329 N], P 7 lbf [31 N]."],
+    ["Machine FMB130-NN-4D400, 9.2 hp (not for sizing), 480 V, two Leroy Somer magnetic disk brakes, 87 mm [3.4″] traction sheave. It sits on rail in the overhead on the CWT side (2/12: machine/CWT location, on rail in overhead).",
+     "Rigged off the temporary platform with the hoist beam; the beam's rating applies anywhere along the span.",
+     "Governor SA GBP 202 on the lone-rail side, 2 5⁄16″ [58] off the rail and 1′-1⅜″ [340] behind the car C/L (11/12); 6 mm governor rope, 69′ [21 m]. Car safety: Schindler RF1.",
+     "Remote wire distance from the control room to the machine: 45 ft, 145 ft max. Schindler's field superintendent verifies it (5/12)."],
+    ["Counterweight 4 5⁄16″ [110] deep, centred 3 7⁄16″ [87] off the motor wall between the two T75 rails, with filler weights to 3,831 lb [1,738 kg]: 50% counterbalance.",
+     "Car frame with Schindler RF1 safety gear and sliding guide shoes on the T127 rails; platform and flooring 3 15⁄16″ [100] thick.",
+     "Underslung 2:1 roping: two diverting pulleys under the platform carry the car on the belts.",
+     "Weights: car 2,327 lb [1,056 kg]; mass on the safeties 5,328 lb [2,417 kg]. Capacity 3,000 lb [1,360 kg], loading class A; stretcher car for an 84″ × 24″ [2134 × 610] stretcher. 150 fpm [0.75 m/s], selective-collective automatic."],
+    ["Suspension traction media STM-PV30: 4 belts, 80′ [24.4 m] each, trip count limit 1,000,000, roping 2:1.",
+     "Path: dead-end hitch at the top on the lone-rail side, down and under the car's two diverting pulleys, up to the FMB130 sheave on the CWT side, down around the counterweight pulley, up to the counterweight hitch.",
+     "STM twist 180° between car and machine (field notes, 2/12). The suspension and governor ropes are covered by the A17.1-2010 and A17.6-2010 variance noted on 2/12.",
+     "KJA: the suspension belts are non-fire-rated. Life Safety to verify acceptance before the belts go in."],
+    ["The temporary platform comes out first, when Schindler says so; the top landing front wall can't close until it's gone (3/12 note 6).",
+     "Right-hand entrances at both landings: door opening C/L 5′-8 11⁄16″ [1744] off the CWT wall; 2-speed side-opening doors stacking toward the CWT wall.",
+     "Door 3′-6″ [1067] × 7′-0″ [2134], UL 10B 1.5 h; Fermator lock; 14 ga #4 stainless jambs, 18 ga #4 stainless doors (144.4 lb [65.5 kg] per panel); 4¾″ [121] jamb faces; aluminum sills.",
+     "Each entrance puts 1,125 lbf into the structure through its fixings; keep the wall thickness the entrance was designed for (6/12 notes 6, 8).",
+     "The landing door unit (LDU) at the top landing gives access to the inspection and test panel. Fire alarm relays for the elevator go within 3 ft of that jamb (1/12 item 36J).",
+     "After the entrances are set, MCL fills the rough opening in the CMU (DSA: per A702), grouts around the frames and grouts the finish floor to the sill line (1/12 items 12, 13; 6/12 note 4)."],
+    ["Cab inside 6′-9 5⁄16″ × 4′-10 13⁄16″ [2065 × 1494], ceiling 7′-8 11⁄16″ [2355] (DSA accepts 2355 against 2360 specified), car entrance 3′-6″ [1067] clear, net area 33.25 ft² [3.09 m²].",
+     "PC-082: walls and ceiling get the Schindler 3300 standard finish (#4 brushed stainless) instead of the specified finish.",
+     "Ceiling with round LED downlights and an emergency exit 25⅝″ × 16½″ [650 × 420]; rear panel removable for exit access.",
+     "Round #4 stainless handrails on the right, left and rear walls, 2′-8 11⁄16″ [831] high on sheet 7/12. DSA wants 860–920 mm above the floor; Schindler says the height can't change.",
+     "COP 7′ high × 11 13⁄16″ [300] wide, #4 stainless, white digital display, card reader provision (Submittal 28 00 03-01), hands-free ADA phone. PC-082 drops the voice annunciation key switch and the emergency lighting test switch.",
+     "Car door 2-speed side opening, #4 stainless, 150.1 lb [68.1 kg] per panel, Fermator Compact operator and clutch, 3D door detection. MRM-1 flooring by the resilient flooring subcontractor in the 3⁄8″ [10] recess; 250 lb [113 kg] max."],
+    ["Schindler wires the hoistway and the car (traveling cable) and runs to the RCC in Rm 108 through the 8″ × 8″ cut-out, 45 ft of wiring.",
+     "Hall fixtures FIGS 300, flush in the frame: terminal push buttons at both floors, hoistway access switches at floors 1 and 2, firefighter's hat indicator and Phase I fire recall switch (engraved instructions per KJA) and the phone line and elevator communication failure monitor at Level 1.",
+     "The building provides conduit and wiring for the fire alarm to the controller (smoke and heat signals), the emergency phone line and data, and the feeders per Schindler's power data sheet (1/12 items 26, 36F–H). DSA: MCL and the electrical contractor to confirm all the conduit and wiring.",
+     "RFI 325 R2 (Nov 20): analog phone cable from the demarc room to the elevator control room and another to the fire alarm panel; Bell activates at the demarc. KJA: internet with 4 h UPS at the control room. Spectech: two data drops in Rm 108. Priced under PC-083 (CCN-E017, CCN-T08).",
+     "Seal every penetration through 2 h walls; drywall liner behind wall-mounted hall fixtures (1/12 item 36D)."],
+    ["Before automatic operation (1/12 item 36): finished cab flooring; smoke and heat detectors signalling the controller; emergency generator and automatic transfer switch able to run at least one elevator; 2 h wall penetrations sealed; GFCI on every pit and machinery space receptacle; fire alarm and emergency communication wiring done; at least 100 lux at the landing sills; fire alarm relays within 3 ft of the inspection and test panel jamb.",
+     "PC-082: change the battery-rescue device to emergency generator power operation, as the Owner asked. The drawing still shows emergency power operation No and battery backup Yes; confirm it on the revised order. Schindler also needs the transfer switch and power-change pending signals (item 27).",
+     "Schindler adjusts the car, checks the 50% counterbalance, and runs the governor, safety and buffer tests ahead of the TSSA acceptance inspection.",
+     "Temporary use only after Schindler's temporary acceptance form and an inspection; the cost of temporary service is by others (item 33)."]
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc, CAM_T = 1.7, INTRO_T = 2.8;
+
+  // ======================= geometry (mm): x across the hoistway (0 = CWT/motor wall), y up (0 = Level 1 floor), z toward the front (0 = rear wall)
+  const BS = 2629, TS = 2017, WT = 200, FW = 200;
+  const YP = -1524, Y2 = 5000, YB = 8970, YBT = 9170, YR = 9221, YRT = 9421, YPB = YP - 250;
+  const CCX = 1345, CCZ = 1032, RO0 = 1008, ROH = 2337;
+  const DCL = 1744, BT = 1067, HT = 2134, D0 = DCL - BT / 2, D1 = DCL + BT / 2;
+  const CX0 = 312.5, CX1 = 2377.5, CZ0 = 280, CZ1 = 1774, CH = 2355, BZ = 1200;
+  const RTOP = 7999, CTOP = 7918, RJ = 3479, RB = YP + 3;
+  const BL = [-150, 2425, 5000, 7430];
+  const CFR = -260, BTOP = CFR - 152, CWB = 3861, CWTT = 5461;
+  const RM = { x0: 3500, x1: 5684, z0: 220, z1: 1922, h: 2700 };
+
+  // ======================= math
+  const M = {
+    I() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+    mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    T(x, y, z) { const m = M.I(); m[12] = x; m[13] = y; m[14] = z; return m; },
+    S(x, y, z) { const m = M.I(); m[0] = x; m[5] = y; m[10] = z; return m; },
+    RY(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; },
+    persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), m = new Float32Array(16); m[0] = t / a; m[5] = t; m[10] = (fa + n) / (n - fa); m[11] = -1; m[14] = 2 * fa * n / (n - fa); return m; },
+    ortho(l, r, b, t, n, f) { const m = M.I(); m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n); m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n); return m; },
+    look(e, t, u) {
+      let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+      let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+      const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[4] = xy; m[5] = yy; m[6] = zy; m[8] = xz; m[9] = yz; m[10] = zz;
+      m[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); m[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); m[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); m[15] = 1;
+      return m;
+    },
+    xf(m, p) { const x = p[0], y = p[1], z = p[2]; const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, (m[2] * x + m[6] * y + m[10] * z + m[14]) / w, w]; }
+  };
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+
+  // ======================= GL
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true, alpha: false });
+  const stage = document.getElementById("stage"), stageWrap = document.getElementById("stageWrap");
+  if (!gl) {
+    stage.insertAdjacentHTML("beforeend", '<p style="position:absolute;inset:auto 0 45% 0;text-align:center;font:600 16px var(--font-body);color:#13202b">This 3D view needs WebGL 2, which this browser doesn\'t offer.</p>');
+    return;
+  }
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  function prog(vs, fs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.bindAttribLocation(p, 1, "aNor"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+
+  const VS = `#version 300 es
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=7) in vec4 iSzA; layout(location=8) in vec4 iEm;
+  uniform mat4 uVP, uLVP;
+  out vec3 vW; out vec3 vN; out vec4 vL; out vec3 vLoc; out vec3 vLocN;
+  flat out vec4 vCol; flat out vec4 vSzA; flat out vec4 vEm;
+  void main(){
+    mat4 Mo = mat4(iM0, iM1, iM2, iM3);
+    vec4 w = Mo*vec4(aPos,1.0); vW = w.xyz;
+    vN = normalize(transpose(inverse(mat3(Mo)))*aNor);
+    vL = uLVP*w; vLoc = aPos; vLocN = aNor; vCol = iCol; vSzA = iSzA; vEm = iEm;
+    gl_Position = uVP*w;
+  }`;
+  const FS = `#version 300 es
+  precision highp float; precision highp sampler2DShadow;
+  in vec3 vW; in vec3 vN; in vec4 vL; in vec3 vLoc; in vec3 vLocN;
+  flat in vec4 vCol; flat in vec4 vSzA; flat in vec4 vEm;
+  uniform vec3 uEye; uniform vec3 uLD; uniform sampler2DShadow uSh; uniform float uShOn; uniform vec3 uFog;
+  out vec4 o;
+  float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+  float nz(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
+  void main(){
+    vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+    vec3 base = vCol.rgb; int mat = int(vCol.w + 0.5); vec3 sz = vSzA.xyz;
+    float specK = 0.10; float shin = 40.0;
+    vec3 lp = vLoc*sz;
+    if (mat==1){ vec2 q = abs(n.y)>0.5 ? vW.xz : (abs(n.x)>0.5 ? vW.zy : vW.xy); float g = nz(q*0.012)*0.5 + nz(q*0.05)*0.3 + nz(q*0.35)*0.2; base *= 0.90 + 0.16*g; specK = 0.04; }
+    else if (mat==2){ vec2 p = abs(n.x)>0.5 ? vW.zy : vW.xy; float row = floor((p.y+300.0)/203.2); float off = mod(row,2.0)*203.2; float mx = mod(p.x+off, 406.4), my = mod(p.y+300.0, 203.2);
+      float j = max(1.0 - smoothstep(0.0, 9.0, min(mx, 406.4-mx)), 1.0 - smoothstep(0.0, 9.0, min(my, 203.2-my))); base *= mix(1.0, 0.80, j) * (0.95 + 0.07*nz(p*0.03)); specK = 0.03; }
+    else if (mat==4){ float r = fract(lp.y/22.0); base *= mix(0.55, 1.0, smoothstep(0.2, 0.45, r)); specK = 0.18; }
+    else if (mat==5){ vec2 c = vec2(lp.z - sz.z*0.5, lp.y - sz.y*0.5); float d = length(c); if (abs(vLocN.x)>0.5){ float rings = smoothstep(0.35, 0.5, abs(fract(d/26.0)-0.5)); base = mix(vec3(0.16,0.18,0.2), base, rings*0.6); if (d > min(sz.y,sz.z)*0.5) base = vCol.rgb*1.25; } specK = 0.2; }
+    else if (mat==6){ base *= 0.92 + 0.12*nz(vW.xz*0.08 + vW.y*0.05); specK = 0.35; shin = 30.0; }
+    else if (mat==7){ vec2 c = vec2(lp.x - sz.x*0.5, lp.y - sz.y*0.5); float d = length(c); if (abs(vLocN.z)>0.5){ float r = min(sz.x, sz.y)*0.5; float rings = smoothstep(0.3, 0.5, abs(fract(d/(r*0.3))-0.5)); base = mix(base*0.55, base*1.25, rings); if (d > r) base = vec3(0.62,0.64,0.66); } specK = 0.3; }
+    else if (mat==8){ vec2 p = abs(n.z)>0.5 ? vW.xy : vW.zy; float g = max(step(0.78, fract(p.x/55.0)), step(0.78, fract(p.y/55.0))); base *= mix(0.72, 1.12, g); specK = 0.05; }
+    float sh = 1.0;
+    if (uShOn > 0.5) {
+      vec3 pc = vL.xyz / vL.w * 0.5 + 0.5;
+      if (pc.x > 0.0 && pc.x < 1.0 && pc.y > 0.0 && pc.y < 1.0 && pc.z < 1.0) {
+        float bias = 0.0010; vec2 ts = vec2(1.0/float(textureSize(uSh, 0).x));
+        float s = texture(uSh, vec3(pc.xy + vec2(-0.75,-0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,-0.75)*ts, pc.z - bias))
+                + texture(uSh, vec3(pc.xy + vec2(-0.75,0.75)*ts, pc.z - bias)) + texture(uSh, vec3(pc.xy + vec2(0.75,0.75)*ts, pc.z - bias));
+        sh = 0.4 + 0.6*(s*0.25);
+      }
+    }
+    float dif = max(dot(n, -uLD), 0.0);
+    vec3 hemi = mix(vec3(0.70,0.71,0.73), vec3(1.0,1.0,1.0), n.y*0.5+0.5);
+    vec3 V = normalize(uEye - vW); vec3 H = normalize(V - uLD);
+    float sp = pow(max(dot(n,H),0.0), shin) * specK * sh;
+    vec3 col = base*(0.6*hemi + 0.6*dif*sh) + sp + vEm.rgb*vEm.w;
+    float d = length(uEye - vW);
+    col = mix(col, uFog, smoothstep(34000.0, 70000.0, d));
+    o = vec4(col, vSzA.w);
+  }`;
+  const DVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  uniform mat4 uLVP; void main(){ gl_Position = uLVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); }`;
+  const DFS = `#version 300 es
+  precision mediump float; out vec4 o; void main(){ o = vec4(1.0); }`;
+  const LVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP; flat out vec4 vC;
+  void main(){ gl_Position = uVP*mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0); vC = vec4(iCol.rgb*iMisc.y, iMisc.x); }`;
+  const LFS = `#version 300 es
+  precision mediump float; flat in vec4 vC; out vec4 o; void main(){ o = vC; }`;
+  const P_MAIN = prog(VS, FS), P_DEPTH = prog(DVS, DFS), P_LINE = prog(LVS, LFS);
+
+  // unit cube
+  const cubeF = [], cubeN = [], cubeI = [];
+  const faces = [[[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]], [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+                 [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]], [[0, -1, 0], [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]],
+                 [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]], [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]]];
+  faces.forEach(([nn, vs], f) => { vs.forEach(v => { cubeF.push(...v); cubeN.push(...nn); }); const b = f * 4; cubeI.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+  const edgeP = [0,0,0, 1,0,0, 1,0,0, 1,0,1, 1,0,1, 0,0,1, 0,0,1, 0,0,0, 0,1,0, 1,1,0, 1,1,0, 1,1,1, 1,1,1, 0,1,1, 0,1,1, 0,1,0, 0,0,0, 0,1,0, 1,0,0, 1,1,0, 1,0,1, 1,1,1, 0,0,1, 0,1,1];
+  function vao(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) { const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); }
+    if (idx) { const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW); }
+    gl.bindVertexArray(null); return v;
+  }
+  const CUBE = vao(cubeF, cubeN, cubeI), EDGES = vao(edgeP, null, null);
+  // per-instance data: model matrix (16), colour + material (4), size + alpha (4), emission (4), edge alpha + edge shade (4)
+  const IST = 32, INST = gl.createBuffer();
+  let instData = new Float32Array(IST * 1024);
+  [CUBE, EDGES].forEach(v => {
+    gl.bindVertexArray(v); gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    [[2, 0], [3, 4], [4, 8], [5, 12], [6, 16], [7, 20], [8, 24], [9, 28]].forEach(([l, off]) => {
+      gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, IST * 4, off * 4); gl.vertexAttribDivisor(l, 1);
+    });
+    gl.bindVertexArray(null);
+  });
+  function fillInst(arr, trans) {
+    const n = arr.length;
+    if (instData.length < n * IST) instData = new Float32Array(n * IST * 2);
+    for (let k = 0; k < n; k++) {
+      const it = arr[k], o = it.o, b = k * IST;
+      instData.set(it.m, b);
+      instData[b + 16] = o.col[0]; instData[b + 17] = o.col[1]; instData[b + 18] = o.col[2]; instData[b + 19] = o.mat;
+      instData[b + 20] = o.s[0]; instData[b + 21] = o.s[1]; instData[b + 22] = o.s[2]; instData[b + 23] = it.a;
+      instData[b + 24] = o.emc[0]; instData[b + 25] = o.emc[1]; instData[b + 26] = o.emc[2]; instData[b + 27] = Math.max(o.em, o.g.st.em || 0);
+      instData[b + 28] = trans ? o.edge * Math.min(1, it.a * 2.2) : o.edge; instData[b + 29] = trans ? 0.4 : 0.42; instData[b + 30] = 0; instData[b + 31] = 0;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    gl.bufferData(gl.ARRAY_BUFFER, instData.subarray(0, Math.max(1, n) * IST), gl.STREAM_DRAW);
+    return n;
+  }
+  // shadow map
+  const SHS = 2048;
+  const shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, SHS, SHS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const LD = (() => { const v = [-0.34, -1.0, -0.58]; const l = Math.hypot(...v); return v.map(x => x / l); })();
+  const LCTR = [2400, 3700, 1000];
+  const LVP = M.mul(M.ortho(-7800, 7800, -7800, 7800, 100, 24000), M.look([LCTR[0] - LD[0] * 10000, LCTR[1] - LD[1] * 10000, LCTR[2] - LD[2] * 10000], LCTR, [0, 1, 0]));
+
+  // ======================= timeline + groups
+  const EASE = { lin: t => t, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const groups = [], objs = [];
+  function grp(name, tracks, o) {
+    o = o || {};
+    const g = { name, tracks: (tracks || []).slice().sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a)), pivot: o.pivot || [0, 0, 0], st: {}, dx: 0, dy: 0 };
+    groups.push(g); return g;
+  }
+  function box(g, x0, y0, z0, x1, y1, z1, col, o) {
+    o = o || {};
+    const ob = { g, p: [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)], s: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], col, mat: o.mat || 0,
+      a: o.a == null ? 1 : o.a, edge: o.edge == null ? 0.62 : o.edge, shadow: o.shadow !== false, em: o.em || 0, emc: o.emc || [1, 1, 1], tag: o.tag || null };
+    objs.push(ob); return ob;
+  }
+  function val(g, prop, T, def) {
+    let v, found = false;
+    for (const k of g.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .2, "op", 0, 1, "lin")];
+  const slideIn = (s, a, b, dx, dz) => [tr(s, a, b, "tx", dx || 0, 0, "out"), tr(s, a, b, "tz", dz || 0, 0, "out"), tr(s, a, a + .25, "op", 0, 1, "lin")];
+  const popIn = (s, a, b) => [tr(s, a, b, "sc", 0.001, 1, "back"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const growIn = (s, a, b, ax) => [tr(s, a, b, ax, 0.001, 1, "inout"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const ghost = (s, a, b, to) => [tr(s, a, b, "op", 1, to, "inout")];
+  const unghost = (s, a, b, from) => [tr(s, a, b, "op", from, 1, "inout")];
+  const fadeOut = (s, a, b) => [tr(s, a, b, "op", 1, 0, "lin")];
+
+  const C = {
+    conc: [0.74, 0.74, 0.72], cmu: [0.80, 0.79, 0.76], steel: [0.46, 0.50, 0.54], steelD: [0.32, 0.35, 0.38],
+    galv: [0.74, 0.77, 0.79], galvD: [0.58, 0.61, 0.64], ss: [0.80, 0.82, 0.84], alum: [0.86, 0.87, 0.88],
+    dark: [0.20, 0.22, 0.24], belt: [0.09, 0.10, 0.11], wood: [0.80, 0.64, 0.42], ply: [0.88, 0.76, 0.56],
+    orange: [0.95, 0.50, 0.10], yellow: [0.96, 0.80, 0.20], red: [0.80, 0.18, 0.15], white: [0.97, 0.97, 0.96],
+    mach: [0.30, 0.40, 0.38], grey: [0.62, 0.64, 0.66], floor: [0.30, 0.34, 0.40], grout: [0.55, 0.55, 0.53],
+    cable: [0.14, 0.14, 0.15], blue: [0.22, 0.45, 0.85], ceil: [0.90, 0.91, 0.92]
+  };
+
+  // ---------- site (always): pit, concrete walls, roof slab, CMU front wall see-through, lone-rail wall see-through, floors
+  const site = grp("site");
+  const SOLID = { mat: 1, edge: 0.35, shadow: false };
+  box(site, -WT, YPB, -WT, BS + WT, YP, TS + FW, C.conc, { mat: 1, edge: 0.35 });
+  box(site, -WT, YP, -WT, 0, YRT, TS + FW, C.conc, SOLID);
+  box(site, 0, YP, -WT, BS, YRT, 0, C.conc, SOLID);
+  box(site, 0, YR, 0, BS, YRT, TS, C.conc, SOLID);
+  box(site, BS, YPB, -WT, BS + WT, YRT, TS + FW, C.conc, { mat: 1, a: 0.18, edge: 0.45, shadow: false });
+  const GF = { mat: 2, a: 0.15, edge: 0.45, shadow: false }, GFC = { mat: 1, a: 0.18, edge: 0.45, shadow: false };
+  box(site, 0, YP, TS, BS, -200, TS + FW, C.conc, GFC);
+  box(site, 0, -200, TS, BS, 0, TS + FW, C.conc, GFC);
+  box(site, 0, 0, TS, RO0, 4800, TS + FW, C.cmu, GF);
+  box(site, RO0, ROH, TS, BS, 4800, TS + FW, C.cmu, GF);
+  box(site, 0, 4800, TS, BS, Y2, TS + FW, C.conc, GFC);
+  box(site, 0, Y2, TS, RO0, YR, TS + FW, C.cmu, GF);
+  box(site, RO0, Y2 + ROH, TS, BS, YR, TS + FW, C.cmu, GF);
+  box(site, 0, YR, TS, BS, YRT, TS + FW, C.conc, GFC);
+  const slab1 = grp("slab1", [...ghost(3, 0, .6, .22), ...unghost(3, 3.8, 4.4, .22), ...ghost(4, 2.0, 2.6, .22), ...unghost(4, 8.4, 9.0, .22)]);
+  box(slab1, -1500, -200, TS + FW, BS + WT + 1100, 0, TS + FW + 2700, C.conc, { mat: 1, edge: 0.35 });
+  box(site, BS + WT, -200, 60, RM.x1 + 160, 0, TS + FW, C.conc, { mat: 1, edge: 0.35 });
+  box(site, -1500, 4800, TS + FW, BS + WT + 1100, Y2, TS + FW + 1200, C.conc, { mat: 1, a: 0.3, edge: 0.4, shadow: false });
+
+  // ---------- step 1: rough openings, pit drain, hoistway vent
+  const roHi = grp("roHi", [tr(0, 3.6, 4.2, "op", 0, 1, "lin"), tr(0, 9.0, 9.8, "op", 1, 0, "lin")]);
+  [0, Y2].forEach(y0 => {
+    const o = { edge: 0, shadow: false, em: .7, emc: C.orange };
+    box(roHi, RO0, y0, TS + FW, RO0 + 40, y0 + ROH, TS + FW + 8, C.orange, o);
+    box(roHi, RO0, y0 + ROH - 40, TS + FW, BS, y0 + ROH, TS + FW + 8, C.orange, o);
+    box(roHi, BS - 40, y0, TS + FW, BS, y0 + ROH, TS + FW + 8, C.orange, o);
+  });
+  const drainG = grp("drain", popIn(0, 5.0, 5.5), { pivot: [1750, YP, 330] });
+  box(drainG, 1640, YP, 220, 1860, YP + 10, 440, C.dark, { edge: .5 });
+  const ventG = grp("vent", popIn(0, 5.8, 6.3), { pivot: [500, 9050, 40] });
+  box(ventG, 280, 8920, 0, 720, 9180, 80, C.galvD, { mat: 4, edge: .5 });
+
+  // ---------- step 2: hoist beam
+  const beamG = grp("beam", slideIn(1, .5, 2.6, 2900, 0));
+  box(beamG, 0, YB, CCZ - 68, BS, YB + 10, CCZ + 68, C.steel, { mat: 6 });
+  box(beamG, 0, YB + 10, CCZ - 5, BS, YBT - 10, CCZ + 5, C.steel, { mat: 6 });
+  box(beamG, 0, YBT - 10, CCZ - 68, BS, YBT, CCZ + 68, C.steel, { mat: 6 });
+  const swlG = grp("swl", [...fadeIn(1, 3.2, 3.8), tr(1, 3.2, 3.8, "em", 0, .8, "lin"), tr(1, 6.6, 7.8, "em", .8, 0, "lin")]);
+  box(swlG, 1450, YB + 30, CCZ + 5, 1950, YB + 170, CCZ + 9, C.yellow, { edge: .5, shadow: false, emc: C.yellow });
+  const shackle = grp("shackle", popIn(1, 2.8, 3.2), { pivot: [CCX, YB, CCZ] });
+  box(shackle, CCX - 25, YB - 90, CCZ - 12, CCX + 25, YB, CCZ + 12, C.orange, { edge: .5 });
+
+  // ---------- step 3: temporary top landing platform (removed in step 10), barricades, laydown
+  const PX0 = 431, PX1 = BS - 372;
+  const platTr = (a, b) => [...dropIn(2, a, b, 500), tr(9, .2, 1.4, "ty", 0, 900, "in"), tr(9, .4, 1.4, "op", 1, 0, "lin")];
+  const angR = grp("angR", platTr(.4, 1.0));
+  box(angR, PX0 - 40, 4581, 0, PX1 + 40, 4733, 10, C.steel, { mat: 6 });
+  box(angR, PX0 - 40, 4723, 0, PX1 + 40, 4733, 152, C.steel, { mat: 6 });
+  const angF = grp("angF", platTr(.7, 1.3));
+  box(angF, PX0 - 40, 4581, TS - 10, PX1 + 40, 4733, TS, C.steel, { mat: 6 });
+  box(angF, PX0 - 40, 4723, TS - 152, PX1 + 40, 4733, TS, C.steel, { mat: 6 });
+  for (let k = 0; k < 6; k++) {
+    const x = PX0 + k * (PX1 - PX0 - 38) / 5;
+    const g = grp("joist" + k, platTr(1.4 + k * .3, 2.0 + k * .3));
+    box(g, x, 4733, 0, x + 38, 4968, TS, C.wood, { edge: .5 });
+  }
+  const HX0 = CCX - 152, HX1 = CCX + 152, HZ0 = CCZ - 152, HZ1 = CCZ + 152;
+  [[4968, 4984, 3.6], [4984, 5000, 4.3]].forEach(([y0, y1, a], k) => {
+    const g = grp("ply" + k, platTr(a, a + .6));
+    box(g, PX0, y0, 0, PX1, y1, HZ0, C.ply, { edge: .5 });
+    box(g, PX0, y0, HZ1, PX1, y1, TS, C.ply, { edge: .5 });
+    box(g, PX0, y0, HZ0, HX0, y1, HZ1, C.ply, { edge: .5 });
+    box(g, HX1, y0, HZ0, PX1, y1, HZ1, C.ply, { edge: .5 });
+  });
+  function barricade(y0, a, rmA) {
+    const g = grp("bar" + y0, [...fadeIn(2, a, a + .6), ...ghost(3, .4, 1.2, .16), tr(9, rmA, rmA + .6, "op", .16, 0, "lin")]);
+    const z0 = TS + FW + 260, z1 = z0 + 40, x0 = RO0 - 60, x1 = BS + 60;
+    [x0, (x0 + x1) / 2 - 19, x1 - 38].forEach(x => box(g, x, y0, z0, x + 38, y0 + 1067, z1, C.wood, { edge: .5 }));
+    box(g, x0, y0 + 1029, z0, x1, y0 + 1067, z1, C.wood, { edge: .5 });
+    box(g, x0, y0 + 515, z0, x1, y0 + 553, z1, C.wood, { edge: .5 });
+    box(g, x0, y0, z0, x1, y0 + 89, z1, C.wood, { edge: .5 });
+    box(g, x0 + 38, y0 + 89, z0 + 16, x1 - 38, y0 + 1029, z0 + 22, C.orange, { mat: 8, a: .6, edge: 0, shadow: false, em: .12, emc: C.orange });
+  }
+  barricade(Y2, 5.6, 4.8); barricade(0, 6.2, 8.8);
+  const lay = grp("lay", [...fadeIn(2, 7.2, 7.8), ...fadeOut(3, 0, .8)]);
+  const LX0 = -1300, LX1 = 700, LZ0 = TS + FW + 700, LZ1 = TS + FW + 2400;
+  const lo = { edge: 0, shadow: false, em: .5, emc: C.orange };
+  box(lay, LX0, 0, LZ0, LX1, 8, LZ0 + 40, C.orange, lo); box(lay, LX0, 0, LZ1 - 40, LX1, 8, LZ1, C.orange, lo);
+  box(lay, LX0, 0, LZ0, LX0 + 40, 8, LZ1, C.orange, lo); box(lay, LX1 - 40, 0, LZ0, LX1, 8, LZ1, C.orange, lo);
+  box(lay, LX0 + 250, 0, LZ0 + 300, LX0 + 1250, 650, LZ0 + 1100, C.wood, { edge: .6 });
+
+  // ---------- step 4: pit + overhead electrical, disconnects, Rm 108
+  const E = 3;
+  const lampP = grp("lampP", popIn(E, .6, 1.1), { pivot: [1118, -950, 45] });
+  const lampPObj = box(lampP, 508, -1000, 0, 1728, -900, 90, C.white, { edge: .5, shadow: false, emc: [1, .96, .82] });
+  const gfciP = grp("gfciP", popIn(E, 1.2, 1.6), { pivot: [250, -640, 20] });
+  box(gfciP, 210, -700, 0, 290, -580, 40, C.white, { edge: .6, shadow: false });
+  const swP = grp("swP", popIn(E, 1.6, 2.0), { pivot: [BS - 20, 1524, 1712] });
+  box(swP, BS - 40, 1450, 1655, BS, 1600, 1705, C.white, { edge: .6, shadow: false });
+  box(swP, BS - 40, 1450, 1720, BS, 1600, 1770, C.white, { edge: .6, shadow: false });
+  const lampO = grp("lampO", popIn(E, 4.4, 4.9), { pivot: [1310, 8700, 45] });
+  const lampOObj = box(lampO, 700, 8650, 0, 1920, 8750, 90, C.white, { edge: .5, shadow: false, emc: [1, .96, .82] });
+  const swO = grp("swO", popIn(E, 5.0, 5.4), { pivot: [BS - 20, 6524, 1712] });
+  box(swO, BS - 40, 6450, 1655, BS, 6600, 1705, C.white, { edge: .6, shadow: false });
+  box(swO, BS - 40, 6450, 1720, BS, 6600, 1770, C.white, { edge: .6, shadow: false });
+  const smoke = grp("smoke", popIn(E, 5.4, 5.8), { pivot: [2175, YR - 30, 525] });
+  box(smoke, 2110, YR - 50, 460, 2240, YR, 590, C.white, { edge: .6, shadow: false });
+  const nfd = grp("nfd", popIn(E, 5.8, 6.3), { pivot: [2300, 7925, 80] });
+  box(nfd, 2150, 7700, 0, 2450, 8150, 160, C.grey, { mat: 6, edge: .6 });
+  box(nfd, 2400, 7880, 160, 2430, 8000, 200, C.red, { edge: .4 });
+  const cut = grp("cut", [...fadeIn(E, 9.0, 9.6), ...fadeOut(4, 0, .8), ...fadeIn(11, 0, .6), ...fadeOut(11, 2.0, 2.8)]);
+  box(cut, BS - 6, 2300, 1797, BS + WT + 6, 2503, 2000, C.orange, { a: .85, edge: .6, shadow: false, em: .7, emc: C.orange });
+  const RW = { mat: 2, a: .2, edge: .5, shadow: false };
+  const rmW = grp("rmW", fadeIn(E, 6.8, 7.4));
+  box(rmW, RM.x0 - 100, 0, RM.z0 - 100, RM.x1 + 100, RM.h, RM.z0, C.cmu, RW);
+  box(rmW, RM.x0 - 100, 0, RM.z0, RM.x0, RM.h, RM.z1 + 100, C.cmu, RW);
+  box(rmW, RM.x1, 0, RM.z0, RM.x1 + 100, RM.h, RM.z1 + 100, C.cmu, RW);
+  box(rmW, RM.x0 + 1014, 0, RM.z1, RM.x1, RM.h, RM.z1 + 100, C.cmu, RW);
+  box(rmW, RM.x0, 2134, RM.z1, RM.x0 + 1014, RM.h, RM.z1 + 100, C.cmu, RW);
+  box(rmW, RM.x0, 0, RM.z1, RM.x0 + 100, 2134, RM.z1 + 100, C.cmu, RW);
+  box(rmW, RM.x0 + 100, 0, RM.z1 + 30, RM.x0 + 1014, 2032, RM.z1 + 70, C.grey, { a: .35, edge: .6, shadow: false });
+  const rcc = grp("rcc", dropIn(E, 7.6, 8.4, 600));
+  box(rcc, RM.x0, 300, 700, RM.x0 + 381, 2100, 1367, C.grey, { mat: 6, edge: .6 });
+  box(rcc, RM.x0 + 381, 1700, 900, RM.x0 + 385, 1880, 1160, C.dark, { edge: 0, em: .5, emc: [.3, .8, .6] });
+  const xfmr = grp("xfmr", dropIn(E, 8.0, 8.8, 600));
+  box(xfmr, RM.x1 - 520, 0, RM.z0 + 20, RM.x1 - 40, 588, RM.z0 + 385, C.steelD, { mat: 6, edge: .6 });
+  const jhG = grp("jh", popIn(E, 8.6, 9.0), { pivot: [RM.x0 + 1450, 1450, RM.z1 - 80] });
+  box(jhG, RM.x0 + 1300, 1200, RM.z1 - 160, RM.x0 + 1600, 1700, RM.z1, C.grey, { mat: 6, edge: .6 });
+  box(jhG, RM.x0 + 1540, 1400, RM.z1 - 200, RM.x0 + 1570, 1520, RM.z1 - 160, C.red, { edge: .4 });
+  const ioee = grp("ioee", popIn(E, 9.2, 9.5), { pivot: [4700, 1870, RM.z0 + 20] });
+  box(ioee, 4600, 1800, RM.z0, 4795, 1940, RM.z0 + 42, C.dark, { edge: .5 });
+
+  // ---------- step 5: plumb lines, pit ladder, buffers
+  const P = 4;
+  [[290, CCZ + 90], [BS - 229, CCZ + 90], [87, 430], [87, 1635], [D0, 1955], [D1, 1955]].forEach(([x, z], k) => {
+    const g = grp("pl" + k, [...growIn(P, .4 + k * .25, 1.8 + k * .25, "gy"), ...fadeOut(5, 9.4, 10.4)], { pivot: [0, 4733, 0] });
+    box(g, x - 11, YP + 140, z - 11, x + 11, 4733, z + 11, C.orange, { edge: 0, shadow: false, em: .8, emc: C.orange });
+    box(g, x - 26, YP + 60, z - 26, x + 26, YP + 150, z + 26, C.steelD, { edge: .4 });
+  });
+  const LZa = 1375, LZb = 1787, LXr = BS - 140;
+  const lad = grp("lad", dropIn(P, 2.8, 3.8, 900));
+  box(lad, LXr, YP, LZa, LXr + 40, 1200, LZa + 40, C.galv, { mat: 6 });
+  box(lad, LXr, YP, LZb - 40, LXr + 40, 1200, LZb, C.galv, { mat: 6 });
+  for (let y = YP + 300; y <= 1200; y += 300) box(lad, LXr + 6, y - 14, LZa + 40, LXr + 34, y + 14, LZb - 40, C.galv, { mat: 6, edge: .5 });
+  [YP + 400, -300, 900].forEach(y => { box(lad, LXr + 40, y, LZa, BS, y + 60, LZa + 40, C.galvD, { mat: 6 }); box(lad, LXr + 40, y, LZb - 40, BS, y + 60, LZb, C.galvD, { mat: 6 }); });
+  [385, BS - 312].forEach((x, k) => {
+    const g = grp("buf" + k, popIn(P, 4.4 + k * .5, 5.0 + k * .5), { pivot: [x, YP, CCZ] });
+    box(g, x - 90, YP, CCZ - 90, x + 90, YP + 12, CCZ + 90, C.steelD, { mat: 6 });
+    box(g, x - 55, YP + 12, CCZ - 55, x + 55, BTOP - 182, CCZ + 55, C.steel, { mat: 6 });
+    box(g, x - 80, BTOP - 182, CCZ - 80, x + 80, BTOP - 172, CCZ + 80, C.steelD, { mat: 6 });
+    box(g, x - 62, BTOP - 172, CCZ - 62, x + 62, BTOP, CCZ + 62, C.yellow, { mat: 4, edge: .5 });
+  });
+  const cbuf = grp("cbuf", popIn(P, 5.6, 6.2), { pivot: [87, YP, CCZ] });
+  box(cbuf, 17, YP, CCZ - 70, 157, YP + 12, CCZ + 70, C.steelD, { mat: 6 });
+  box(cbuf, 41, YP + 12, CCZ - 46, 133, YP + 233, CCZ + 46, C.yellow, { mat: 4, edge: .5 });
+
+  // ---------- step 6: guide rails + brackets
+  const R = 5;
+  function carRail(g, side, y0, y1) {
+    if (side === 0) { box(g, 190, y0, CCZ - 63, 200, y1, CCZ + 63, C.steel, { mat: 6 }); box(g, 200, y0, CCZ - 8, 279, y1, CCZ + 8, C.steel, { mat: 6 }); }
+    else { box(g, BS - 140, y0, CCZ - 63, BS - 130, y1, CCZ + 63, C.steel, { mat: 6 }); box(g, BS - 219, y0, CCZ - 8, BS - 140, y1, CCZ + 8, C.steel, { mat: 6 }); }
+  }
+  function cwtRail(g, side, y0, y1) {
+    if (side === 0) { box(g, 50, y0, 340, 125, y1, 350, C.steel, { mat: 6 }); box(g, 82, y0, 350, 92, y1, 402, C.steel, { mat: 6 }); }
+    else { box(g, 50, y0, 1714, 125, y1, 1724, C.steel, { mat: 6 }); box(g, 82, y0, 1662, 92, y1, 1714, C.steel, { mat: 6 }); }
+  }
+  [[carRail, 0, RTOP], [carRail, 1, RTOP], [cwtRail, 0, CTOP], [cwtRail, 1, CTOP]].forEach(([fn, sd, top], k) => {
+    const g1 = grp("ra" + k, dropIn(R, .4 + k * .35, 1.9 + k * .35, 2600, "inout")); fn(g1, sd, RB, RJ);
+    const g2 = grp("rb" + k, dropIn(R, 4.6 + k * .35, 6.1 + k * .35, 2600, "inout")); fn(g2, sd, RJ, top);
+  });
+  function zBracket(g, y) {
+    box(g, BS - 12, y - 80, CCZ - 100, BS, y + 80, CCZ + 100, C.galvD, { mat: 6 });
+    box(g, BS - 130, y - 60, CCZ + 63, BS - 12, y + 60, CCZ + 75, C.galv, { mat: 6 });
+    box(g, BS - 130, y - 60, CCZ - 75, BS - 12, y + 60, CCZ - 63, C.galv, { mat: 6 });
+  }
+  function omega(g, y) {
+    box(g, 0, y - 60, CCZ - 818, 60, y + 60, CCZ + 818, C.galv, { mat: 6 });
+    box(g, 60, y - 50, 330, 125, y + 50, 340, C.galvD, { mat: 6 });
+    box(g, 60, y - 50, 1724, 125, y + 50, 1734, C.galvD, { mat: 6 });
+    box(g, 60, y - 50, CCZ - 75, 190, y + 50, CCZ + 75, C.galvD, { mat: 6 });
+  }
+  function topL(g, y) {
+    [[300, 340], [1724, 1764]].forEach(([z0, z1]) => { box(g, 0, y - 60, z0, 125, y + 60, z1, C.galv, { mat: 6 }); box(g, 0, y - 60, z0 - 60, 12, y + 60, z1 + 60, C.galvD, { mat: 6 }); });
+    box(g, 0, y - 50, CCZ - 75, 190, y + 50, CCZ + 75, C.galvD, { mat: 6 });
+  }
+  BL.forEach((y, k) => {
+    const a = k < 2 ? 2.5 + k * .7 : 6.9 + (k - 2) * .7;
+    const gz = grp("bz" + k, popIn(R, a, a + .4), { pivot: [BS - 60, y, CCZ] }); zBracket(gz, y);
+    const go = grp("bo" + k, popIn(R, a + .25, a + .65), { pivot: [60, y, CCZ] }); (k < 3 ? omega : topL)(go, y);
+  });
+  const fish = grp("fish", fadeIn(R, 8.6, 9.2));
+  box(fish, 180, RJ - 150, CCZ - 60, 190, RJ + 150, CCZ + 60, C.galvD, { mat: 6 });
+  box(fish, BS - 130, RJ - 150, CCZ - 60, BS - 120, RJ + 150, CCZ + 60, C.galvD, { mat: 6 });
+  box(fish, 55, RJ - 120, 330, 120, RJ + 120, 340, C.galvD, { mat: 6 });
+  box(fish, 55, RJ - 120, 1724, 120, RJ + 120, 1734, C.galvD, { mat: 6 });
+
+  // ---------- step 7: machine (lifted off the platform) + governor
+  const MA = 6, MLIFT = (Y2 + 40) - RTOP;
+  const machG = grp("mach", [tr(MA, .3, .7, "op", 0, 1, "lin"), tr(MA, 1.0, 4.2, "ty", MLIFT, 0, "inout")]);
+  box(machG, 30, RTOP, 300, 340, RTOP + 40, 1770, C.steelD, { mat: 6 });
+  box(machG, 60, CTOP, 330, 125, RTOP, 360, C.steelD, { mat: 6 });
+  box(machG, 60, CTOP, 1704, 125, RTOP, 1734, C.steelD, { mat: 6 });
+  box(machG, 70, RTOP + 40, 1275, 330, RTOP + 400, 1650, C.mach, { mat: 6, edge: .55 });
+  box(machG, 60, RTOP + 80, 1650, 340, RTOP + 360, 1705, C.dark, { mat: 6 });
+  box(machG, 142, 8206, 1130, 230, 8294, 1270, C.dark, { mat: 7, edge: .5 });
+  box(machG, 0, RTOP + 40, 1120, 80, RTOP + 100, 1280, C.steelD, { mat: 6 });
+  const chainG = grp("chain", [tr(MA, .3, .7, "op", 0, 1, "lin"), tr(MA, 4.6, 5.4, "op", 1, 0, "lin")]);
+  const chainObj = box(chainG, 182, 0, CCZ - 12, 208, 1, CCZ + 12, C.dark, { edge: 0, shadow: false });
+  const hookObj = box(chainG, 160, 0, CCZ - 40, 230, 1, CCZ + 40, C.orange, { edge: .4, shadow: false });
+  const govG = grp("gov", popIn(MA, 5.0, 5.6), { pivot: [BS - 140, 7850, 695] });
+  box(govG, BS - 210, 7680, 560, BS - 70, 7760, 830, C.steelD, { mat: 6 });
+  box(govG, BS - 185, 7760, 585, BS - 95, 8000, 805, C.red, { mat: 6, edge: .5 });
+  box(govG, BS - 95, 7780, 590, BS - 80, 7990, 800, C.dark, { mat: 5, edge: .4 });
+  const govRope = grp("govRope", growIn(MA, 6.0, 7.6, "gy"), { pivot: [0, 7880, 0] });
+  box(govRope, BS - 91, -1310, 594, BS - 84, 7880, 601, C.dark, { edge: 0 });
+  box(govRope, BS - 91, -1310, 789, BS - 84, 7880, 796, C.dark, { edge: 0 });
+  const govTen = grp("govTen", popIn(MA, 7.6, 8.0), { pivot: [BS - 88, -1320, 695] });
+  box(govTen, BS - 100, -1420, 580, BS - 76, -1210, 810, C.dark, { mat: 5, edge: .4 });
+  box(govTen, BS - 140, -1480, 670, BS - 30, -1420, 720, C.steelD, { mat: 6 });
+
+  // ---------- step 8: counterweight + car frame (both move with the car later)
+  const CF = 7;
+  const carGroups = [], cwtGroups = [];
+  const carGrp = (n, t, o) => { const g = grp(n, t, o); carGroups.push(g); return g; };
+  const cwtGrp = (n, t, o) => { const g = grp(n, t, o); cwtGroups.push(g); return g; };
+  const cwtF = cwtGrp("cwtF", [...popIn(CF, .4, 1.2), tr(CF, .4, 1.0, "em", 0, .35, "lin"), tr(CF, 4.0, 4.8, "em", .35, 0, "lin")], { pivot: [87, CWB, CCZ] });
+  const CWE = { mat: 6, emc: [0.3, 0.55, 1.0] };
+  box(cwtF, 32, CWB, 412, 142, CWTT, 452, C.steelD, CWE);
+  box(cwtF, 32, CWB, 1612, 142, CWTT, 1652, C.steelD, CWE);
+  box(cwtF, 32, CWB, 452, 142, CWB + 80, 1612, C.steelD, CWE);
+  box(cwtF, 32, CWTT - 80, 452, 142, CWTT, 1612, C.steelD, CWE);
+  for (let k = 0; k < 18; k++) { const y = CWB + 80 + k * 80; const g = cwtGrp("cf" + k, dropIn(CF, 1.3 + k * .14, 1.7 + k * .14, 320)); box(g, 38, y + 1, 456, 136, y + 79, 1608, C.steel, { mat: 6, edge: .45 }); }
+  const cwtP = cwtGrp("cwtP", popIn(CF, 4.0, 4.4), { pivot: [87, CWTT, BZ] });
+  box(cwtP, 52, CWTT, BZ - 82, 122, CWTT + 30, BZ + 82, C.steelD, { mat: 6 });
+  box(cwtP, 32, CWTT + 1, BZ - 72, 142, CWTT + 111, BZ + 72, C.dark, { mat: 7, edge: .5 });
+  const plank = carGrp("plank", dropIn(CF, 4.6, 5.4, 600));
+  box(plank, 232, CFR, CCZ - 90, BS - 171, -100, CCZ + 90, C.steelD, { mat: 6 });
+  box(plank, 190, CFR - 80, CCZ - 55, 300, CFR, CCZ + 55, C.red, { mat: 6, edge: .5 });
+  box(plank, BS - 239, CFR - 80, CCZ - 55, BS - 129, CFR, CCZ + 55, C.red, { mat: 6, edge: .5 });
+  const stiles = carGrp("stiles", growIn(CF, 5.0, 6.0, "gy"), { pivot: [0, CFR, 0] });
+  [[232, 300], [BS - 239, BS - 171]].forEach(([x0, x1]) => {
+    box(stiles, x0, CFR, CCZ - 90, x1, 2620, CCZ - 20, C.steelD, { mat: 6 });
+    box(stiles, x0, CFR, CCZ + 20, x1, 2620, CCZ + 90, C.steelD, { mat: 6 });
+  });
+  const xhead = carGrp("xhead", dropIn(CF, 6.0, 6.6, 500));
+  box(xhead, 232, 2520, CCZ - 90, BS - 171, 2620, CCZ + 90, C.steelD, { mat: 6 });
+  const shoes = carGrp("shoes", fadeIn(CF, 8.2, 8.8));
+  [[196, 300], [BS - 239, BS - 133]].forEach(([x0, x1]) => { box(shoes, x0, 2560, CCZ - 22, x1, 2650, CCZ + 22, C.dark, { edge: .4 }); box(shoes, x0, CFR + 20, CCZ - 22, x1, CFR + 110, CCZ + 22, C.dark, { edge: .4 }); });
+  const platG = carGrp("plat", slideIn(CF, 6.6, 7.4, 0, 1800));
+  box(platG, 287, -100, 255, BS - 227, -10, 1799, C.steel, { mat: 6 });
+  box(platG, 640, -25, 1799, 2400, 0, 1934, C.alum, { mat: 6, edge: .5 });
+  const pulG = carGrp("pul", popIn(CF, 7.4, 8.2), { pivot: [1345, -280, BZ] });
+  box(pulG, 230, -340, BZ - 70, 350, -220, BZ + 70, C.dark, { mat: 7, edge: .5 });
+  box(pulG, BS - 289, -340, BZ - 70, BS - 169, -220, BZ + 70, C.dark, { mat: 7, edge: .5 });
+  box(pulG, 230, -200, BZ + 72, BS - 169, -130, BZ + 104, C.steelD, { mat: 6 });
+  [290, BS - 229].forEach(x => box(pulG, x - 20, -280, BZ + 72, x + 20, -100, BZ + 104, C.steelD, { mat: 6 }));
+
+  // ---------- step 9: suspension belts (4 belts, 2:1)
+  const BE = 8;
+  const beltZ = [[1137, 1161], [1172, 1196], [1204, 1228], [1239, 1263]];
+  const beltSegs = [];
+  function beltSeg(name, tracks, pivot, kind) {
+    const a = tracks[0].a;
+    const g = grp(name, [...tracks, tr(BE, a, a + .3, "em", 0, .75, "lin"), tr(BE, 8.4, 9.0, "em", .75, 0, "lin")], { pivot });
+    beltSegs.push({ g, kind, objs: beltZ.map(([z0, z1]) => box(g, 0, 0, z0, 1, 1, z1, C.belt, { edge: .2, emc: [0.25, 0.55, 1.0] })) });
+  }
+  const hitch = grp("hitch", popIn(BE, .2, .6), { pivot: [BS - 160, 8020, BZ] });
+  box(hitch, BS - 200, 7980, 1115, BS - 110, 8060, 1285, C.steelD, { mat: 6, edge: .5 });
+  beltSeg("bA", growIn(BE, .6, 2.6, "gy"), [0, 7980, 0], "A");
+  beltSeg("bB", growIn(BE, 2.6, 3.6, "gx"), [BS - 229, 0, 0], "B");
+  beltSeg("bC", growIn(BE, 3.6, 5.6, "gy"), [0, -280, 0], "C");
+  beltSeg("bD", growIn(BE, 5.6, 6.8, "gy"), [0, 8250, 0], "D");
+  beltSeg("bE", growIn(BE, 6.8, 8.0, "gy"), [0, 5516, 0], "E");
+
+  // ---------- step 10: landing entrances, then MCL infill
+  const EN = 9, CB = 10;
+  function entrance(y0, a, doorExtra) {
+    const sill = grp("sill" + y0, dropIn(EN, a, a + .6, 300));
+    box(sill, 640, y0 - 25, 1964, 2400, y0, 2089, C.alum, { mat: 6, edge: .5 });
+    const trk = grp("trk" + y0, dropIn(EN, a + .6, a + 1.2, 400));
+    box(trk, 600, y0 + HT, 1930, 2420, y0 + HT + 260, 2010, C.grey, { mat: 6, edge: .5 });
+    const frm = grp("frm" + y0, dropIn(EN, a + 1.2, a + 2.0, 500));
+    box(frm, D0 - 121, y0, 2017, D0, y0 + HT, 2160, C.ss, { mat: 6, edge: .55 });
+    box(frm, D1, y0, 2017, D1 + 121, y0 + HT, 2160, C.ss, { mat: 6, edge: .55 });
+    box(frm, D0 - 121, y0 + HT, 2017, D1 + 121, y0 + HT + 150, 2160, C.ss, { mat: 6, edge: .55 });
+    const slow = grp("dS" + y0, [...slideIn(EN, a + 2.0, a + 2.8, -700, 0), ...(doorExtra || [])]);
+    box(slow, D0, y0, 1990, D0 + 560, y0 + HT, 2012, C.ss, { mat: 6, edge: .55 });
+    const fast = grp("dF" + y0, [...slideIn(EN, a + 2.2, a + 3.0, -1200, 0), ...(doorExtra || [])]);
+    box(fast, D1 - 560, y0, 1966, D1, y0 + HT, 1988, C.ss, { mat: 6, edge: .55 });
+    return { slow, fast };
+  }
+  const EL2 = entrance(Y2, 1.6, null);
+  const EL1 = entrance(0, 6.2, [...ghost(CB, .2, 1.0, .1), ...unghost(CB, 8.8, 9.6, .1)]);
+  const ldu = grp("ldu", popIn(EN, 4.6, 5.0), { pivot: [D1 + 60, Y2 + 550, 2166] });
+  box(ldu, D1 + 10, Y2 + 200, 2160, D1 + 110, Y2 + 900, 2172, C.dark, { edge: .5 });
+  box(ldu, D1 + 45, Y2 + 600, 2172, D1 + 75, Y2 + 640, 2180, C.yellow, { edge: 0 });
+  function infill(y0, a, name) {
+    const g = grp(name, [...fadeIn(EN, a, a + .6), tr(EN, a, a + .6, "em", 0, .5, "lin"), tr(EN, a + 1.0, a + 1.6, "em", .5, 0, "lin")]);
+    const o = { mat: 2, a: .3, edge: .6, shadow: false, emc: [0.95, 0.62, 0.3] };
+    box(g, D1 + 121, y0, TS, BS, y0 + ROH, TS + FW, C.cmu, o);
+    box(g, RO0, y0 + HT + 150, TS, D1 + 121, y0 + ROH, TS + FW, C.cmu, o);
+    box(g, RO0, y0, TS, D0 - 121, y0 + HT + 150, TS + FW, C.grout, { mat: 1, a: .3, edge: .6, shadow: false, emc: [0.95, 0.62, 0.3] });
+  }
+  infill(Y2, 5.3, "infL2"); infill(0, 9.2, "infL1");
+
+  // ---------- step 11: cab, car door, COP, flooring (ride with the car)
+  const SSC = { mat: 6, edge: .5 };
+  const cwR = carGrp("cwR", dropIn(CB, .6, 1.4, 900)); box(cwR, 287, 0, 255, BS - 227, CH, CZ0, C.ss, SSC);
+  const cwL = carGrp("cwL", dropIn(CB, 1.0, 1.8, 900)); box(cwL, 287, 0, CZ0, CX0, CH, CZ1, C.ss, SSC);
+  const cwRt = carGrp("cwRt", dropIn(CB, 1.4, 2.2, 900)); box(cwRt, CX1, 0, CZ0, BS - 227, CH, CZ1, C.ss, SSC);
+  const cwF = carGrp("cwF", [...dropIn(CB, 1.8, 2.6, 900), ...ghost(CB, 5.0, 5.6, .2), ...unghost(CB, 8.6, 9.2, .2)]);
+  box(cwF, 287, 0, CZ1, D0, CH, CZ1 + 25, C.ss, SSC);
+  box(cwF, D1, 0, CZ1, BS - 227, CH, CZ1 + 25, C.ss, SSC);
+  box(cwF, D0, HT, CZ1, D1, CH, CZ1 + 25, C.ss, SSC);
+  const ceil = carGrp("ceil", dropIn(CB, 2.8, 3.5, 600));
+  box(ceil, 287, CH, 255, BS - 227, CH + 60, CZ1 + 25, C.ceil, { mat: 6, edge: .5 });
+  const dls = [];
+  [700, 1345, 1990].forEach(x => [650, 1400].forEach(z => dls.push(box(ceil, x - 60, CH - 6, z - 60, x + 60, CH, z + 60, C.white, { edge: 0, shadow: false, emc: [1, .97, .88] }))));
+  const rails = carGrp("hrails", fadeIn(CB, 4.2, 5.0));
+  box(rails, CX0, 793, 420, CX0 + 38, 831, 1640, C.ss, { mat: 6, edge: .4 });
+  box(rails, CX1 - 38, 793, 420, CX1, 831, 1640, C.ss, { mat: 6, edge: .4 });
+  box(rails, 450, 793, CZ0, 2240, 831, CZ0 + 38, C.ss, { mat: 6, edge: .4 });
+  const cop = carGrp("cop", popIn(CB, 5.4, 6.0), { pivot: [D0 - 180, 1067, CZ1 - 15] });
+  box(cop, D0 - 330, 0, CZ1 - 30, D0 - 30, HT, CZ1, C.ss, { mat: 6, edge: .5 });
+  box(cop, D0 - 280, 1600, CZ1 - 34, D0 - 80, 1720, CZ1 - 30, C.dark, { edge: 0, em: .6, emc: [.9, .95, 1] });
+  for (let k = 0; k < 6; k++) box(cop, D0 - 215, 900 + k * 90, CZ1 - 36, D0 - 145, 960 + k * 90, CZ1 - 30, C.white, { edge: 0, em: .3, emc: [.4, .7, 1] });
+  const oper = carGrp("oper", dropIn(CB, 6.2, 6.8, 500));
+  box(oper, 600, CH + 60, 1790, 2400, CH + 240, 1890, C.grey, { mat: 6, edge: .5 });
+  const cdS = carGrp("cdS", slideIn(CB, 6.8, 7.6, -700, 0)); box(cdS, D0, 0, 1805, D0 + 560, HT, 1825, C.ss, { mat: 6, edge: .55 });
+  const cdF = carGrp("cdF", slideIn(CB, 7.0, 7.8, -1200, 0)); box(cdF, D1 - 560, 0, 1830, D1, HT, 1850, C.ss, { mat: 6, edge: .55 });
+  const det = carGrp("det", fadeIn(CB, 7.8, 8.2)); box(det, D1, 40, CZ1 + 25, D1 + 14, 2100, 1800, C.dark, { edge: 0, em: .4, emc: [.9, .2, .2] });
+  const flr = carGrp("flr", fadeIn(CB, 8.2, 9.0)); box(flr, CX0, -10, CZ0, CX1, 0, CZ1, C.floor, { mat: 1, edge: .4 });
+
+  // ---------- step 12: hall fixtures, ducts, traveling cable, phone + data, FA relays
+  const WF = 11;
+  function hall(y0, a, isL1) {
+    const g = grp("hall" + y0, popIn(WF, a, a + .4), { pivot: [D1 + 60, y0 + 1300, 2166] });
+    box(g, D1 + 28, y0 + 1000, 2160, D1 + 93, y0 + 1160, 2168, C.ss, { mat: 6, edge: .6 });
+    box(g, D1 + 46, y0 + 1060, 2168, D1 + 75, y0 + 1100, 2173, C.white, { edge: 0, em: .8, emc: [.4, .75, 1] });
+    box(g, D1 + 28, y0 + 1780, 2160, D1 + 93, y0 + 1860, 2168, C.dark, { edge: .5 });
+    if (isL1) box(g, D1 + 20, y0 + 1250, 2160, D1 + 101, y0 + 1680, 2168, C.red, { edge: .6 });
+  }
+  hall(0, 2.6, true); hall(Y2, 3.0, false);
+  const duRm = grp("duRm", growIn(WF, .6, 2.0, "gx"), { pivot: [RM.x0, 0, 0] });
+  box(duRm, BS + WT, 2350, 1860, RM.x0, 2450, 1960, C.galv, { mat: 6, edge: .5 });
+  const duV = grp("duV", growIn(WF, 4.6, 6.2, "gy"), { pivot: [0, 2350, 0] });
+  box(duV, BS - 70, 2350, 1940, BS, 8800, 2010, C.galv, { mat: 6, edge: .5 });
+  box(duV, BS - 70, 2350, 1860, BS, 2450, 1940, C.galv, { mat: 6, edge: .5 });
+  const duT = grp("duT", growIn(WF, 6.2, 7.0, "gz"), { pivot: [0, 0, 2010] });
+  box(duT, BS - 70, 8800, 20, BS, 8870, 2010, C.galv, { mat: 6, edge: .5 });
+  const duR = grp("duR", growIn(WF, 7.0, 8.0, "gx"), { pivot: [BS - 70, 0, 0] });
+  box(duR, 340, 8800, 0, BS - 70, 8870, 70, C.galv, { mat: 6, edge: .5 });
+  box(duR, 340, 8400, 0, 410, 8870, 70, C.galv, { mat: 6, edge: .5 });
+  const tcG = grp("tc", fadeIn(WF, 2.4, 3.2));
+  const tc1 = box(tcG, 1880, 0, 40, 1920, 1, 80, C.cable, { edge: 0, shadow: false });
+  const tc2 = box(tcG, 1880, 0, 300, 1920, 1, 340, C.cable, { edge: 0, shadow: false });
+  const tc3 = box(tcG, 1880, 0, 40, 1920, 1, 340, C.cable, { edge: 0, shadow: false });
+  box(tcG, 1840, 2560, 0, 1960, 2640, 90, C.steelD, { mat: 6, edge: .4 });
+  const tel = grp("tel", growIn(WF, 8.2, 9.2, "gx"), { pivot: [RM.x1 + 900, 0, 0] });
+  box(tel, RM.x0 + 190, 2500, 990, RM.x1 + 900, 2530, 1020, C.grey, { edge: .4, shadow: false });
+  box(tel, RM.x0 + 190, 2500, 1050, RM.x1 + 900, 2530, 1080, C.blue, { edge: .4, shadow: false });
+  box(tel, RM.x0 + 175, 2100, 990, RM.x0 + 205, 2530, 1080, C.grey, { edge: .4, shadow: false });
+  const faG = grp("fa", popIn(WF, 9.0, 9.4), { pivot: [2500, Y2 + 1375, 2228] });
+  box(faG, 2440, Y2 + 1300, TS + FW, 2560, Y2 + 1450, TS + FW + 24, C.red, { edge: .5 });
+
+  // ---------- doors + car motion (step 11 end, step 13)
+  const s11 = () => starts[10], s13 = () => starts[12];
+  function carY(T) {
+    const s = s13();
+    return 5000 * (EASE.inout(clamp01((T - s - 2.0) / 3.8)) - EASE.inout(clamp01((T - s - 9.0) / 2.4)));
+  }
+  function doorL1(T) {
+    const s = s13();
+    if (T < s) return EASE.inout(clamp01((T - s11() - 8.8) / 1.0));
+    return Math.max(1 - EASE.inout(clamp01((T - s - .6) / 1.0)), EASE.inout(clamp01((T - s - 11.5) / .9)));
+  }
+  function doorL2(T) { const s = s13(); return EASE.inout(clamp01((T - s - 6.2) / 1.0)) - EASE.inout(clamp01((T - s - 7.8) / 1.0)); }
+
+  // custom animations: car + counterweight travel, belts, doors, chain, cable, lights
+  function customs(T) {
+    const cy = carY(T), l1 = doorL1(T), l2 = doorL2(T), cd = cy > 2500 ? l2 : l1;
+    carGroups.forEach(g => { g.dy = cy; });
+    cwtGroups.forEach(g => { g.dy = -cy; });
+    EL1.slow.dx = -533 * l1; EL1.fast.dx = -1067 * l1;
+    EL2.slow.dx = -533 * l2; EL2.fast.dx = -1067 * l2;
+    cdS.dx = -533 * cd; cdF.dx = -1067 * cd;
+    for (const b of beltSegs) {
+      let x0, x1, y0, y1;
+      if (b.kind === "A") { x0 = BS - 178; x1 = BS - 160; y0 = -280 + cy; y1 = 7980; }
+      else if (b.kind === "B") { x0 = 290; x1 = BS - 229; y0 = -352 + cy; y1 = -334 + cy; }
+      else if (b.kind === "C") { x0 = 221; x1 = 239; y0 = -280 + cy; y1 = 8250; }
+      else if (b.kind === "D") { x0 = 133; x1 = 151; y0 = 5516 - cy; y1 = 8250; }
+      else { x0 = 23; x1 = 41; y0 = 5516 - cy; y1 = RTOP + 60; }
+      for (const o of b.objs) { o.p[0] = x0; o.p[1] = y0; o.s[0] = x1 - x0; o.s[1] = Math.max(1, y1 - y0); }
+    }
+    const my = val(machG, "ty", T, 0), top = RTOP + 400 + my;
+    chainObj.p[1] = top; chainObj.s[1] = Math.max(1, YB - top);
+    hookObj.p[1] = top; hookObj.s[1] = 60;
+    const ty = cy - 100, yb = Math.min(2600, ty) - 600 - 0.25 * Math.abs(2600 - ty);
+    tc1.p[1] = yb; tc1.s[1] = 2600 - yb;
+    tc2.p[1] = yb; tc2.s[1] = Math.max(1, ty - yb);
+    tc3.p[1] = yb - 40; tc3.s[1] = 40;
+    lampPObj.em = T >= starts[3] + 1.4 ? 1.0 : 0;
+    lampOObj.em = T >= starts[3] + 5.0 ? 1.0 : 0;
+    const on = T >= starts[10] + 3.6 ? 1.0 : 0;
+    dls.forEach(o => { o.em = on; });
+  }
+
+  // ======================= labels + dims (overlay)
+  const ovl = document.getElementById("ovl"), ovsvg = document.getElementById("ovsvg"), badgeEl = document.getElementById("badge"), outroEl = document.getElementById("outro");
+  const labels = [];
+  function lab(step, a, at, text, sub, o) {
+    o = o || {};
+    const el = document.createElement("div");
+    el.className = "lbl" + (o.hold ? " hold" : "") + (o.minor ? " minor" : "");
+    el.style.setProperty("--c", "var(--" + (o.c || STEPS[step].c) + ")");
+    el.innerHTML = text + (sub ? "<small>" + sub + "</small>" : "");
+    ovl.appendChild(el);
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", o.hold ? "#c3322c" : "#13202b"); ln.setAttribute("stroke-width", "1.4"); ln.setAttribute("opacity", ".8");
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("fill", o.hold ? "#c3322c" : "#13202b"); dot.setAttribute("r", "3.2");
+    ovsvg.appendChild(ln); ovsvg.appendChild(dot);
+    labels.push({ step, a, at, off: o.off || [-6, -4], el, ln, dot, keep: !!o.keep, until: o.until == null ? null : o.until });
+  }
+  const dims = [];
+  function dim(step, a, p1, p2, text, o) {
+    o = o || {};
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", "#13202b"); ln.setAttribute("stroke-width", "1.6");
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "line"), t2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    [t1, t2].forEach(t => { t.setAttribute("stroke", "#13202b"); t.setAttribute("stroke-width", "2.2"); });
+    g.appendChild(ln); g.appendChild(t1); g.appendChild(t2); ovsvg.appendChild(g);
+    const el = document.createElement("div"); el.className = "dimt"; el.textContent = text; ovl.appendChild(el);
+    dims.push({ step, a, p1, p2, g, ln, t1, t2, el, keep: !!o.keep, until: o.until == null ? null : o.until });
+  }
+  const DX = BS + WT + 160, DZ = TS + FW;
+  // step 1
+  lab(0, 1.2, [-WT, 0, DZ], "Level 1", null, { off: [-4, -1] });
+  lab(0, 1.5, [-WT, Y2, DZ], "Level 2", null, { off: [-4, -1] });
+  dim(0, 2.6, [DX, YP, DZ], [DX, 0, DZ], "Pit 5′-0″ [1524]");
+  dim(0, 3.0, [DX, 0, DZ], [DX, Y2, DZ], "Travel 16′-4⅞″ [5000]");
+  dim(0, 3.4, [DX, Y2, DZ], [DX, YB, DZ], "Overhead 13′-0 5⁄16″ [3970]");
+  dim(0, 3.8, [0, YRT + 80, DZ], [BS, YRT + 80, DZ], "8′-7½″ [2629]");
+  lab(0, 4.4, [(RO0 + BS) / 2, ROH, DZ], "Rough opening 5′-3 13⁄16″ × 7′-8″", "CMU front wall · keep open for the entrances", { off: [-7, -3] });
+  lab(0, 5.4, [1750, YP, 330], "Pit drain + backwater valve", "per mechanical · no sump", { off: [-7, 3], c: "mec" });
+  lab(0, 6.2, [500, 9050, 80], "Hoistway vent at the top", null, { off: [-6, -1], c: "mec", minor: true });
+  lab(0, 7.0, [0, 2600, 900], "Concrete walls, plumb +1″/−0″", "pit floor dry, level within ½″", { off: [-6, 2] });
+  // step 2
+  lab(1, 2.6, [450, YBT, CCZ], "Hoist beam on the car C/L", "3′-2¾″ [985] from the front wall", { off: [-7, -4] });
+  lab(1, 3.8, [1700, YB + 100, CCZ + 9], "SWL 7,500 lb [3,402 kg]", "marked on the beam · or engineer's letter", { off: [4, 3] });
+  lab(1, 4.8, [CCX, YB - 90, CCZ], "Lifting point [A]", "rated anywhere on the span", { off: [-5, 4], minor: true });
+  lab(1, 5.6, [2350, YR, CCZ], "2″ [51] min. to the top of the shaft", null, { off: [4, -3] });
+  // step 3
+  lab(2, 1.6, [PX0, 4850, 1500], "2×10 joists @ 16″ max.", "Douglas Fir grade 2", { off: [-7, -3], until: 5.0 });
+  lab(2, 2.8, [PX1, 4733, TS - 76], "6×6×⅜ angles, front + rear", "rated 1,500 lb [680 kg]", { off: [4, 3], until: 5.0 });
+  lab(2, 4.0, [1800, Y2, 600], "2 layers ⅝″ CDX plywood", "rated 1,000 lb [454 kg] · level with the opening", { off: [4, -4], until: 5.0 });
+  dim(2, 2.0, [0, 4733, 250], [PX0, 4733, 250], "1′-5″", { until: 5.0 });
+  dim(2, 2.2, [PX1, 4733, 250], [BS, 4733, 250], "1′-2⅝″", { until: 5.0 });
+  lab(2, 6.8, [BS + 60, 1067, TS + FW + 280], "Barricade every opening", "42″ · mid-rail · toe board · 200 lb", { off: [4, -3] });
+  lab(2, 7.8, [-300, 650, TS + FW + 1200], "Laydown area, marked", "within 100 ft · rollable access", { off: [-5, -3], minor: true });
+  lab(2, 8.4, [(RO0 + BS) / 2, Y2 + 1067, TS + FW + 280], "No Level 2 front wall", "until the platform is out", { off: [4, -3], hold: true, minor: true });
+  // step 4
+  lab(3, 1.3, [1118, -950, 90], "Pit light 10 fc, sealed", "rear wall, 32″ min. below Level 1", { off: [-6, -3], until: 3.7 });
+  lab(3, 2.0, [BS - 40, 1524, 1712], "3-way switch + GFCI, strike side", "60″ above Level 1 · reach from the door", { off: [4, -2], until: 3.7 });
+  lab(3, 2.6, [250, -640, 40], "GFCI duplex", null, { off: [-5, 2], until: 3.7, minor: true });
+  lab(3, 4.9, [1310, 8650, 90], "Overhead light 19 fc", "smoke + heat on the ceiling", { off: [-6, 3], until: 7.0 });
+  lab(3, 6.2, [2300, 7700, 160], "Non-fused disconnect", "in the overhead (critical item 1)", { off: [4, 3], until: 7.0 });
+  lab(3, 7.6, [RM.x1 + 100, RM.h, RM.z0], "Rm 108 · Elev. Control Room", "schematic · location per A-drawings", { off: [2, -4] });
+  lab(3, 8.3, [RM.x0 + 190, 2100, 1030], "RCC: drive + controller", "Variodyn VAF025 · NX100", { off: [-4, -4] });
+  lab(3, 8.9, [RM.x1 - 280, 588, RM.z0 + 200], "20 kVA autotransformer", "600 V to 480 V", { off: [4, -3] });
+  lab(3, 9.2, [RM.x0 + 1450, 1200, RM.z1 - 80], "JH fused disconnect", "lockable · aux. contact", { off: [-5, 3], minor: true });
+  lab(3, 9.7, [BS + WT, 2503, 1900], "8″ × 8″ cut-out to the hoistway", null, { off: [-6, -3] });
+  // step 5
+  lab(4, 1.2, [290, 2400, CCZ + 90], "Plumb lines from the platform", "rail lines + entrance line", { off: [-6, -3], until: 2.6 });
+  dim(4, 3.4, [279, -780, CCZ], [BS - 219, -780, CCZ], "6′-11⅞″ [2131]");
+  lab(4, 3.9, [LXr + 20, 300, LZb], "Pit ladder, by Schindler", "16″ rungs @ 12″ · 48″ above the sill", { off: [4, -3] });
+  lab(4, 5.0, [385, BTOP, CCZ], "2 spring car buffers", "2½″ stroke · 6″ runby", { off: [-6, -2] });
+  lab(4, 6.2, [87, YP + 233, CCZ], "Spring CWT buffer", null, { off: [-6, 2], minor: true });
+  lab(4, 7.0, [1700, YP, 700], "Pit refuge 24″ × 33″ × 43″ clear", null, { off: [4, 3], minor: true });
+  // step 6
+  lab(5, 2.0, [BS - 219, 1200, CCZ], "Car rails T127-1/B, 12 lb/ft", "5 m lengths · sliding guide shoes", { off: [5, -2] });
+  lab(5, 2.6, [87, 1200, 1700], "CWT rails T75, 6 lb/ft", null, { off: [-7, -2] });
+  lab(5, 3.8, [BS - 6, BL[1], CCZ], "Z-brackets ×4, far wall", "anchored to concrete · no inserts", { off: [5, 2] });
+  lab(5, 4.4, [30, BL[1], CCZ + 800], "Omega brackets ×3, motor wall", "anchors 5′-1¼″ [1556] apart", { off: [-7, 3] });
+  lab(5, 7.8, [60, BL[3], 1744], "Top L-brackets", "top connection only", { off: [-6, -3], minor: true });
+  lab(5, 8.9, [279, RJ, CCZ], "Fish plates at the joints", null, { off: [-6, -2], minor: true });
+  lab(5, 9.4, [BS - 60, BL[2], CCZ], "Brackets 10′-9 15⁄16″ max. apart", "at 1374 · +2575 · +2575 · +2430 mm", { off: [5, -3] });
+  // step 7
+  lab(6, 1.0, [200, Y2 + 440, 1460], "FMB130 machine on the platform", null, { off: [-6, -2], until: 4.0 });
+  lab(6, 2.4, [195, YB - 400, CCZ], "Chain hoist on the hoist beam", null, { off: [-7, -2], until: 4.4 });
+  lab(6, 4.9, [200, RTOP + 400, 1460], "Machine on rail in the overhead", "9.2 hp · 2 disk brakes · 87 mm sheave", { off: [-7, -3] });
+  lab(6, 5.8, [BS - 140, 8000, 695], "SA GBP 202 governor", "6 mm rope · 69′ [21 m]", { off: [4, -3] });
+  lab(6, 7.4, [BS - 88, 3000, 600], "Governor rope to the pit tension sheave", null, { off: [4, 2], minor: true });
+  // step 8
+  lab(7, 2.4, [87, (CWB + CWTT) / 2, 1652], "Counterweight 3,831 lb [1,738 kg]", "50% of 3,000 lb · 4 5⁄16″ deep", { off: [-6, -2], until: 4.6 });
+  lab(7, 5.6, [BS - 171, 2620, CCZ], "Car frame + RF1 safeties", "sliding guide shoes on the T127 rails", { off: [5, -3] });
+  lab(7, 7.0, [1345, -10, 1500], "Platform + car sill", "car 2,327 lb [1,056 kg]", { off: [5, 3], minor: true });
+  lab(7, 8.0, [290, -280, BZ], "2 diverting pulleys under the car", "2:1 underslung", { off: [-7, 3] });
+  // step 9
+  lab(8, 1.0, [BS - 155, 8020, BZ], "Dead-end hitch, lone-rail side", null, { off: [5, -2], minor: true });
+  lab(8, 3.2, [1345, -340, BZ], "Under the car", null, { off: [4, -2], minor: true });
+  lab(8, 4.6, [230, 3000, BZ], "4 STM-PV30 belts, 80′ each", "2:1 · 180° twist car to machine", { off: [-7, -2] });
+  lab(8, 6.4, [142, 7200, BZ], "Over the sheave, down to the CWT", null, { off: [-7, 2], minor: true });
+  lab(8, 7.2, [BS - 169, 2200, BZ], "Belts are non-fire-rated", "Life Safety to verify (KJA)", { off: [5, 2], hold: true });
+  // step 10
+  lab(9, .6, [CCX, Y2, 600], "Platform out first", "Schindler's call", { off: [4, -4], until: 2.2 });
+  lab(9, 2.6, [D0 - 60, Y2 + HT + 75, 2160], "#4 stainless frame", "3′-6″ × 7′-0″ · UL 10B 1.5 h", { off: [-7, -3], until: 5.6 });
+  lab(9, 3.6, [1500, Y2 + 1000, 2012], "2-speed side opening", "Fermator lock · stacks to the CWT side", { off: [-6, 3], until: 5.6 });
+  lab(9, 4.9, [D1 + 60, Y2 + 550, 2172], "LDU: inspection & test panel", "top landing strike jamb", { off: [4, 2], until: 5.6 });
+  lab(9, 6.8, [1500, 0, 2089], "Aluminum sill", "on full-width support", { off: [-6, 3] });
+  lab(9, 9.6, [2500, ROH, DZ], "MCL fills the CMU + grouts", "after the frames are set", { off: [4, -3], c: "mcl" });
+  // step 11
+  lab(10, 1.6, [CX1, 1500, 900], "#4 brushed stainless walls", "Schindler standard (PC-082)", { off: [5, -2] });
+  lab(10, 3.8, [1000, CH, 1000], "Round LED downlights", "emergency exit 650 × 420", { off: [-6, -3], minor: true });
+  lab(10, 4.8, [CX1 - 20, 831, 1000], "Handrails on 3 walls", "831 mm shown · DSA: 860–920 mm", { off: [5, 2] });
+  lab(10, 5.8, [D0 - 180, 1700, CZ1 - 30], "COP, 7′ tall", "#4 stainless · hands-free phone", { off: [-6, -3] });
+  lab(10, 7.2, [1800, CH + 240, 1890], "Fermator Compact operator", "car door · 3D door detection", { off: [3, -4] });
+  lab(10, 8.6, [800, 0, 600], "MRM-1 floor by the flooring sub", "250 lb [113 kg] max.", { off: [-6, 3], c: "mcl" });
+  // step 12
+  lab(11, 1.6, [3100, 2450, 1910], "Wire run to Rm 108", "45 ft (145 ft max.)", { off: [2, -4], until: 5.4 });
+  lab(11, 3.0, [D1 + 60, 1450, 2168], "Hall fixtures in the frame", "fire recall + phone monitor at Level 1", { off: [4, 3], until: 5.4 });
+  lab(11, 3.6, [1900, 300, 190], "Traveling cable", null, { off: [-6, 2], minor: true, until: 5.4 });
+  lab(11, 6.2, [BS - 35, 6000, 1975], "Duct drop in the front corner", null, { off: [5, 0], minor: true });
+  lab(11, 7.6, [1200, 8835, 35], "Duct to the machine", null, { off: [-5, -3], minor: true });
+  lab(11, 8.6, [RM.x1 + 400, 2515, 1035], "Analog phone + 2 data drops", "RFI 325 R2 · PC-083", { off: [3, -3] });
+  lab(11, 9.2, [2500, Y2 + 1375, DZ + 24], "FA relays ≤ 3 ft from the LDU jamb", null, { off: [-6, -2], minor: true });
+  // step 13
+  lab(12, 1.0, [-WT, 2400, DZ], "3,000 lb · 150 fpm · 2 stops", "Class A · stretcher car", { off: [-6, -2], keep: true });
+  lab(12, 3.0, [-WT, 7600, DZ], "Governor, safety + buffer tests", "then the TSSA acceptance inspection", { off: [-6, -2], keep: true });
+  lab(12, 5.0, [RM.x1, RM.h, (RM.z0 + RM.z1) / 2], "Generator power operation", "PC-082 replaces battery rescue", { off: [3, -3], hold: true, keep: true });
+  lab(12, 7.0, [-WT, 900, DZ], "Barricades + platform out", "walls closed and finished", { off: [-6, 2], keep: true, minor: true });
+
+  // ======================= render
+  let stageW = 960, stageH = 540, dpr = 1, lensShift = -0.12, camScale = 1;
+  const PROJ = { vp: null };
+  function camOf(i, tau) {
+    const s = STEPS[i];
+    if (!s.cams) return s.cam;
+    let c = s.cams[0][1];
+    for (let k = 1; k < s.cams.length; k++) {
+      const tk = s.cams[k][0], ck = s.cams[k][1];
+      if (tau < tk) break;
+      const e = EASE.inout(clamp01((tau - tk) / CAM_T));
+      c = [c[0].map((v, j) => v + (ck[0][j] - v) * e), c[1].map((v, j) => v + (ck[1][j] - v) * e)];
+    }
+    return c;
+  }
+  function drift(i, tau) { return (i === STEPS.length - 1 ? 0.03 : 0.009) * tau; }
+  function rotAbout(p, t, a) { const dx = p[0] - t[0], dz = p[2] - t[2], c = Math.cos(a), s = Math.sin(a); return [t[0] + dx * c + dz * s, p[1], t[2] - dx * s + dz * c]; }
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+  function camAt(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    const c1 = camOf(i, tau);
+    let p = c1[0].slice(), t = c1[1].slice();
+    if (i > 0 && tau < CAM_T) {
+      const c0 = camOf(i - 1, STEPS[i - 1].dur), k = EASE.inout(tau / CAM_T);
+      const p0 = rotAbout(c0[0], c0[1], drift(i - 1, STEPS[i - 1].dur));
+      p = p0.map((v, j) => v + (c1[0][j] - v) * k); t = c0[1].map((v, j) => v + (c1[1][j] - v) * k);
+      p = rotAbout(p, t, drift(i, tau) * k);
+    } else p = rotAbout(p, t, drift(i, tau));
+    if (camScale !== 1) p = t.map((v, j) => v + (p[j] - v) * camScale);
+    return { p, t };
+  }
+  function groupMatrix(g, T) {
+    const st = g.st;
+    st.op = val(g, "op", T, 1); st.tx = val(g, "tx", T, 0); st.ty = val(g, "ty", T, 0); st.tz = val(g, "tz", T, 0);
+    st.sc = val(g, "sc", T, 1); st.ry = val(g, "ry", T, 0); st.em = val(g, "em", T, 0);
+    st.gx = val(g, "gx", T, 1); st.gy = val(g, "gy", T, 1); st.gz = val(g, "gz", T, 1);
+    const pv = g.pivot;
+    let m = M.T(st.tx + g.dx + pv[0], st.ty + g.dy + pv[1], st.tz + pv[2]);
+    if (st.ry) m = M.mul(m, M.RY(st.ry * Math.PI / 180));
+    const s = st.sc;
+    if (s !== 1 || st.gx !== 1 || st.gy !== 1 || st.gz !== 1) m = M.mul(m, M.S(s * st.gx, s * st.gy, s * st.gz));
+    m = M.mul(m, M.T(-pv[0], -pv[1], -pv[2]));
+    g.m = m;
+  }
+  function objMatrix(o) { return M.mul(M.mul(o.g.m, M.T(o.p[0], o.p[1], o.p[2])), M.S(Math.max(o.s[0], .01), Math.max(o.s[1], .01), Math.max(o.s[2], .01))); }
+
+  function draw(T) {
+    customs(T);
+    const cam = camAt(T);
+    const aspect = stageW / stageH;
+    const proj = M.persp(36 * Math.PI / 180, aspect, 80, 90000);
+    proj[9] = lensShift;
+    const view = M.look(cam.p, cam.t, [0, 1, 0]);
+    const VP = M.mul(proj, view);
+    PROJ.vp = VP;
+    for (const g of groups) groupMatrix(g, T);
+    const list = [];
+    for (const o of objs) {
+      const a = o.a * o.g.st.op;
+      if (a <= 0.004) continue;
+      const m = objMatrix(o);
+      const c = M.xf(m, [.5, .5, .5]);
+      const d = Math.hypot(c[0] - cam.p[0], c[1] - cam.p[1], c[2] - cam.p[2]);
+      list.push({ o, m, a, d, k: o.g === site ? 1e9 : d });
+    }
+    const opaque = list.filter(it => it.a >= .995).sort((a, b) => a.k - b.k);
+    const trans = list.filter(it => it.a < .995).sort((a, b) => b.d - a.d);
+    const casters = list.filter(it => it.o.shadow && it.a >= .9);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.viewport(0, 0, SHS, SHS);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.clear(gl.DEPTH_BUFFER_BIT); gl.colorMask(false, false, false, false);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
+    gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uLVP, false, LVP); gl.bindVertexArray(CUBE);
+    let n = fillInst(casters, false);
+    if (n) gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+    gl.colorMask(true, true, true, true);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.905, 0.918, 0.926, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(P_MAIN.p);
+    const u = P_MAIN.u;
+    gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uLVP, false, LVP);
+    gl.uniform3fv(u.uEye, cam.p); gl.uniform3fv(u.uLD, LD); gl.uniform3fv(u.uFog, [0.905, 0.918, 0.926]);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0); gl.uniform1f(u.uShOn, 1);
+    gl.polygonOffset(1, 2);
+    gl.enable(gl.CULL_FACE);
+    gl.bindVertexArray(CUBE);
+    n = fillInst(opaque, false);
+    if (n) gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+    gl.disable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+    gl.useProgram(P_LINE.p); gl.uniformMatrix4fv(P_LINE.u.uVP, false, VP); gl.bindVertexArray(EDGES);
+    if (n) gl.drawArraysInstanced(gl.LINES, 0, 24, n);
+    if (trans.length) {
+      n = fillInst(trans, true);
+      gl.useProgram(P_MAIN.p); gl.bindVertexArray(CUBE);
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.drawElementsInstanced(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.POLYGON_OFFSET_FILL);
+      gl.useProgram(P_LINE.p); gl.bindVertexArray(EDGES);
+      gl.drawArraysInstanced(gl.LINES, 0, 24, n);
+    }
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+    overlay(T);
+  }
+
+  function toScreen(p) {
+    const q = M.xf(PROJ.vp, p);
+    return { x: (q[0] * .5 + .5) * stageW, y: (1 - (q[1] * .5 + .5)) * stageH, behind: q[3] <= 0 };
+  }
+  function winOp(step, a, T, keep) {
+    const s0 = starts[step], s1 = s0 + STEPS[step].dur;
+    let op = 0;
+    if (T >= s0 + a) op = Math.min(1, (T - s0 - a) / .35);
+    if (!keep) { if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4)); if (T >= s1) op = 0; }
+    return op;
+  }
+  let lf = 14;
+  function overlay(T) {
+    const intro = document.getElementById("intro");
+    const io = T < INTRO_T ? 1 : Math.max(0, 1 - (T - INTRO_T) / .5);
+    intro.style.opacity = poster ? 0 : io;
+    const chrome = poster ? 1 : 1 - io;
+    const oo = VIDEO ? Math.max(0, Math.min(1, (T - (TOTAL - 2.4)) / .5)) : 0;
+    outroEl.style.opacity = oo;
+    badgeEl.style.opacity = chrome; cap.style.opacity = stageWrap.classList.contains("narrow") ? 1 : chrome;
+    const narrow = stageWrap.classList.contains("narrow");
+    const topY = badgeEl.offsetTop + badgeEl.offsetHeight + 6;
+    const botY = narrow ? stageH - 6 : stageH - cap.offsetHeight - stageH * 0.026 - 8;
+    for (const L of labels) {
+      let op = poster ? (L.step === STEPS.length - 1 && L.keep && !narrow ? 1 : 0) : winOp(L.step, L.a, T, L.keep);
+      if (!poster && L.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[L.step] - L.until) / .35));
+      op *= 1 - oo;
+      L.el.style.opacity = op; L.ln.style.opacity = op * .85; L.dot.style.opacity = op;
+      if (op <= 0) continue;
+      const s = toScreen(L.at);
+      const ox = L.off[0] * lf, oy = L.off[1] * lf;
+      const w = L.el.offsetWidth, h = L.el.offsetHeight;
+      let x = s.x + ox, y = s.y + oy;
+      let bx = ox < 0 ? x - w : x, by = oy < 0 ? y - h : y;
+      bx = Math.max(6, Math.min(stageW - w - 6, bx)); by = Math.max(topY, Math.min(botY - h, by));
+      L.el.style.transform = "translate(" + Math.round(bx) + "px," + Math.round(by) + "px)";
+      const ex = Math.max(bx, Math.min(s.x, bx + w)), ey = Math.max(by, Math.min(s.y, by + h));
+      L.ln.setAttribute("x1", ex); L.ln.setAttribute("y1", ey); L.ln.setAttribute("x2", s.x); L.ln.setAttribute("y2", s.y);
+      L.dot.setAttribute("cx", s.x); L.dot.setAttribute("cy", s.y);
+    }
+    for (const Dm of dims) {
+      let op = poster ? 0 : winOp(Dm.step, Dm.a, T, Dm.keep);
+      if (!poster && Dm.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[Dm.step] - Dm.until) / .35));
+      Dm.g.style.opacity = op; Dm.el.style.opacity = op;
+      if (op <= 0) continue;
+      const a = toScreen(Dm.p1), b = toScreen(Dm.p2);
+      Dm.ln.setAttribute("x1", a.x); Dm.ln.setAttribute("y1", a.y); Dm.ln.setAttribute("x2", b.x); Dm.ln.setAttribute("y2", b.y);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 7, ny = dx / l * 7;
+      Dm.t1.setAttribute("x1", a.x - nx); Dm.t1.setAttribute("y1", a.y - ny); Dm.t1.setAttribute("x2", a.x + nx); Dm.t1.setAttribute("y2", a.y + ny);
+      Dm.t2.setAttribute("x1", b.x - nx); Dm.t2.setAttribute("y1", b.y - ny); Dm.t2.setAttribute("x2", b.x + nx); Dm.t2.setAttribute("y2", b.y + ny);
+      const w = Dm.el.offsetWidth, h = Dm.el.offsetHeight;
+      Dm.el.style.transform = "translate(" + Math.round((a.x + b.x) / 2 - w / 2 + nx * 2.2) + "px," + Math.round((a.y + b.y) / 2 - h / 2 + ny * 2.2) + "px)";
+    }
+  }
+
+  // ======================= UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs"), cap = $("cap");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step"; li.style.setProperty("--c", "var(--" + s.c + ")");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title + '</span><span class="w">' + s.who + '</span></button>' +
+      '<div class="step-body" hidden><ul>' + LIST[i].map(b => "<li>" + b + "</li>").join("") + "</ul>" +
+      (s.hold ? '<p class="hold"><b>Hold</b>' + s.hold + "</p>" : "") + '<p class="ref">' + s.ref + "</p></div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li); stepLis.push(li);
+    const b = document.createElement("button"); b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur); b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b); segFills.push(b.firstChild);
+  });
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shown = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = !VIDEO;
+  function updateUI(t) {
+    const i = stepAt(t);
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = poster ? 0 : Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%"; segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(poster ? 0 : Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    const key = poster + "|" + i;
+    if (key !== shown) {
+      shown = key;
+      const s = STEPS[i];
+      stepLis.forEach((li, k) => { const on = !poster && k === i; li.classList.toggle("active", on); li.querySelector(".step-head").setAttribute("aria-expanded", on); li.querySelector(".step-body").hidden = !on; });
+      const b = $("badge");
+      b.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      $("bNum").textContent = poster ? "✓" : String(i + 1);
+      $("bTitle").textContent = poster ? "Installed elevator" : s.title;
+      $("bWho").textContent = poster ? "" : s.who;
+      cap.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      cap.innerHTML = poster
+        ? "<ul><li>Schindler 3300 MRL: 3,000 lb at 150 fpm, 2 stops, in an 8′-7½″ × 6′-7⅜″ concrete hoistway with a 5′-0″ pit.</li><li>Play it to see the 13 install steps, MCL's prep first and then Schindler's work, each tied to its shop drawing sheet.</li></ul><div class=\"ref\">Submittal 14 21 23-1 R3 · Schindler WBS 11944614 · DSA reviewed as noted Oct 22 2026</div>"
+        : "<ul>" + s.lines.map(x => "<li>" + x + "</li>").join("") + "</ul>" + (s.hold ? '<div class="hold"><b>Hold</b>' + s.hold + "</div>" : "") + '<div class="ref">' + s.ref + "</div>";
+    }
+    $("bigPlay").hidden = playing || !poster || VIDEO;
+  }
+  function render(t) { draw(t); updateUI(t); }
+  function setPlay() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts; render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) { const i = stepAt(T); T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001); playing = false; render(T); setPlay(); return; }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { const j = Math.min(i + 1, STEPS.length - 1); stopAt = stopEach ? Math.min(TOTAL, starts[j] + STEPS[j].dur - .001) : TOTAL; }
+    playing = true; lastTs = null; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); setPlay(); render(T);
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlay(); render(T); }
+  function goStep(i, auto) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i)); poster = false; cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlay(); return; }
+    T = starts[i]; render(T);
+    if (auto) { stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; playing = true; lastTs = null; raf = requestAnimationFrame(tick); }
+    setPlay();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => { if (poster) return goStep(STEPS.length - 1, true); const i = stepAt(T); goStep(T - starts[i] > 1.5 ? i : i - 1, true); });
+  $("stopEach").addEventListener("click", e => { stopEach = !stopEach; e.currentTarget.setAttribute("aria-pressed", stopEach); if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; } });
+  $("speed").addEventListener("click", e => { speed = speed === 1 ? .5 : 1; e.currentTarget.textContent = speed === 1 ? "1×" : "½×"; });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select, summary")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    dpr = VIDEO ? 1 : Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(stageW * dpr); canvas.height = Math.round(stageH * dpr);
+    lf = Math.max(11, Math.min(24, stageW / 86));
+    stage.style.setProperty("--lf", lf + "px");
+    stage.style.setProperty("--tf", Math.max(14, Math.min(40, stageW / 50)) + "px");
+    stageWrap.style.setProperty("--cf", Math.max(12.5, Math.min(26, stageW / 74)) + "px");
+    stageWrap.classList.toggle("narrow", stageW < 640 && !VIDEO);
+    lensShift = stageWrap.classList.contains("narrow") ? 0 : -0.12;
+    camScale = stageWrap.classList.contains("narrow") ? 0.9 : 1;
+    render(T);
+  }
+  const stageRO = new ResizeObserver(measure);
+  stageRO.observe(stage);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  window.__total = TOTAL; window.__starts = starts.slice(); window.__durs = STEPS.map(s => s.dur);
+  measure(); setPlay();
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>

@@ -11,10 +11,12 @@ section **09 Construction Sequences** of `public/shop-drawings/index.html`, and 
 | Walk-in cooler #10, Norbec box from the slab depression to start-up (12 steps, 3D WebGL) | `/shop-drawings/sequences/walk-in-cooler-install/` | 2026-11-19 | Norbec stamped shop dwg S-294496 rev 02 (sheets 1/11–11/11), MCL transmittal Aug 25 2025 (job 2025-048), Bohn PT0078MBNAMCA data sheet, IM4 operating instructions, Kason 1236 sheets |
 | Car Wash 117, Istobal Flex 5 XL rollover gantry from the trench drains to the test wash (11 steps, 3D WebGL) | `/shop-drawings/sequences/car-wash-install/` | 2026-11-19 | Istobal layout drawings for National Wash, sheets 1/7–7/7 (title blocks rev 4.0, May 7 2025; MCL transmittal Aug 20 2025), spec 11 11 26, National Wash scope review minutes (Apr 8 2025), RFI 080, M202, A105, S506 |
 | Vehicle bay slab on grade, south of H and west of 6.1, from the underground plumbing to the topping (12 steps, 3D WebGL) | `/shop-drawings/sequences/vehicle-bay-slab/` | 2026-11-19 | M200 underground plumbing (PC-056 / MNC-15), M903, A151 slab edge plan (PC-022), S201 SOG schedule + notes, AGF R49 trench drain reinforcement (reviewed as noted Feb 5 2026), SK-01, RFI 260 / 315 / 326 R1, F2C grade sheet (Oct 18 2026), Kolostat / Uponor Level 1 radiant layout R2, spec 03 30 00 |
+| Elevator, Schindler 3300 MRL from the ready hoistway to acceptance (13 steps, 3D WebGL) | `/shop-drawings/sequences/elevator-install/` | 2026-11-21 | Schindler shop dwgs WBS 11944614 sub 002 sheets 1/12–12/12 (submittal 14 21 23-1 R3, reviewed as noted by DSA Oct 22 2026), RFI 293, PC-082, RFI 325 R2 / PC-083, Alvin Hernandez critical items email (Nov 20 2026) |
+| Elevator temporary top landing platform at Level 2, from design sign-off to removal (12 steps, 3D WebGL) | `/shop-drawings/sequences/top-landing-platform/` | 2026-11-21 | Schindler shop dwg 3/12 (platform plan, notes 1–6, Section A-A), 1/12 note 35 and item 30, 4/12 barrier detail, O. Reg. 213/91 ss. 26.1, 26.3, 130, 134, 135 (consolidated Jan 1 2026) |
 
 ## 3D sequences
 
-The walk-in cooler, car wash and vehicle bay slab pages draw their models with WebGL 2 straight from the page script
+The walk-in cooler, car wash, vehicle bay slab, elevator and top landing platform pages draw their models with WebGL 2 straight from the page script
 (boxes and cylinders, shadows, cutaway walls), with labels, dimensions and captions in an HTML overlay. The slab page
 adds heightfield meshes for the ground and slab layers (built in the page from the A151 falls), line meshes for the
 rebar mats and radiant tubing, and a clip plane that sweeps each layer in as it is placed. They still need no library
