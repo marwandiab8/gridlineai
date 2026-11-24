@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Step-by-step 3D animation of Road-Ex's June 22–23 2026 tie-in of the fuelling-station roof leader to the buried CB-4 lead at Docksteader: locate, dig, trench box, hand-dig, wye, stub-up, Granular A, backfill, and what was claimed under CD-007.">
+<title>CB-4 Lead Tie-in Sequence · Docksteader</title>
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: drawing-sheet header, then a 16:9 3D stage with an in-frame caption band (so the same frame works as a video), transport, step list, questions fold-out and legend. */
+:root {
+  --bg: #e8ecee;
+  --panel: #fbfcfc;
+  --ink: #172027;
+  --muted: #59656f;
+  --line: #c9d1d7;
+  --rx: #c2410c;
+  --ex: #1f7a4d;
+  --msb: #1f56c6;
+  --nor: #1f56c6;
+  --hold: #c3322c;
+  --hold-f: #fdeceb;
+  --font-display: "Barlow Condensed", "Arial Narrow", "TeX Gyre Heros Cn", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+    --rx: #f08a4b; --ex: #5fcf95; --msb: #82a8ff; --nor: #82a8ff; --hold: #ff7064; --hold-f: #3b1715;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1216; --panel: #141b20; --ink: #e3e8ec; --muted: #93a0aa; --line: #29343c;
+  --rx: #f08a4b; --ex: #5fcf95; --msb: #82a8ff; --nor: #82a8ff; --hold: #ff7064; --hold-f: #3b1715;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.page { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.back { display: inline-block; margin: 0 0 10px; font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--nor); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+.back:hover { opacity: .8; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 24px; border-bottom: 2px solid var(--ink); padding-bottom: 12px; }
+.eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 5vw, 46px); line-height: 1; letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 70ch; }
+.sheet-no { font-family: var(--font-mono); font-size: 12px; color: var(--muted); text-align: right; line-height: 1.6; }
+.sheet-no b { color: var(--ink); font-weight: 600; }
+
+.bench { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.stage-wrap { position: relative; }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%; background: #e7eaec; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ov { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-display); color: #13202b; }
+.ov #ovsvg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  font-size: var(--lf, 14px); line-height: 1.15; padding: .28em .55em .3em .5em; background: rgba(255,255,255,.95); color: #13202b;
+  border-left: .32em solid var(--c, #1f56c6); border-radius: .25em; box-shadow: 0 .08em .3em rgba(0,0,0,.18); }
+.lbl small { display: block; font-size: .78em; font-weight: 500; color: #46525c; letter-spacing: .02em; }
+.lbl.hold { color: #b3261e; border-left-color: #c3322c; }
+.lbl.big { font-size: calc(var(--lf, 14px) * 1.75); font-family: var(--font-mono); letter-spacing: 0; text-transform: none; border-left-color: #c2410c; }
+.lbl.big small { font-family: var(--font-display); font-size: .5em; letter-spacing: .04em; text-transform: uppercase; }
+.dimt { position: absolute; left: 0; top: 0; font-family: var(--font-mono); font-weight: 600; font-size: calc(var(--lf, 14px) * .92); color: #13202b; background: rgba(255,255,255,.9); padding: .1em .35em; border-radius: .2em; white-space: nowrap; }
+.badge { position: absolute; top: 2.2%; left: 1.6%; display: flex; align-items: center; gap: .45em; font-family: var(--font-display); font-weight: 700;
+  font-size: var(--tf, 22px); letter-spacing: .03em; text-transform: uppercase; background: rgba(255,255,255,.94); padding: .12em .6em .12em .14em; border-radius: .35em; color: #13202b; }
+.badge .n { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 50%; background: var(--c, #13202b); color: #fff; font-size: .9em; flex: none; }
+.badge .w { font-family: var(--font-mono); font-weight: 600; font-size: .5em; color: var(--c, #59656f); letter-spacing: .06em; }
+.tag { position: absolute; top: 2.4%; right: 1.6%; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * .78); letter-spacing: .06em; text-transform: uppercase; color: #3d4a54; background: rgba(255,255,255,.88); padding: .25em .55em; border-radius: .25em; text-align: right; line-height: 1.45; }
+.compass { position: absolute; right: 1.8%; top: 14%; width: calc(var(--lf, 14px) * 3.6); height: calc(var(--lf, 14px) * 3.6); }
+.cap { position: absolute; left: 1.6%; right: 1.6%; bottom: 2.6%; display: grid; grid-template-columns: minmax(0, 1fr); gap: .25em;
+  font-family: var(--font-body); font-size: var(--cf, 14px); line-height: 1.32; color: #13202b; background: rgba(255,255,255,.95);
+  border-left: .35em solid var(--c, #1f56c6); border-radius: .3em; padding: .6em .9em .65em; box-shadow: 0 .1em .5em rgba(0,0,0,.16); pointer-events: none; }
+.cap ul { margin: 0; padding: 0 0 0 1.05em; display: grid; gap: .12em; }
+.cap .ref { font-family: var(--font-mono); font-size: .74em; color: #4b5863; letter-spacing: .03em; }
+.cap .hold { color: #b3261e; font-weight: 600; }
+.cap .hold b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; margin-right: .35em; }
+.intro { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+.intro div { background: rgba(255,255,255,.93); padding: .7em 1.2em .8em; border-radius: .35em; font-family: var(--font-display); color: #13202b; box-shadow: 0 .2em 1em rgba(0,0,0,.15); }
+.intro h2 { margin: 0; font-size: calc(var(--tf, 22px) * 2.1); line-height: 1; letter-spacing: .02em; font-weight: 700; text-transform: uppercase; }
+.intro p { margin: .35em 0 0; font-family: var(--font-mono); font-size: calc(var(--lf, 14px) * 1.05); letter-spacing: .05em; color: #3d4a54; text-transform: uppercase; }
+.big-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .05em; text-transform: uppercase; color: #fff; background: #172027;
+  padding: 10px 18px 10px 14px; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; pointer-events: auto; }
+.big-play svg { width: 18px; height: 18px; fill: currentColor; }
+.narrow .stage { aspect-ratio: 4 / 3; }
+.narrow .cap { position: static; margin-top: 8px; font-size: 13.5px; }
+.narrow .tag, .narrow .compass { display: none; }
+.narrow .badge { font-size: 14px; }
+.narrow .lbl.minor { display: none; }
+.transport { display: flex; flex-direction: column; gap: 8px; }
+.segs { display: flex; gap: 3px; height: 24px; }
+.seg { flex: var(--g) 1 0; min-width: 0; border: 0; padding: 0; cursor: pointer; background: var(--line); border-radius: 3px; position: relative; overflow: hidden; font-family: var(--font-display); font-weight: 700; font-size: 14px; color: var(--ink); }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); }
+.seg span { position: relative; }
+.seg.lit span { color: var(--panel); }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; cursor: pointer; font-family: var(--font-body); font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+.tbtn svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); min-width: 96px; justify-content: center; }
+.tbtn[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.controls .spacer { flex: 1 1 auto; }
+.clock { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.big-play:focus-visible, .tbtn:focus-visible, .seg:focus-visible, .step-head:focus-visible, .back:focus-visible, .rfi summary:focus-visible { outline: 3px solid var(--nor); outline-offset: 2px; }
+
+.steps-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.intro-p { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 6px; align-items: start; }
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.step.active { border-color: var(--c); box-shadow: inset 4px 0 0 var(--c); }
+.step-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit; }
+.step-head .n { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-family: var(--font-display); font-weight: 700; font-size: 16px; color: var(--c); border: 2px solid var(--c); }
+.step.active .step-head .n { background: var(--c); color: var(--panel); }
+.step-head .t { font-family: var(--font-display); font-weight: 600; font-size: 19px; letter-spacing: .02em; line-height: 1.1; }
+.step-head .w { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c); text-align: right; }
+.step-body { padding: 0 14px 12px 48px; font-size: 14px; }
+.step-body ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; }
+.step-body p { margin: 8px 0 0; font-size: 13.5px; }
+.step-body .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.step-body .hold { background: var(--hold-f); border-left: 4px solid var(--hold); padding: 5px 8px; border-radius: 3px; }
+.step-body b { font-family: var(--font-display); letter-spacing: .06em; text-transform: uppercase; font-size: 14.5px; margin-right: 4px; }
+.step-body .hold b { color: var(--hold); }
+.claim { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px 14px; }
+.claim h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: .02em; margin: 0 0 8px; }
+.claim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px 28px; align-items: start; }
+.claim table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.claim td { padding: 3px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.claim td.n { text-align: right; font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.claim tr.st td { font-weight: 600; }
+.claim tr.tt td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink); }
+.claim p { margin: 0 0 8px; font-size: 14px; }
+.claim .qa b { font-family: var(--font-display); letter-spacing: .05em; text-transform: uppercase; font-size: 15px; margin-right: 4px; color: var(--rx); }
+.rfi { background: var(--panel); border: 1.5px solid var(--ink); border-radius: 6px; padding: 12px 18px; }
+.rfi summary { cursor: pointer; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: .02em; }
+.rfi ul { margin: 10px 0 4px; padding-left: 20px; display: grid; gap: 6px; max-width: 90ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 18px; height: 11px; border-radius: 2px; background: var(--c); display: inline-block; }
+.notes { margin: 0; color: var(--muted); font-size: 12.5px; max-width: 120ch; }
+/* video mode: stage only, full frame */
+body.video { padding: 0; background: #000; }
+body.video .page > :not(.bench), body.video .transport, body.video .steps-col, body.video .big-play { display: none !important; }
+body.video .page { max-width: none; gap: 0; }
+body.video .stage { border: 0; border-radius: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="sheet-head">
+    <div>
+      <a class="back" href="/shop-drawings/#sequences">← Docksteader shop drawing portal</a>
+      <p class="eyebrow">Docksteader PRPS Reporting Station · MCL 2025-048</p>
+      <h1>CB-4 lead tie-in for the fuelling-station roof leader, step by step</h1>
+      <p class="sub">What Road-Ex did on June 22–23, 2026 under CD-007 (§3.2 refuelling station drainage), later drawn as Stantec GEN-1 rev 32 / SPC-008 and DSA PC-054. Built from GEN-1, M-100 detail 2, the MCL progress markup, the field grading sketch, Road-Ex tickets 2570 and 2571, and invoice 62223.</p>
+    </div>
+    <div class="sheet-no"><b>SK-RWL-02</b> animation · with sketch SK-RWL-01<br>CB-4 lead · Jun 22–23 2026 · Nov 2026</div>
+  </header>
+
+  <main class="bench">
+    <section class="stage-col" aria-label="3D animation">
+      <div class="stage-wrap" id="stageWrap">
+        <div class="stage" id="stage">
+          <canvas id="gl" role="img" aria-label="3D model of the CB-4 lead tie-in being dug, built and backfilled step by step"></canvas>
+          <div class="ov" id="ov">
+            <svg id="ovsvg"></svg>
+            <div id="ovl"></div>
+            <div class="badge" id="badge"><span class="n" id="bNum">✓</span><span id="bTitle">Tie-in complete</span><span class="w" id="bWho"></span></div>
+            <div class="tag">CB-4 lead tie-in · CD-007<br>Docksteader Paramedic Services</div>
+            <svg class="compass" id="compass" viewBox="-50 -50 100 100" aria-hidden="true"><circle r="47" fill="rgba(255,255,255,.9)" stroke="#13202b" stroke-width="2.5"/><g id="cneedle"><path d="M0 -22 L10 16 L0 9 L-10 16 Z" fill="#c3322c"/><text x="0" y="-27" font-family="Barlow Condensed, TeX Gyre Heros Cn, Arial Narrow, sans-serif" font-size="22" font-weight="700" text-anchor="middle" fill="#13202b">N</text></g></svg>
+            <div class="intro" id="intro"><div><h2>CB-4 lead tie-in</h2><p>Road-Ex · June 22–23 2026 · 10 steps</p></div></div>
+            <div class="intro" id="outro" style="opacity:0"><div><h2>Tie-in complete</h2><p>Schematic from GEN-1, M-100 and tickets 2570–2571 · ◇ = derived, confirm</p></div></div>
+          </div>
+          <button class="big-play" id="bigPlay" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg><span id="bigPlayText">Play the sequence</span></button>
+        </div>
+        <div class="cap" id="cap" aria-live="polite"></div>
+      </div>
+      <div class="transport">
+        <div class="segs" id="segs"></div>
+        <div class="controls">
+          <button class="tbtn" id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 24 24"><path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/></svg>Back</button>
+          <button class="tbtn primary" id="play" type="button"><svg viewBox="0 0 24 24" id="playIcon"><path d="M7 4.5v15l13-7.5z"/></svg><span id="playText">Play</span></button>
+          <button class="tbtn" id="next" type="button" aria-label="Next step">Next<svg viewBox="0 0 24 24"><path d="M15.5 5H18v14h-2.5zM4 5l10.5 7L4 19z"/></svg></button>
+          <button class="tbtn" id="stopEach" type="button" aria-pressed="false" title="Pause at the end of every step">Stop at each step</button>
+          <button class="tbtn" id="speed" type="button" aria-label="Playback speed">1×</button>
+          <span class="spacer"></span>
+          <span class="clock" id="clock">0:00</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="steps-col" aria-label="Work steps">
+      <p class="intro-p">Press play to watch the tie-in, from the buried lead to the backfill. Or pick a step to see it on its own. Each step says what was done, what it cost where the invoice breaks it out, and where it comes from. Values marked ◇ are worked out from the drawings and still need the field numbers.</p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+  </main>
+
+  <section class="claim" aria-label="What was claimed">
+    <h2>What was claimed, and the consultant's two questions</h2>
+    <div class="claim-grid">
+      <div class="qa">
+        <p><b>Area and depth</b>One pit on the CB-4 lead at the tie-in: about 3.6 m long × 2.4 m wide × 2.4 m deep below the June 22 subgrade ◇, about 21 m³, and about 3.0 m below the finished asphalt. Sketch SK-RWL-01 marks it up in plan, in a section across the pit and in a profile along the lead.</p>
+        <p><b>Labour hours</b>Tickets 2570 and 2571 cover only this tie-in, the "refueling station drainage" named in CD-007 §3.2. None of the hours are for the irrigation point of connection.</p>
+        <p><b>Two days</b>The lead was already buried and deep, so it had to be dug back up in a trench box, cut open and spliced by hand, then backfilled in compacted lifts under the future drive aisle.</p>
+      </div>
+      <table>
+        <tr><td>8 t excavator · 2 × 10 h @ $220</td><td class="n">$4,400.00</td></tr>
+        <tr><td>Cat 430 rubber-tire · 2 × 10 h @ $170</td><td class="n">$3,400.00</td></tr>
+        <tr><td>Foreman with pickup · 2 × 10 h @ $140</td><td class="n">$2,800.00</td></tr>
+        <tr><td>Labourers × 3 · 2 × 30 h @ $95</td><td class="n">$5,700.00</td></tr>
+        <tr class="st"><td>Crew and equipment, $8,150 a day</td><td class="n">$16,300.00</td></tr>
+        <tr><td>Granular A 20.39 t · trench box 2 days · wye · 45° bend · 150 + 200 SDR 35 · 2 repair couplings</td><td class="n">$2,166.19</td></tr>
+        <tr><td>Subtotal $18,466.19 + 10 % OH&amp;P $1,846.62</td><td class="n"></td></tr>
+        <tr class="tt"><td>Total before HST and holdback (invoice 62223)</td><td class="n">$20,312.81</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <details class="rfi">
+    <summary>To confirm from the field (the ◇ values)</summary>
+    <ul>
+      <li><strong>Depth.</strong> About 2.4 m below the June 22 subgrade is worked out from the GEN-1 inverts (storage tank INV 248.990, 675 main at 0.59 % and 0.80 %), the 640 mm pavement and CB-4 T/G 252.87. Confirm the depth Road-Ex dug, from the foreman or the June 22 photos.</li>
+      <li><strong>Pit size.</strong> 3.6 × 2.4 m assumes a 10 ft box plus working room. Confirm the length and width dug.</li>
+      <li><strong>Trench box.</strong> The invoice says 8×10 aluminium, read here as 8 ft high × 10 ft long. Its rental invoice isn't in Road-Ex's backup; ask for it.</li>
+      <li><strong>Tie-in point and stub.</strong> About 6.5 m from CB-4 is scaled off GEN-1, which was issued Jun 25, after the work. Confirm where the wye went and how high the stub came up.</li>
+      <li><strong>Method.</strong> The order of work here is built from the two tickets and normal practice. Check it against what you saw on site before it goes out.</li>
+    </ul>
+  </details>
+
+  <footer class="legend" aria-label="Legend">
+    <span style="--c: var(--rx)"><i></i>Road-Ex (excavation and new fittings)</span>
+    <span style="--c: var(--ex)"><i></i>Existing storm, in Apr–May 2026</span>
+    <span style="--c: var(--msb)"><i></i>MSB Mechanical, later (not in this claim)</span>
+    <span style="--c: var(--hold)"><i></i>◇ derived · to confirm</span>
+  </footer>
+  <p class="notes">Approximately to scale. Elevations are relative to the June 22 subgrade at the tie-in (≈ 252.36 ◇); mm unless noted. Positions scaled off Stantec GEN-1 rev 32 (1:250): the CB-4 lead runs about 14.3 m from CB-4 to the 49.50 m–675 mm main, with the tie-in about 6.5 m from CB-4. The main's invert at the lead (≈ 249.36 ◇) is carried up from the storage tank's INV 248.990; the lead is taken at 1 % from near the main's crown. Machine and stockpile positions, the crew's moves and the stub height are illustrative. The fuelling station, its canopy drains (M-100 detail 2, MNC-14) and the MSB line are shown as later work. Not a substitute for the drawings.</p>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const VIDEO = !!window.__VIDEO;
+  if (VIDEO) document.body.classList.add("video");
+
+  // ======================= steps
+  // camera: target, yaw (0 = from CB-4's side looking toward the main, negative = from the CBMH 3 side), pitch, distance (mm)
+  const cv = (t, yaw, pitch, d) => ({ t, yaw, pitch, d });
+  const STEPS = [
+    { title: "Before: the lead is already buried", who: "Existing · Jun 22, 7 am", c: "ex", dur: 10,
+      cam: cv([5800, -1700, 7000], -30, 30, 42000),
+      lines: ["CB-4 and its 200 mm lead to the 675 mm main went in during April–May 2026 and were backfilled",
+              "The fuelling-station roof drains came after: MNC-14 (Jun 17), then CD-007, signed Jun 22",
+              "On June 22 the area was at subgrade, about 640 below the future asphalt"],
+      ref: "GEN-1 rev 32 · MCL progress markup · CD-007 §3.2 · M-100 detail 2" },
+    { title: "Locate the lead, lay out the pit", who: "Road-Ex · Day 1 · Mon Jun 22", c: "rx", dur: 9,
+      cam: cv([1600, -200, 8600], -28, 42, 21000),
+      lines: ["Lead found and marked from CB-4 and the drawings; tie-in about 6.5 m from CB-4 ◇",
+              "Pit laid out about 3.6 m along the lead × 2.4 m wide ◇, to take a 3 m trench box and the fittings",
+              "8 t excavator and Cat 430 rubber-tire on site with the foreman and 3 labourers"],
+      hold: "Pit size is scaled from the drawings and the box size. Confirm the length and width dug.",
+      ref: "Ticket 2570 (Jun 22): “Re-excavate around CB lead and tie in new storm line coming from fuel pumping area”" },
+    { title: "Dig to 1.2 m", who: "Road-Ex · Day 1 · Mon Jun 22", c: "rx", dur: 9,
+      cam: cv([0, -700, 7900], -20, 50, 14500),
+      lines: ["Dig in lifts with the 8 t excavator; the Cat 430 helps move spoil",
+              "Spoil kept at least 1 m back from the edge",
+              "Past 1.2 m deep, the walls must be supported before anyone goes in (O. Reg. 213/91 s. 234)"],
+      ref: "Invoice 62223: 8 t excavator 10 h @ $220, Cat 430 10 h @ $170 each day · O. Reg. 213/91 Part III" },
+    { title: "Trench box in", who: "Road-Ex · Day 1 · Mon Jun 22", c: "rx", dur: 9,
+      cam: cv([0, -500, 7900], -24, 44, 14000),
+      lines: ["8 × 10 aluminium trench box lowered into the pit",
+              "Pushed down as the dig goes deeper; rented for both days: $1,102.00",
+              "Ladder inside the box; a worker stays at the top while anyone is in it"],
+      ref: "Invoice 62223 (trench box) · O. Reg. 213/91 Part III" },
+    { title: "Expose the lead by hand", who: "Road-Ex · Day 1 · Mon Jun 22", c: "rx", dur: 11,
+      cam: cv([0, -1400, 7900], -20, 50, 12000),
+      cam2: cv([0, -1900, 8000], -12, 58, 8200), c2: 5.8, c2d: 2.4,
+      lines: ["Dig to about 2.4 m below the June subgrade ◇, about 3.0 m below the finished asphalt",
+              "The last 300 mm around the live 200 mm PVC is dug by hand so the pipe isn't damaged",
+              "The lead is this deep because it falls to the 675 mm main (invert ≈ 249.4 ◇)"],
+      hold: "Depth is worked out from the GEN-1 inverts and the June subgrade. Confirm the depth dug.",
+      ref: "GEN-1 inverts (storage tank 248.990; 675 @ 0.59 / 0.80 %) · field grading sketch (CB-4 T/G 252.87)" },
+    { title: "Cut in the wye", who: "Road-Ex · Day 2 · Tue Jun 23", c: "rx", dur: 10,
+      cam: cv([0, -1950, 7900], -14, 60, 6600),
+      lines: ["Cut a section out of the live 200 mm lead",
+              "Splice in a 200×200×150 wye ($145.50) with new 200 mm SDR 35 ($138.78)",
+              "Two 200 mm repair couplings close the cuts ($196.00); fittings picked up Jun 23 (Crowle list)"],
+      ref: "Ticket 2571 (Jun 23): “Finish new connection to CB lead” · invoice 62223 materials" },
+    { title: "Bend and stub-up for the plumbers", who: "Road-Ex · Day 2 · Tue Jun 23", c: "rx", dur: 11,
+      cam: cv([-100, -1500, 8000], -18, 56, 8200),
+      cam2: cv([-1700, -1000, 8100], -24, 46, 12500), c2: 5.0, c2d: 2.4,
+      lines: ["150 mm 45° bend ($44.00) on the wye, then a 150 mm SDR 35 stub-up ($81.13), capped",
+              "MSB later brings the 150 STW from the 6 canopy drains to the stub (not in this claim)",
+              "GEN-1, issued Jun 25 after the work, shows a 150×200×200 tee; the as-built should show the wye"],
+      hold: "Stub height is illustrative (about 0.3 m below the June subgrade). Confirm.",
+      ref: "Ticket 2571: “Stub up pipe for plumbers” · M-100 detail 2 · GEN-1 rev 32" },
+    { title: "Granular A around the pipe", who: "Road-Ex · Day 2 · Tue Jun 23", c: "rx", dur: 9,
+      cam: cv([0, -1500, 8000], -18, 52, 10500),
+      lines: ["20.39 t of Granular A ($458.78), about 9–10 m³ compacted",
+              "Placed and compacted in lifts around the pipe, the fittings and the stub",
+              "It fills about the bottom 1.1 m of the pit ◇, which fits the pit size"],
+      ref: "Strada ticket STR722764 (Jun 23) · invoice 62223" },
+    { title: "Backfill and pull the box", who: "Road-Ex · Day 2 · Tue Jun 23", c: "rx", dur: 10,
+      cam: cv([0, -700, 8000], -22, 46, 14500),
+      lines: ["Native backfill in compacted lifts back to subgrade",
+              "The box comes up in stages as the backfill rises",
+              "Stub marked for MSB; area left at subgrade under the future drive aisle"],
+      ref: "Ticket 2571: “Complete backfill”" },
+    { title: "What was claimed", who: "Invoice 62223 · CD-007", c: "ink", dur: 13,
+      cam: cv([800, -1400, 7600], -40, 24, 17500),
+      cam2: cv([1500, -1700, 7400], -24, 30, 24000), c2: 7.0, c2d: 3.0,
+      lines: ["One pit ≈ 3.6 × 2.4 × 2.4 m deep ◇ (≈ 21 m³), one tie-in, two 10-hour days",
+              "Each day: foreman, 3 labourers, 8 t excavator and Cat 430 = $8,150; $16,300 for both",
+              "Materials $2,166.19 · subtotal $18,466.19 + 10 % OH&P = $20,312.81 before HST",
+              "All of it is the refuelling-station drainage tie-in (CD-007 §3.2), none of it the irrigation connection"],
+      ref: "Invoice 62223 (Jul 17 2026) · tickets 2570, 2571 · CD-007 §3.2, §3.5" }
+  ];
+  const LIST = [
+    ["CB-4 (600 × 600 precast, T/G 252.87) and its 200 mm PVC lead to the 49.50 m–675 mm main were installed and backfilled in April–May 2026 (MCL progress markup).", "MNC-14 (Introba, Jun 17) added the canopy's 6 × RD-2 roof drains and noted “150ø STW to be connected in underground CB4 storm line (by civil)”.", "CD-007 was signed Jun 22 to expedite the work; §3.2 limits it to the irrigation point of connection and the refuelling station drainage.", "On June 22 the area was at subgrade, about 640 below the future asphalt (40 HL3 + 50 HL8 + 150 Granular A + 400 Granular B)."],
+    ["The lead runs about 14.3 m from CB-4 to the 675 mm main (scaled off GEN-1). The tie-in is about 6.5 m from CB-4 and 7.8 m from the main ◇.", "Lead line painted on the subgrade from CB-4 toward the main.", "Pit laid out about 3.6 m along the lead × 2.4 m wide ◇: room to set a 10 ft (3.05 m) box and work the fittings.", "Crew for both days: foreman with pickup, 3 labourers, an 8 t excavator and a Cat 430 rubber-tire, 10 hours each."],
+    ["Dig in lifts; the Cat 430 keeps the spoil moving.", "Spoil, materials and machines kept at least 1 m back from the edge (O. Reg. 213/91 Part III).", "This is the backfilled trench from the spring, dug back up.", "Past 1.2 m deep the walls need a support system before anyone enters (O. Reg. 213/91 s. 234)."],
+    ["8 × 10 aluminium trench box lowered in by the excavator: 8 ft (2.44 m) high, 10 ft (3.05 m) long ◇.", "The box is pushed down as the excavator digs inside it.", "Rental for the two days: $1,102.00 (no rental invoice in the backup yet).", "Ladder inside the box; a worker stays at the top while anyone is in the excavation."],
+    ["Dig to about 2.4 m below the June subgrade ◇ (trench bottom ≈ 249.96 ◇), about 3.0 m below the finished asphalt.", "The last 300 mm around the existing 200 mm PVC is dug by hand.", "Why so deep: the 675 main's invert is about 249.36 ◇ where the lead joins, and the lead rises from there at about 1 % (≈ 250.11 at the wye ◇).", "Pipe left on its original bedding."],
+    ["Cut a section out of the live 200 mm lead.", "Splice in the 200×200×150 wye with new 200 mm SDR 35 ($138.78 for a 4.27 m length).", "Two 200 mm repair couplings close the cuts ($196.00).", "Fittings from the Crowle material list, Jun 23."],
+    ["150 mm 45° bend on the wye branch ($44.00), then the 150 mm SDR 35 stub-up ($81.13 for a 4.27 m length), capped.", "The stub brings the connection up toward the plumbers' depth, about 0.3 m below the June subgrade ◇.", "MSB runs the 150 STW at 1 % from the canopy drains to the stub later (M-100 detail 2). That work is not in this claim.", "GEN-1 rev 32 (Jun 25) shows a 150×200×200 tee and 4.00 m of 150 at 1.00 %. The field used a wye and a 45° bend: the as-built should show that."],
+    ["20.39 t of Granular A (Strada STR722764, Jun 23, $458.78).", "About 9–10 m³ compacted (at about 2.2 t/m³).", "Placed in lifts and compacted around the pipe, the fittings and the stub.", "That fills about the bottom 1.1 m of a 3.6 × 2.4 m pit ◇: the tonnage supports the pit size."],
+    ["Native backfill back to subgrade in compacted lifts.", "The box comes up in stages as the backfill rises, then goes back.", "Stub marked so MSB can find it.", "Ticket 2571 closes with “Complete backfill”."],
+    ["Pit ≈ 3.6 × 2.4 m, ≈ 2.4 m deep ◇: about 21 m³.", "Each day: 8 t excavator 10 h @ $220, Cat 430 10 h @ $170, foreman 10 h @ $140, 3 labourers 30 h @ $95 = $8,150.", "Materials $2,166.19 (Granular A, trench box rental, wye, bend, pipe, couplings). Subtotal $18,466.19 + 10 % OH&P $1,846.62 = $20,312.81 before HST and holdback.", "Both tickets describe only this tie-in: the refuelling station drainage in CD-007 §3.2, not the irrigation connection."]
+  ];
+  const starts = []; let acc = 0;
+  for (const s of STEPS) { starts.push(acc); acc += s.dur; }
+  const TOTAL = acc, CAM_T = 1.7, INTRO_T = 2.8;
+
+  // ======================= geometry (mm): x along the 675 main (+ toward CBMH 3), z along the CB-4 lead (+ toward CB-4), y up from the June 22 subgrade at the tie-in (≈ 252.36)
+  const SUB = 252.36, EY = e => Math.round((e - SUB) * 1000);
+  const MAIN_C = x => EY(249.36) + 360 + 0.008 * x;            // 675 main centreline (invert 249.36 at the lead, 0.80 % up toward CBMH 3)
+  const leadC = z => EY(250.03) + 107 + 0.01 * z;               // 200 lead centreline at 1 %
+  const WZ = 7840, RZ = 8110, CBZ = 14350, CUT0 = 7330, CUT1 = 8350;
+  const PIT = { x0: -1200, x1: 1200, z0: 6040, z1: 9640, yb: -2400 };
+  const BOX = { x0: -800, x1: 800, z0: 6315, z1: 9365, yb: -2400, h: 2440 };
+  const GTOP = -1330, STUB = EY(252.06), FG = 640;
+  const SOIL = { x0: -12000, x1: 24000, z0: -3200, z1: 18000, yb: -3800 };
+  const NORTH = [Math.cos(45.6 * Math.PI / 180), 0, -Math.sin(45.6 * Math.PI / 180)];   // GEN-1 reference bearing
+  const yW = leadC(WZ);
+
+  // ======================= math
+  const M = {
+    I() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; },
+    mul(a, b) { const o = new Float32Array(16); for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s; } return o; },
+    T(x, y, z) { const m = M.I(); m[12] = x; m[13] = y; m[14] = z; return m; },
+    S(x, y, z) { const m = M.I(); m[0] = x; m[5] = y; m[10] = z; return m; },
+    RY(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[2] = -s; m[8] = s; m[10] = c; return m; },
+    RX(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[5] = c; m[6] = s; m[9] = -s; m[10] = c; return m; },
+    RZ(a) { const c = Math.cos(a), s = Math.sin(a), m = M.I(); m[0] = c; m[1] = s; m[4] = -s; m[5] = c; return m; },
+    persp(f, a, n, fa) { const t = 1 / Math.tan(f / 2), m = new Float32Array(16); m[0] = t / a; m[5] = t; m[10] = (fa + n) / (n - fa); m[11] = -1; m[14] = 2 * fa * n / (n - fa); return m; },
+    ortho(l, r, b, t, n, f) { const m = M.I(); m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n); m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n); return m; },
+    look(e, t, u) {
+      let zx = e[0] - t[0], zy = e[1] - t[1], zz = e[2] - t[2]; let l = Math.hypot(zx, zy, zz); zx /= l; zy /= l; zz /= l;
+      let xx = u[1] * zz - u[2] * zy, xy = u[2] * zx - u[0] * zz, xz = u[0] * zy - u[1] * zx; l = Math.hypot(xx, xy, xz); xx /= l; xy /= l; xz /= l;
+      const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+      const m = new Float32Array(16);
+      m[0] = xx; m[1] = yx; m[2] = zx; m[4] = xy; m[5] = yy; m[6] = zy; m[8] = xz; m[9] = yz; m[10] = zz;
+      m[12] = -(xx * e[0] + xy * e[1] + xz * e[2]); m[13] = -(yx * e[0] + yy * e[1] + yz * e[2]); m[14] = -(zx * e[0] + zy * e[1] + zz * e[2]); m[15] = 1;
+      return m;
+    },
+    xf(m, p) { const x = p[0], y = p[1], z = p[2]; const w = m[3] * x + m[7] * y + m[11] * z + m[15]; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w, (m[1] * x + m[5] * y + m[9] * z + m[13]) / w, (m[2] * x + m[6] * y + m[10] * z + m[14]) / w, w]; }
+  };
+
+  // ======================= GL
+  const canvas = document.getElementById("gl");
+  const gl = canvas.getContext("webgl2", { antialias: true, preserveDrawingBuffer: true, alpha: false });
+  const stage = document.getElementById("stage"), stageWrap = document.getElementById("stageWrap");
+  if (!gl) {
+    stage.insertAdjacentHTML("beforeend", '<p style="position:absolute;inset:auto 0 45% 0;text-align:center;font:600 16px var(--font-body);color:#13202b">This 3D view needs WebGL 2, which this browser doesn\'t offer.</p>');
+    return;
+  }
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+  function prog(vs, fs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.bindAttribLocation(p, 0, "aPos"); gl.bindAttribLocation(p, 1, "aNor"); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let k = 0; k < n; k++) { const info = gl.getActiveUniform(p, k); u[info.name] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+
+  const VS = `#version 300 es
+  layout(location=0) in vec3 aPos; layout(location=1) in vec3 aNor;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=7) in vec4 iSzA; layout(location=8) in vec4 iEm; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP, uLVP;
+  out vec3 vW; out vec3 vN; out vec4 vL; out vec3 vLoc;
+  flat out vec4 vCol; flat out vec4 vSzA; flat out vec4 vEm;
+  void main(){
+    mat4 Mo = mat4(iM0, iM1, iM2, iM3);
+    vec4 w = Mo*vec4(aPos,1.0); vW = w.xyz;
+    vN = normalize(transpose(inverse(mat3(Mo)))*aNor);
+    vL = uLVP*w; vLoc = aPos; vCol = iCol; vSzA = iSzA; vEm = iEm;
+    gl_Position = uVP*w;
+  }`;
+  // one small program per material (MAT): a long material switch is slow in software GL
+  const FS_SRC = `
+  precision highp float; precision highp sampler2DShadow;
+  in vec3 vW; in vec3 vN; in vec4 vL; in vec3 vLoc;
+  flat in vec4 vCol; flat in vec4 vSzA; flat in vec4 vEm;
+  uniform vec3 uEye; uniform vec3 uLD; uniform sampler2DShadow uSh; uniform float uShOn; uniform vec3 uFog; uniform vec2 uFogR;
+  out vec4 o;
+  float h21(vec2 p){ p = fract(p*vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y)*p.x); }
+  float nz(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f); return mix(mix(h21(i),h21(i+vec2(1,0)),u.x), mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),u.x), u.y); }
+  void main(){
+    vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
+    vec3 base = vCol.rgb; vec3 sz = vSzA.xyz;
+    float specK = 0.08; float shin = 40.0; float alpha = vSzA.w;
+    vec3 lp = vLoc*sz;
+    bool up = n.y > 0.7;
+  #if MAT == 1
+    base *= 0.90 + 0.16*(nz(vW.xz*0.012)*0.6 + nz(vW.xz*0.07)*0.4); specK = 0.04;
+  #elif MAT == 6
+    base *= 0.92 + 0.12*nz(vW.xz*0.08 + vW.y*0.05); specK = 0.35; shin = 30.0;
+  #elif MAT == 9
+    float a = sz.x > sz.z ? lp.x : lp.z; base *= mix(0.3, 1.0, step(0.5, fract(a/28.0))); specK = 0.2;
+  #elif MAT == 13
+    specK = 0.02;
+    if (up) base *= 0.82 + 0.3*(nz(vW.xz*0.004)*0.55 + nz(vW.xz*0.04)*0.45);
+    else { vec2 p = vec2(vW.x + vW.z, vW.y); base *= 0.78 + 0.22*nz(vec2(p.x*0.0004, p.y*0.005)) + 0.14*nz(p*0.03); }
+  #elif MAT == 14
+    vec2 q = up ? vW.xz : vec2(vW.x + vW.z, vW.y);
+    base *= 0.80 + 0.30*(nz(q*0.06)*0.5 + nz(q*0.21)*0.5); specK = 0.03;
+  #elif MAT == 16
+    specK = 0.45; shin = 50.0;
+    float rib = sz.x < sz.z ? lp.z : lp.x; base *= 0.93 + 0.07*step(0.5, fract(rib/300.0));
+  #endif
+    float sh = 1.0;
+    if (uShOn > 0.5) {
+      vec3 pc = vL.xyz / vL.w * 0.5 + 0.5;
+      if (pc.x > 0.0 && pc.x < 1.0 && pc.y > 0.0 && pc.y < 1.0 && pc.z < 1.0) sh = 0.35 + 0.65*texture(uSh, vec3(pc.xy, pc.z - 0.00025));
+    }
+    float dif = max(dot(n, -uLD), 0.0);
+    vec3 hemi = mix(vec3(0.70,0.71,0.73), vec3(1.0,1.0,1.0), n.y*0.5+0.5);
+    vec3 V = normalize(uEye - vW); vec3 H = normalize(V - uLD);
+    float sp = pow(max(dot(n,H),0.0), shin) * specK * sh;
+    vec3 col = base*(0.58*hemi + 0.62*dif*sh) + sp + vEm.rgb*vEm.w;
+    col = mix(col, uFog, smoothstep(uFogR.x, uFogR.y, length(uEye - vW)));
+    o = vec4(col, alpha);
+  }`;
+  const PROGS = {};
+  function progFor(mat) { return PROGS[mat] || (PROGS[mat] = prog(VS, "#version 300 es\n#define MAT " + mat + "\n" + FS_SRC)); }
+  const DVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  uniform mat4 uLVP;
+  void main(){ gl_Position = uLVP*(mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0)); }`;
+  const DFS = `#version 300 es
+  precision highp float; out vec4 o; void main(){ o = vec4(1.0); }`;
+  const LVS = `#version 300 es
+  layout(location=0) in vec3 aPos;
+  layout(location=2) in vec4 iM0; layout(location=3) in vec4 iM1; layout(location=4) in vec4 iM2; layout(location=5) in vec4 iM3;
+  layout(location=6) in vec4 iCol; layout(location=9) in vec4 iMisc;
+  uniform mat4 uVP; flat out vec4 vC;
+  void main(){ gl_Position = uVP*(mat4(iM0, iM1, iM2, iM3)*vec4(aPos,1.0)); vC = vec4(iCol.rgb*iMisc.y, iMisc.x); }`;
+  const LFS = `#version 300 es
+  precision highp float; flat in vec4 vC; out vec4 o; void main(){ o = vC; }`;
+  const P_DEPTH = prog(DVS, DFS), P_LINE = prog(LVS, LFS);
+
+  // unit cube
+  const cubeF = [], cubeN = [], cubeI = [];
+  const faces = [[[1, 0, 0], [[1, 0, 0], [1, 1, 0], [1, 1, 1], [1, 0, 1]]], [[-1, 0, 0], [[0, 0, 1], [0, 1, 1], [0, 1, 0], [0, 0, 0]]],
+                 [[0, 1, 0], [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]]], [[0, -1, 0], [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]]],
+                 [[0, 0, 1], [[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]]], [[0, 0, -1], [[1, 0, 0], [0, 0, 0], [0, 1, 0], [1, 1, 0]]]];
+  faces.forEach(([nn, vs], f) => { vs.forEach(v => { cubeF.push(...v); cubeN.push(...nn); }); const b = f * 4; cubeI.push(b, b + 1, b + 2, b, b + 2, b + 3); });
+  const edgeP = [0,0,0, 1,0,0, 1,0,0, 1,0,1, 1,0,1, 0,0,1, 0,0,1, 0,0,0, 0,1,0, 1,1,0, 1,1,0, 1,1,1, 1,1,1, 0,1,1, 0,1,1, 0,1,0, 0,0,0, 0,1,0, 1,0,0, 1,1,0, 1,0,1, 1,1,1, 0,0,1, 0,1,1];
+  function vao(pos, nor, idx) {
+    const v = gl.createVertexArray(); gl.bindVertexArray(v);
+    const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pos), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) { const bn = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bn); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nor), gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); }
+    if (idx) { const bi = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bi); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW); }
+    gl.bindVertexArray(null); return v;
+  }
+  const CUBE = vao(cubeF, cubeN, cubeI), EDGES = vao(edgeP, null, null);
+  // unit cylinder in the same [0,1] box, axis along y
+  const cylF = [], cylN = [], cylI = [], cylE = [], SEG = 24;
+  for (let k = 0; k <= SEG; k++) { const a = k / SEG * Math.PI * 2, x = Math.cos(a), z = Math.sin(a); cylF.push(.5 + .5 * x, 0, .5 + .5 * z, .5 + .5 * x, 1, .5 + .5 * z); cylN.push(x, 0, z, x, 0, z); }
+  for (let k = 0; k < SEG; k++) { const b = k * 2; cylI.push(b, b + 1, b + 3, b, b + 3, b + 2); }
+  [[1, 1], [0, -1]].forEach(([y, ny]) => {
+    const c0 = cylF.length / 3; cylF.push(.5, y, .5); cylN.push(0, ny, 0);
+    for (let k = 0; k <= SEG; k++) { const a = k / SEG * Math.PI * 2; cylF.push(.5 + .5 * Math.cos(a), y, .5 + .5 * Math.sin(a)); cylN.push(0, ny, 0); }
+    for (let k = 0; k < SEG; k++) { if (ny > 0) cylI.push(c0, c0 + 2 + k, c0 + 1 + k); else cylI.push(c0, c0 + 1 + k, c0 + 2 + k); }
+  });
+  for (const y of [0, 1]) for (let k = 0; k < SEG; k++) { const a0 = k / SEG * Math.PI * 2, a1 = (k + 1) / SEG * Math.PI * 2; cylE.push(.5 + .5 * Math.cos(a0), y, .5 + .5 * Math.sin(a0), .5 + .5 * Math.cos(a1), y, .5 + .5 * Math.sin(a1)); }
+  const CYL = vao(cylF, cylN, cylI), CEDGES = vao(cylE, null, null), CYL_N = cylI.length, CEDGE_N = cylE.length / 3;
+  // low-poly cylinder (8 sides, open ends) for rods and rails
+  const c8F = [], c8N = [], c8I = [], S8 = 8;
+  for (let k = 0; k <= S8; k++) { const a = k / S8 * Math.PI * 2, x = Math.cos(a), z = Math.sin(a); c8F.push(.5 + .5 * x, 0, .5 + .5 * z, .5 + .5 * x, 1, .5 + .5 * z); c8N.push(x, 0, z, x, 0, z); }
+  for (let k = 0; k < S8; k++) { const b = k * 2; c8I.push(b, b + 1, b + 3, b, b + 3, b + 2); }
+  const CYL8 = vao(c8F, c8N, c8I), CYL8_N = c8I.length;
+  // per-instance data: model matrix (16), colour + material (4), size + alpha (4), emission (4), misc (4): edge alpha, edge shade
+  const IST = 32, INST = gl.createBuffer();
+  let instData = new Float32Array(IST * 512);
+  function instAttribs() {
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    [[2, 0], [3, 4], [4, 8], [5, 12], [6, 16], [7, 20], [8, 24], [9, 28]].forEach(([l, off]) => {
+      gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, IST * 4, off * 4); gl.vertexAttribDivisor(l, 1);
+    });
+  }
+  [CUBE, EDGES, CYL, CEDGES, CYL8].forEach(v => { gl.bindVertexArray(v); instAttribs(); gl.bindVertexArray(null); });
+  function fillInst(arr, trans) {
+    const n = arr.length;
+    if (instData.length < n * IST) instData = new Float32Array(n * IST * 2);
+    for (let k = 0; k < n; k++) {
+      const it = arr[k], o = it.o, st = o.g.st, b = k * IST;
+      instData.set(it.m, b);
+      instData[b + 16] = o.col[0]; instData[b + 17] = o.col[1]; instData[b + 18] = o.col[2]; instData[b + 19] = o.mat;
+      instData[b + 20] = o.s[0]; instData[b + 21] = o.s[1]; instData[b + 22] = o.s[2]; instData[b + 23] = it.a;
+      instData[b + 24] = o.emc[0]; instData[b + 25] = o.emc[1]; instData[b + 26] = o.emc[2]; instData[b + 27] = Math.max(o.em, st.em || 0);
+      instData[b + 28] = trans ? o.edge * Math.min(1, it.a * 2.2) : o.edge; instData[b + 29] = trans ? 0.4 : 0.42; instData[b + 30] = 0; instData[b + 31] = 0;
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, INST);
+    gl.bufferData(gl.ARRAY_BUFFER, instData.subarray(0, Math.max(1, n) * IST), gl.STREAM_DRAW);
+    return n;
+  }
+  // shadow map
+  const SHS = 2048;
+  const shTex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.DEPTH_COMPONENT24, SHS, SHS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFB = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]); gl.readBuffer(gl.NONE); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const LD = (() => { const v = [-0.42, -1.0, -0.62]; const l = Math.hypot(...v); return v.map(x => x / l); })();
+  const LCTR = [4000, -800, 8000];
+  const LVP = M.mul(M.ortho(-23000, 23000, -23000, 23000, 1000, 120000), M.look([LCTR[0] - LD[0] * 60000, LCTR[1] - LD[1] * 60000, LCTR[2] - LD[2] * 60000], LCTR, [0, 1, 0]));
+  const FOGR = [90000, 260000];
+
+  // ======================= timeline + groups
+  const EASE = { lin: t => t, out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, inout: t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    back: t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); } };
+  const tr = (s, a, b, p, f, t, e) => ({ s, a, b, p, f, t, e: e || "out" });
+  const groups = [], objs = [];
+  function grp(name, tracks, o) {
+    o = o || {};
+    const g = { name, tracks: (tracks || []).slice().sort((u, v) => (starts[u.s] + u.a) - (starts[v.s] + v.a)), pivot: o.pivot || [0, 0, 0], st: {} };
+    groups.push(g); return g;
+  }
+  function box(g, x0, y0, z0, x1, y1, z1, col, o) {
+    o = o || {};
+    const ob = { g, p: [Math.min(x0, x1), Math.min(y0, y1), Math.min(z0, z1)], s: [Math.abs(x1 - x0), Math.abs(y1 - y0), Math.abs(z1 - z0)], col, mat: o.mat || 0,
+      a: o.a == null ? 1 : o.a, edge: o.edge == null ? 0.62 : o.edge, shadow: o.shadow !== false, em: o.em || 0, emc: o.emc || [1, 1, 1],
+      geo: o.geo || 0, rot: o.rot || null };
+    objs.push(ob); return ob;
+  }
+  function cyl(g, cx, cy, cz, dia, len, axis, col, o) {
+    o = Object.assign({}, o || {}); o.geo = o.geo || 1;
+    if (axis === "x") o.rot = [0, 0, 90]; else if (axis === "z") o.rot = [90, 0, 0];
+    return box(g, cx - dia / 2, cy - len / 2, cz - dia / 2, cx + dia / 2, cy + len / 2, cz + dia / 2, col, o);
+  }
+  // a cylinder (geo 1/3) or beam (geo 0) from point a to point b
+  function pipe(g, a, b, dia, col, o) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz), h = Math.hypot(dx, dz);
+    const c = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+    o = Object.assign({ edge: 0 }, o || {}); if (o.geo == null) o.geo = 1;
+    o.rot = [Math.atan2(h, dy) * 180 / Math.PI, Math.atan2(dx, dz) * 180 / Math.PI, 0];
+    return box(g, c[0] - dia / 2, c[1] - L / 2, c[2] - dia / 2, c[0] + dia / 2, c[1] + L / 2, c[2] + dia / 2, col, o);
+  }
+  function val(g, prop, T, def) {
+    let v, found = false;
+    for (const k of g.tracks) {
+      if (k.p !== prop) continue;
+      found = true;
+      const A = starts[k.s] + k.a, B = starts[k.s] + k.b;
+      if (T < A) { if (v === undefined) v = k.f; break; }
+      if (T >= B) { v = k.t; continue; }
+      v = k.f + (k.t - k.f) * EASE[k.e]((T - A) / (B - A));
+      break;
+    }
+    return found ? v : def;
+  }
+  const dropIn = (s, a, b, dy, e) => [tr(s, a, b, "ty", dy, 0, e || "out"), tr(s, a, a + .2, "op", 0, 1, "lin")];
+  const fadeIn = (s, a, b) => [tr(s, a, b, "op", 0, 1, "lin")];
+  const fadeOut = (s, a, b) => [tr(s, a, b, "op", 1, 0, "lin")];
+  const growIn = (s, a, b, ax) => [tr(s, a, b, ax, 0.001, 1, "inout"), tr(s, a, a + .06, "op", 0, 1, "lin")];
+  const vis = (s0, a0, s1, a1) => [tr(s0, a0, a0 + .35, "op", 0, 1, "lin"), tr(s1, a1, a1 + .35, "op", 1, 0, "lin")];
+
+  // colours (linear-ish sRGB 0..1)
+  const C = {
+    ground: [0.78, 0.76, 0.71], soil: [0.62, 0.50, 0.37], soilD: [0.52, 0.41, 0.30], granA: [0.74, 0.73, 0.70], fill: [0.66, 0.56, 0.43],
+    conc: [0.72, 0.72, 0.70], iron: [0.22, 0.23, 0.25], stm: [0.20, 0.66, 0.42], newp: [0.93, 0.47, 0.13], msb: [0.20, 0.40, 0.86],
+    alu: [0.80, 0.82, 0.85], strut: [0.45, 0.48, 0.52], yellow: [0.96, 0.74, 0.10], dark: [0.22, 0.24, 0.26], tire: [0.12, 0.12, 0.13],
+    glass: [0.18, 0.24, 0.30], red: [0.80, 0.18, 0.15], paint: [0.98, 0.42, 0.08], stake: [0.80, 0.66, 0.42], ghost: [0.60, 0.68, 0.80],
+    vest: [0.86, 0.96, 0.22], pants: [0.16, 0.22, 0.36], skin: [0.82, 0.62, 0.48], hatW: [0.96, 0.96, 0.94], hatO: [0.98, 0.52, 0.10], ladder: [0.80, 0.70, 0.25],
+    exc: [0.50, 0.30, 0.12]
+  };
+
+  // ---------- ground ring around the soil block (opaque, at subgrade) + the soil block, cut around the pit
+  const ring = grp("ring");
+  const RG = [SOIL.x0 - 40000, SOIL.x1 + 40000, SOIL.z0 - 30000, SOIL.z1 + 30000];
+  box(ring, RG[0], -60, RG[2], SOIL.x0, 0, RG[3], C.ground, { mat: 13, edge: 0, shadow: false });
+  box(ring, SOIL.x1, -60, RG[2], RG[1], 0, RG[3], C.ground, { mat: 13, edge: 0, shadow: false });
+  box(ring, SOIL.x0, -60, RG[2], SOIL.x1, 0, SOIL.z0, C.ground, { mat: 13, edge: 0, shadow: false });
+  box(ring, SOIL.x0, -60, SOIL.z1, SOIL.x1, 0, RG[3], C.ground, { mat: 13, edge: 0, shadow: false });
+  const XRAY = [tr(0, 2.0, 3.2, "op", 1, 0.26, "inout"), tr(0, 8.6, 9.6, "op", 0.26, 1, "inout"), tr(4, 6.6, 7.8, "op", 1, 0.62, "inout"), tr(8, 6.6, 7.6, "op", 0.62, 1, "inout"), tr(9, 0.6, 1.8, "op", 1, 0.3, "inout")];
+  const soil = grp("soil", XRAY);
+  box(soil, SOIL.x0, SOIL.yb, SOIL.z0, PIT.x0, 0, SOIL.z1, C.soil, { mat: 13, edge: .25, shadow: false });
+  box(soil, PIT.x1, SOIL.yb, SOIL.z0, SOIL.x1, 0, SOIL.z1, C.soil, { mat: 13, edge: .25, shadow: false });
+  box(soil, PIT.x0, SOIL.yb, SOIL.z0, PIT.x1, 0, PIT.z0, C.soil, { mat: 13, edge: .25, shadow: false });
+  box(soil, PIT.x0, SOIL.yb, PIT.z1, PIT.x1, 0, SOIL.z1, C.soil, { mat: 13, edge: .25, shadow: false });
+  box(soil, PIT.x0, SOIL.yb, PIT.z0, PIT.x1, PIT.yb, PIT.z1, C.soil, { mat: 13, edge: .25, shadow: false });
+  // the soil inside the pit (dug out in two stages)
+  const plug = grp("plug", XRAY.concat([tr(2, 1.0, 7.0, "gy", 1, 0.5, "inout"), tr(4, 0.8, 6.4, "gy", 0.5, 0.001, "inout"), tr(4, 6.4, 6.5, "op", 1, 0, "lin")]), { pivot: [0, PIT.yb, 0] });
+  box(plug, PIT.x0, PIT.yb, PIT.z0, PIT.x1, 0, PIT.z1, C.soil, { mat: 13, edge: .25, shadow: false });
+  // the cut faces of the pit, darker so the hole reads (they deepen with the dig)
+  const walls = grp("walls", XRAY.concat([tr(2, 1.0, 7.0, "gy", 0.001, 0.5, "inout"), tr(2, 1.0, 1.1, "op", 0, 1, "lin"), tr(4, 0.8, 6.4, "gy", 0.5, 1, "inout")]), { pivot: [0, 0, 0] });
+  [[PIT.x0, PIT.z0, PIT.x0 + 12, PIT.z1], [PIT.x1 - 12, PIT.z0, PIT.x1, PIT.z1], [PIT.x0, PIT.z0, PIT.x1, PIT.z0 + 12], [PIT.x0, PIT.z1 - 12, PIT.x1, PIT.z1]]
+    .forEach(([a, b, c, d]) => box(walls, a, PIT.yb, b, c, -4, d, C.soilD, { mat: 13, edge: .15, shadow: false }));
+  // what's left under the existing pipe (it stays on its bedding)
+  const bed = grp("bed", [tr(4, 5.0, 5.4, "op", 0, 1, "lin"), tr(7, 1.2, 1.6, "op", 1, 0, "lin")]);
+  box(bed, -260, PIT.yb, PIT.z0, 260, yW - 107, PIT.z1, C.soilD, { mat: 13, edge: .2, shadow: false });
+
+  // ---------- existing storm: 675 main, CB-4 + lead, CBMH 3, irrigation tank (context)
+  const exs = grp("exs");
+  pipe(exs, [SOIL.x0 + 10, MAIN_C(SOIL.x0), 0], [20150, MAIN_C(20150), 0], 720, C.stm, { edge: 0 });
+  pipe(exs, [21650, MAIN_C(20150) + 140, 0], [SOIL.x1 - 10, MAIN_C(20150) + 150, 0], 480, C.stm);
+  cyl(exs, 20900, -1575, 0, 1500, 3450, "y", C.conc, { mat: 1, edge: .35 });
+  cyl(exs, 20900, 180, 0, 760, 60, "y", C.iron, { edge: .4 });
+  // CB-4 (600 × 600 precast) with its grate
+  box(exs, -400, EY(250.17) - 450, CBZ - 400, 400, 150, CBZ + 400, C.conc, { mat: 1, edge: .4 });
+  box(exs, -330, 150, CBZ - 330, 330, 185, CBZ + 330, C.iron, { mat: 9, edge: .4 });
+  // the lead: north part, the piece to be cut out, south part
+  pipe(exs, [0, leadC(370), 370], [0, leadC(CUT0), CUT0], 213, C.stm);
+  pipe(exs, [0, leadC(CUT1), CUT1], [0, leadC(CBZ - 400), CBZ - 400], 213, C.stm);
+  const cutG = grp("cut", [tr(5, 1.4, 2.6, "ty", 0, 1900, "inout"), tr(5, 2.2, 2.8, "op", 1, 0, "lin")]);
+  pipe(cutG, [0, leadC(CUT0), CUT0], [0, leadC(CUT1), CUT1], 213, C.stm);
+  // irrigation tank (PC-049, in Apr 30) and the 450 from CBMH 3
+  box(exs, 19555, -2860, 7600, 22245, -1480, 14570, C.conc, { mat: 1, edge: .4 });
+  pipe(exs, [20900, -1950, 760], [20900, -1990, 7600], 470, C.stm);
+
+  // ---------- future context (ghosts): fuelling station island + canopy, the finished pavement over the pit
+  const fut = grp("fut", [tr(0, 3.6, 4.4, "op", 0, 1, "lin"), tr(0, 8.4, 9.0, "op", 1, 0, "lin"), tr(6, 6.2, 6.9, "op", 0, 1, "lin"), tr(7, 0.2, 0.8, "op", 1, 0, "lin"), tr(9, 2.0, 2.8, "op", 0, 1, "lin")]);
+  box(fut, -12000, 0, 4350, 670, 900, 11330, C.ghost, { a: .16, edge: .7, shadow: false });
+  [[-9800, 5600], [-9800, 10080], [-3200, 5600], [-3200, 10080]].forEach(([x, z]) => box(fut, x - 160, 900, z - 160, x + 160, 5200, z + 160, C.ghost, { a: .16, edge: .6, shadow: false }));
+  box(fut, -13000, 5200, 3600, 1400, 5700, 12100, C.ghost, { a: .09, edge: .45, shadow: false });
+  const pave = grp("pave", [tr(4, 7.6, 8.2, "op", 0, 1, "lin"), tr(5, 0.0, 0.5, "op", 1, 0, "lin")]);
+  box(pave, -3000, 0, 4600, 3000, FG, 11200, C.ghost, { a: .14, edge: .8, shadow: false });
+
+  // ---------- step 2: paint marks on the subgrade (the lead line and the pit outline)
+  const paint = grp("paint", [tr(1, 1.2, 1.5, "op", 0, 1, "lin"), tr(2, 1.0, 1.4, "op", 1, 0, "lin")]);
+  for (let z = 700; z < CBZ - 700; z += 900) box(paint, -45, 0, z, 45, 14, z + 520, C.paint, { edge: 0, shadow: false, em: .25, emc: [1, .45, .1] });
+  const pitLine = grp("pitLine", [tr(1, 2.6, 3.0, "op", 0, 1, "lin"), tr(2, 1.0, 1.4, "op", 1, 0, "lin")]);
+  [[PIT.x0, PIT.z0, PIT.x1, PIT.z0 + 70], [PIT.x0, PIT.z1 - 70, PIT.x1, PIT.z1], [PIT.x0, PIT.z0, PIT.x0 + 70, PIT.z1], [PIT.x1 - 70, PIT.z0, PIT.x1, PIT.z1]]
+    .forEach(([a, b, c, d]) => box(pitLine, a, 0, b, c, 16, d, C.paint, { edge: 0, shadow: false, em: .25, emc: [1, .45, .1] }));
+
+  // ---------- machines (positions and swings set in customs)
+  function excavator(name, tracks) {
+    const lo = grp(name + "L", tracks), up = grp(name + "U", tracks);
+    box(lo, -1450, 0, -1100, 1450, 600, -650, C.tire, { edge: .3 });
+    box(lo, -1450, 0, 650, 1450, 600, 1100, C.tire, { edge: .3 });
+    box(lo, -900, 350, -650, 900, 760, 650, C.dark, { edge: .3 });
+    box(up, -900, 760, -1000, 1300, 1650, 1000, C.yellow, { edge: .45 });
+    box(up, 1300, 760, -950, 1650, 1550, 950, C.dark, { edge: .4 });
+    box(up, -900, 1650, -1000, 150, 2550, -150, C.yellow, { edge: .45 });
+    box(up, -915, 1780, -980, -895, 2450, -170, C.glass, { edge: .3 });
+    pipe(up, [-650, 1450, 350], [-3000, 3600, 350], 380, C.yellow, { geo: 0, edge: .45 });
+    pipe(up, [-3000, 3600, 350], [-5100, 1250, 350], 280, C.yellow, { geo: 0, edge: .45 });
+    box(up, -5600, 450, 0, -4900, 1250, 700, C.dark, { edge: .4 });
+    return { lo, up };
+  }
+  const EXC_T = [tr(1, 0.4, 1.0, "op", 0, 1, "lin"), tr(8, 7.6, 8.2, "op", 1, 0, "lin")];
+  const exc = excavator("exc", EXC_T);
+  function backhoe(name, tracks) {
+    const g = grp(name, tracks);
+    box(g, -1500, 500, -1000, 1300, 1400, 1000, C.yellow, { edge: .45 });
+    box(g, -1500, 1400, -700, -300, 1900, 700, C.yellow, { edge: .45 });
+    box(g, -300, 1400, -950, 1000, 2750, 950, C.glass, { edge: .4 });
+    box(g, -350, 2750, -1000, 1050, 2880, 1000, C.yellow, { edge: .4 });
+    [[-1000, 500, 1000, 330], [700, 750, 1500, 430]].forEach(([x, y, d, w]) => [-1, 1].forEach(sz => cyl(g, x, y, sz * (1000 + w / 2 - 120), d, w, "z", C.tire, { edge: .3 })));
+    [-1, 1].forEach(sz => pipe(g, [-500, 1500, sz * 900], [-2300, 800, sz * 900], 170, C.yellow, { geo: 0, edge: .4 }));
+    box(g, -2950, 220, -1150, -2250, 1100, 1150, C.yellow, { edge: .45 });
+    pipe(g, [1500, 1300, 0], [2700, 2800, 0], 240, C.yellow, { geo: 0, edge: .4 });
+    pipe(g, [2700, 2800, 0], [3400, 900, 0], 190, C.yellow, { geo: 0, edge: .4 });
+    box(g, 3200, 500, -300, 3650, 1000, 300, C.dark, { edge: .4 });
+    return g;
+  }
+  const bh = backhoe("bh", [tr(1, 0.6, 1.2, "op", 0, 1, "lin"), tr(8, 7.6, 8.2, "op", 1, 0, "lin")]);
+  function person(name, tracks, vest, hat, tool) {
+    const g = grp(name, tracks);
+    box(g, -150, 0, -110, -20, 860, 110, C.pants, { edge: .25 });
+    box(g, 20, 0, -110, 150, 860, 110, C.pants, { edge: .25 });
+    box(g, -210, 860, -140, 210, 1480, 140, vest || C.vest, { edge: .3 });
+    box(g, -270, 900, -60, -210, 1440, 60, C.vest, { edge: .2 });
+    box(g, 210, 900, -60, 270, 1440, 60, C.vest, { edge: .2 });
+    box(g, -105, 1480, -105, 105, 1700, 105, C.skin, { edge: .25 });
+    box(g, -140, 1690, -140, 140, 1790, 140, hat || C.hatO, { edge: .3 });
+    if (tool === "shovel") { pipe(g, [-260, 300, 260], [-120, 1300, 120], 40, C.stake, { geo: 3 }); box(g, -330, 0, 220, -180, 300, 430, C.dark, { edge: .3 }); }
+    if (tool === "tamper") { box(g, -280, 0, -350, 280, 260, 350, C.yellow, { edge: .4 }); pipe(g, [0, 260, 0], [0, 1000, -420], 50, C.dark, { geo: 3 }); }
+    return g;
+  }
+  const pFore = person("pFore", vis(1, 0.6, 9, 0.4), C.vest, C.hatW);
+  const pTop = person("pTop", vis(3, 4.2, 8, 6.6));
+  const pBox1 = person("pBox1", vis(4, 3.2, 7, 1.4), null, null, "shovel");
+  const pBox2 = person("pBox2", vis(5, 0.4, 6, 6.0));
+  const pComp = person("pComp", vis(7, 1.0, 8, 6.4), null, null, "tamper");
+
+  // ---------- spoil pile (grows while digging, part goes back in) + Granular A pile (Jun 23)
+  const spoil = grp("spoil", [tr(2, 1.0, 7.0, "gy", 0.001, 0.5, "inout"), tr(2, 1.0, 1.1, "op", 0, 1, "lin"), tr(4, 0.8, 6.4, "gy", 0.5, 1, "inout"), tr(8, 0.8, 6.5, "gy", 1, 0.45, "inout")], { pivot: [0, 0, 0] });
+  [[-8400, -2400, 1300, 4300, 0, 600], [-8000, -2800, 1650, 3950, 600, 1150], [-7500, -3300, 2050, 3550, 1150, 1650], [-6900, -3900, 2450, 3150, 1650, 2050]]
+    .forEach(([x0, x1, z0, z1, y0, y1]) => box(spoil, x0, y0, z0, x1, y1, z1, C.soilD, { mat: 13, edge: .2 }));
+  const granPile = grp("granPile", [tr(5, 0.6, 1.4, "op", 0, 1, "lin"), tr(7, 1.0, 6.2, "gy", 1, 0.001, "inout"), tr(7, 6.2, 6.4, "op", 1, 0, "lin")], { pivot: [0, 0, 0] });
+  [[-11000, -7600, 12400, 15200, 0, 500], [-10650, -7950, 12750, 14850, 500, 950], [-10200, -8400, 13150, 14450, 950, 1350], [-9700, -8900, 13550, 14050, 1350, 1650]]
+    .forEach(([x0, x1, z0, z1, y0, y1]) => box(granPile, x0, y0, z0, x1, y1, z1, C.granA, { mat: 14, edge: .2 }));
+
+  // ---------- the trench box: 8 × 10 ft aluminium, two panels + spreaders, lowered in, pushed down, pulled up in stages
+  const tbox = grp("tbox", [tr(3, 0.4, 0.6, "op", 0, 1, "lin"), tr(3, 0.4, 3.4, "ty", 3900, 1200, "out"), tr(4, 0.8, 6.4, "ty", 1200, 0, "inout"),
+    tr(8, 0.8, 6.8, "ty", 0, 2900, "inout"), tr(8, 6.6, 7.2, "op", 1, 0, "lin")]);
+  [[BOX.x0, BOX.x0 + 100], [BOX.x1 - 100, BOX.x1]].forEach(([a, b]) => box(tbox, a, BOX.yb, BOX.z0, b, BOX.yb + BOX.h, BOX.z1, C.alu, { mat: 16, edge: .7 }));
+  [BOX.z0 + 380, BOX.z1 - 380].forEach(z => [BOX.yb + 620, BOX.yb + 1850].forEach(y => cyl(tbox, 0, y, z, 110, BOX.x1 - BOX.x0 - 200, "x", C.strut, { edge: .3 })));
+  // ladder (in once the box is down, out before the backfill)
+  const ladder = grp("ladder", [tr(4, 6.4, 6.8, "op", 0, 1, "lin"), tr(8, 0.4, 0.8, "op", 1, 0, "lin")]);
+  [6480, 6860].forEach(z => box(ladder, 600, PIT.yb, z - 30, 660, 950, z + 30, C.ladder, { edge: .3 }));
+  for (let y = PIT.yb + 300; y < 950; y += 300) cyl(ladder, 630, y, 6670, 36, 380, "z", C.ladder, { geo: 3, edge: 0 });
+
+  // ---------- step 6: cut in the wye: two repair couplings, new 200 SDR 35 fillers, the 200×200×150 wye
+  const fit = grp("fit", dropIn(5, 2.8, 4.6, 1700));
+  pipe(fit, [0, leadC(CUT0), CUT0], [0, leadC(7570), 7570], 213, C.newp);
+  pipe(fit, [0, leadC(8110), 8110], [0, leadC(CUT1), CUT1], 213, C.newp);
+  pipe(fit, [0, leadC(7570), 7570], [0, leadC(8110), 8110], 245, C.newp, { edge: .3 });
+  const coup = grp("coup", dropIn(5, 4.4, 5.6, 900));
+  [CUT0, CUT1].forEach(z => pipe(coup, [0, leadC(z - 125), z - 125], [0, leadC(z + 125), z + 125], 275, [0.72, 0.74, 0.78], { mat: 6, edge: .4 }));
+  // step 7: 45° branch + bend, stub-up, cap; MSB's line later (ghost)
+  const bra = grp("bra", growIn(6, 0.8, 2.0, "gy"), { pivot: [0, yW, 0] });
+  pipe(bra, [0, yW + 60, WZ + 60], [0, yW + 290, RZ], 170, C.newp, { edge: .3 });
+  pipe(bra, [0, yW + 270, RZ], [0, yW + 480, RZ], 175, C.newp, { edge: .3 });
+  const ris = grp("ris", growIn(6, 2.0, 4.4, "gy"), { pivot: [0, yW + 480, 0] });
+  pipe(ris, [0, yW + 480, RZ], [0, STUB, RZ], 168, C.newp, { edge: .3 });
+  const capG = grp("capG", dropIn(6, 4.4, 5.0, 500));
+  cyl(capG, 0, STUB + 30, RZ, 195, 60, "y", C.dark, { edge: .4 });
+  const msb = grp("msb", [tr(6, 5.6, 6.6, "op", 0, 1, "lin"), tr(7, 0.2, 0.8, "op", 1, 0, "lin"), tr(9, 4.0, 4.8, "op", 0, 1, "lin")]);
+  pipe(msb, [-110, STUB + 60, RZ], [-4200, STUB + 100, RZ], 168, C.msb, { a: .55, edge: 0, shadow: false });
+  pipe(msb, [-4200, STUB + 100, RZ], [-4200, 900, RZ], 168, C.msb, { a: .45, edge: 0, shadow: false });
+  // stake at the stub after backfill
+  const stake = grp("stake", dropIn(8, 6.6, 7.2, 900));
+  box(stake, 160, -300, RZ - 25, 210, 1100, RZ + 25, C.stake, { edge: .3 });
+  box(stake, 155, 900, RZ - 30, 215, 1100, RZ + 30, C.paint, { edge: 0, em: .3, emc: [1, .45, .1] });
+
+  // ---------- Granular A in the pit, then native backfill (both rise in lifts)
+  const granPit = grp("granPit", [tr(7, 1.0, 6.2, "gy", 0.001, 1, "inout"), tr(7, 1.0, 1.1, "op", 0, 0.92, "lin"), tr(9, 0.6, 1.8, "op", 0.92, 0.3, "inout")], { pivot: [0, PIT.yb, 0] });
+  box(granPit, PIT.x0, PIT.yb, PIT.z0, PIT.x1, GTOP, PIT.z1, C.granA, { mat: 14, edge: .2, shadow: false });
+  const backG = grp("backG", [tr(8, 0.8, 6.5, "gy", 0.001, 1, "inout"), tr(8, 0.8, 0.9, "op", 0, 1, "lin"), tr(9, 0.6, 1.8, "op", 1, 0.3, "inout")], { pivot: [0, GTOP, 0] });
+  box(backG, PIT.x0, GTOP, PIT.z0, PIT.x1, 0, PIT.z1, C.fill, { mat: 13, edge: .2, shadow: false });
+  // step 10: the excavated volume as a wireframe
+  const vol = grp("vol", [tr(9, 1.4, 2.2, "op", 0, 1, "lin")]);
+  box(vol, PIT.x0, PIT.yb, PIT.z0, PIT.x1, 0, PIT.z1, C.newp, { a: .16, edge: 1, shadow: false, em: .3, emc: [1, .5, .15] });
+
+  // ---------- machines and crew follow the work
+  const place = (g, x, y, z, ry) => { const st = g.st; st.cx = x; st.cy = y; st.cz = z; st.cry = ry || 0; };
+  const sm = t => t * t * (3 - 2 * t);
+  function customs(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    // excavator: on the fuelling-station side, swinging between the pit (0) and the spoil (−94 → 262° heading)
+    const cl = v => Math.min(1, Math.max(0, v));
+    const osc = t0 => -47 + 47 * Math.cos(Math.max(0, tau - t0) * 1.9);
+    let swing = 0;
+    if (i === 2) swing = osc(0.8) * cl((STEPS[2].dur - 0.6 - tau) / 0.8);
+    else if (i === 4) { const e = EASE.inout(cl((tau - 6.4) / 1.0)); swing = osc(0.8) * (1 - e) - 94 * e; }
+    else if (i >= 5 && i <= 7) swing = -94;
+    else if (i === 8) swing = -47 - 47 * Math.cos(Math.max(0, tau - 0.8) * 1.9);
+    place(exc.lo, -6050, 0, 7840, 180); place(exc.up, -6050, 0, 7840, 180 - swing * 82 / 94);
+    // Cat 430: shuttles Granular A from the pile to the pit edge on day 2
+    let bx = -8200, bz = 10400, br = 180;
+    if (i === 7) { const u = 0.5 - 0.5 * Math.cos(Math.max(0, tau - 0.8) * 1.3); bx = -8200 + 2600 * u; br = 180 + 6 * u; }
+    if (i === 2 || i === 4) { const u = (0.5 - 0.5 * Math.cos(Math.max(0, tau - 1.0) * 0.9)) * cl((STEPS[i].dur - 0.4 - tau) / 1.2); bx = -8200 - 500 * u; br = 180 - 8 * u; }
+    place(bh, bx, 0, bz, br);
+    // crew
+    const fw = i <= 1 ? sm(Math.min(1, tau / 6)) : 1;
+    place(pFore, 1200 + 800 * fw, 0, 12400 - 6200 * fw, i <= 1 ? 160 : 210);
+    place(pTop, 950, 0, 5250, 200);
+    place(pBox1, -300, PIT.yb, 8900, 30);
+    place(pBox2, 300, PIT.yb, 7300, -150);
+    let cy = PIT.yb;
+    if (i === 7) cy = PIT.yb + (GTOP - PIT.yb) * EASE.inout(Math.min(1, Math.max(0, (tau - 1.0) / 5.2)));
+    if (i >= 8) cy = GTOP + (0 - GTOP) * EASE.inout(Math.min(1, Math.max(0, (tau - 0.8) / 5.7)));
+    place(pComp, 250 * Math.sin(T * 1.7), cy, 7100 + 700 * Math.sin(T * 0.9), 90);
+  }
+
+  // ======================= labels + dims (overlay)
+  const ovl = document.getElementById("ovl"), ovsvg = document.getElementById("ovsvg"), badgeEl = document.getElementById("badge"), outroEl = document.getElementById("outro");
+  const labels = [];
+  function lab(step, a, at, text, sub, o) {
+    o = o || {};
+    const el = document.createElement("div");
+    el.className = "lbl" + (o.hold ? " hold" : "") + (o.big ? " big" : "") + (o.minor ? " minor" : "");
+    el.style.setProperty("--c", "var(--" + (o.c || STEPS[step].c) + ")");
+    el.innerHTML = text + (sub ? "<small>" + sub + "</small>" : "");
+    ovl.appendChild(el);
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", o.hold ? "#c3322c" : "#13202b"); ln.setAttribute("stroke-width", "1.4"); ln.setAttribute("opacity", ".8");
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("fill", o.hold ? "#c3322c" : "#13202b"); dot.setAttribute("r", "3.2");
+    ovsvg.appendChild(ln); ovsvg.appendChild(dot);
+    labels.push({ step, a, at, off: o.off || [-6, -4], el, ln, dot, keep: !!o.keep, until: o.until == null ? null : o.until, fn: o.fn || null });
+  }
+  const dims = [];
+  function dim(step, a, p1, p2, text, o) {
+    o = o || {};
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    ln.setAttribute("stroke", "#13202b"); ln.setAttribute("stroke-width", "1.6");
+    const t1 = document.createElementNS("http://www.w3.org/2000/svg", "line"), t2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    [t1, t2].forEach(t => { t.setAttribute("stroke", "#13202b"); t.setAttribute("stroke-width", "2.2"); });
+    g.appendChild(ln); g.appendChild(t1); g.appendChild(t2); ovsvg.appendChild(g);
+    const el = document.createElement("div"); el.className = "dimt"; el.textContent = text; ovl.appendChild(el);
+    dims.push({ step, a, p1, p2, g, ln, t1, t2, el, keep: !!o.keep, until: o.until == null ? null : o.until });
+  }
+  // step 1
+  lab(0, 3.0, [0, leadC(11400), 11400], "CB-4 lead · 200 mm PVC", "in + backfilled Apr–May 2026", { off: [-5, 3] });
+  lab(0, 3.6, [0, 185, CBZ], "CB-4", "T/G 252.87", { off: [-3, 2], minor: true });
+  lab(0, 4.2, [9000, MAIN_C(9000), 0], "675 mm storm main", "flows to the storage tank", { off: [2, -4] });
+  lab(0, 4.8, [-6500, 900, 9800], "Fuelling station (future)", "6 roof drains to come here", { off: [-3, 3], c: "msb" });
+  lab(0, 5.4, [20900, -1480, 11000], "Irrigation tank (PC-049)", "context only", { off: [3, -3], minor: true });
+  // step 2
+  lab(1, 1.6, [0, 10, 12100], "Lead located and marked", "from CB-4 and the drawings", { off: [-4, 3] });
+  lab(1, 3.0, [PIT.x0, 10, PIT.z0], "Pit laid out ≈ 3.6 × 2.4 m ◇", "sized for a 3 m trench box", { off: [-4, -4], hold: true });
+  dim(1, 3.4, [PIT.x1 + 250, 20, PIT.z0], [PIT.x1 + 250, 20, PIT.z1], "3.6 m ◇");
+  dim(1, 3.6, [PIT.x0, 20, PIT.z1 + 250], [PIT.x1, 20, PIT.z1 + 250], "2.4 m ◇");
+  lab(1, 4.8, [-6050, 2600, 7840], "8 t excavator", null, { off: [-3, -3], minor: true });
+  lab(1, 5.4, [-8200, 2900, 10400], "Cat 430 rubber-tire", null, { off: [-3, 1], minor: true });
+  // step 3
+  lab(2, 2.2, [PIT.x0, -800, PIT.z1], "Dig in lifts", "excavator digs, Cat 430 moves spoil", { off: [-4, 3] });
+  lab(2, 4.0, [-4400, 1700, 2800], "Spoil ≥ 1 m back from the edge", null, { off: [-3, -3] });
+  dim(2, 5.4, [PIT.x1, 0, PIT.z1], [PIT.x1, -1200, PIT.z1], "1.2 m");
+  lab(2, 6.0, [PIT.x0, -1200, PIT.z0], "Past 1.2 m: walls must be supported", "O. Reg. 213/91 s. 234", { off: [-4, -3] });
+  // step 4
+  lab(3, 1.4, [BOX.x1, 1240, BOX.z1], "8 × 10 aluminium trench box", "rented both days · $1,102.00", { off: [4, -3] });
+  lab(3, 4.6, [950, 1750, 5250], "Worker stays at the top", null, { off: [4, -2], minor: true });
+  // step 5
+  lab(4, 1.6, [BOX.x0, -1600, BOX.z1], "Dig inside the box", "the box goes down with the dig", { off: [-4, 2], until: 5.6 });
+  lab(4, 4.0, [0, yW + 107, 9300], "Live 200 mm lead, dug by hand", "last 300 mm with shovels", { off: [-6, -2] });
+  dim(4, 5.6, [PIT.x1 + 120, 0, PIT.z1], [PIT.x1 + 120, PIT.yb, PIT.z1], "≈ 2.4 m ◇");
+  lab(4, 7.8, [PIT.x1, FG, PIT.z0 + 800], "≈ 3.0 m below the finished asphalt ◇", "640 of pavement still to come", { off: [4, -3], hold: true });
+  // step 6
+  lab(5, 0.8, [0, yW, 7840], "Cut out a section of the live lead", null, { off: [-4, -3], until: 2.8 });
+  lab(5, 3.8, [0, yW + 120, 7840], "200×200×150 wye", "$145.50", { off: [4, -4] });
+  lab(5, 5.4, [0, yW, CUT1], "200 mm repair couplings × 2", "$196.00", { off: [-4, 3] });
+  // step 7
+  lab(6, 1.4, [0, yW + 380, RZ], "150 mm 45° bend", "$44.00", { off: [4, 2], minor: true, until: 6.0 });
+  lab(6, 3.8, [0, -900, RZ], "Stub-up for the plumbers, capped", "top ≈ 0.3 m below subgrade ◇", { off: [4, -3] });
+  lab(6, 6.8, [-2800, STUB + 90, RZ], "MSB 150 STW from the canopy drains", "later, by MSB · not in this claim", { off: [-3, -3], c: "msb" });
+  lab(6, 8.0, [0, yW, 7840], "GEN-1 (Jun 25) shows a tee", "built as a wye + 45° bend", { off: [-4, 3], hold: true, minor: true });
+  // step 8
+  lab(7, 1.8, [-9300, 1350, 13800], "Granular A, 20.39 t", "delivered Jun 23 · $458.78", { off: [-3, -3] });
+  lab(7, 4.6, [PIT.x0, GTOP, PIT.z0], "≈ 1.1 m of Granular A ◇", "≈ 9–10 m³ compacted in lifts", { off: [-4, -3] });
+  // step 9
+  lab(8, 2.0, [PIT.x0, -700, PIT.z1], "Native backfill in compacted lifts", null, { off: [-4, 2] });
+  lab(8, 3.6, [BOX.x1, 1800, BOX.z0 + 300], "Box pulled up in stages", null, { off: [4, -3], until: 7.0 });
+  lab(8, 7.2, [185, 1100, RZ], "Stub marked for MSB", null, { off: [3, -3], minor: true });
+  // step 10 (kept on the poster)
+  lab(9, 1.8, [PIT.x0, -1200, PIT.z0], "≈ 21 m³ dug ◇", "3.6 × 2.4 m · 2.4 m deep", { off: [-5, -4], keep: true, hold: true });
+  lab(9, 3.0, [0, yW, 7840], "One tie-in on the CB-4 lead", "refuelling station drainage · CD-007 §3.2", { off: [-5, 3], keep: true });
+  lab(9, 4.2, [PIT.x1, 0, PIT.z0], "2 days · 1 crew", "foreman · 3 labourers · 8 t excavator · Cat 430", { off: [4, -4], keep: true });
+  lab(9, 5.6, [PIT.x1 + 3200, 0, PIT.z1 + 1800], "$20,312.81", "before HST · invoice 62223", { off: [2, 2], keep: true, big: true });
+  dim(9, 2.4, [PIT.x1 + 250, 20, PIT.z0], [PIT.x1 + 250, 20, PIT.z1], "3.6 m ◇", { keep: true });
+  dim(9, 2.6, [PIT.x0, 20, PIT.z1 + 250], [PIT.x1, 20, PIT.z1 + 250], "2.4 m ◇", { keep: true });
+  dim(9, 2.8, [PIT.x1 + 120, 0, PIT.z1], [PIT.x1 + 120, PIT.yb, PIT.z1], "2.4 m ◇", { keep: true });
+
+  // ======================= render
+  let stageW = 960, stageH = 540, dpr = 1, lensShift = -0.12, camScale = 1;
+  const PROJ = { vp: null };
+  const lerp3 = (a, b, k) => a.map((v, j) => v + (b[j] - v) * k);
+  function mixCam(a, b, k) { return { t: lerp3(a.t, b.t, k), yaw: a.yaw + (b.yaw - a.yaw) * k, pitch: a.pitch + (b.pitch - a.pitch) * k, d: Math.exp(Math.log(a.d) + (Math.log(b.d) - Math.log(a.d)) * k) }; }
+  function drift(i, tau) { return (i === STEPS.length - 1 ? 0.8 : 0.5) * tau; }   // slow yaw drift, degrees
+  function camRaw(i, tau) {
+    const s = STEPS[i];
+    const c = s.cam2 && tau > s.c2 ? mixCam(s.cam, s.cam2, EASE.inout(Math.min(1, (tau - s.c2) / (s.c2d || 2.2)))) : s.cam;
+    return { t: c.t, yaw: c.yaw + drift(i, tau), pitch: c.pitch, d: c.d };
+  }
+  function camAt(T) {
+    const i = stepAt(T), tau = T - starts[i];
+    let c = camRaw(i, tau);
+    if (i > 0 && tau < CAM_T) c = mixCam(camRaw(i - 1, STEPS[i - 1].dur), c, EASE.inout(tau / CAM_T));
+    const d = c.d * camScale, y = c.yaw * Math.PI / 180, p = c.pitch * Math.PI / 180;
+    return { p: [c.t[0] - Math.sin(y) * Math.cos(p) * d, c.t[1] + Math.sin(p) * d, c.t[2] + Math.cos(y) * Math.cos(p) * d], t: c.t.slice() };
+  }
+  function stepAt(t) { for (let i = STEPS.length - 1; i >= 0; i--) if (t >= starts[i]) return i; return 0; }
+
+  function groupMatrix(g, T) {
+    const st = g.st;
+    st.op = val(g, "op", T, 1); st.tx = val(g, "tx", T, 0); st.ty = val(g, "ty", T, 0); st.tz = val(g, "tz", T, 0);
+    st.sc = val(g, "sc", T, 1); st.ry = val(g, "ry", T, 0); st.em = val(g, "em", T, 0);
+    st.gx = val(g, "gx", T, 1); st.gy = val(g, "gy", T, 1); st.gz = val(g, "gz", T, 1);
+    const pv = g.pivot, ry = st.ry + (st.cry || 0);
+    let m = M.T(st.tx + (st.cx || 0) + pv[0], st.ty + (st.cy || 0) + pv[1], st.tz + (st.cz || 0) + pv[2]);
+    if (ry) m = M.mul(m, M.RY(ry * Math.PI / 180));
+    const s = st.sc;
+    if (s !== 1 || st.gx !== 1 || st.gy !== 1 || st.gz !== 1) m = M.mul(m, M.S(s * st.gx, s * st.gy, s * st.gz));
+    m = M.mul(m, M.T(-pv[0], -pv[1], -pv[2]));
+    g.m = m;
+  }
+  function objMatrix(o) {
+    const sx = Math.max(o.s[0], .01), sy = Math.max(o.s[1], .01), sz = Math.max(o.s[2], .01);
+    if (!o.rot) return M.mul(M.mul(o.g.m, M.T(o.p[0], o.p[1], o.p[2])), M.S(sx, sy, sz));
+    let m = M.mul(o.g.m, M.T(o.p[0] + o.s[0] / 2, o.p[1] + o.s[1] / 2, o.p[2] + o.s[2] / 2));
+    if (o.rot[1]) m = M.mul(m, M.RY(o.rot[1] * Math.PI / 180));
+    if (o.rot[0]) m = M.mul(m, M.RX(o.rot[0] * Math.PI / 180));
+    if (o.rot[2]) m = M.mul(m, M.RZ(o.rot[2] * Math.PI / 180));
+    return M.mul(m, M.mul(M.T(-sx / 2, -sy / 2, -sz / 2), M.S(sx, sy, sz)));
+  }
+
+  function draw(T) {
+    customs(T);
+    const cam = camAt(T);
+    const aspect = stageW / stageH;
+    const proj = M.persp(36 * Math.PI / 180, aspect, 300, 400000);
+    proj[9] = lensShift;
+    const view = M.look(cam.p, cam.t, [0, 1, 0]);
+    const VP = M.mul(proj, view);
+    PROJ.vp = VP;
+    for (const g of groups) groupMatrix(g, T);
+    const list = [];
+    for (const o of objs) {
+      const a = o.a * o.g.st.op;
+      if (a <= 0.004) continue;
+      const m = objMatrix(o);
+      const c = M.xf(m, [.5, .5, .5]);
+      list.push({ o, m, a, d: Math.hypot(c[0] - cam.p[0], c[1] - cam.p[1], c[2] - cam.p[2]) });
+    }
+    const opaque = list.filter(it => it.a >= .995).sort((a, b) => a.d - b.d);
+    const trans = list.filter(it => it.a < .995).sort((a, b) => b.d - a.d);
+    const casters = list.filter(it => it.o.shadow && it.a >= .9);
+    const GEO = { 0: [CUBE, 36, EDGES, 24], 1: [CYL, CYL_N, CEDGES, CEDGE_N], 3: [CYL8, CYL8_N, null, 0] };
+    const batches = arr => { const mp = new Map(); for (const it of arr) { const k = it.o.geo * 1000 + it.o.mat; let b = mp.get(k); if (!b) mp.set(k, b = []); b.push(it); } return mp; };
+    // shadow pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, shFB); gl.viewport(0, 0, SHS, SHS);
+    gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
+    gl.clear(gl.DEPTH_BUFFER_BIT); gl.colorMask(false, false, false, false);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(2, 4);
+    gl.useProgram(P_DEPTH.p); gl.uniformMatrix4fv(P_DEPTH.u.uLVP, false, LVP);
+    for (const gid of [0, 1, 3]) { const n = fillInst(casters.filter(it => it.o.geo === gid), false); if (n) { gl.bindVertexArray(GEO[gid][0]); gl.drawElementsInstanced(gl.TRIANGLES, GEO[gid][1], gl.UNSIGNED_SHORT, 0, n); } }
+    gl.colorMask(true, true, true, true); gl.disable(gl.POLYGON_OFFSET_FILL);
+    // main pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.905, 0.918, 0.926, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const useMain = P => {
+      const u = P.u; gl.useProgram(P.p);
+      gl.uniformMatrix4fv(u.uVP, false, VP); gl.uniformMatrix4fv(u.uLVP, false, LVP);
+      gl.uniform3fv(u.uEye, cam.p); gl.uniform3fv(u.uLD, LD); gl.uniform3fv(u.uFog, [0.905, 0.918, 0.926]); gl.uniform2fv(u.uFogR, FOGR);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, shTex); gl.uniform1i(u.uSh, 0); gl.uniform1f(u.uShOn, 1);
+    };
+    const useLine = () => { gl.useProgram(P_LINE.p); gl.uniformMatrix4fv(P_LINE.u.uVP, false, VP); };
+    const blendOn = () => { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); };
+    const drawBatch = (arr, trans) => {
+      const gid = arr[0].o.geo, [V, N, E, EN] = GEO[gid];
+      const n = fillInst(arr, trans);
+      useMain(progFor(arr[0].o.mat));
+      if (trans) blendOn(); else { gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.CULL_FACE); }
+      gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 2);
+      gl.bindVertexArray(V); gl.drawElementsInstanced(gl.TRIANGLES, N, gl.UNSIGNED_SHORT, 0, n);
+      gl.disable(gl.CULL_FACE); gl.disable(gl.POLYGON_OFFSET_FILL);
+      if (!E) return;
+      blendOn(); useLine(); gl.bindVertexArray(E); gl.drawArraysInstanced(gl.LINES, 0, EN, n);
+    };
+    for (const arr of batches(opaque).values()) drawBatch(arr, false);
+    // see-through objects one at a time, far to near, so overlapping glass sorts properly
+    for (const it of trans) drawBatch([it], true);
+    gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+    overlay(T, cam);
+  }
+
+  function toScreen(p) {
+    const q = M.xf(PROJ.vp, p);
+    return { x: (q[0] * .5 + .5) * stageW, y: (1 - (q[1] * .5 + .5)) * stageH, behind: q[3] <= 0 };
+  }
+  function winOp(step, a, T, keep) {
+    const s0 = starts[step], s1 = s0 + STEPS[step].dur;
+    let op = 0;
+    if (T >= s0 + a) op = Math.min(1, (T - s0 - a) / .35);
+    if (!keep) { if (T > s1 - .5) op = Math.min(op, Math.max(0, (s1 - .1 - T) / .4)); if (T >= s1) op = 0; }
+    return op;
+  }
+  let lf = 14;
+  function overlay(T, cam) {
+    const intro = document.getElementById("intro");
+    const io = T < INTRO_T ? 1 : Math.max(0, 1 - (T - INTRO_T) / .5);
+    intro.style.opacity = poster ? 0 : io;
+    const chrome = poster ? 1 : 1 - io;
+    const oo = VIDEO ? Math.max(0, Math.min(1, (T - (TOTAL - 2.4)) / .5)) : 0;
+    outroEl.style.opacity = oo;
+    badgeEl.style.opacity = chrome; cap.style.opacity = stageWrap.classList.contains("narrow") ? 1 : chrome;
+    const narrow = stageWrap.classList.contains("narrow");
+    const topY = badgeEl.offsetTop + badgeEl.offsetHeight + 6;
+    const botY = narrow ? stageH - 6 : stageH - cap.offsetHeight - stageH * 0.026 - 8;
+    for (const L of labels) {
+      let op = poster ? (L.step === STEPS.length - 1 && L.keep ? 1 : 0) : winOp(L.step, L.a, T, L.keep);
+      if (!poster && L.until != null) op = Math.min(op, Math.max(0, 1 - (T - starts[L.step] - L.until) / .35));
+      op *= 1 - oo;
+      L.el.style.opacity = op; L.ln.style.opacity = op * .85; L.dot.style.opacity = op;
+      if (op <= 0) continue;
+      const s = toScreen(L.at);
+      const ox = L.off[0] * lf, oy = L.off[1] * lf;
+      const w = L.el.offsetWidth, h = L.el.offsetHeight;
+      let x = s.x + ox, y = s.y + oy;
+      let bx = ox < 0 ? x - w : x, by = oy < 0 ? y - h : y;
+      bx = Math.max(6, Math.min(stageW - w - 6, bx)); by = Math.max(topY, Math.min(botY - h, by));
+      L.el.style.transform = "translate(" + Math.round(bx) + "px," + Math.round(by) + "px)";
+      const ex = Math.max(bx, Math.min(s.x, bx + w)), ey = Math.max(by, Math.min(s.y, by + h));
+      L.ln.setAttribute("x1", ex); L.ln.setAttribute("y1", ey); L.ln.setAttribute("x2", s.x); L.ln.setAttribute("y2", s.y);
+      L.dot.setAttribute("cx", s.x); L.dot.setAttribute("cy", s.y);
+    }
+    for (const Dm of dims) {
+      let op = (poster ? (Dm.step === STEPS.length - 1 && Dm.keep ? 1 : 0) : winOp(Dm.step, Dm.a, T, Dm.keep)) * (1 - oo);
+      Dm.g.style.opacity = op; Dm.el.style.opacity = op;
+      if (op <= 0) continue;
+      const a = toScreen(Dm.p1), b = toScreen(Dm.p2);
+      Dm.ln.setAttribute("x1", a.x); Dm.ln.setAttribute("y1", a.y); Dm.ln.setAttribute("x2", b.x); Dm.ln.setAttribute("y2", b.y);
+      const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * 7, ny = dx / l * 7;
+      Dm.t1.setAttribute("x1", a.x - nx); Dm.t1.setAttribute("y1", a.y - ny); Dm.t1.setAttribute("x2", a.x + nx); Dm.t1.setAttribute("y2", a.y + ny);
+      Dm.t2.setAttribute("x1", b.x - nx); Dm.t2.setAttribute("y1", b.y - ny); Dm.t2.setAttribute("x2", b.x + nx); Dm.t2.setAttribute("y2", b.y + ny);
+      const w = Dm.el.offsetWidth, h = Dm.el.offsetHeight;
+      Dm.el.style.transform = "translate(" + Math.round((a.x + b.x) / 2 - w / 2 + nx * 2.2) + "px," + Math.round((a.y + b.y) / 2 - h / 2 + ny * 2.2) + "px)";
+    }
+    // compass: true north from the GEN-1 reference bearing
+    const c0 = toScreen(cam.t), c1 = toScreen([cam.t[0] + NORTH[0] * 1000, cam.t[1], cam.t[2] + NORTH[2] * 1000]);
+    const ang = Math.atan2(c1.x - c0.x, -(c1.y - c0.y)) * 180 / Math.PI;
+    document.getElementById("cneedle").setAttribute("transform", "rotate(" + ang.toFixed(1) + ")");
+  }
+
+  // ======================= UI
+  const $ = id => document.getElementById(id);
+  const stepsOl = $("steps"), segs = $("segs"), cap = $("cap");
+  const segFills = [], stepLis = [];
+  STEPS.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "step"; li.style.setProperty("--c", "var(--" + s.c + ")");
+    li.innerHTML = '<button class="step-head" type="button" aria-expanded="false"><span class="n">' + (i + 1) + '</span><span class="t">' + s.title + '</span><span class="w">' + s.who + '</span></button>' +
+      '<div class="step-body" hidden><ul>' + LIST[i].map(b => "<li>" + b + "</li>").join("") + "</ul>" +
+      (s.hold ? '<p class="hold"><b>Confirm</b>' + s.hold + "</p>" : "") + '<p class="ref">' + s.ref + "</p></div>";
+    li.querySelector(".step-head").addEventListener("click", () => goStep(i, true));
+    stepsOl.appendChild(li); stepLis.push(li);
+    const b = document.createElement("button"); b.className = "seg"; b.type = "button";
+    b.style.setProperty("--g", s.dur); b.style.setProperty("--c", "var(--" + s.c + ")");
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.title);
+    b.innerHTML = "<i></i><span>" + (i + 1) + "</span>";
+    b.addEventListener("click", () => goStep(i, true));
+    segs.appendChild(b); segFills.push(b.firstChild);
+  });
+  const fmt = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+  let shown = "", T = TOTAL, playing = false, speed = 1, lastTs = null, raf = 0, stopEach = false, stopAt = TOTAL, poster = !VIDEO;
+  function updateUI(t) {
+    const i = stepAt(t);
+    for (let k = 0; k < STEPS.length; k++) {
+      const p = Math.max(0, Math.min(1, (t - starts[k]) / STEPS[k].dur));
+      segFills[k].style.width = (p * 100) + "%"; segFills[k].parentNode.classList.toggle("lit", p >= .5);
+    }
+    $("clock").textContent = fmt(Math.min(t, TOTAL)) + " / " + fmt(TOTAL);
+    const key = poster + "|" + i;
+    if (key !== shown) {
+      shown = key;
+      const s = STEPS[i];
+      stepLis.forEach((li, k) => { const on = !poster && k === i; li.classList.toggle("active", on); li.querySelector(".step-head").setAttribute("aria-expanded", on); li.querySelector(".step-body").hidden = !on; });
+      const b = $("badge");
+      b.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      $("bNum").textContent = poster ? "✓" : String(i + 1);
+      $("bTitle").textContent = poster ? "Tie-in complete" : s.title;
+      $("bWho").textContent = poster ? "" : s.who;
+      cap.style.setProperty("--c", poster ? "#13202b" : "var(--" + s.c + ")");
+      cap.innerHTML = poster
+        ? "<ul><li>Road-Ex dug up the buried CB-4 lead in a trench box, spliced in a wye with a stub-up for the plumbers, and backfilled it: one pit about 3.6 × 2.4 m and 2.4 m deep ◇, two 10-hour days, $20,312.81 before HST.</li><li>Play it to see the 10 steps, each tied to the tickets, the invoice and the drawings.</li></ul><div class=\"ref\">CD-007 §3.2 · tickets 2570, 2571 · invoice 62223 · GEN-1 rev 32 · M-100 detail 2 · ◇ = derived, confirm</div>"
+        : "<ul>" + s.lines.map(x => "<li>" + x + "</li>").join("") + "</ul>" + (s.hold ? '<div class="hold"><b>Confirm</b>' + s.hold + "</div>" : "") + '<div class="ref">' + s.ref + "</div>";
+    }
+    $("bigPlay").hidden = playing || !poster || VIDEO;
+  }
+  function render(t) { draw(t); updateUI(t); }
+  function setPlay() {
+    $("playText").textContent = playing ? "Pause" : (T >= TOTAL && !poster ? "Replay" : "Play");
+    $("playIcon").innerHTML = playing ? '<path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/>' : '<path d="M7 4.5v15l13-7.5z"/>';
+  }
+  const reduceMQ = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function tick(ts) {
+    if (!playing) return;
+    if (lastTs !== null) T = Math.min(stopAt, T + (ts - lastTs) / 1000 * speed);
+    lastTs = ts; render(T);
+    if (T >= stopAt) { pause(); return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function play() {
+    if (T >= TOTAL || poster) T = 0;
+    poster = false;
+    if (reduceMQ.matches) { const i = stepAt(T); T = Math.min(TOTAL - .001, starts[i] + STEPS[i].dur - .001); playing = false; render(T); setPlay(); return; }
+    const i = stepAt(T);
+    stopAt = stopEach ? Math.min(TOTAL, starts[i] + STEPS[i].dur - .001) : TOTAL;
+    if (T >= stopAt - .01) { const j = Math.min(i + 1, STEPS.length - 1); stopAt = stopEach ? Math.min(TOTAL, starts[j] + STEPS[j].dur - .001) : TOTAL; }
+    playing = true; lastTs = null; cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); setPlay(); render(T);
+  }
+  function pause() { playing = false; cancelAnimationFrame(raf); setPlay(); render(T); }
+  function goStep(i, auto) {
+    i = Math.max(0, Math.min(STEPS.length - 1, i)); poster = false; cancelAnimationFrame(raf); playing = false;
+    if (reduceMQ.matches) { T = starts[i] + STEPS[i].dur - .001; render(T); setPlay(); return; }
+    T = starts[i]; render(T);
+    if (auto) { stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; playing = true; lastTs = null; raf = requestAnimationFrame(tick); }
+    setPlay();
+  }
+  $("bigPlay").addEventListener("click", () => { poster = true; play(); });
+  $("play").addEventListener("click", () => (playing ? pause() : play()));
+  $("next").addEventListener("click", () => goStep(poster ? 0 : stepAt(T) + 1, true));
+  $("prev").addEventListener("click", () => { if (poster) return goStep(STEPS.length - 1, true); const i = stepAt(T); goStep(T - starts[i] > 1.5 ? i : i - 1, true); });
+  $("stopEach").addEventListener("click", e => { stopEach = !stopEach; e.currentTarget.setAttribute("aria-pressed", stopEach); if (playing) { const i = stepAt(T); stopAt = stopEach ? starts[i] + STEPS[i].dur - .001 : TOTAL; } });
+  $("speed").addEventListener("click", e => { speed = speed === 1 ? .5 : 1; e.currentTarget.textContent = speed === 1 ? "1×" : "½×"; });
+  document.addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("button, input, textarea, select, summary")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); $("next").click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); $("prev").click(); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = Math.max(1, r.width); stageH = Math.max(1, r.height);
+    dpr = VIDEO ? 1 : Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(stageW * dpr); canvas.height = Math.round(stageH * dpr);
+    lf = Math.max(11, Math.min(24, stageW / 86));
+    stage.style.setProperty("--lf", lf + "px");
+    stage.style.setProperty("--tf", Math.max(14, Math.min(40, stageW / 50)) + "px");
+    stageWrap.style.setProperty("--cf", Math.max(12.5, Math.min(26, stageW / 74)) + "px");
+    stageWrap.classList.toggle("narrow", stageW < 640 && !VIDEO);
+    lensShift = stageWrap.classList.contains("narrow") ? 0 : -0.12;
+    camScale = stageWrap.classList.contains("narrow") ? 0.9 : 1;
+    render(T);
+  }
+  new ResizeObserver(measure).observe(stage);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => render(T));
+  window.__seek = t => { poster = false; playing = false; T = t; render(T); };
+  window.__total = TOTAL; window.__starts = starts.slice(); window.__durs = STEPS.map(s => s.dur);
+  measure(); setPlay();
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>
